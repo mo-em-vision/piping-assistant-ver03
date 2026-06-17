@@ -41,12 +41,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "core/10. report_generation_design.md",
+                "file": "to do.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "10. report_generation_design"
+              "title": "to do"
             }
           }
         ],
@@ -214,8 +214,9 @@
   },
   "active": "3d5dd0d164792b1d",
   "lastOpenFiles": [
-    "core/9. cli_design.md",
     "core/10. report_generation_design.md",
+    "to do.md",
+    "core/9. cli_design.md",
     "core/5. workflow_design.md",
     "core/6. ai_agent_design.md",
     "core/7. node_structure_design.md",

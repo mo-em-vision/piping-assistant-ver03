@@ -1,14 +1,13 @@
-"""Report generation command (MVP stub)."""
+"""Report generation command."""
 
 from __future__ import annotations
-
-from pathlib import Path
 
 import typer
 
 from cli.display import print_assistant, print_error
 from cli.session_store import SessionStore
 from config.loader import CLIConfig
+from engine.reports.report_generator import ReportGenerator
 from engine.state.state_manager import TaskNotFoundError
 
 
@@ -23,7 +22,17 @@ def register_report_commands(app: typer.Typer, config: CLIConfig) -> None:
             None,
             "--format",
             "-f",
-            help="Report format: pdf or html",
+            help="Report format: pdf, html, markdown, md, or json",
+        ),
+        with_ai: bool = typer.Option(
+            False,
+            "--with-ai",
+            help="Apply AI presentation layer (does not modify engineering values).",
+        ),
+        draft: bool = typer.Option(
+            False,
+            "--draft",
+            help="Save report data draft only (no final document).",
         ),
     ) -> None:
         """Generate a report for a completed or in-progress task."""
@@ -35,26 +44,51 @@ def register_report_commands(app: typer.Typer, config: CLIConfig) -> None:
             print_error(f"Task not found: {task_id}")
             raise typer.Exit(code=1) from None
 
+        generator = ReportGenerator(
+            config.standards_root,
+            standard=config.default_standard.lower(),
+        )
+        report = generator.build(task_id, manager)
+        output_dir = store.session_path / "reports"
+
+        if draft:
+            path = generator.save_draft(report, output_dir)
+            print_assistant(f"Draft report data saved to: {path}")
+            return
+
         report_format = (format or config.report_format).lower()
-        if report_format not in {"pdf", "html"}:
-            print_error("Supported formats: pdf, html")
+        format_map = {
+            "pdf": ("pdf", "html", "markdown", "json"),
+            "html": ("html", "markdown", "json"),
+            "markdown": ("markdown", "json"),
+            "md": ("markdown", "json"),
+            "json": ("json",),
+        }
+        if report_format not in format_map:
+            print_error("Supported formats: pdf, html, markdown, md, json")
             raise typer.Exit(code=1)
 
-        output_dir = store.session_path / "reports"
-        output_dir.mkdir(parents=True, exist_ok=True)
-        placeholder = output_dir / f"{task_id}.{report_format}"
-        placeholder.write_text(
-            (
-                f"Report placeholder for task {task_id}\n"
-                f"Format: {report_format}\n\n"
-                "Report Generator is not yet implemented. "
-                "Execution trace → Report Data → AI Presentation → output will be wired in a later step."
-            ),
-            encoding="utf-8",
+        storage = generator.generate(
+            report,
+            output_dir,
+            formats=format_map[report_format],
+            use_ai=with_ai,
         )
 
-        print_assistant(
-            f"Report generation is not fully implemented yet.\n\n"
-            f"Placeholder written to: {placeholder}\n\n"
-            "The CLI invoked the report command without bypassing future Report Generator wiring."
-        )
+        lines = [
+            f"Report generated for task `{task_id}`.",
+            f"Status: {report.status}",
+            f"Report data: {storage.report_data_path}",
+        ]
+        if storage.markdown_path:
+            lines.append(f"Markdown: {storage.markdown_path}")
+        if storage.html_path:
+            lines.append(f"HTML: {storage.html_path}")
+        if storage.pdf_path:
+            lines.append(f"PDF: {storage.pdf_path}")
+        if storage.json_path:
+            lines.append(f"JSON: {storage.json_path}")
+        if with_ai:
+            lines.append("AI presentation layer applied.")
+
+        print_assistant("\n".join(lines))

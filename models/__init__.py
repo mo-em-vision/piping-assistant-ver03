@@ -18,7 +18,18 @@ from .calculation import CalculationResult, CalculationStatus, CalculationStep, 
 from .event import Event, EventType
 from .graph import EdgeType, GraphEdge, GraphVersion
 from .input import EngineeringInput, InputLimits, InputSource, InputStatus
-from .report import ReportData, ReportSection, ReportStorage, TraceabilityEntry
+from .report import (
+    ReportData,
+    ReportDecision,
+    ReportInputEntry,
+    ReportOverride,
+    ReportSection,
+    ReportStorage,
+    ReportTraversalStep,
+    ReportVersionInfo,
+    ReportWarning,
+    TraceabilityEntry,
+)
 from .rule import RuleValidation, ValidationResult
 from .standard_node import (
     DependencyType,
@@ -62,8 +73,14 @@ __all__ = [
     "PlannerResult",
     "QuantityResult",
     "ReportData",
+    "ReportDecision",
+    "ReportInputEntry",
+    "ReportOverride",
     "ReportSection",
     "ReportStorage",
+    "ReportTraversalStep",
+    "ReportVersionInfo",
+    "ReportWarning",
     "RoutingResult",
     "RuleValidation",
     "StandardNode",
