@@ -1,6 +1,19 @@
 """Pure data structures for the engineering knowledge graph system."""
 
-from .agent import AgentContext
+from .agent import (
+    AgentAction,
+    AgentContext,
+    AlternativePathRecord,
+    ContextResult,
+    InputAgentResult,
+    InputRequest,
+    IntentResult,
+    OverrideConfirmation,
+    PlannerResult,
+    RoutingResult,
+    StandardOption,
+    SynthesisResult,
+)
 from .calculation import CalculationResult, CalculationStatus, CalculationStep, QuantityResult
 from .event import Event, EventType
 from .graph import EdgeType, GraphEdge, GraphVersion
@@ -19,10 +32,13 @@ from .standard_node import (
 from .task import InputConflict, Task, TaskStatus
 
 __all__ = [
+    "AgentAction",
     "AgentContext",
+    "AlternativePathRecord",
     "CalculationResult",
     "CalculationStatus",
     "CalculationStep",
+    "ContextResult",
     "DependencyType",
     "EdgeType",
     "EngineeringInput",
@@ -31,20 +47,28 @@ __all__ = [
     "FormulaDefinition",
     "GraphEdge",
     "GraphVersion",
+    "InputAgentResult",
     "InputConflict",
     "InputLimits",
+    "InputRequest",
     "InputSource",
     "InputSourceType",
     "InputStatus",
+    "IntentResult",
     "NodeProvidedOutput",
     "NodeRequiredInput",
     "OutputType",
+    "OverrideConfirmation",
+    "PlannerResult",
     "QuantityResult",
     "ReportData",
     "ReportSection",
     "ReportStorage",
+    "RoutingResult",
     "RuleValidation",
     "StandardNode",
+    "StandardOption",
+    "SynthesisResult",
     "Task",
     "TaskStatus",
     "TraceabilityEntry",

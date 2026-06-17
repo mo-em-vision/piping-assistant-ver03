@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "core/9. cli_design.md",
+                "file": "core/5. workflow_design.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "9. cli_design"
+              "title": "5. workflow_design"
             }
           }
         ],
@@ -198,16 +198,16 @@
       "bases:Create new base": false
     }
   },
-  "active": "dc689c1f3b781755",
+  "active": "c2402f6aa91bc8d6",
   "lastOpenFiles": [
+    "core/6. ai_agent_design.md",
+    "core/9. cli_design.md",
     "core/7. node_structure_design.md",
     "core/12. Cursor Build Sequence (SAFE STEP-BY-STEP PLAN).md",
-    "core/9. cli_design.md",
     "core/1. Architecture.md",
     "core/3. component_responsibilities.md",
     "core/8. Node Template.md",
     "core/4. data_models.md",
-    "core/6. ai_agent_design.md",
     "core/5. workflow_design.md",
     "system_overview.md",
     "core/2. system_overview.md",
