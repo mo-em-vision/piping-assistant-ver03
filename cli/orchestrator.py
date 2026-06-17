@@ -1,0 +1,128 @@
+"""Wire CLI requests through agents and state manager — no engineering logic."""
+
+from __future__ import annotations
+
+from dataclasses import asdict
+from typing import Any
+
+from ai.agents.context_agent import ContextAgent
+from ai.agents.input_agent import InputAgent
+from ai.agents.intent_agent import IntentAgent
+from ai.agents.planner_agent import PlannerAgent
+from ai.client import MissingAPIKeyError, OpenAIClient
+from ai.response.response_handler import ResponseHandler
+from engine.router import PIPE_WALL_THICKNESS_DESIGN
+from engine.state.state_manager import TaskStateManager
+from models.agent import AgentAction, AgentContext
+from models.task import TaskStatus
+
+from cli.responses import CLIResponse
+from cli.session_store import new_task_id
+
+
+class ChatOrchestrator:
+    """Coordinates navigation agents for the chat command."""
+
+    def __init__(
+        self,
+        state_manager: TaskStateManager,
+        *,
+        llm_client: Any | None = None,
+    ) -> None:
+        client = llm_client
+        if client is None:
+            try:
+                client = OpenAIClient.from_settings()
+            except MissingAPIKeyError:
+                client = None
+
+        self.state_manager = state_manager
+        self.intent_agent = IntentAgent(client=client)
+        self.planner_agent = PlannerAgent(client=client)
+        self.input_agent = InputAgent(client=client)
+        self.context_agent = ContextAgent(client=client)
+        self.response_handler = ResponseHandler()
+
+    def handle_message(
+        self,
+        message: str,
+        *,
+        debug_ai: bool = False,
+    ) -> tuple[CLIResponse, dict[str, Any]]:
+        debug: dict[str, Any] = {}
+        active = self.state_manager.get_active_task()
+        context = AgentContext(
+            active_task_id=active.task_id if active else None,
+            user_message=message,
+            workflow=PIPE_WALL_THICKNESS_DESIGN if active else None,
+        )
+
+        context_result = self.context_agent.evaluate(message, context=context)
+        debug["Context Agent"] = asdict(context_result)
+        if context_result.context_switch_detected:
+            return (
+                CLIResponse(
+                    status="context_switch",
+                    message=context_result.message,
+                    task_id=context.active_task_id if active else None,
+                ),
+                debug if debug_ai else {},
+            )
+
+        intent = self.intent_agent.analyze(message, context=context)
+        debug["Intent Agent"] = asdict(intent)
+
+        if intent.action == AgentAction.CLARIFY:
+            return (
+                CLIResponse(
+                    status="clarify",
+                    message=intent.message
+                    or "Please clarify your engineering request.",
+                    data=asdict(intent),
+                ),
+                debug if debug_ai else {},
+            )
+
+        workflow = intent.workflow or intent.intent
+        task = active
+        if task is None or task.status in {TaskStatus.COMPLETED, TaskStatus.INVALIDATED}:
+            task_id = new_task_id(workflow or "task")
+            task = self.state_manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
+        elif task.status == TaskStatus.PAUSED:
+            self.state_manager.resume_task(task.task_id)
+            task = self.state_manager.get_task(task.task_id)
+
+        plan = self.planner_agent.plan(intent)
+        debug["Planner Agent"] = asdict(plan)
+
+        input_result = self.input_agent.analyze(task, workflow=workflow, context=context)
+        debug["Input Agent"] = asdict(input_result)
+
+        if input_result.missing_inputs:
+            self.state_manager.update_task_status(task.task_id, TaskStatus.AWAITING_INPUT)
+            formatted = self.response_handler.format_input_requests(input_result)
+            first = input_result.requests[0] if input_result.requests else None
+            return (
+                CLIResponse(
+                    status="waiting_input",
+                    message=formatted,
+                    question=f"Please provide: {', '.join(input_result.missing_inputs)}",
+                    required_by=first.node_id if first else None,
+                    task_id=task.task_id,
+                    data={"missing_inputs": input_result.missing_inputs},
+                ),
+                debug if debug_ai else {},
+            )
+
+        self.state_manager.update_task_status(task.task_id, TaskStatus.ACTIVE)
+        summary = self.response_handler.format_intent(intent)
+        plan_summary = self.response_handler.format_planner(plan)
+        return (
+            CLIResponse(
+                status="ready",
+                message=f"{summary}\n\n{plan_summary}",
+                task_id=task.task_id,
+                data={"workflow": workflow},
+            ),
+            debug if debug_ai else {},
+        )
