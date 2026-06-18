@@ -18,6 +18,8 @@ from models.task import Task, TaskStatus
 def _json_default(value: Any) -> Any:
     if isinstance(value, Enum):
         return value.value
+    if isinstance(value, datetime):
+        return value.isoformat()
     if is_dataclass(value):
         return asdict(value)
     raise TypeError(f"Object of type {type(value)!r} is not JSON serializable")
