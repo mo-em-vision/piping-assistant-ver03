@@ -27,6 +27,13 @@ from .execution import (
 from .graph import EdgeType, GraphEdge, GraphVersion
 from .input import EngineeringInput, InputLimits, InputSource, InputStatus
 from .planning import NavigationPlan, StructuredIntent, WorkflowCandidate
+from .validation import (
+    ComplianceStatus,
+    LayerValidationResult,
+    ValidationFinding,
+    ValidationOverride,
+    ValidationSeverity,
+)
 from .report import (
     ReportData,
     ReportDecision,
@@ -58,6 +65,7 @@ __all__ = [
     "CalculationResult",
     "CalculationStatus",
     "CalculationStep",
+    "ComplianceStatus",
     "ContextResult",
     "DependencyType",
     "EdgeType",
@@ -79,6 +87,7 @@ __all__ = [
     "InputSourceType",
     "InputStatus",
     "IntentResult",
+    "LayerValidationResult",
     "NavigationPlan",
     "NodeExecutionResult",
     "NodeExecutionStatus",
@@ -106,6 +115,9 @@ __all__ = [
     "Task",
     "TaskStatus",
     "TraceabilityEntry",
+    "ValidationFinding",
+    "ValidationOverride",
     "ValidationResult",
+    "ValidationSeverity",
     "WorkflowCandidate",
 ]

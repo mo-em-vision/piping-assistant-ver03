@@ -11,6 +11,7 @@ from models.report import (
     ReportData,
     ReportDecision,
     ReportInputEntry,
+    ReportOverride,
     ReportSection,
     ReportTraversalStep,
     ReportVersionInfo,
@@ -138,8 +139,9 @@ def _build_pipe_wall_thickness_report(
         sections=[section],
         traceability=[trace],
         decisions=decisions,
-        report_warnings=[ReportWarning(message=w) for w in task.warnings],
+        report_warnings=_report_warnings(task),
         limitations=limitations,
+        overrides=_report_overrides(task),
         missing_inputs=missing,
         formula_display=formula_display,
         conclusion=_conclusion(status, missing, task.outputs),
@@ -164,7 +166,8 @@ def _build_generic_report(
             task_id=task.task_id,
         ),
         user_request=user_request,
-        report_warnings=[ReportWarning(message=w) for w in task.warnings],
+        report_warnings=_report_warnings(task),
+        overrides=_report_overrides(task),
         conclusion="Generic report shell — workflow-specific builder not available.",
     )
 
@@ -194,6 +197,11 @@ def _traversal_from_trace(trace: Any) -> list[ReportTraversalStep]:
 
 
 def _derive_status(task: Task, missing: list[str]) -> str:
+    plan_status = _validation_plan_status(task)
+    if plan_status == "FAIL":
+        return "INVALIDATED"
+    if plan_status == "INCOMPLETE":
+        return "INCOMPLETE"
     if task.status == TaskStatus.INVALIDATED:
         return "INVALIDATED"
     if missing:
@@ -203,6 +211,63 @@ def _derive_status(task: Task, missing: list[str]) -> str:
     if task.status == TaskStatus.COMPLETED:
         return "PASS"
     return "INCOMPLETE"
+
+
+def _validation_trace_entries(task: Task) -> list[dict[str, Any]]:
+    trace = task.outputs.get("_validation_trace")
+    if not isinstance(trace, list):
+        return []
+    return [entry for entry in trace if isinstance(entry, dict)]
+
+
+def _validation_plan_status(task: Task) -> str | None:
+    for entry in _validation_trace_entries(task):
+        if entry.get("scope") == "plan":
+            status = entry.get("status")
+            return str(status) if status else None
+    return None
+
+
+def _report_warnings(task: Task) -> list[ReportWarning]:
+    seen: set[str] = set()
+    warnings: list[ReportWarning] = []
+    for message in task.warnings:
+        if message not in seen:
+            seen.add(message)
+            warnings.append(ReportWarning(message=message))
+    for entry in _validation_trace_entries(task):
+        for item in entry.get("warnings", []):
+            if not isinstance(item, dict):
+                continue
+            message = str(item.get("message", ""))
+            if message and message not in seen:
+                seen.add(message)
+                level = str(item.get("severity", "warning"))
+                warnings.append(ReportWarning(message=message, level=level))
+    return warnings
+
+
+def _report_overrides(task: Task) -> list[ReportOverride]:
+    overrides: list[ReportOverride] = []
+    seen: set[tuple[str, str]] = set()
+    for entry in _validation_trace_entries(task):
+        for item in entry.get("overrides", []):
+            if not isinstance(item, dict):
+                continue
+            rule = str(item.get("rule", ""))
+            decision = str(item.get("user_decision", ""))
+            key = (rule, decision)
+            if rule and key not in seen:
+                seen.add(key)
+                overrides.append(
+                    ReportOverride(
+                        rule=rule,
+                        original_rule=rule,
+                        user_decision=decision,
+                        effect=str(item.get("reason") or "User override recorded"),
+                    )
+                )
+    return overrides
 
 
 def _input_entry(input_id: str, engineering_input: Any) -> ReportInputEntry:

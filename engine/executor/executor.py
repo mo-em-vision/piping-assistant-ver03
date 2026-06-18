@@ -10,7 +10,9 @@ from engine.executor.node_runner import NodeRunner
 from engine.graph.graph_engine import GraphEngine
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
+from engine.validation.validation_engine import ValidationEngine
 from models.event import EventType
+from models.validation import ComplianceStatus
 from models.execution import (
     ExecutionPlan,
     ExecutionResult,
@@ -29,10 +31,12 @@ class Executor:
         reader: StandardsReader,
         *,
         events: EventLogger | None = None,
+        validation: ValidationEngine | None = None,
     ) -> None:
         self._reader = reader
         self._runner = NodeRunner(reader)
         self._events = events or EventLogger()
+        self._validation = validation or ValidationEngine(reader, events=self._events)
 
     @property
     def event_logger(self) -> EventLogger:
@@ -47,7 +51,38 @@ class Executor:
         task = state.get_task(plan.task_id)
         node_results: list[NodeExecutionResult] = []
         dependency_outputs: dict[str, Any] = {}
+        prior_completed: set[str] = set()
+        validation_trace: list[dict[str, Any]] = []
         overall_status = ExecutionStatus.COMPLETED
+
+        plan_validation = self._validation.validate_plan(plan, task)
+        validation_trace.append(
+            {"scope": "plan", **self._validation.to_trace_entry(plan_validation)}
+        )
+        if plan_validation.status == ComplianceStatus.FAIL:
+            state.store_output(plan.task_id, "_validation_trace", validation_trace)
+            state.update_task_status(plan.task_id, TaskStatus.INVALIDATED)
+            for finding in plan_validation.errors:
+                state.add_warning(plan.task_id, finding.message)
+            return ExecutionResult(
+                plan=plan,
+                node_results=node_results,
+                status=ExecutionStatus.ERROR,
+                events=self._events.to_dicts(),
+            )
+
+        if plan_validation.status == ComplianceStatus.INCOMPLETE:
+            state.store_output(plan.task_id, "_validation_trace", validation_trace)
+            state.update_task_status(plan.task_id, TaskStatus.AWAITING_INPUT)
+            return ExecutionResult(
+                plan=plan,
+                node_results=node_results,
+                status=ExecutionStatus.AWAITING_INPUT,
+                events=self._events.to_dicts(),
+            )
+
+        for warning in plan_validation.warnings:
+            state.add_warning(plan.task_id, warning.message)
 
         state.store_output(plan.task_id, "workflow", plan.root)
         if plan.graph_version:
@@ -63,6 +98,40 @@ class Executor:
         for node_id in plan.execution_order:
             if self._reader.load(node_id).metadata.get("type") == "root":
                 continue
+
+            node_validation = self._validation.validate_node(
+                node_id,
+                task_inputs=plan.inputs,
+                dependency_outputs=dependency_outputs,
+                prior_nodes_completed=prior_completed,
+                overrides=self._validation.override_rules_for(task),
+            )
+            validation_trace.append(
+                {"scope": node_id, **self._validation.to_trace_entry(node_validation)}
+            )
+
+            if node_validation.status == ComplianceStatus.FAIL:
+                overall_status = ExecutionStatus.ERROR
+                state.update_task_status(plan.task_id, TaskStatus.INVALIDATED)
+                for finding in node_validation.errors:
+                    state.add_warning(plan.task_id, finding.message)
+                state.store_output(plan.task_id, "_validation_trace", validation_trace)
+                break
+
+            if node_validation.status == ComplianceStatus.INCOMPLETE:
+                overall_status = ExecutionStatus.AWAITING_INPUT
+                state.update_task_status(plan.task_id, TaskStatus.AWAITING_INPUT)
+                self._events.log(
+                    EventType.INPUT_REQUESTED,
+                    node=node_id,
+                    result=[finding.message for finding in node_validation.errors],
+                    payload={"missing": [finding.input_id for finding in node_validation.errors if finding.input_id]},
+                )
+                state.store_output(plan.task_id, "_validation_trace", validation_trace)
+                break
+
+            for warning in node_validation.warnings:
+                state.add_warning(plan.task_id, warning.message)
 
             self._events.log(EventType.CALCULATION_STARTED, node=node_id)
 
@@ -96,6 +165,7 @@ class Executor:
 
             if result.status == NodeExecutionStatus.COMPLETED:
                 dependency_outputs.update(result.outputs)
+                prior_completed.add(node_id)
                 for key, value in result.outputs.items():
                     state.store_output(plan.task_id, key, value)
                 for warning in result.warnings:
@@ -115,6 +185,7 @@ class Executor:
 
         trace_payload = [asdict(item) for item in node_results]
         state.store_output(plan.task_id, "_execution_trace", trace_payload)
+        state.store_output(plan.task_id, "_validation_trace", validation_trace)
 
         if overall_status == ExecutionStatus.COMPLETED:
             state.update_task_status(plan.task_id, TaskStatus.COMPLETED)
