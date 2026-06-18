@@ -4,53 +4,24 @@
     "type": "split",
     "children": [
       {
-        "id": "2229500ae2884450",
+        "id": "86e589a4548bfe85",
         "type": "tabs",
         "children": [
           {
-            "id": "6b9719b3b6623e59",
+            "id": "3aabb645784185c7",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "core/ASME B31.3 Node Anatomy.md",
+                "file": "tests/3. mvp_test_strategy.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "ASME B31.3 Node Anatomy"
-            }
-          },
-          {
-            "id": "c2402f6aa91bc8d6",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "core/9. cli_design.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "9. cli_design"
-            }
-          },
-          {
-            "id": "3d5dd0d164792b1d",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "to do.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "to do"
+              "title": "3. mvp_test_strategy"
             }
           }
-        ],
-        "currentTab": 2
+        ]
       }
     ],
     "direction": "vertical"
@@ -212,23 +183,38 @@
       "bases:Create new base": false
     }
   },
-  "active": "3d5dd0d164792b1d",
+  "active": "3aabb645784185c7",
   "lastOpenFiles": [
-    "core/10. report_generation_design.md",
-    "to do.md",
-    "core/9. cli_design.md",
+    "tests/test_data_design.md",
+    "tests/regression_test_strategy.md",
+    "tests/node_test_cases.md",
+    "tests/3. mvp_test_strategy.md",
+    "tests/2. acceptance_criteria.md",
+    "tests/1. end_to_end_test_cases.md",
+    "todo",
+    "tests",
+    "todo/to do.md",
+    "core/15. validation_layer.md",
+    "core/14. graph_engine_design.md",
+    "core/13. execution_layer_design.md",
+    "core/11. planner_layer_design.md",
     "core/5. workflow_design.md",
-    "core/6. ai_agent_design.md",
-    "core/7. node_structure_design.md",
-    "core/12. Cursor Build Sequence (SAFE STEP-BY-STEP PLAN).md",
-    "core/1. Architecture.md",
-    "core/3. component_responsibilities.md",
+    "core/10. report_generation_design.md",
     "core/8. Node Template.md",
+    "core/9. cli_design.md",
+    "core/7. node_structure_design.md",
+    "core/6. ai_agent_design.md",
+    "core/8. Node Template.txt",
+    "core/3. component_responsibilities.md",
+    "core/12. Cursor Build Sequence (SAFE STEP-BY-STEP PLAN).md",
+    "core/Node Anatomy.md",
     "core/4. data_models.md",
-    "system_overview.md",
     "core/2. system_overview.md",
+    "core/1. Architecture.md",
+    "core/component_responsibilities/component_responsibilities.md",
+    "core/component_responsibilities",
+    "core/component_responsibilities.zip",
     "core/architecture.md.md",
-    "core/ASME B31.3 Node Anatomy.md",
     "core/Unconfirmed 565355.crdownload",
     "core",
     "New folder"
