@@ -1,55 +1,106 @@
-"""Graph navigation planning from identified intent."""
+"""Graph navigation planning from identified intent — delegates to engine.planner."""
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
+from engine.planner.planner import Planner
+from engine.reference.standards_reader import StandardsReader
+from engine.state.state_manager import TaskStateManager
 from models.agent import AgentAction, IntentResult, PlannerResult
+from models.planning import NavigationPlan
+from models.task import Task, TaskStatus
 
-from ai.agents._constants import PIPE_WALL_THICKNESS_DESIGN, PIPE_WALL_THICKNESS_ROOT
 from ai.agents.base import BaseAgent
 
 
 class PlannerAgent(BaseAgent):
     prompt_file = "planner_agent.md"
 
-    _DEFAULT_PRIORITIES: dict[str, list[str]] = {
-        PIPE_WALL_THICKNESS_DESIGN: [
-            "material stress evaluation",
-            "pressure design / wall thickness",
-            "thin-wall applicability check",
-        ],
-    }
+    def __init__(
+        self,
+        client: Any | None = None,
+        *,
+        reader: StandardsReader | None = None,
+        state: TaskStateManager | None = None,
+    ) -> None:
+        super().__init__(client)
+        self._reader = reader
+        self._state = state
 
-    def plan(self, intent: IntentResult) -> PlannerResult:
-        if intent.intent == PIPE_WALL_THICKNESS_DESIGN:
-            return PlannerResult(
-                priorities=self._DEFAULT_PRIORITIES[PIPE_WALL_THICKNESS_DESIGN],
-                root_nodes=intent.root_nodes or [PIPE_WALL_THICKNESS_ROOT],
-                confidence=max(intent.confidence, 0.9),
-                action=AgentAction.PROPOSE_PATH,
-            )
+    def plan_navigation(
+        self,
+        intent: IntentResult,
+        task: Task | None = None,
+        *,
+        user_message: str | None = None,
+    ) -> NavigationPlan:
+        state = self._state or TaskStateManager()
+        reader = self._reader or self._default_reader()
 
-        if self._client is not None:
+        if task is None:
+            task = Task(task_id="planner-preview", status=TaskStatus.ACTIVE)
+
+        planner = Planner(reader, state=state)
+        navigation = planner.plan(intent, task, user_message=user_message)
+
+        if navigation.action == AgentAction.CLARIFY and self._client is not None:
             try:
-                return self._plan_with_llm(intent)
+                llm_result = self._plan_with_llm(intent, navigation)
+                if llm_result.root_nodes:
+                    navigation.selected_root = llm_result.root_nodes[0]
+                    navigation.priorities = llm_result.priorities or navigation.priorities
+                    navigation.confidence = llm_result.confidence
+                    navigation.action = llm_result.action
             except Exception:
                 pass
 
+        return navigation
+
+    def plan(
+        self,
+        intent: IntentResult,
+        task: Task | None = None,
+        *,
+        user_message: str | None = None,
+    ) -> PlannerResult:
+        navigation = self.plan_navigation(intent, task, user_message=user_message)
+        return self._to_planner_result(navigation)
+
+    def _plan_with_llm(
+        self,
+        intent: IntentResult,
+        navigation: NavigationPlan,
+    ) -> PlannerResult:
+        payload = self.complete_json(
+            (
+                f"Intent result:\n{self.format_context(intent.__dict__)}\n\n"
+                f"Navigation candidates:\n{self.format_context([c.__dict__ for c in navigation.candidate_roots])}"
+            ),
+        )
+        root_nodes = list(payload.get("root_nodes", []))
+        if not root_nodes and navigation.selected_root:
+            root_nodes = [navigation.selected_root]
         return PlannerResult(
-            priorities=[],
-            root_nodes=intent.root_nodes,
-            confidence=0.0,
-            action=AgentAction.CLARIFY,
+            priorities=list(payload.get("priorities", navigation.priorities)),
+            root_nodes=root_nodes,
+            confidence=float(payload.get("confidence", navigation.confidence)),
+            action=AgentAction(payload.get("action", navigation.action.value)),
         )
 
-    def _plan_with_llm(self, intent: IntentResult) -> PlannerResult:
-        payload = self.complete_json(
-            f"Intent result:\n{self.format_context(intent.__dict__)}",
-        )
+    @staticmethod
+    def _to_planner_result(navigation: NavigationPlan) -> PlannerResult:
+        root = navigation.selected_root
+        root_nodes = [root] if root else []
         return PlannerResult(
-            priorities=list(payload.get("priorities", [])),
-            root_nodes=list(payload.get("root_nodes", intent.root_nodes)),
-            confidence=float(payload.get("confidence", 0.0)),
-            action=AgentAction.PROPOSE_PATH,
+            priorities=navigation.priorities,
+            root_nodes=root_nodes,
+            confidence=navigation.confidence,
+            action=navigation.action,
         )
+
+    @staticmethod
+    def _default_reader() -> StandardsReader:
+        root = Path(__file__).resolve().parents[2]
+        return StandardsReader(root / "standards", standard="asme_b31.3")

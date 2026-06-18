@@ -6,15 +6,18 @@ from typing import Any
 
 from engine.state.state_manager import TaskStateManager
 from models.agent import AgentAction, AgentContext, InputAgentResult, InputRequest
+from models.planning import NavigationPlan
 from models.task import Task
 
 from ai.agents._constants import (
     PIPE_WALL_THICKNESS_DESIGN,
     PIPE_WALL_THICKNESS_NODE,
-    REQUIRED_DEPENDENCY_INPUTS,
+    REQUIRED_LOOKUP_INPUTS,
     REQUIRED_USER_INPUTS,
 )
 from ai.agents.base import BaseAgent
+
+MATERIAL_STRESS_NODE = "B313-material-stress"
 
 
 class InputAgent(BaseAgent):
@@ -23,13 +26,27 @@ class InputAgent(BaseAgent):
     _REASONS: dict[str, str] = {
         "design_pressure": "Required by ASME B31.3 §304.1.1 for thickness calculation.",
         "outside_diameter": "Required by ASME B31.3 §304.1.1 for thickness calculation.",
-        "allowable_stress": "Required by ASME B31.3 §304.1.1; sourced from material stress evaluation.",
+        "material": (
+            "Required to look up allowable stress at design temperature "
+            "from the material stress table."
+        ),
+        "design_temperature": (
+            "Required because allowable stress depends on design metal temperature."
+        ),
     }
 
     _SYMBOLS: dict[str, str] = {
         "design_pressure": "P",
         "outside_diameter": "D",
-        "allowable_stress": "S",
+        "material": "material",
+        "design_temperature": "T",
+    }
+
+    _NODE_IDS: dict[str, str] = {
+        "design_pressure": PIPE_WALL_THICKNESS_NODE,
+        "outside_diameter": PIPE_WALL_THICKNESS_NODE,
+        "material": MATERIAL_STRESS_NODE,
+        "design_temperature": MATERIAL_STRESS_NODE,
     }
 
     def analyze(
@@ -38,12 +55,13 @@ class InputAgent(BaseAgent):
         *,
         workflow: str | None = None,
         context: AgentContext | None = None,
+        navigation_plan: NavigationPlan | None = None,
     ) -> InputAgentResult:
-        missing = self._missing_for_workflow(task, workflow)
+        missing = self._missing_inputs(task, workflow, navigation_plan)
         if not missing:
             return InputAgentResult(missing_inputs=[], action=AgentAction.REQUEST_INPUT)
 
-        requests = [self._build_request(input_id) for input_id in missing]
+        requests = [self._build_request(input_id, navigation_plan) for input_id in missing]
 
         if self._client is not None and missing:
             requests = self._enrich_with_llm(task, missing, requests, context)
@@ -61,24 +79,49 @@ class InputAgent(BaseAgent):
         *,
         workflow: str | None = None,
         context: AgentContext | None = None,
+        navigation_plan: NavigationPlan | None = None,
     ) -> InputAgentResult:
         task = state_manager.get_task(task_id)
-        return self.analyze(task, workflow=workflow, context=context)
+        return self.analyze(
+            task,
+            workflow=workflow,
+            context=context,
+            navigation_plan=navigation_plan,
+        )
 
-    def _missing_for_workflow(self, task: Task, workflow: str | None) -> list[str]:
+    def _missing_inputs(
+        self,
+        task: Task,
+        workflow: str | None,
+        navigation_plan: NavigationPlan | None,
+    ) -> list[str]:
+        if navigation_plan and navigation_plan.missing_inputs:
+            return list(navigation_plan.missing_inputs)
+
         if workflow != PIPE_WALL_THICKNESS_DESIGN and workflow is not None:
             return []
 
-        required = list(REQUIRED_USER_INPUTS) + list(REQUIRED_DEPENDENCY_INPUTS)
+        required = list(REQUIRED_USER_INPUTS) + list(REQUIRED_LOOKUP_INPUTS)
         return [input_id for input_id in required if input_id not in task.inputs]
 
-    def _build_request(self, input_id: str) -> InputRequest:
+    def _build_request(
+        self,
+        input_id: str,
+        navigation_plan: NavigationPlan | None,
+    ) -> InputRequest:
+        reason = self._REASONS.get(input_id, f"Required input: {input_id}")
+        if navigation_plan and navigation_plan.questions:
+            for question in navigation_plan.questions:
+                if input_id.replace("_", " ") in question.lower():
+                    reason = question
+                    break
+
         return InputRequest(
             action=AgentAction.REQUEST_INPUT,
             input_id=input_id,
             symbol=self._SYMBOLS.get(input_id),
-            reason=self._REASONS.get(input_id, f"Required input: {input_id}"),
-            node_id=PIPE_WALL_THICKNESS_NODE,
+            reason=reason,
+            node_id=self._NODE_IDS.get(input_id, PIPE_WALL_THICKNESS_NODE),
         )
 
     def _enrich_with_llm(
@@ -102,13 +145,14 @@ class InputAgent(BaseAgent):
 
         enriched: list[InputRequest] = []
         for item in llm_requests:
+            input_id = str(item.get("input_id", ""))
             enriched.append(
                 InputRequest(
                     action=AgentAction.REQUEST_INPUT,
-                    input_id=str(item.get("input_id", "")),
+                    input_id=input_id,
                     symbol=item.get("symbol"),
                     reason=str(item.get("reason", "")),
-                    node_id=item.get("node_id", PIPE_WALL_THICKNESS_NODE),
+                    node_id=item.get("node_id", self._NODE_IDS.get(input_id, PIPE_WALL_THICKNESS_NODE)),
                 )
             )
         return enriched or requests

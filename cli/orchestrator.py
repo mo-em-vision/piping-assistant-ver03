@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 from ai.agents.context_agent import ContextAgent
@@ -11,6 +12,7 @@ from ai.agents.intent_agent import IntentAgent
 from ai.agents.planner_agent import PlannerAgent
 from ai.client import MissingAPIKeyError, OpenAIClient
 from ai.response.response_handler import ResponseHandler
+from engine.reference.standards_reader import StandardsReader
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
 from models.agent import AgentAction, AgentContext
@@ -28,6 +30,7 @@ class ChatOrchestrator:
         state_manager: TaskStateManager,
         *,
         llm_client: Any | None = None,
+        standards_root: Path | None = None,
     ) -> None:
         client = llm_client
         if client is None:
@@ -36,9 +39,16 @@ class ChatOrchestrator:
             except MissingAPIKeyError:
                 client = None
 
+        project_root = Path(__file__).resolve().parents[1]
+        reader = StandardsReader(
+            standards_root or project_root / "standards",
+            standard="asme_b31.3",
+        )
+
         self.state_manager = state_manager
+        self.standards_reader = reader
         self.intent_agent = IntentAgent(client=client)
-        self.planner_agent = PlannerAgent(client=client)
+        self.planner_agent = PlannerAgent(client=client, reader=reader, state=state_manager)
         self.input_agent = InputAgent(client=client)
         self.context_agent = ContextAgent(client=client)
         self.response_handler = ResponseHandler()
@@ -92,10 +102,34 @@ class ChatOrchestrator:
             self.state_manager.resume_task(task.task_id)
             task = self.state_manager.get_task(task.task_id)
 
-        plan = self.planner_agent.plan(intent)
-        debug["Planner Agent"] = asdict(plan)
+        navigation_plan = self.planner_agent.plan_navigation(intent, task, user_message=message)
+        planner_result = PlannerAgent._to_planner_result(navigation_plan)
+        debug["Planner Agent"] = asdict(navigation_plan)
 
-        input_result = self.input_agent.analyze(task, workflow=workflow, context=context)
+        if navigation_plan.action == AgentAction.CLARIFY:
+            options = navigation_plan.alternative_paths or navigation_plan.questions
+            message_text = (
+                "I found several possible engineering workflows:\n"
+                + "\n".join(f"- {item}" for item in options)
+                if options
+                else "Please clarify which engineering workflow you need."
+            )
+            return (
+                CLIResponse(
+                    status="clarify",
+                    message=message_text,
+                    task_id=task.task_id,
+                    data=asdict(navigation_plan),
+                ),
+                debug if debug_ai else {},
+            )
+
+        input_result = self.input_agent.analyze(
+            task,
+            workflow=workflow,
+            context=context,
+            navigation_plan=navigation_plan,
+        )
         debug["Input Agent"] = asdict(input_result)
 
         if input_result.missing_inputs:
@@ -106,7 +140,9 @@ class ChatOrchestrator:
                 CLIResponse(
                     status="waiting_input",
                     message=formatted,
-                    question=f"Please provide: {', '.join(input_result.missing_inputs)}",
+                    question=navigation_plan.questions[0]
+                    if navigation_plan.questions
+                    else f"Please provide: {', '.join(input_result.missing_inputs)}",
                     required_by=first.node_id if first else None,
                     task_id=task.task_id,
                     data={"missing_inputs": input_result.missing_inputs},
@@ -116,13 +152,13 @@ class ChatOrchestrator:
 
         self.state_manager.update_task_status(task.task_id, TaskStatus.ACTIVE)
         summary = self.response_handler.format_intent(intent)
-        plan_summary = self.response_handler.format_planner(plan)
+        plan_summary = self.response_handler.format_planner(planner_result)
         return (
             CLIResponse(
                 status="ready",
                 message=f"{summary}\n\n{plan_summary}",
                 task_id=task.task_id,
-                data={"workflow": workflow},
+                data={"workflow": workflow, "selected_root": navigation_plan.selected_root},
             ),
             debug if debug_ai else {},
         )

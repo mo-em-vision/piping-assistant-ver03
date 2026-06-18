@@ -9,6 +9,38 @@ from engine.reference.standards_reader import StandardsReader
 from models.execution import ExecutionPlan
 from models.graph import EdgeType, GraphEdge, GraphVersion
 from models.input import EngineeringInput
+from models.planning import WorkflowCandidate
+
+
+# Future workflow stubs surfaced when keywords match (not yet implemented).
+_STUB_ROOTS: tuple[dict[str, str | float | bool], ...] = (
+    {
+        "slug": "integrity_check",
+        "title": "Pipe Integrity Verification",
+        "engineering_intent": "pipe_integrity_verification",
+        "keywords": ("integrity", "verification", "inspect"),
+        "confidence": 0.55,
+        "implemented": False,
+    },
+    {
+        "slug": "pressure_test_verification",
+        "title": "Pressure Test Verification",
+        "engineering_intent": "pressure_test_verification",
+        "keywords": ("pressure test", "hydrotest", "pneumatic"),
+        "confidence": 0.5,
+        "implemented": False,
+    },
+)
+
+
+def normalize_root_id(root_ref: str) -> str:
+    """Convert root path references to standards slug ids."""
+    text = root_ref.strip().strip("/")
+    if text.endswith("root.md"):
+        text = text[: -len("root.md")].strip("/")
+    if text.startswith("roots/"):
+        text = text[len("roots/") :].strip("/")
+    return text.split("/")[0] if text else root_ref
 
 
 class GraphCycleError(ValueError):
@@ -51,6 +83,104 @@ class GraphEngine:
             dependencies=tuple(edges),
             graph_version=graph_version,
         )
+
+    def discover_roots(
+        self,
+        reader: StandardsReader,
+        *,
+        workflow: str | None = None,
+        keywords: list[str] | None = None,
+    ) -> list[WorkflowCandidate]:
+        """Scan standards roots and return workflow candidates ranked by match confidence."""
+        candidates: list[WorkflowCandidate] = []
+        keyword_text = " ".join(keywords or []).lower()
+
+        for path in sorted(reader.roots_dir.glob("*/root.md")):
+            record = reader.load_file(path)
+            slug = path.parent.name
+            intent = str(record.metadata.get("engineering_intent", "") or "")
+            title = str(record.metadata.get("title", slug))
+            confidence = 0.4
+
+            if workflow and (workflow == intent or workflow == slug):
+                confidence = 0.95
+            elif workflow and workflow.replace("-", "_") in slug.replace("-", "_"):
+                confidence = 0.9
+            else:
+                for token in (intent, title, slug, str(record.metadata.get("purpose", ""))):
+                    if token and token.lower() in keyword_text:
+                        confidence = max(confidence, 0.75)
+
+            if confidence >= 0.4:
+                candidates.append(
+                    WorkflowCandidate(
+                        root_id=slug,
+                        title=title,
+                        engineering_intent=intent or None,
+                        standard="ASME B31.3",
+                        confidence=confidence,
+                        implemented=True,
+                    )
+                )
+
+        for stub in _STUB_ROOTS:
+            stub_keywords = tuple(str(k).lower() for k in stub["keywords"])  # type: ignore[index]
+            if workflow and workflow == str(stub["engineering_intent"]):
+                match = True
+            elif keyword_text:
+                match = any(kw in keyword_text for kw in stub_keywords)
+            else:
+                match = False
+
+            if match:
+                candidates.append(
+                    WorkflowCandidate(
+                        root_id=str(stub["slug"]),
+                        title=str(stub["title"]),
+                        engineering_intent=str(stub["engineering_intent"]),
+                        standard="ASME B31.3",
+                        confidence=float(stub["confidence"]),  # type: ignore[arg-type]
+                        implemented=bool(stub["implemented"]),
+                    )
+                )
+
+        candidates.sort(key=lambda item: item.confidence, reverse=True)
+        return candidates
+
+    def required_user_inputs(
+        self,
+        root_id: str,
+        reader: StandardsReader,
+        *,
+        existing_inputs: set[str] | None = None,
+    ) -> list[str]:
+        """Collect required user-provided inputs for a workflow root (no execution)."""
+        slug = normalize_root_id(root_id)
+        plan = self.build_plan(task_id="preview", root_id=slug, inputs={}, reader=reader)
+        existing = existing_inputs or set()
+        required: list[str] = []
+        seen: set[str] = set()
+
+        for node_id in plan.execution_order:
+            record = reader.load(node_id)
+            if str(record.metadata.get("type", "")) == "root":
+                continue
+            for spec in record.metadata.get("inputs", []) or []:
+                if not isinstance(spec, dict):
+                    continue
+                input_id = str(spec.get("id", ""))
+                if not input_id or input_id in seen or input_id in existing:
+                    continue
+                if not bool(spec.get("required", True)):
+                    continue
+                source = str(spec.get("source", "user_input"))
+                if source in ("user_input", "table") or (
+                    source == "default" and spec.get("default") is None
+                ):
+                    seen.add(input_id)
+                    required.append(input_id)
+
+        return required
 
     def _collect_nodes(
         self,

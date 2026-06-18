@@ -19,6 +19,7 @@ class EventType(str, Enum):
     CALCULATION_COMPLETED = "calculation_completed"
     WARNING_CREATED = "warning_created"
     REPORT_GENERATED = "report_generated"
+    PLANNER_DECISION = "planner_decision"
 
 
 @dataclass

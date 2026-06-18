@@ -15,8 +15,9 @@ REQUIRED_USER_INPUTS: tuple[str, ...] = (
     "outside_diameter",
 )
 
-REQUIRED_DEPENDENCY_INPUTS: tuple[str, ...] = (
-    "allowable_stress",
+REQUIRED_LOOKUP_INPUTS: tuple[str, ...] = (
+    "material",
+    "design_temperature",
 )
 
 CONTEXT_KEYWORDS: tuple[re.Pattern[str], ...] = (

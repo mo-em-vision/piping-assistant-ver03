@@ -15,5 +15,8 @@ def test_input_agent_identifies_missing_inputs() -> None:
 
     assert "design_pressure" in result.missing_inputs
     assert "outside_diameter" in result.missing_inputs
+    assert "material" in result.missing_inputs
+    assert "design_temperature" in result.missing_inputs
+    assert "allowable_stress" not in result.missing_inputs
     assert any(request.input_id == "design_pressure" for request in result.requests)
     assert any("304.1.1" in request.reason for request in result.requests)

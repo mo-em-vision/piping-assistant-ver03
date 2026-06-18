@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from engine.graph.graph_engine import GraphCycleError, GraphEngine
+from engine.graph.graph_engine import GraphCycleError, GraphEngine, normalize_root_id
 from engine.reference.standards_reader import StandardsReader
 from models.graph import EdgeType, GraphEdge
 from models.input import EngineeringInput, InputSource
@@ -64,3 +64,31 @@ def test_topological_sort_cycle_raises() -> None:
                 GraphEdge(from_node="B", to_node="A", type=EdgeType.DEPENDENCY),
             ],
         )
+
+
+def test_normalize_root_id() -> None:
+    assert normalize_root_id("roots/pipe_wall_thickness_design/root.md") == "pipe_wall_thickness_design"
+    assert normalize_root_id("pipe_wall_thickness_design") == "pipe_wall_thickness_design"
+
+
+def test_discover_roots_wall_thickness() -> None:
+    reader = _reader()
+    candidates = GraphEngine().discover_roots(
+        reader,
+        workflow="pipe_wall_thickness_design",
+    )
+
+    assert candidates
+    assert candidates[0].root_id == "pipe_wall_thickness_design"
+    assert candidates[0].confidence >= 0.85
+
+
+def test_required_user_inputs() -> None:
+    reader = _reader()
+    required = GraphEngine().required_user_inputs("pipe_wall_thickness_design", reader)
+
+    assert "design_pressure" in required
+    assert "outside_diameter" in required
+    assert "material" in required
+    assert "design_temperature" in required
+    assert "allowable_stress" not in required

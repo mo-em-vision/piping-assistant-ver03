@@ -26,6 +26,7 @@ from .execution import (
 )
 from .graph import EdgeType, GraphEdge, GraphVersion
 from .input import EngineeringInput, InputLimits, InputSource, InputStatus
+from .planning import NavigationPlan, StructuredIntent, WorkflowCandidate
 from .report import (
     ReportData,
     ReportDecision,
@@ -78,6 +79,7 @@ __all__ = [
     "InputSourceType",
     "InputStatus",
     "IntentResult",
+    "NavigationPlan",
     "NodeExecutionResult",
     "NodeExecutionStatus",
     "NodeProvidedOutput",
@@ -99,9 +101,11 @@ __all__ = [
     "RuleValidation",
     "StandardNode",
     "StandardOption",
+    "StructuredIntent",
     "SynthesisResult",
     "Task",
     "TaskStatus",
     "TraceabilityEntry",
     "ValidationResult",
+    "WorkflowCandidate",
 ]
