@@ -1,0 +1,28 @@
+name: pipe_wall_thickness_deterministic
+description: Same inputs produce identical results and trace across repeated runs
+
+given:
+  inputs:
+    design_pressure: { value: 500, unit: psi }
+    outside_diameter: { value: 10, unit: in }
+    material: { value: SA-106B, unit: dimensionless }
+    design_temperature: { value: 200, unit: F }
+
+when:
+  user_request: Calculate pipe wall thickness
+  intent:
+    intent: pipe_wall_thickness_design
+    domain: piping
+    workflow: pipe_wall_thickness_design
+    confidence: 0.95
+
+expected:
+  execution:
+    status: completed
+
+  determinism:
+    repeat: 2
+    compare:
+      - required_thickness
+      - allowable_stress
+      - _execution_trace

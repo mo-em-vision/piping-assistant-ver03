@@ -1,0 +1,38 @@
+{
+  "active_task_id": "pipe-wall-thickness-desi-a4bf1f",
+  "tasks": [
+    {
+      "task_id": "pipe-wall-thickness-desi-a4bf1f",
+      "status": "awaiting_input",
+      "active_nodes": [
+        "B313-material-stress",
+        "B313-304.1.1"
+      ],
+      "inputs": {},
+      "outputs": {
+        "workflow": "pipe_wall_thickness_design",
+        "selected_root": "pipe_wall_thickness_design",
+        "planning_summary": {
+          "goal": "pipe wall thickness design",
+          "intent": "pipe_wall_thickness_design",
+          "selected_root": "pipe_wall_thickness_design",
+          "selected_nodes": [
+            "B313-material-stress",
+            "B313-304.1.1"
+          ],
+          "missing_inputs": [
+            "material",
+            "design_temperature",
+            "design_pressure",
+            "outside_diameter"
+          ],
+          "confidence": 0.95,
+          "action": "request_input"
+        }
+      },
+      "warnings": [],
+      "conflicts": []
+    }
+  ],
+  "saved_at": "2026-06-18T02:57:09.270621+00:00"
+}

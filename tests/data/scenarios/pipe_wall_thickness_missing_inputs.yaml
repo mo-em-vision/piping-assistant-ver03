@@ -1,0 +1,35 @@
+name: pipe_wall_thickness_missing_inputs
+description: Workflow pauses when required inputs are missing
+
+given:
+  inputs:
+    design_pressure: { value: 500, unit: psi }
+
+when:
+  user_request: Calculate pipe wall thickness
+  intent:
+    intent: pipe_wall_thickness_design
+    domain: piping
+    workflow: pipe_wall_thickness_design
+    confidence: 0.95
+
+expected:
+  planner:
+    selected_root: pipe_wall_thickness_design
+    missing_inputs_contains:
+      - outside_diameter
+      - material
+      - design_temperature
+
+  execution:
+    status: awaiting_input
+
+  state:
+    status: awaiting_input
+
+  report:
+    status: INCOMPLETE
+    missing_inputs_contains:
+      - outside_diameter
+      - material
+      - design_temperature

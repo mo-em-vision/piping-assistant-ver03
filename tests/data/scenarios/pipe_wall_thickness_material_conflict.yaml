@@ -1,0 +1,41 @@
+name: pipe_wall_thickness_material_conflict
+description: Material change records conflict and allows recalculation
+
+given:
+  inputs:
+    design_pressure: { value: 500, unit: psi }
+    outside_diameter: { value: 10, unit: in }
+    material: { value: SA-106B, unit: dimensionless }
+    design_temperature: { value: 200, unit: F }
+
+when:
+  user_request: Calculate pipe wall thickness
+  intent:
+    intent: pipe_wall_thickness_design
+    domain: piping
+    workflow: pipe_wall_thickness_design
+    confidence: 0.95
+
+steps:
+  - action: execute
+    expect:
+      execution:
+        status: completed
+
+  - action: update_input
+    inputs:
+      material: { value: A106-B, unit: dimensionless }
+
+  - action: execute
+    expect:
+      state:
+        conflicts_contains:
+          input_id: material
+          previous_value: SA-106B
+          new_value: A106-B
+      execution:
+        status: completed
+
+expected:
+  execution:
+    status: completed

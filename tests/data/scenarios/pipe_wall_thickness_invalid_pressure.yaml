@@ -1,0 +1,29 @@
+name: pipe_wall_thickness_invalid_pressure
+description: Invalid pressure value is rejected with explanation
+
+given:
+  inputs:
+    design_pressure: { value: abc, unit: psi }
+    outside_diameter: { value: 10, unit: in }
+    material: { value: SA-106B, unit: dimensionless }
+    design_temperature: { value: 200, unit: F }
+
+when:
+  user_request: Calculate pipe wall thickness
+  intent:
+    intent: pipe_wall_thickness_design
+    domain: piping
+    workflow: pipe_wall_thickness_design
+    confidence: 0.95
+
+expected:
+  validation:
+    plan_status: fail
+    error_rules_contains:
+      - positive_value
+
+  execution:
+    status: error
+
+  state:
+    status: invalidated

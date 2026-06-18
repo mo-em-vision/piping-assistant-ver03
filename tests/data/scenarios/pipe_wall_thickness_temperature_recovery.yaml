@@ -1,0 +1,43 @@
+name: pipe_wall_thickness_temperature_recovery
+description: System recovers after user corrects out-of-range temperature
+
+given:
+  inputs:
+    design_pressure: { value: 500, unit: psi }
+    outside_diameter: { value: 10, unit: in }
+    material: { value: SA-106B, unit: dimensionless }
+    design_temperature: { value: 900, unit: F }
+
+when:
+  user_request: Calculate pipe wall thickness
+  intent:
+    intent: pipe_wall_thickness_design
+    domain: piping
+    workflow: pipe_wall_thickness_design
+    confidence: 0.95
+
+steps:
+  - action: execute
+    expect:
+      execution:
+        status: error
+      state:
+        status: invalidated
+
+  - action: update_input
+    inputs:
+      design_temperature: { value: 400, unit: F }
+
+  - action: execute
+    expect:
+      execution:
+        status: completed
+        outputs:
+          allowable_stress: 179000000.0
+      state:
+        status: completed
+        has_execution_trace: true
+
+expected:
+  execution:
+    status: completed
