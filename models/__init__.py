@@ -16,6 +16,14 @@ from .agent import (
 )
 from .calculation import CalculationResult, CalculationStatus, CalculationStep, QuantityResult
 from .event import Event, EventType
+from .execution import (
+    ExecutionConfiguration,
+    ExecutionPlan,
+    ExecutionResult,
+    ExecutionStatus,
+    NodeExecutionResult,
+    NodeExecutionStatus,
+)
 from .graph import EdgeType, GraphEdge, GraphVersion
 from .input import EngineeringInput, InputLimits, InputSource, InputStatus
 from .report import (
@@ -55,6 +63,10 @@ __all__ = [
     "EngineeringInput",
     "Event",
     "EventType",
+    "ExecutionConfiguration",
+    "ExecutionPlan",
+    "ExecutionResult",
+    "ExecutionStatus",
     "FormulaDefinition",
     "GraphEdge",
     "GraphVersion",
@@ -66,6 +78,8 @@ __all__ = [
     "InputSourceType",
     "InputStatus",
     "IntentResult",
+    "NodeExecutionResult",
+    "NodeExecutionStatus",
     "NodeProvidedOutput",
     "NodeRequiredInput",
     "OutputType",

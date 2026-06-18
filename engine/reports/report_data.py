@@ -23,7 +23,7 @@ PIPE_WALL_THICKNESS_WORKFLOW = "pipe_wall_thickness_design"
 ROOT_SLUG = "pipe_wall_thickness_design"
 WALL_THICKNESS_NODE = "B313-304.1.1"
 
-REQUIRED_INPUTS = ("design_pressure", "outside_diameter", "allowable_stress")
+REQUIRED_INPUTS = ("design_pressure", "outside_diameter", "material", "design_temperature")
 
 
 def build_report_from_task(
@@ -76,7 +76,7 @@ def _build_pipe_wall_thickness_report(
         source_text=_extract_paragraph_excerpt(node.body),
         formula=formula_display,
         inputs={key: inp.value for key, inp in task.inputs.items()},
-        outputs=dict(task.outputs),
+        outputs=_execution_outputs(task),
     )
 
     trace = TraceabilityEntry(
@@ -87,6 +87,9 @@ def _build_pipe_wall_thickness_report(
         inputs=section.inputs,
         outputs=section.outputs,
     )
+
+    if task.outputs.get("_execution_trace"):
+        traversal = _traversal_from_trace(task.outputs["_execution_trace"])
 
     thin_wall = node.metadata.get("conditions", [])
     decisions: list[ReportDecision] = []
@@ -166,13 +169,37 @@ def _build_generic_report(
     )
 
 
+def _execution_outputs(task: Task) -> dict[str, Any]:
+    outputs: dict[str, Any] = {}
+    for key in ("required_thickness", "t", "allowable_stress", "S"):
+        if key in task.outputs:
+            outputs[key] = task.outputs[key]
+    return outputs
+
+
+def _traversal_from_trace(trace: Any) -> list[ReportTraversalStep]:
+    if not isinstance(trace, list):
+        return []
+    steps: list[ReportTraversalStep] = []
+    for entry in trace:
+        if not isinstance(entry, dict):
+            continue
+        steps.append(
+            ReportTraversalStep(
+                node_id=str(entry.get("node_id", "")),
+                title=str(entry.get("status", "")),
+            )
+        )
+    return steps
+
+
 def _derive_status(task: Task, missing: list[str]) -> str:
     if task.status == TaskStatus.INVALIDATED:
         return "INVALIDATED"
     if missing:
         return "INCOMPLETE"
     if task.outputs.get("required_thickness") or task.outputs.get("t"):
-        return str(task.outputs.get("status", "PASS"))
+        return "PASS"
     if task.status == TaskStatus.COMPLETED:
         return "PASS"
     return "INCOMPLETE"

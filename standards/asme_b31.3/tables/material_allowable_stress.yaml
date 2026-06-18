@@ -1,0 +1,38 @@
+# Development sample — not verbatim ASME B31.3 table values.
+# Allowable stress S in Pa for pipe materials at design temperature.
+
+table_id: material_allowable_stress
+title: Sample Material Allowable Stress
+version: "1.0"
+unit: Pa
+temperature_unit: F
+
+keys:
+  - material
+  - design_temperature
+
+interpolation: true
+
+materials:
+  SA-106B:
+    display_name: "SA-106 Grade B (sample)"
+    rows:
+      - design_temperature: 100
+        allowable_stress: 207000000
+      - design_temperature: 200
+        allowable_stress: 193000000
+      - design_temperature: 300
+        allowable_stress: 186000000
+      - design_temperature: 400
+        allowable_stress: 179000000
+  A106-B:
+    display_name: "A106 Grade B (sample alias)"
+    rows:
+      - design_temperature: 100
+        allowable_stress: 207000000
+      - design_temperature: 200
+        allowable_stress: 193000000
+      - design_temperature: 300
+        allowable_stress: 186000000
+      - design_temperature: 400
+        allowable_stress: 179000000
