@@ -1,0 +1,23 @@
+{
+  "description": "Verified regression case for ASME B31.3 pipe wall thickness (500 psi, 10 in, SA-106B, 200 F)",
+  "workflow": "pipe_wall_thickness_design",
+  "inputs": {
+    "design_pressure": { "value": 500, "unit": "psi" },
+    "outside_diameter": { "value": 10, "unit": "in" },
+    "material": { "value": "SA-106B", "unit": "dimensionless" },
+    "design_temperature": { "value": 200, "unit": "F" }
+  },
+  "outputs": {
+    "allowable_stress": 193000000.0,
+    "required_thickness": {
+      "formula": "wall_thickness",
+      "tolerance": 1e-6
+    }
+  },
+  "execution_order": [
+    "B313-material-stress",
+    "B313-304.1.1"
+  ],
+  "intermediate_symbols": ["SEW", "PY"],
+  "source": "Manual verification against thin-wall equation t = PD / 2(SEW + PY)"
+}
