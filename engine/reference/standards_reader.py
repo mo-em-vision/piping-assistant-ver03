@@ -8,6 +8,8 @@ from typing import Any
 
 import yaml
 
+from engine.reference.standards_paths import list_standard_packs, resolve_standard_pack
+
 
 @dataclass
 class NodeRecord:
@@ -50,9 +52,27 @@ class StandardsReader:
     """Load nodes and roots from the on-disk standards pack."""
 
     def __init__(self, standards_root: Path, *, standard: str = "asme_b31.3") -> None:
-        self.pack_root = standards_root / standard
+        self.standards_root = standards_root.resolve()
+        self.standard = standard
+        self.pack_root = resolve_standard_pack(self.standards_root, standard)
         self.nodes_dir = self.pack_root / "nodes"
         self.roots_dir = self.pack_root / "roots"
+        self.tables_dir = self.pack_root / "tables"
+
+    def load_table(self, table_rel: str) -> dict[str, Any]:
+        """Load a YAML table from the current standards pack."""
+        path = self.pack_root / table_rel
+        if not path.exists():
+            raise FileNotFoundError(f"Table not found: {path}")
+        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+
+    @staticmethod
+    def resolve_pack(standards_root: Path, standard: str) -> Path:
+        return resolve_standard_pack(standards_root, standard)
+
+    @staticmethod
+    def list_packs(standards_root: Path) -> list[tuple[str, Path]]:
+        return list_standard_packs(standards_root)
 
     def find_node_path(self, node_id: str) -> Path | None:
         if node_id.endswith("/root") or node_id.endswith("root.md"):
@@ -68,19 +88,21 @@ class StandardsReader:
             if candidate.exists():
                 return candidate
 
-        direct = self.nodes_dir / node_id / "node.md"
-        if direct.exists():
-            return direct
+        if self.nodes_dir.is_dir():
+            direct = self.nodes_dir / node_id / "node.md"
+            if direct.exists():
+                return direct
 
-        for path in self.nodes_dir.glob("*/node.md"):
-            record = self.load_file(path)
-            if record.node_id == node_id:
-                return path
+            for path in self.nodes_dir.glob("*/node.md"):
+                record = self.load_file(path)
+                if record.node_id == node_id:
+                    return path
 
-        for path in self.roots_dir.glob("*/root.md"):
-            record = self.load_file(path)
-            if record.node_id == node_id or path.parent.name == node_id:
-                return path
+        if self.roots_dir.is_dir():
+            for path in self.roots_dir.glob("*/root.md"):
+                record = self.load_file(path)
+                if record.node_id == node_id or path.parent.name == node_id:
+                    return path
 
         return None
 

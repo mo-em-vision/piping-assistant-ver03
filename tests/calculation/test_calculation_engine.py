@@ -6,14 +6,14 @@ from pathlib import Path
 
 from engine.executor.calculation_engine import CalculationEngine
 from engine.executor.unit_manager import convert_to_si
+from engine.reference.standards_paths import resolve_standard_pack
 
 
 def _formula_path() -> Path:
     root = Path(__file__).resolve().parents[2]
+    pack = resolve_standard_pack(root / "standards", "asme_b31.3")
     return (
-        root
-        / "standards"
-        / "asme_b31.3"
+        pack
         / "nodes"
         / "B313-304.1.1"
         / "formulas"

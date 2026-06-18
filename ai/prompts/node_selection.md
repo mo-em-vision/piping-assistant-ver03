@@ -12,4 +12,4 @@ Return JSON:
 }
 ```
 
-Prefer implemented roots under `standards/asme_b31.3/`. Record alternatives when the user may need a different path.
+Prefer implemented roots under `standards/asme/asme_b31.3/`. Record alternatives when the user may need a different path.

@@ -15,5 +15,5 @@ Rank candidate workflow roots when multiple graph entry points apply.
 
 ## Rules
 
-- Prefer implemented roots under `standards/asme_b31.3/roots/`.
+- Prefer implemented roots under `standards/asme/asme_b31.3/roots/`.
 - Do not invent nodes that are not in the standards pack.

@@ -7,11 +7,13 @@ from pathlib import Path
 import pytest
 
 from engine.executor.lookup_engine import LookupEngine
+from engine.reference.standards_paths import resolve_standard_pack
 
 
 def _lookup_engine() -> LookupEngine:
     root = Path(__file__).resolve().parents[2]
-    return LookupEngine(root / "standards" / "asme_b31.3")
+    pack = resolve_standard_pack(root / "standards", "asme_b31.3")
+    return LookupEngine(pack)
 
 
 def test_exact_temperature_lookup() -> None:
