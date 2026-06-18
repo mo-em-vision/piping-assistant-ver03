@@ -12,6 +12,8 @@ from models.agent import (
     SynthesisResult,
 )
 
+from ai.input_extractor import InputRejection
+
 
 class ResponseHandler:
     """Converts structured agent payloads into user-facing text."""
@@ -40,13 +42,35 @@ class ResponseHandler:
         )
         return f"Proposed execution path:\n{numbered}"
 
-    def format_input_requests(self, result: InputAgentResult) -> str:
+    def format_input_requests(
+        self,
+        result: InputAgentResult,
+        *,
+        rejections: list[InputRejection] | None = None,
+    ) -> str:
+        parts: list[str] = []
+        if rejections:
+            parts.append(self.format_rejections(rejections))
         if not result.requests:
-            return "All required inputs are available."
+            parts.append("All required inputs are available.")
+            return "\n\n".join(parts) if parts else "All required inputs are available."
         lines = ["Required inputs:"]
         for request in result.requests:
             symbol = f" ({request.symbol})" if request.symbol else ""
             lines.append(f"- {request.input_id}{symbol}: {request.reason}")
+        parts.append("\n".join(lines))
+        return "\n\n".join(parts)
+
+    @staticmethod
+    def format_rejections(rejections: list[InputRejection]) -> str:
+        if not rejections:
+            return ""
+        lines: list[str] = []
+        for rejection in rejections:
+            label = rejection.input_id.replace("_", " ")
+            lines.append(
+                f"{label.title()} `{rejection.raw_value}` is invalid: {rejection.reason}."
+            )
         return "\n".join(lines)
 
     def format_routing(self, result: RoutingResult) -> str:

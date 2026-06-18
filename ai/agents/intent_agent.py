@@ -18,6 +18,9 @@ class IntentAgent(BaseAgent):
     prompt_file = "intent_agent.md"
 
     def analyze(self, request: str, context: AgentContext | None = None) -> IntentResult:
+        if context and context.active_task_id and context.workflow:
+            return self._from_workflow_continuation(request, context)
+
         workflow = route(request)
         if workflow == PIPE_WALL_THICKNESS_DESIGN:
             return self._from_router_match(request, workflow)
@@ -35,6 +38,24 @@ class IntentAgent(BaseAgent):
                     "Please describe whether you need pipe wall thickness design or another analysis."
                 ),
             )
+
+    def _from_workflow_continuation(
+        self,
+        request: str,
+        context: AgentContext,
+    ) -> IntentResult:
+        workflow = context.workflow or PIPE_WALL_THICKNESS_DESIGN
+        missing = list(context.missing_inputs) if context.missing_inputs else detect_missing_context(request)
+        return IntentResult(
+            intent=workflow,
+            domain="piping",
+            possible_standards=["ASME B31.3"],
+            root_nodes=[PIPE_WALL_THICKNESS_ROOT],
+            missing_context=missing,
+            confidence=0.95,
+            workflow=workflow,
+            action=AgentAction.PROPOSE_PATH,
+        )
 
     def _from_router_match(self, request: str, workflow: str) -> IntentResult:
         return IntentResult(

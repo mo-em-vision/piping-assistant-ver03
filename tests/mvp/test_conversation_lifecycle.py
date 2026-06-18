@@ -76,3 +76,30 @@ class TestConversationLifecycle:
         assert second.status == "waiting_input"
         assert second.task_id == task_id
         assert "outside_diameter" in (second.data.get("missing_inputs") or [])
+
+    def test_follow_up_extracts_natural_language_inputs_without_manual_store(self) -> None:
+        manager = TaskStateManager()
+        orchestrator = ChatOrchestrator(manager, llm_client=FakeLLMClient({}))
+
+        first, _ = orchestrator.handle_message("Calculate pipe wall thickness for refinery piping")
+        assert first.status == "waiting_input"
+        task_id = first.task_id
+        assert task_id is not None
+
+        second, _ = orchestrator.handle_message(
+            "material ASTM A106, Temperature: 85 Celcius, Pressure: 4 inch",
+        )
+        assert second.status == "waiting_input"
+        assert second.task_id == task_id
+        assert second.status != "clarify"
+
+        task = manager.get_task(task_id)
+        assert "material" in task.inputs
+        assert "design_temperature" in task.inputs
+        assert task.inputs["design_temperature"].value == 85.0
+        assert "design_pressure" not in task.inputs
+
+        missing = second.data.get("missing_inputs") or []
+        assert "design_pressure" in missing
+        assert "outside_diameter" in missing
+        assert "inch is a length unit" in (second.message or "").lower()

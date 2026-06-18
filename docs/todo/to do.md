@@ -22,8 +22,6 @@ template stubs only (`integrity_report.md`, `audit_report.md`).
 - Separate `rules/*.yaml` files for all engineering rules
 - Multi-standard conflict resolution beyond `task.conflicts`
 
-
-
 tests:
 
 ## **Optional follow-up tests (if you want them)**
@@ -31,4 +29,11 @@ tests:
 - Binary PDF golden-file comparison under `tests/data/expected/`
 - E2E scenarios with mocked LLM for full chat lifecycle (request → question → answer → report)
 - Scenarios for unimplemented workflows (`integrity_check`, `pressure_test_verification`) once those roots are executable
+
+
+
+## Out of scope (for now)
+
+- LLM-based input extraction fallback (planned in docs but not required for this fix; deterministic path covers your case and keeps tests stable with `FakeLLMClient`)
+- Auto-mapping mislabeled `Pressure: 4 inch` to diameter (explicitly rejected per your choice)
 

@@ -28,5 +28,55 @@
     "role": "assistant",
     "content": "Required inputs:\n- material: Required to determine the material properties for wall thickness calculations.\n- design_temperature: Necessary for assessing the material strength and allowable stress at elevated temperatures.\n- design_pressure (P): Required by ASME B31.3 \u00a7304.1.1 for thickness calculation.\n- outside_diameter (D): Needed to calculate the wall thickness based on the external dimensions of the pipe.",
     "timestamp": "2026-06-18T02:57:09.269522+00:00"
+  },
+  {
+    "role": "user",
+    "content": "--debug-ai",
+    "timestamp": "2026-06-18T03:59:27.167023+00:00"
+  },
+  {
+    "role": "assistant",
+    "content": "Required inputs:\n- material: Required to determine the mechanical properties for wall thickness calculations.\n- design_temperature: Required by ASME B31.3 \u00a7304.1.1 to assess material properties at operating conditions.\n- design_pressure: Required by ASME B31.3 \u00a7304.1.1 for thickness calculation.\n- outside_diameter: Required to calculate the wall thickness based on the pipe's geometry.",
+    "timestamp": "2026-06-18T03:59:37.158038+00:00"
+  },
+  {
+    "role": "user",
+    "content": "material astm a106",
+    "timestamp": "2026-06-18T04:00:52.275979+00:00"
+  },
+  {
+    "role": "assistant",
+    "content": "Could you please specify how you would like to use ASTM A106 material in your engineering task?",
+    "timestamp": "2026-06-18T04:00:56.941923+00:00"
+  },
+  {
+    "role": "user",
+    "content": "calculate pipe wall thickness",
+    "timestamp": "2026-06-18T04:02:05.628627+00:00"
+  },
+  {
+    "role": "assistant",
+    "content": "Required inputs:\n- material: Required to determine the mechanical properties for wall thickness calculations.\n- design_temperature: Required by ASME B31.3 \u00a7304.1.1 to assess material strength at operating conditions.\n- design_pressure: Required by ASME B31.3 \u00a7304.1.1 for thickness calculation.\n- outside_diameter: Required to calculate the wall thickness based on the overall dimensions of the pipe.",
+    "timestamp": "2026-06-18T04:02:11.370459+00:00"
+  },
+  {
+    "role": "user",
+    "content": "calculate pipe wall thickness",
+    "timestamp": "2026-06-18T04:06:40.034640+00:00"
+  },
+  {
+    "role": "assistant",
+    "content": "Required inputs:\n- material (M): Required to determine the material properties for thickness calculation as per ASME B31.3 \u00a7304.1.1.\n- design_temperature (T): Necessary for evaluating the material strength and allowable stress as per ASME B31.3 \u00a7302.1.\n- design_pressure (P): Required by ASME B31.3 \u00a7304.1.1 for thickness calculation.\n- outside_diameter (D): Needed to calculate the wall thickness based on the overall dimensions of the pipe as per ASME B31.3 \u00a7304.1.1.",
+    "timestamp": "2026-06-18T04:06:46.465013+00:00"
+  },
+  {
+    "role": "user",
+    "content": "material ASTM A106, Temperature: 85 Celcius, Pressure: 4 inch",
+    "timestamp": "2026-06-18T04:07:25.408075+00:00"
+  },
+  {
+    "role": "assistant",
+    "content": "Could you please provide the design pressure and the outside diameter of the pipe?",
+    "timestamp": "2026-06-18T04:07:29.286788+00:00"
   }
 ]

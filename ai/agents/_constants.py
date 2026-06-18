@@ -33,11 +33,33 @@ INSPECTION_KEYWORDS: tuple[re.Pattern[str], ...] = (
 )
 
 MISSING_CONTEXT_PATTERNS: dict[str, re.Pattern[str]] = {
-    "design_pressure": re.compile(r"\b(\d+\s*(psi|bar|pa|kpa|mpa)|pressure)\b", re.IGNORECASE),
-    "outside_diameter": re.compile(r"\b(\d+\s*(in|mm|inch)|diameter|od\b)", re.IGNORECASE),
+    "design_pressure": re.compile(
+        r"\b\d+(?:\.\d+)?\s*(psi|bar|pa|kpa|mpa|barg)\b",
+        re.IGNORECASE,
+    ),
+    "outside_diameter": re.compile(
+        r"\b(?:\d+(?:\.\d+)?\s*(?:in|mm|inch(?:es)?)|"
+        r"(?:outside\s+)?(?:diameter|od|nps)\s*[:=]?\s*\d+(?:\.\d+)?)\b",
+        re.IGNORECASE,
+    ),
     "material": re.compile(r"\b(astm|a106|a53|material|grade)\b", re.IGNORECASE),
-    "design_temperature": re.compile(r"\b(\d+\s*°?\s*[fc]|temperature|temp\b)", re.IGNORECASE),
+    "design_temperature": re.compile(
+        r"\b\d+(?:\.\d+)?\s*(?:°?\s*[fc]|celsius|celcius|fahrenheit)\b",
+        re.IGNORECASE,
+    ),
 }
+
+REQUIRED_PIPE_INPUTS: tuple[str, ...] = (
+    "design_pressure",
+    "outside_diameter",
+    "material",
+    "design_temperature",
+)
+
+
+def missing_pipe_inputs(stored: dict[str, object]) -> list[str]:
+    """Return required pipe wall thickness input ids not yet in stored inputs."""
+    return [input_id for input_id in REQUIRED_PIPE_INPUTS if input_id not in stored]
 
 
 def detect_missing_context(message: str) -> list[str]:

@@ -38,3 +38,4 @@ Respond with **JSON only**:
 - Do not guess engineering intent when confidence is below 0.6.
 - `root_nodes` must be relative paths under the ASME B31.3 standard pack when applicable.
 - Agents decide what to do next, but never what the truth is.
+- When `active_task_id` and `workflow` are present in context, treat the message as a continuation supplying inputs for the active workflow — do not re-classify intent or return `clarify`.

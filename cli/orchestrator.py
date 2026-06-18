@@ -10,7 +10,9 @@ from ai.agents.context_agent import ContextAgent
 from ai.agents.input_agent import InputAgent
 from ai.agents.intent_agent import IntentAgent
 from ai.agents.planner_agent import PlannerAgent
+from ai.agents._constants import missing_pipe_inputs
 from ai.client import MissingAPIKeyError, OpenAIClient
+from ai.input_extractor import ExtractionResult, extract_pipe_wall_thickness_inputs
 from ai.response.response_handler import ResponseHandler
 from engine.reference.standards_reader import StandardsReader
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
@@ -61,10 +63,20 @@ class ChatOrchestrator:
     ) -> tuple[CLIResponse, dict[str, Any]]:
         debug: dict[str, Any] = {}
         active = self.state_manager.get_active_task()
+        extraction = ExtractionResult()
+
+        if active and active.status not in {TaskStatus.COMPLETED, TaskStatus.INVALIDATED}:
+            extraction = self._extract_and_store_inputs(active.task_id, message)
+            active = self.state_manager.get_task(active.task_id)
+
+        workflow = self._resolve_workflow(active)
+        missing_inputs = missing_pipe_inputs(active.inputs) if active else []
+
         context = AgentContext(
             active_task_id=active.task_id if active else None,
             user_message=message,
-            workflow=PIPE_WALL_THICKNESS_DESIGN if active else None,
+            workflow=workflow,
+            missing_inputs=missing_inputs,
         )
 
         context_result = self.context_agent.evaluate(message, context=context)
@@ -98,6 +110,11 @@ class ChatOrchestrator:
         if task is None or task.status in {TaskStatus.COMPLETED, TaskStatus.INVALIDATED}:
             task_id = new_task_id(workflow or "task")
             task = self.state_manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
+            extraction = self._merge_extraction(
+                extraction,
+                self._extract_and_store_inputs(task.task_id, message),
+            )
+            task = self.state_manager.get_task(task.task_id)
         elif task.status == TaskStatus.PAUSED:
             self.state_manager.resume_task(task.task_id)
             task = self.state_manager.get_task(task.task_id)
@@ -134,7 +151,10 @@ class ChatOrchestrator:
 
         if input_result.missing_inputs:
             self.state_manager.update_task_status(task.task_id, TaskStatus.AWAITING_INPUT)
-            formatted = self.response_handler.format_input_requests(input_result)
+            formatted = self.response_handler.format_input_requests(
+                input_result,
+                rejections=extraction.rejected,
+            )
             first = input_result.requests[0] if input_result.requests else None
             return (
                 CLIResponse(
@@ -161,4 +181,33 @@ class ChatOrchestrator:
                 data={"workflow": workflow, "selected_root": navigation_plan.selected_root},
             ),
             debug if debug_ai else {},
+        )
+
+    @staticmethod
+    def _resolve_workflow(active: Any | None) -> str | None:
+        if active is None:
+            return None
+        workflow = active.outputs.get("workflow")
+        if workflow:
+            return str(workflow)
+        return PIPE_WALL_THICKNESS_DESIGN
+
+    def _extract_and_store_inputs(self, task_id: str, message: str) -> ExtractionResult:
+        result = extract_pipe_wall_thickness_inputs(message)
+        task = self.state_manager.get_task(task_id)
+        for inp in result.extracted.values():
+            if inp.input_id not in task.inputs:
+                self.state_manager.store_input(task_id, inp)
+        return result
+
+    @staticmethod
+    def _merge_extraction(
+        first: ExtractionResult,
+        second: ExtractionResult,
+    ) -> ExtractionResult:
+        merged_extracted = dict(first.extracted)
+        merged_extracted.update(second.extracted)
+        return ExtractionResult(
+            extracted=merged_extracted,
+            rejected=first.rejected + second.rejected,
         )
