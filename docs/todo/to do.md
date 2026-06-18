@@ -1,8 +1,6 @@
 # Intentionally deferred (per design / current scope)
 
-## Calculation execution
 
-reports reflect task state; incomplete tasks show missing inputs until the executor stores results in `task.outputs`.
 
 ## Integrity / audit / summary report types
 
@@ -10,11 +8,7 @@ template stubs only (`integrity_report.md`, `audit_report.md`).
 
 ## Full traversal trace
 
-populated from task + standards where available; richer trace waits on workflow executor (STEP 4/5).
-
 **Deferred:** CLI bootstrap (`task execute`), Workflow Engine (STEP 6), full Validation Layer, parallel execution.
-
-
 
 ## Out of scope (stubs only)
 
@@ -22,4 +16,13 @@ populated from task + standards where available; richer trace waits on workflow 
 - Full ambiguity UI / user branch selection in CLI (return `CLARIFY` with options)
 - Workflow Engine (STEP 6) — planner uses graph roots directly
 - Planner content in engineering reports (doc 11 §22 — audit field only)
+
+
+
+## **Deferred (per MVP scope)**
+
+- CLI override UI for `validation_overrides`
+- Orchestrator pre-chat validation (runs at execution time today)
+- Separate `rules/*.yaml` files for all engineering rules
+- Multi-standard conflict resolution beyond `task.conflicts`
 

@@ -1,0 +1,350 @@
+# ASTM A312/A312M — Seamless, Welded, and Heavily Cold Worked Austenitic Stainless Steel Pipe
+# Minimum specified mechanical properties and chemical composition limits.
+# Development reference data — verify against licensed ASTM A312/A312M for production use.
+
+table_id: astm_a312_material_properties
+title: ASTM A312 — Austenitic Stainless Steel Pipe
+standard: ASTM A312/A312M
+version: "1.0"
+product_form: [seamless_pipe, welded_pipe]
+test_method: longitudinal_tension
+temperature_unit: F
+stress_unit: Pa
+
+keys:
+  - grade
+
+aliases:
+  grade:
+    TP304: "TP304"
+    304: "TP304"
+    SS304: "TP304"
+    AISI 304: "TP304"
+    TP304L: "TP304L"
+    304L: "TP304L"
+    SS304L: "TP304L"
+    TP316: "TP316"
+    316: "TP316"
+    SS316: "TP316"
+    AISI 316: "TP316"
+    TP316L: "TP316L"
+    316L: "TP316L"
+    SS316L: "TP316L"
+    TP321: "TP321"
+    321: "TP321"
+    TP347: "TP347"
+    347: "TP347"
+    TP304H: "TP304H"
+    TP316H: "TP316H"
+
+materials:
+  TP304:
+    display_name: "ASTM A312 TP304"
+    specification: ASTM A312/A312M
+    product_form: seamless_or_welded_pipe
+    uns_number: S30400
+    aliases: [304, SS304]
+    chemical_composition:
+      unit: percent
+      limits:
+        carbon: {max: 0.08}
+        manganese: {max: 2.00}
+        phosphorus: {max: 0.045}
+        sulfur: {max: 0.030}
+        silicon: {max: 1.00}
+        chromium: {min: 18.0, max: 20.0}
+        nickel: {min: 8.0, max: 11.0}
+        molybdenum: {max: null}
+        nitrogen: {max: 0.10}
+    mechanical_properties:
+      room_temperature:
+        test_temperature_f: 70
+        tensile_strength_min: {ksi: 75, pa: 517106797}
+        yield_strength_min: {ksi: 30, pa: 206842719}
+        elongation_min_percent: 35
+      elevated_temperature:
+        - test_temperature_f: 200
+          tensile_strength_min: {ksi: 72, pa: 496622526}
+          yield_strength_min: {ksi: 20, pa: 137895146}
+          elongation_min_percent: 32
+        - test_temperature_f: 400
+          tensile_strength_min: {ksi: 65, pa: 448159224}
+          yield_strength_min: {ksi: 16, pa: 110316117}
+          elongation_min_percent: 28
+        - test_temperature_f: 600
+          tensile_strength_min: {ksi: 58, pa: 399896758}
+          yield_strength_min: {ksi: 14, pa: 96526603}
+          elongation_min_percent: 25
+        - test_temperature_f: 800
+          tensile_strength_min: {ksi: 50, pa: 344737865}
+          yield_strength_min: {ksi: 12, pa: 82737091}
+          elongation_min_percent: 22
+    physical_properties:
+      density_kg_m3: 8000
+      modulus_of_elasticity_70f_pa: 193000000000
+      poisson_ratio: 0.30
+      thermal_expansion_coefficient_per_f: 9.4e-6
+    notes:
+      - General-purpose austenitic stainless steel pipe grade.
+
+  TP304L:
+    display_name: "ASTM A312 TP304L"
+    specification: ASTM A312/A312M
+    product_form: seamless_or_welded_pipe
+    uns_number: S30403
+    aliases: [304L, SS304L]
+    chemical_composition:
+      unit: percent
+      limits:
+        carbon: {max: 0.030}
+        manganese: {max: 2.00}
+        phosphorus: {max: 0.045}
+        sulfur: {max: 0.030}
+        silicon: {max: 1.00}
+        chromium: {min: 18.0, max: 20.0}
+        nickel: {min: 8.0, max: 12.0}
+        molybdenum: {max: null}
+        nitrogen: {max: 0.10}
+    mechanical_properties:
+      room_temperature:
+        test_temperature_f: 70
+        tensile_strength_min: {ksi: 70, pa: 482633010}
+        yield_strength_min: {ksi: 25, pa: 172368932}
+        elongation_min_percent: 35
+    physical_properties:
+      density_kg_m3: 8000
+      modulus_of_elasticity_70f_pa: 193000000000
+      poisson_ratio: 0.30
+      thermal_expansion_coefficient_per_f: 9.6e-6
+    notes:
+      - Low-carbon grade for improved corrosion resistance after welding.
+
+  TP304H:
+    display_name: "ASTM A312 TP304H"
+    specification: ASTM A312/A312M
+    product_form: seamless_or_welded_pipe
+    uns_number: S30409
+    aliases: [304H]
+    chemical_composition:
+      unit: percent
+      limits:
+        carbon: {min: 0.04, max: 0.10}
+        manganese: {max: 2.00}
+        phosphorus: {max: 0.045}
+        sulfur: {max: 0.030}
+        silicon: {max: 1.00}
+        chromium: {min: 18.0, max: 20.0}
+        nickel: {min: 8.0, max: 11.0}
+    mechanical_properties:
+      room_temperature:
+        test_temperature_f: 70
+        tensile_strength_min: {ksi: 75, pa: 517106797}
+        yield_strength_min: {ksi: 30, pa: 206842719}
+        elongation_min_percent: 35
+    physical_properties:
+      density_kg_m3: 8000
+      modulus_of_elasticity_70f_pa: 193000000000
+      poisson_ratio: 0.30
+      thermal_expansion_coefficient_per_f: 9.4e-6
+    notes:
+      - High-carbon 304 variant for elevated-temperature service.
+
+  TP316:
+    display_name: "ASTM A312 TP316"
+    specification: ASTM A312/A312M
+    product_form: seamless_or_welded_pipe
+    uns_number: S31600
+    aliases: [316, SS316]
+    chemical_composition:
+      unit: percent
+      limits:
+        carbon: {max: 0.08}
+        manganese: {max: 2.00}
+        phosphorus: {max: 0.045}
+        sulfur: {max: 0.030}
+        silicon: {max: 1.00}
+        chromium: {min: 16.0, max: 18.0}
+        nickel: {min: 10.0, max: 14.0}
+        molybdenum: {min: 2.0, max: 3.0}
+        nitrogen: {max: 0.10}
+    mechanical_properties:
+      room_temperature:
+        test_temperature_f: 70
+        tensile_strength_min: {ksi: 75, pa: 517106797}
+        yield_strength_min: {ksi: 30, pa: 206842719}
+        elongation_min_percent: 35
+      elevated_temperature:
+        - test_temperature_f: 200
+          tensile_strength_min: {ksi: 72, pa: 496622526}
+          yield_strength_min: {ksi: 21, pa: 144889903}
+          elongation_min_percent: 32
+        - test_temperature_f: 400
+          tensile_strength_min: {ksi: 66, pa: 455153780}
+          yield_strength_min: {ksi: 17, pa: 117210874}
+          elongation_min_percent: 28
+        - test_temperature_f: 600
+          tensile_strength_min: {ksi: 60, pa: 413685437}
+          yield_strength_min: {ksi: 15, pa: 103421359}
+          elongation_min_percent: 25
+    physical_properties:
+      density_kg_m3: 8000
+      modulus_of_elasticity_70f_pa: 193000000000
+      poisson_ratio: 0.30
+      thermal_expansion_coefficient_per_f: 9.2e-6
+    notes:
+      - Molybdenum-bearing austenitic grade with improved pitting and crevice corrosion resistance.
+
+  TP316L:
+    display_name: "ASTM A312 TP316L"
+    specification: ASTM A312/A312M
+    product_form: seamless_or_welded_pipe
+    uns_number: S31603
+    aliases: [316L, SS316L]
+    chemical_composition:
+      unit: percent
+      limits:
+        carbon: {max: 0.030}
+        manganese: {max: 2.00}
+        phosphorus: {max: 0.045}
+        sulfur: {max: 0.030}
+        silicon: {max: 1.00}
+        chromium: {min: 16.0, max: 18.0}
+        nickel: {min: 10.0, max: 14.0}
+        molybdenum: {min: 2.0, max: 3.0}
+        nitrogen: {max: 0.10}
+    mechanical_properties:
+      room_temperature:
+        test_temperature_f: 70
+        tensile_strength_min: {ksi: 70, pa: 482633010}
+        yield_strength_min: {ksi: 25, pa: 172368932}
+        elongation_min_percent: 35
+    physical_properties:
+      density_kg_m3: 8000
+      modulus_of_elasticity_70f_pa: 193000000000
+      poisson_ratio: 0.30
+      thermal_expansion_coefficient_per_f: 9.2e-6
+    notes:
+      - Low-carbon 316 grade; common for welded corrosion-resistant piping.
+
+  TP316H:
+    display_name: "ASTM A312 TP316H"
+    specification: ASTM A312/A312M
+    product_form: seamless_or_welded_pipe
+    uns_number: S31609
+    aliases: [316H]
+    chemical_composition:
+      unit: percent
+      limits:
+        carbon: {min: 0.04, max: 0.10}
+        manganese: {max: 2.00}
+        phosphorus: {max: 0.045}
+        sulfur: {max: 0.030}
+        silicon: {max: 1.00}
+        chromium: {min: 16.0, max: 18.0}
+        nickel: {min: 10.0, max: 14.0}
+        molybdenum: {min: 2.0, max: 3.0}
+    mechanical_properties:
+      room_temperature:
+        test_temperature_f: 70
+        tensile_strength_min: {ksi: 75, pa: 517106797}
+        yield_strength_min: {ksi: 30, pa: 206842719}
+        elongation_min_percent: 35
+    physical_properties:
+      density_kg_m3: 8000
+      modulus_of_elasticity_70f_pa: 193000000000
+      poisson_ratio: 0.30
+      thermal_expansion_coefficient_per_f: 9.2e-6
+
+  TP321:
+    display_name: "ASTM A312 TP321"
+    specification: ASTM A312/A312M
+    product_form: seamless_or_welded_pipe
+    uns_number: S32100
+    aliases: [321]
+    chemical_composition:
+      unit: percent
+      limits:
+        carbon: {max: 0.08}
+        manganese: {max: 2.00}
+        phosphorus: {max: 0.045}
+        sulfur: {max: 0.030}
+        silicon: {max: 1.00}
+        chromium: {min: 17.0, max: 19.0}
+        nickel: {min: 9.0, max: 12.0}
+        titanium: {min: 5.0, note: "times carbon content, min 0.20%"}
+    mechanical_properties:
+      room_temperature:
+        test_temperature_f: 70
+        tensile_strength_min: {ksi: 75, pa: 517106797}
+        yield_strength_min: {ksi: 30, pa: 206842719}
+        elongation_min_percent: 35
+    physical_properties:
+      density_kg_m3: 8000
+      modulus_of_elasticity_70f_pa: 193000000000
+      poisson_ratio: 0.30
+      thermal_expansion_coefficient_per_f: 9.3e-6
+    notes:
+      - Titanium-stabilized grade for elevated-temperature service and sensitization resistance.
+
+  TP347:
+    display_name: "ASTM A312 TP347"
+    specification: ASTM A312/A312M
+    product_form: seamless_or_welded_pipe
+    uns_number: S34700
+    aliases: [347]
+    chemical_composition:
+      unit: percent
+      limits:
+        carbon: {max: 0.08}
+        manganese: {max: 2.00}
+        phosphorus: {max: 0.045}
+        sulfur: {max: 0.030}
+        silicon: {max: 1.00}
+        chromium: {min: 17.0, max: 19.0}
+        nickel: {min: 9.0, max: 13.0}
+        columbium: {min: 10.0, note: "times carbon content, min 0.20%"}
+        tantalum: {max: null, note: "may be used in place of columbium"}
+    mechanical_properties:
+      room_temperature:
+        test_temperature_f: 70
+        tensile_strength_min: {ksi: 75, pa: 517106797}
+        yield_strength_min: {ksi: 30, pa: 206842719}
+        elongation_min_percent: 35
+    physical_properties:
+      density_kg_m3: 8000
+      modulus_of_elasticity_70f_pa: 193000000000
+      poisson_ratio: 0.30
+      thermal_expansion_coefficient_per_f: 9.3e-6
+    notes:
+      - Columbium-stabilized austenitic grade for high-temperature creep service.
+
+  TP317L:
+    display_name: "ASTM A312 TP317L"
+    specification: ASTM A312/A312M
+    product_form: seamless_or_welded_pipe
+    uns_number: S31703
+    aliases: [317L]
+    chemical_composition:
+      unit: percent
+      limits:
+        carbon: {max: 0.030}
+        manganese: {max: 2.00}
+        phosphorus: {max: 0.045}
+        sulfur: {max: 0.030}
+        silicon: {max: 1.00}
+        chromium: {min: 18.0, max: 20.0}
+        nickel: {min: 11.0, max: 15.0}
+        molybdenum: {min: 3.0, max: 4.0}
+    mechanical_properties:
+      room_temperature:
+        test_temperature_f: 70
+        tensile_strength_min: {ksi: 70, pa: 482633010}
+        yield_strength_min: {ksi: 25, pa: 172368932}
+        elongation_min_percent: 35
+    physical_properties:
+      density_kg_m3: 8000
+      modulus_of_elasticity_70f_pa: 193000000000
+      poisson_ratio: 0.30
+      thermal_expansion_coefficient_per_f: 9.1e-6
+    notes:
+      - Higher molybdenum low-carbon grade for improved resistance to corrosive media.

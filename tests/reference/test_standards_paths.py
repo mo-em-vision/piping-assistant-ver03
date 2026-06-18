@@ -41,3 +41,12 @@ def test_list_standard_packs_includes_asme_samples() -> None:
     slugs = {slug for slug, _ in list_standard_packs(root)}
     assert "asme_b31.3" in slugs
     assert "asme_b36.10" in slugs
+    assert "astm_a106" in slugs
+    assert "astm_a312" in slugs
+
+
+def test_resolve_grouped_astm_a106() -> None:
+    root = Path(__file__).resolve().parents[2] / "standards"
+    pack = resolve_standard_pack(root, "astm_a106")
+    assert pack.parent.name == "astm"
+    assert (pack / "tables" / "material_properties.yaml").exists()

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-STANDARD_GROUPS: tuple[str, ...] = ("asme", "api")
+STANDARD_GROUPS: tuple[str, ...] = ("asme", "api", "astm")
 
 
 def normalize_standard_slug(standard: str) -> str:
