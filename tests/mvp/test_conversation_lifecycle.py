@@ -75,7 +75,7 @@ class TestConversationLifecycle:
         )
         assert second.status == "waiting_input"
         assert second.task_id == task_id
-        assert "pressure_loading" in (second.data.get("missing_inputs") or [])
+        assert "straight_pipe_section" in (second.data.get("missing_inputs") or [])
 
     def test_follow_up_extracts_natural_language_inputs_without_manual_store(self) -> None:
         manager = TaskStateManager()

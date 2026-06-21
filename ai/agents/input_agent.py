@@ -6,7 +6,7 @@ from typing import Any
 
 from engine.state.state_manager import TaskStateManager
 from models.agent import AgentAction, AgentContext, InputAgentResult, InputRequest
-from models.planning import NavigationPlan
+from models.planning import NavigationPhase, NavigationPlan
 from models.task import Task
 
 from ai.agents._constants import (
@@ -19,6 +19,15 @@ from ai.agents._constants import (
 from ai.agents.base import BaseAgent
 
 MATERIAL_STRESS_NODE = "B313-material-stress"
+
+_DETERMINISTIC_PHASES = frozenset(
+    {
+        NavigationPhase.EXPANSION_ASSUMPTIONS,
+        NavigationPhase.PATH_DECISIONS,
+        NavigationPhase.COEFFICIENT_RESOLUTION,
+        NavigationPhase.EXECUTION_ASSUMPTIONS,
+    }
+)
 
 
 class InputAgent(BaseAgent):
@@ -100,7 +109,11 @@ class InputAgent(BaseAgent):
 
         requests = [self._build_request(input_id, navigation_plan) for input_id in missing]
 
-        if self._client is not None and missing:
+        if (
+            self._client is not None
+            and missing
+            and not self._uses_deterministic_prompt(navigation_plan)
+        ):
             requests = self._enrich_with_llm(task, missing, requests, context)
 
         return InputAgentResult(
@@ -133,6 +146,13 @@ class InputAgent(BaseAgent):
         navigation_plan: NavigationPlan | None,
     ) -> list[str]:
         if navigation_plan:
+            phase_fields = navigation_plan.phase_missing.get(
+                navigation_plan.current_phase.value,
+                [],
+            )
+            if phase_fields:
+                return list(phase_fields)
+
             missing: list[str] = []
             if navigation_plan.missing_assumptions:
                 missing.extend(navigation_plan.missing_assumptions)
@@ -157,6 +177,12 @@ class InputAgent(BaseAgent):
             for input_id in assumption_fields + required
             if input_id not in task.inputs
         ]
+
+    @staticmethod
+    def _uses_deterministic_prompt(navigation_plan: NavigationPlan | None) -> bool:
+        if navigation_plan is None:
+            return False
+        return navigation_plan.current_phase in _DETERMINISTIC_PHASES
 
     def _build_request(
         self,

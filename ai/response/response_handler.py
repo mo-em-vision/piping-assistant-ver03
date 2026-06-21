@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from models.agent import (
     AgentAction,
     ContextResult,
@@ -13,6 +15,11 @@ from models.agent import (
 )
 
 from ai.input_extractor import InputRejection
+
+if TYPE_CHECKING:
+    from engine.reference.standards_reader import StandardsReader
+    from models.planning import NavigationPlan
+    from models.task import Task
 
 
 class ResponseHandler:
@@ -59,6 +66,56 @@ class ResponseHandler:
             symbol = f" ({request.symbol})" if request.symbol else ""
             lines.append(f"- {request.input_id}{symbol}: {request.reason}")
         parts.append("\n".join(lines))
+        return "\n\n".join(parts)
+
+    def format_formula_parameter_prompt(
+        self,
+        *,
+        reader: StandardsReader,
+        task: Task,
+        navigation_plan: NavigationPlan | None,
+        input_result: InputAgentResult,
+        rejections: list[InputRejection] | None = None,
+    ) -> str | None:
+        from engine.messaging.formula_parameter_prompt import build_formula_parameter_prompt
+
+        prompt = build_formula_parameter_prompt(
+            reader=reader,
+            task=task,
+            navigation_plan=navigation_plan,
+            missing_input_ids=input_result.missing_inputs,
+        )
+        if not prompt:
+            return None
+        parts: list[str] = []
+        if rejections:
+            parts.append(self.format_rejections(rejections))
+        parts.append(prompt)
+        return "\n\n".join(parts)
+
+    def format_step_prompt(
+        self,
+        *,
+        reader: StandardsReader,
+        task: Task,
+        navigation_plan: NavigationPlan | None,
+        input_result: InputAgentResult,
+        rejections: list[InputRejection] | None = None,
+    ) -> str | None:
+        from engine.messaging.step_prompt import build_step_prompt
+
+        prompt = build_step_prompt(
+            reader=reader,
+            task=task,
+            navigation_plan=navigation_plan,
+            missing_input_ids=input_result.missing_inputs,
+        )
+        if not prompt:
+            return None
+        parts: list[str] = []
+        if rejections:
+            parts.append(self.format_rejections(rejections))
+        parts.append(prompt)
         return "\n\n".join(parts)
 
     @staticmethod

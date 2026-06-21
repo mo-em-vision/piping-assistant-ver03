@@ -74,3 +74,24 @@ def test_resolve_pending_value_confirm() -> None:
     resolved = resolve_pending_value_responses("yes", [spec], {"coefficient": proposed})
 
     assert resolved["coefficient"].status == InputStatus.CONFIRMED
+
+
+def test_extract_interaction_responses_confirms_proposed_decision_default() -> None:
+    spec = NodeInteractionSpec(
+        variable="joint_category",
+        mode=InteractionMode.DECISION,
+        node_id="B313-304.1.2",
+        required=True,
+        options=("seamless", "erw", "forging"),
+        default="seamless",
+        confirmation_required=True,
+    )
+    proposed = proposed_default_input("joint_category", "seamless")
+    extracted = extract_interaction_responses(
+        "confirm",
+        [spec],
+        existing_inputs={"joint_category": proposed},
+    )
+
+    assert extracted["joint_category"].value == "seamless"
+    assert extracted["joint_category"].status == InputStatus.CONFIRMED

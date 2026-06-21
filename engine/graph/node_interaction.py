@@ -478,6 +478,10 @@ def match_decision_in_message(message: str, spec: NodeInteractionSpec) -> str | 
     if spec.mode != InteractionMode.DECISION:
         return None
 
+    numbered = _match_numbered_option(message, spec)
+    if numbered is not None:
+        return numbered
+
     patterns = _decision_patterns(spec)
     matches: set[str] = set()
     for pattern, canonical in patterns:
@@ -522,7 +526,7 @@ def evaluate_pending_interactions(
                 if "default" not in spec.sources and spec.lookup_source is None:
                     continue
             elif spec.mode == InteractionMode.DECISION:
-                if not spec.confirmation_required:
+                if not spec.options and not spec.confirmation_required:
                     continue
             else:
                 continue
@@ -657,6 +661,20 @@ def _dedupe_by_variable(specs: list[NodeInteractionSpec]) -> list[NodeInteractio
         seen.add(spec.variable)
         merged.append(spec)
     return merged
+
+
+def _match_numbered_option(message: str, spec: NodeInteractionSpec) -> str | None:
+    """Map replies such as ``1``, ``option 2``, or ``#2`` to a canonical option."""
+    if not spec.options:
+        return None
+
+    text = message.strip().lower()
+    option_count = len(spec.options)
+    for index in range(1, option_count + 1):
+        pattern = re.compile(rf"^(?:option|choice|#)?\s*({index})\b[\s.:,-]*$")
+        if pattern.match(text):
+            return normalize_assumption_value(spec.options[index - 1])
+    return None
 
 
 def _decision_patterns(spec: NodeInteractionSpec) -> list[tuple[re.Pattern[str], str]]:

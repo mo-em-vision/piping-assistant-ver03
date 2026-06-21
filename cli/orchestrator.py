@@ -183,10 +183,26 @@ class ChatOrchestrator:
 
         if input_result.missing_inputs:
             self.state_manager.update_task_status(task.task_id, TaskStatus.AWAITING_INPUT)
-            formatted = self.response_handler.format_input_requests(
-                input_result,
+            formatted = self.response_handler.format_step_prompt(
+                reader=self.standards_reader,
+                task=task,
+                navigation_plan=navigation_plan,
+                input_result=input_result,
                 rejections=extraction.rejected,
             )
+            if not formatted:
+                formatted = self.response_handler.format_formula_parameter_prompt(
+                    reader=self.standards_reader,
+                    task=task,
+                    navigation_plan=navigation_plan,
+                    input_result=input_result,
+                    rejections=extraction.rejected,
+                )
+            if not formatted:
+                formatted = self.response_handler.format_input_requests(
+                    input_result,
+                    rejections=extraction.rejected,
+                )
             first = input_result.requests[0] if input_result.requests else None
             return (
                 CLIResponse(
@@ -234,12 +250,14 @@ class ChatOrchestrator:
         task = self.state_manager.get_task(task_id)
         pending_decisions = self._pending_decision_interactions(task)
         pending_values = self._pending_value_confirmations(task)
+        symbol_map = self._symbol_map_for_task(task)
         result = extract_pipe_wall_thickness_inputs(
             message,
             pending_interactions=pending_decisions,
             pending_value_confirmations=pending_values,
             existing_inputs=task.inputs,
             allowed_fields=allowed_fields,
+            symbol_map=symbol_map,
         )
         task = self.state_manager.get_task(task_id)
         for inp in result.extracted.values():
@@ -266,11 +284,28 @@ class ChatOrchestrator:
         self,
         task: Any,
     ) -> tuple[NodeInteractionSpec, ...]:
+        from engine.graph.node_interaction import pending_value_confirmations
+
+        specs = self._path_interaction_specs(task)
+        pending = pending_value_confirmations(specs, task.inputs)
+        return tuple(pending)
+
+    def _pending_decision_interactions(
+        self,
+        task: Any,
+    ) -> tuple[NodeInteractionSpec, ...]:
+        from engine.graph.node_interaction import pending_decision_interactions
+
+        specs = self._path_interaction_specs(task)
+        if specs:
+            pending = pending_decision_interactions(specs, task.inputs)
+            if pending:
+                return tuple(pending)
+        return default_pipe_wall_thickness_decision_interactions()
+
+    def _path_interaction_specs(self, task: Any) -> list[NodeInteractionSpec]:
         from engine.graph.graph_engine import GraphEngine, normalize_root_id
-        from engine.graph.node_interaction import (
-            collect_path_interactions,
-            pending_value_confirmations,
-        )
+        from engine.graph.node_interaction import collect_path_interactions
 
         root = task.outputs.get("selected_root") or "pipe_wall_thickness_design"
         slug = normalize_root_id(str(root))
@@ -286,28 +321,39 @@ class ChatOrchestrator:
             for node_id in plan.execution_order
             if str(self.standards_reader.load(node_id).metadata.get("type", "")) != "root"
         ]
-        specs = collect_path_interactions(self.standards_reader, node_ids)
-        pending = pending_value_confirmations(specs, task.inputs)
-        return tuple(pending)
+        return collect_path_interactions(self.standards_reader, node_ids)
 
-    def _pending_decision_interactions(
-        self,
-        task: Any,
-    ) -> tuple[NodeInteractionSpec, ...]:
-        root = task.outputs.get("selected_root")
-        if root:
-            from engine.graph.graph_engine import normalize_root_id
-            from engine.graph.node_interaction import (
-                collect_root_interactions,
-                pending_decision_interactions,
-            )
+    def _symbol_map_for_task(self, task: Any) -> dict[str, str]:
+        from engine.graph.graph_engine import GraphEngine, normalize_root_id
+        from engine.messaging.formula_parameter_prompt import (
+            build_symbol_map,
+            resolve_focus_calculation_node,
+        )
+        from models.planning import NavigationPlan
 
-            slug = normalize_root_id(str(root))
-            specs = collect_root_interactions(self.standards_reader, slug)
-            pending = pending_decision_interactions(specs, task.inputs)
-            if pending:
-                return tuple(pending)
-        return default_pipe_wall_thickness_decision_interactions()
+        root = task.outputs.get("selected_root") or "pipe_wall_thickness_design"
+        slug = normalize_root_id(str(root))
+        engine = GraphEngine()
+        plan = engine.build_plan(
+            task_id=task.task_id,
+            root_id=slug,
+            inputs=task.inputs,
+            reader=self.standards_reader,
+        )
+        node_ids = [
+            node_id
+            for node_id in plan.execution_order
+            if str(self.standards_reader.load(node_id).metadata.get("type", "")) != "root"
+        ]
+        nav = NavigationPlan(selected_nodes=node_ids)
+        node_id = resolve_focus_calculation_node(
+            nav, self.standards_reader, task_inputs=task.inputs
+        ) or "B313-304.1.2"
+        return build_symbol_map(
+            self.standards_reader,
+            node_id,
+            parameter_registry=task.parameter_registry,
+        )
 
     @staticmethod
     def _merge_extraction(

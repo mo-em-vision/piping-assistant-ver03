@@ -4,6 +4,8 @@ Deterministic engineering assistant that turns standards into executable depende
 
 AI handles navigation and explanation. Engineering truth lives in the graph engine, validation layer, and execution layer — not in the LLM.
 
+**Chat input collection** is phased and mostly deterministic: assumptions and path decisions use numbered options; calculation steps show the governing formula with known/missing parameters on separate lines. The LLM is used for initial intent routing and ambiguous/off-topic messages, not for every follow-up prompt.
+
 ## Architecture
 
 ```

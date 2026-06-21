@@ -32,6 +32,15 @@ class ContextAgent(BaseAgent):
                 action=AgentAction.CONTEXT_SWITCH,
             )
 
+        if active_task_id:
+            return ContextResult(
+                context_switch_detected=False,
+                preserve_task=True,
+                active_task_id=active_task_id,
+                message="",
+                action=AgentAction.GENERAL_RESPONSE,
+            )
+
         if self._client is not None:
             try:
                 return self._evaluate_with_llm(message, context)

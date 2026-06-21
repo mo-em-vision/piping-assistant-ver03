@@ -23,11 +23,23 @@ _CONFIRM_PATTERN = re.compile(
 def extract_interaction_responses(
     message: str,
     pending: Sequence[NodeInteractionSpec],
+    *,
+    existing_inputs: Mapping[str, EngineeringInput] | None = None,
 ) -> dict[str, EngineeringInput]:
     """Parse user text for pending decision interactions and return canonical values."""
     extracted: dict[str, EngineeringInput] = {}
     if not message.strip() or not pending:
         return extracted
+
+    if extract_confirmation_intent(message) and existing_inputs:
+        for spec in pending:
+            stored = existing_inputs.get(spec.variable)
+            if not isinstance(stored, EngineeringInput):
+                continue
+            if stored.status != InputStatus.PROPOSED_DEFAULT:
+                continue
+            extracted[spec.variable] = confirm_proposed_input(spec, stored)
+            return extracted
 
     for variable, raw_match in extract_decision_responses(message, pending).items():
         if variable in extracted:
