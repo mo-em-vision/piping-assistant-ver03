@@ -15,6 +15,7 @@ def test_resolve_grouped_asme_b31_3() -> None:
     assert pack.name == "asme_b31.3"
     assert pack.parent.name == "asme"
     assert (pack / "nodes" / "B313-304.1.1" / "node.md").exists()
+    assert (pack / "nodes" / "B313-304.1.2" / "node.md").exists()
 
 
 def test_resolve_grouped_asme_b36_10() -> None:

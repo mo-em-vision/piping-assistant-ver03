@@ -37,3 +37,4 @@ tests:
 - LLM-based input extraction fallback (planned in docs but not required for this fix; deterministic path covers your case and keeps tests stable with `FakeLLMClient`)
 - Auto-mapping mislabeled `Pressure: 4 inch` to diameter (explicitly rejected per your choice)
 
+before expanding a path, for example pipe thickness, first make sure that all the assumptions in the node are met, (if the user hasn't provided them, then ask). for example the pipe thickness has to first check if the pipe is internally or externally stressed (it has to have an assumptions field with limitations on expanding the node, or the default values used). the formula t=PD/2(SE+PY) currently in the node is only valid for internally stressed pipes. 

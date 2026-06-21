@@ -96,7 +96,8 @@ class Executor:
             )
 
         for node_id in plan.execution_order:
-            if self._reader.load(node_id).metadata.get("type") == "root":
+            node_type = self._reader.load(node_id).metadata.get("type")
+            if node_type in {"root", "definition"}:
                 continue
 
             node_validation = self._validation.validate_node(
@@ -175,6 +176,8 @@ class Executor:
                     node=node_id,
                     result=result.outputs,
                 )
+            elif result.status == NodeExecutionStatus.SKIPPED:
+                prior_completed.add(node_id)
 
             state.store_step_progress(
                 plan.task_id,

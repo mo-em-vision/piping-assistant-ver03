@@ -1,0 +1,18 @@
+# Development sample — placeholder for ASME B31.3 Table 302.3.5.
+# Weld joint strength reduction factor W — content to be added.
+
+table_id: "302.3.5"
+title: Table 302.3.5 — Weld Joint Strength Reduction Factor W (sample)
+version: "1.0"
+
+subsection: "302.3.5(e)"
+
+keys:
+  - material
+  - design_temperature
+  - weld_joint_category
+
+interpolation: true
+temperature_unit: F
+
+rows: []

@@ -12,6 +12,7 @@ from models.task import Task
 from ai.agents._constants import (
     PIPE_WALL_THICKNESS_DESIGN,
     PIPE_WALL_THICKNESS_NODE,
+    REQUIRED_ASSUMPTION_FIELDS,
     REQUIRED_LOOKUP_INPUTS,
     REQUIRED_USER_INPUTS,
 )
@@ -24,6 +25,15 @@ class InputAgent(BaseAgent):
     prompt_file = "input_agent.md"
 
     _REASONS: dict[str, str] = {
+        "straight_pipe_section": (
+            "Required before expanding the §304.1.1 wall thickness path. "
+            "This workflow currently supports straight pipe sections only."
+        ),
+        "pressure_loading": (
+            "Required before expanding the §304.1.1 wall thickness path. "
+            "The equation t = PD/2(SEW+PY) applies only to internally "
+            "pressurized pipe."
+        ),
         "design_pressure": "Required by ASME B31.3 §304.1.1 for thickness calculation.",
         "outside_diameter": "Required by ASME B31.3 §304.1.1 for thickness calculation.",
         "material": (
@@ -33,18 +43,45 @@ class InputAgent(BaseAgent):
         "design_temperature": (
             "Required because allowable stress depends on design metal temperature."
         ),
+        "external_design_pressure": (
+            "Required for external pressure wall thickness design per ASME B31.3 §304.1.3."
+        ),
+        "weld_joint_efficiency": (
+            "Please confirm the weld joint quality factor E = 1.0 "
+            "(default for seamless pipe), or provide a different value."
+        ),
+        "weld_strength_reduction": (
+            "Please confirm the weld strength reduction factor W = 1.0, "
+            "or provide a different value."
+        ),
+        "temperature_coefficient": (
+            "Please confirm the temperature coefficient Y = 0.4, "
+            "or provide a different value."
+        ),
     }
 
     _SYMBOLS: dict[str, str] = {
+        "straight_pipe_section": "straight_pipe_section",
+        "pressure_loading": "pressure_loading",
         "design_pressure": "P",
         "outside_diameter": "D",
         "material": "material",
         "design_temperature": "T",
+        "external_design_pressure": "P_ext",
+        "weld_joint_efficiency": "E",
+        "weld_strength_reduction": "W",
+        "temperature_coefficient": "Y",
     }
 
     _NODE_IDS: dict[str, str] = {
+        "straight_pipe_section": PIPE_WALL_THICKNESS_NODE,
+        "pressure_loading": PIPE_WALL_THICKNESS_NODE,
         "design_pressure": PIPE_WALL_THICKNESS_NODE,
         "outside_diameter": PIPE_WALL_THICKNESS_NODE,
+        "external_design_pressure": "B313-304.1.3",
+        "weld_joint_efficiency": PIPE_WALL_THICKNESS_NODE,
+        "weld_strength_reduction": PIPE_WALL_THICKNESS_NODE,
+        "temperature_coefficient": PIPE_WALL_THICKNESS_NODE,
         "material": MATERIAL_STRESS_NODE,
         "design_temperature": MATERIAL_STRESS_NODE,
     }
@@ -95,14 +132,31 @@ class InputAgent(BaseAgent):
         workflow: str | None,
         navigation_plan: NavigationPlan | None,
     ) -> list[str]:
-        if navigation_plan and navigation_plan.missing_inputs:
-            return list(navigation_plan.missing_inputs)
+        if navigation_plan:
+            missing: list[str] = []
+            if navigation_plan.missing_assumptions:
+                missing.extend(navigation_plan.missing_assumptions)
+            if navigation_plan.missing_inputs:
+                for input_id in navigation_plan.missing_inputs:
+                    if input_id not in missing:
+                        missing.append(input_id)
+            if navigation_plan.missing_execution_assumptions:
+                for input_id in navigation_plan.missing_execution_assumptions:
+                    if input_id not in missing:
+                        missing.append(input_id)
+            if missing:
+                return missing
 
         if workflow != PIPE_WALL_THICKNESS_DESIGN and workflow is not None:
             return []
 
         required = list(REQUIRED_USER_INPUTS) + list(REQUIRED_LOOKUP_INPUTS)
-        return [input_id for input_id in required if input_id not in task.inputs]
+        assumption_fields = list(REQUIRED_ASSUMPTION_FIELDS)
+        return [
+            input_id
+            for input_id in assumption_fields + required
+            if input_id not in task.inputs
+        ]
 
     def _build_request(
         self,
@@ -144,15 +198,24 @@ class InputAgent(BaseAgent):
             return requests
 
         enriched: list[InputRequest] = []
+        request_by_id = {request.input_id: request for request in requests}
         for item in llm_requests:
             input_id = str(item.get("input_id", ""))
+            original = request_by_id.get(input_id)
             enriched.append(
                 InputRequest(
                     action=AgentAction.REQUEST_INPUT,
                     input_id=input_id,
-                    symbol=item.get("symbol"),
+                    symbol=(
+                        self._SYMBOLS.get(input_id)
+                        or (original.symbol if original else None)
+                        or item.get("symbol")
+                    ),
                     reason=str(item.get("reason", "")),
-                    node_id=item.get("node_id", self._NODE_IDS.get(input_id, PIPE_WALL_THICKNESS_NODE)),
+                    node_id=item.get(
+                        "node_id",
+                        self._NODE_IDS.get(input_id, PIPE_WALL_THICKNESS_NODE),
+                    ),
                 )
             )
         return enriched or requests

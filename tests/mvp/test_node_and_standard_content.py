@@ -27,7 +27,7 @@ class TestNodeValidationTesting:
 
 
 class TestStandardContentTesting:
-    """§13 Standard Content — paragraph, formulas, notes, limitations, references."""
+    """§13 Standard Content — paragraph, equations, notes, limitations, references."""
 
     def test_wall_thickness_node_is_self_contained(self, standards_reader) -> None:
         record = standards_reader.load(WALL_THICKNESS_NODE)
@@ -35,8 +35,8 @@ class TestStandardContentTesting:
 
         assert record.metadata.get("paragraph")
         assert record.body.strip()
-        assert record.metadata.get("formulas")
-        assert (node_dir / "formulas" / "wall_thickness.md").exists()
+        assert record.metadata.get("equations")
+        assert (node_dir / "equations" / "wall_thickness.md").exists()
         assert record.metadata.get("notes")
         assert (node_dir / "notes").exists()
         assert record.metadata.get("limitations")
@@ -51,13 +51,13 @@ class TestStandardContentTesting:
         table_rel = record.metadata["lookups"][0].get("table", "")
         assert (standards_reader.pack_root / table_rel).exists()
 
-    def test_formula_file_is_executable(self, standards_reader) -> None:
-        formula_path = (
+    def test_equation_file_is_executable(self, standards_reader) -> None:
+        equation_path = (
             standards_reader.load(WALL_THICKNESS_NODE).path.parent
-            / "formulas"
+            / "equations"
             / "wall_thickness.md"
         )
-        text = formula_path.read_text(encoding="utf-8")
+        text = equation_path.read_text(encoding="utf-8")
         assert "executor:" in text
         assert "steps:" in text
         assert "display:" in text

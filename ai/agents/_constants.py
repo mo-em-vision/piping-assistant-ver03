@@ -8,7 +8,12 @@ PIPE_WALL_THICKNESS_DESIGN = "pipe_wall_thickness_design"
 
 PIPE_WALL_THICKNESS_ROOT = "roots/pipe_wall_thickness_design/root.md"
 
-PIPE_WALL_THICKNESS_NODE = "B313-304.1.1"
+PIPE_WALL_THICKNESS_NODE = "B313-304.1.2"
+
+REQUIRED_ASSUMPTION_FIELDS: tuple[str, ...] = (
+    "straight_pipe_section",
+    "pressure_loading",
+)
 
 REQUIRED_USER_INPUTS: tuple[str, ...] = (
     "design_pressure",
@@ -50,6 +55,7 @@ MISSING_CONTEXT_PATTERNS: dict[str, re.Pattern[str]] = {
 }
 
 REQUIRED_PIPE_INPUTS: tuple[str, ...] = (
+    "pressure_loading",
     "design_pressure",
     "outside_diameter",
     "material",

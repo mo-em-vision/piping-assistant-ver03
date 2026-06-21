@@ -67,7 +67,7 @@ class TestInputInjectionTesting:
             source=InputSource.USER,
         )
         result = UnitValidator().validate_node_inputs(
-            "B313-304.1.1",
+            "B313-304.1.2",
             reader=standards_reader,
             task_inputs=inputs,
         )

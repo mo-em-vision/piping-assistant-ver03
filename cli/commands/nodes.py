@@ -73,14 +73,14 @@ def register_node_commands(app: typer.Typer, config: CLIConfig) -> None:
         if deps:
             console.print(f"Dependencies: {', '.join(deps)}")
 
-        formulas = record.metadata.get("formulas", []) or []
-        if formulas:
+        equations = record.metadata.get("equations", []) or record.metadata.get("formulas", []) or []
+        if equations:
             console.print(
-                "Formulas: "
+                "Equations: "
                 + ", ".join(
-                    str(f.get("file", f.get("id", "")))
-                    for f in formulas
-                    if isinstance(f, dict)
+                    str(e.get("file", e.get("id", "")))
+                    for e in equations
+                    if isinstance(e, dict)
                 )
             )
 

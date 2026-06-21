@@ -73,7 +73,7 @@ class TestPlannerStrategy:
             task,
             user_message="Calculate pipe thickness",
         )
-        assert plan.missing_inputs
+        assert plan.missing_assumptions or plan.missing_inputs
         assert plan.selected_root == PIPE_WALL_THICKNESS_ROOT
 
 

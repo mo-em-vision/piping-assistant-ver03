@@ -14,12 +14,69 @@ from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from models.agent import IntentResult
 from models.execution import ExecutionResult, ExecutionStatus
-from models.input import EngineeringInput, InputSource
+from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import Task, TaskStatus
 
 PIPE_WALL_THICKNESS_ROOT = "pipe_wall_thickness_design"
-WALL_THICKNESS_NODE = "B313-304.1.1"
+WALL_THICKNESS_NODE = "B313-304.1.2"
+EXTERNAL_WALL_THICKNESS_NODE = "B313-304.1.3"
 MATERIAL_STRESS_NODE = "B313-material-stress"
+
+
+def straight_section_assumption() -> EngineeringInput:
+    return EngineeringInput(
+        input_id="straight_pipe_section",
+        value=True,
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+
+
+def internal_pressure_assumption() -> EngineeringInput:
+    return EngineeringInput(
+        input_id="pressure_loading",
+        value="internal_pressure",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+
+
+def external_pressure_assumption() -> EngineeringInput:
+    return EngineeringInput(
+        input_id="pressure_loading",
+        value="external_pressure",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+
+
+def confirmed_default_inputs() -> dict[str, EngineeringInput]:
+    return {
+        "weld_joint_efficiency": EngineeringInput(
+            input_id="weld_joint_efficiency",
+            value=1.0,
+            unit="dimensionless",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
+        "weld_strength_reduction": EngineeringInput(
+            input_id="weld_strength_reduction",
+            value=1.0,
+            unit="dimensionless",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
+        "temperature_coefficient": EngineeringInput(
+            input_id="temperature_coefficient",
+            value=0.4,
+            unit="dimensionless",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
+    }
 
 
 def sample_inputs(
@@ -29,7 +86,16 @@ def sample_inputs(
     material: str = "SA-106B",
     temperature: float = 200,
 ) -> dict[str, EngineeringInput]:
-    return {
+    inputs = {
+        "straight_pipe_section": straight_section_assumption(),
+        "pressure_loading": internal_pressure_assumption(),
+        "d_input_mode": EngineeringInput(
+            input_id="d_input_mode",
+            value="direct_od",
+            unit="dimensionless",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
         "design_pressure": EngineeringInput(
             input_id="design_pressure",
             value=pressure,
@@ -60,7 +126,23 @@ def sample_inputs(
             original_value=temperature,
             original_unit="F",
         ),
+        "joint_category": EngineeringInput(
+            input_id="joint_category",
+            value="seamless",
+            unit="dimensionless",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
+        "corrosion_allowance": EngineeringInput(
+            input_id="corrosion_allowance",
+            value=0.5,
+            unit="mm",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
     }
+    inputs.update(confirmed_default_inputs())
+    return inputs
 
 
 def pipe_thickness_intent() -> IntentResult:

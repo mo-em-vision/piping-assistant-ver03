@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from .input import EngineeringInput
+from .input import EngineeringInput, ParameterDescriptor
 
 
 class TaskStatus(str, Enum):
@@ -36,3 +36,4 @@ class Task:
     outputs: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     conflicts: list[InputConflict] = field(default_factory=list)
+    parameter_registry: dict[str, ParameterDescriptor] = field(default_factory=dict)

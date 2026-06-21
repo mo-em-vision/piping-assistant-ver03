@@ -26,7 +26,7 @@ def test_build_pipe_wall_thickness_report_incomplete() -> None:
     assert report.status == "INCOMPLETE"
     assert "design_pressure" in report.missing_inputs
     assert report.formula_display is not None
-    assert any(section.node == "B313-304.1.1" for section in report.sections)
+    assert any(section.node == "B313-304.1.2" for section in report.sections)
 
 
 def test_build_report_with_inputs() -> None:
@@ -51,7 +51,7 @@ def test_render_markdown_contains_sections() -> None:
     md = render_markdown(report)
 
     assert "Executive Summary" in md
-    assert "B313-304.1.1" in md or "304.1.1" in md
+    assert "B313-304.1.2" in md or "304.1.2" in md
     assert "Dependency Graph Traversal" in md
 
 

@@ -3,7 +3,15 @@ description: System recovers after user corrects out-of-range temperature
 
 given:
   inputs:
+    pressure_loading: { value: internal_pressure, unit: dimensionless }
+    straight_pipe_section: { value: true, unit: dimensionless }
+    joint_category: { value: seamless, unit: dimensionless }
+    corrosion_allowance: { value: 0.5, unit: mm }
+    weld_joint_efficiency: { value: 1.0, unit: dimensionless }
+    weld_strength_reduction: { value: 1.0, unit: dimensionless }
+    temperature_coefficient: { value: 0.4, unit: dimensionless }
     design_pressure: { value: 500, unit: psi }
+    d_input_mode: { value: direct_od, unit: dimensionless }
     outside_diameter: { value: 10, unit: in }
     material: { value: SA-106B, unit: dimensionless }
     design_temperature: { value: 900, unit: F }

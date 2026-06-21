@@ -18,16 +18,33 @@ class TestStandardsCoverage:
         assert "asme_b31.3" in slugs
 
     def test_b31_3_has_paragraph_calculation_and_table_assets(self, standards_reader) -> None:
-        wall_node = standards_reader.load("B313-304.1.1")
+        definition_node = standards_reader.load("B313-304.1.1")
+        wall_node = standards_reader.load("B313-304.1.2")
         stress_node = standards_reader.load("B313-material-stress")
 
-        assert wall_node.metadata.get("paragraph") == "304.1.1"
+        assert definition_node.metadata.get("paragraph") == "304.1.1"
+        assert definition_node.metadata.get("type") == "definition"
+        assert definition_node.metadata.get("nomenclature")
+        c_entry = next(
+            item for item in definition_node.metadata["nomenclature"] if item["symbol"] == "c"
+        )
+        assert c_entry.get("defaults")
+        assert c_entry["defaults"][0]["value"] == 0.5
+        d_entry = next(
+            item for item in definition_node.metadata["nomenclature"] if item["symbol"] == "D"
+        )
+        assert any(
+            ref.get("standard") == "asme_b36.10" for ref in d_entry.get("references", [])
+        )
+        assert wall_node.metadata.get("paragraph") == "304.1.2"
         assert wall_node.metadata.get("type") == "calculation"
         assert stress_node.metadata.get("type") == "lookup"
-        assert (standards_reader.pack_root / "tables" / "material_allowable_stress.yaml").exists()
+        assert (
+            standards_reader.pack_root / "nodes" / "B313-appendix_A" / "tables" / "A-1.yaml"
+        ).exists()
 
-        formula_path = wall_node.path.parent / "formulas" / "wall_thickness.md"
-        assert formula_path.exists()
+        equation_path = wall_node.path.parent / "equations" / "wall_thickness.md"
+        assert equation_path.exists()
 
     def test_future_standard_architecture_supports_multiple_packs(self, project_root: Path) -> None:
         packs = list_standard_packs(project_root / "standards")
@@ -43,7 +60,8 @@ class TestNodeAcceptanceCriteria:
         "node_id,required_fields",
         [
             ("pipe_wall_thickness_design", ("id", "type", "depends_on", "report")),
-            ("B313-304.1.1", ("id", "inputs", "outputs", "depends_on", "conditions", "report")),
+            ("B313-304.1.1", ("id", "nomenclature", "report")),
+            ("B313-304.1.2", ("id", "inputs", "outputs", "depends_on", "conditions", "equations", "report")),
             ("B313-material-stress", ("id", "inputs", "outputs", "depends_on", "report")),
         ],
     )
@@ -58,12 +76,22 @@ class TestNodeAcceptanceCriteria:
             assert field in metadata, f"{node_id} missing {field}"
 
     def test_calculation_node_has_optional_traceability_fields(self, standards_reader) -> None:
-        metadata = standards_reader.load("B313-304.1.1").metadata
+        metadata = standards_reader.load("B313-304.1.2").metadata
         assert metadata.get("limitations")
         assert metadata.get("notes")
         assert metadata.get("references")
 
-    @pytest.mark.parametrize("node_id", ("B313-304.1.1", "B313-material-stress"))
+    @pytest.mark.parametrize("node_id", ("B313-304.1.1", "B313-304.1.2", "B313-material-stress"))
     def test_active_nodes_pass_schema_validation(self, standards_reader, node_id: str) -> None:
         result = standards_reader.validate(node_id)
         assert result.passed, [issue.message for issue in result.issues]
+
+    def test_302_3_5_has_structured_subsections(self, standards_reader) -> None:
+        record = standards_reader.load("B313-302.3.5")
+        subsection_ids = {item["id"] for item in record.metadata.get("subsections", [])}
+        assert subsection_ids == {"a", "b", "c", "d", "e", "f"}
+
+        subsection_e = standards_reader.load_subsection("B313-302.3.5", "e")
+        assert subsection_e.paragraph == "302.3.5(e)"
+        assert subsection_e.metadata["output"]["symbol"] == "W"
+        assert "Weld Joint Strength Reduction Factor" in subsection_e.body

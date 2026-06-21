@@ -54,6 +54,7 @@ class TestReproducibilityAcceptance:
         assert graph_version
         assert graph_version.get("graph_id") in {"pipe_wall_thickness_design", "B313-PIPE-WALL-THICKNESS-DESIGN"}
         assert "B313-304.1.1" in graph_version.get("nodes", [])
+        assert "B313-304.1.2" in graph_version.get("nodes", [])
 
 
 class TestPerformanceAcceptance:

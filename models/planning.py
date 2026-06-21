@@ -3,8 +3,20 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import Enum
 
 from .agent import AgentAction
+
+
+class NavigationPhase(str, Enum):
+    """Ordered phases for assumption-first parameter gathering."""
+
+    EXPANSION_ASSUMPTIONS = "expansion_assumptions"
+    PATH_DECISIONS = "path_decisions"
+    PARAMETER_GATHERING = "parameter_gathering"
+    COEFFICIENT_RESOLUTION = "coefficient_resolution"
+    EXECUTION_ASSUMPTIONS = "execution_assumptions"
+    READY = "ready"
 
 
 @dataclass
@@ -40,8 +52,15 @@ class NavigationPlan:
     selected_root: str | None = None
     selected_nodes: list[str] = field(default_factory=list)
     missing_inputs: list[str] = field(default_factory=list)
+    missing_assumptions: list[str] = field(default_factory=list)
+    missing_execution_assumptions: list[str] = field(default_factory=list)
+    blocked_nodes: list[str] = field(default_factory=list)
+    block_messages: list[str] = field(default_factory=list)
+    path_decision: dict[str, str] | None = None
     questions: list[str] = field(default_factory=list)
     alternative_paths: list[str] = field(default_factory=list)
     confidence: float = 0.0
     action: AgentAction = AgentAction.PROPOSE_PATH
     priorities: list[str] = field(default_factory=list)
+    current_phase: NavigationPhase = NavigationPhase.EXPANSION_ASSUMPTIONS
+    phase_missing: dict[str, list[str]] = field(default_factory=dict)

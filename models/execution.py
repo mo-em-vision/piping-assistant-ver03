@@ -47,6 +47,7 @@ class ExecutionPlan:
     dependencies: tuple[GraphEdge, ...] = ()
     graph_version: GraphVersion | None = None
     configuration: ExecutionConfiguration = field(default_factory=ExecutionConfiguration)
+    skipped_nodes: tuple[dict[str, str | bool], ...] = ()
 
 
 @dataclass

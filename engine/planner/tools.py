@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.graph.assumption_checker import AssumptionEvaluation
 from engine.graph.graph_engine import GraphEngine, normalize_root_id
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
@@ -41,8 +42,34 @@ class GraphTools:
         root_id: str,
         *,
         existing_inputs: set[str] | None = None,
+        task_inputs: dict[str, EngineeringInput] | None = None,
     ) -> list[str]:
         return self._engine.required_user_inputs(
+            root_id,
+            self._reader,
+            existing_inputs=existing_inputs,
+            task_inputs=task_inputs,
+        )
+
+    def evaluate_execution_assumptions(
+        self,
+        root_id: str,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> AssumptionEvaluation:
+        return self._engine.evaluate_execution_assumptions(
+            root_id,
+            self._reader,
+            existing_inputs=existing_inputs,
+        )
+
+    def evaluate_assumptions(
+        self,
+        root_id: str,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> AssumptionEvaluation:
+        return self._engine.evaluate_assumptions(
             root_id,
             self._reader,
             existing_inputs=existing_inputs,
@@ -61,6 +88,81 @@ class GraphTools:
             root_id=slug,
             inputs=inputs or {},
             reader=self._reader,
+        )
+
+    def pending_decision_interactions_for_root(
+        self,
+        root_id: str,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> list:
+        from engine.graph.node_interaction import (
+            collect_root_interactions,
+            pending_decision_interactions,
+        )
+
+        slug = normalize_root_id(root_id)
+        specs = collect_root_interactions(self._reader, slug)
+        return pending_decision_interactions(specs, existing_inputs or {})
+
+    def resolve_and_propose_path_inputs(
+        self,
+        root_id: str,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> dict[str, EngineeringInput]:
+        return self._engine.resolve_and_propose_path_inputs(
+            root_id,
+            self._reader,
+            existing_inputs=existing_inputs,
+        )
+
+    def evaluate_expansion_interactions(
+        self,
+        root_id: str,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> AssumptionEvaluation:
+        return self._engine.evaluate_expansion_interactions(
+            root_id,
+            self._reader,
+            existing_inputs=existing_inputs,
+        )
+
+    def expansion_ready_nodes(
+        self,
+        node_ids: list[str],
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> list[str]:
+        return self._engine.expansion_ready_nodes(
+            node_ids,
+            self._reader,
+            existing_inputs=existing_inputs,
+        )
+
+    def expansion_gate_ready(
+        self,
+        root_id: str,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> bool:
+        return self._engine.expansion_gate_ready(
+            root_id,
+            self._reader,
+            existing_inputs=existing_inputs,
+        )
+
+    def seed_parameter_registry(
+        self,
+        root_id: str,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ):
+        return self._engine.seed_parameter_registry(
+            root_id,
+            self._reader,
+            existing_inputs=existing_inputs,
         )
 
     def limitation_hints(self, node_ids: list[str]) -> list[str]:
@@ -120,6 +222,24 @@ class StateTools:
             ).__dict__
         )
         self._state.store_output(task_id, "alternative_paths", paths)
+
+    def persist_proposed_inputs(
+        self,
+        task_id: str,
+        proposed: dict[str, EngineeringInput],
+    ) -> Task:
+        for engineering_input in proposed.values():
+            task = self._state.get_task(task_id)
+            if engineering_input.input_id not in task.inputs:
+                self._state.store_input(task_id, engineering_input)
+        return self._state.get_task(task_id)
+
+    def persist_parameter_registry(
+        self,
+        task_id: str,
+        registry: dict,
+    ) -> Task:
+        return self._state.store_parameter_registry(task_id, registry)
 
 
 class RuleTools:

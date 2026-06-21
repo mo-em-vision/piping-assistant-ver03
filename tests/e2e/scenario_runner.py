@@ -21,7 +21,7 @@ from engine.state.state_manager import TaskStateManager
 from engine.validation.validation_engine import ValidationEngine
 from models.agent import IntentResult
 from models.execution import ExecutionPlan, ExecutionResult, ExecutionStatus
-from models.input import EngineeringInput, InputSource
+from models.input import EngineeringInput, InputSource, InputStatus
 from models.planning import NavigationPlan
 from models.task import Task, TaskStatus
 from models.validation import ComplianceStatus
@@ -259,6 +259,9 @@ class ScenarioRunner:
         if missing := expected.get("missing_inputs_contains"):
             assert_contains(plan.missing_inputs, missing, scenario=scenario, component="Planner")
 
+        if missing := expected.get("missing_assumptions_contains"):
+            assert_contains(plan.missing_assumptions, missing, scenario=scenario, component="Planner")
+
     def _assert_graph(self, scenario: str, snapshot: WorkflowSnapshot, expected: dict[str, Any]) -> None:
         plan = snapshot.execution_plan
         if plan is None:
@@ -267,7 +270,7 @@ class ScenarioRunner:
         exec_nodes = [
             node_id
             for node_id in plan.execution_order
-            if str(self.reader.load(node_id).metadata.get("type", "")) != "root"
+            if str(self.reader.load(node_id).metadata.get("type", "")) not in {"root", "definition"}
         ]
 
         if order := expected.get("execution_order"):
@@ -357,6 +360,7 @@ def _engineering_input(input_id: str, spec: dict[str, Any]) -> EngineeringInput:
         value=value,
         unit=unit,
         source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
         original_value=value if isinstance(value, (int, float)) else None,
         original_unit=unit if unit != "dimensionless" else None,
     )

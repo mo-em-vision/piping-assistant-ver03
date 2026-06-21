@@ -10,9 +10,9 @@ from cli.standards_reader import StandardsReader
 def test_load_wall_thickness_node() -> None:
     root = Path(__file__).resolve().parents[2]
     reader = StandardsReader(root / "standards", standard="asme_b31.3")
-    record = reader.load("B313-304.1.1")
+    record = reader.load("B313-304.1.2")
 
-    assert record.node_id == "B313-304.1.1"
+    assert record.node_id == "B313-304.1.2"
     assert record.node_type == "calculation"
     assert "design_pressure" in {item["id"] for item in record.metadata.get("inputs", [])}
 
@@ -20,7 +20,7 @@ def test_load_wall_thickness_node() -> None:
 def test_validate_resolves_material_stress_dependency() -> None:
     root = Path(__file__).resolve().parents[2]
     reader = StandardsReader(root / "standards", standard="asme_b31.3")
-    result = reader.validate("B313-304.1.1")
+    result = reader.validate("B313-304.1.2")
 
     assert result.passed is True
     assert not any("B313-material-stress" in issue.message for issue in result.issues)
@@ -35,3 +35,20 @@ def test_dependency_tree_includes_children() -> None:
     assert tree["id"] == "B313-PIPE-WALL-THICKNESS-DESIGN"
     child_ids = [child["id"] for child in tree.get("children", [])]
     assert "B313-304.1.1" in child_ids
+    nom_node = next(child for child in tree["children"] if child["id"] == "B313-304.1.1")
+    nom_child_ids = [child["id"] for child in nom_node.get("children", [])]
+    assert "B313-304.1.2" in nom_child_ids
+    assert "B313-304.1.3" in nom_child_ids
+
+
+def test_load_subsection_returns_only_requested_302_3_5_section() -> None:
+    root = Path(__file__).resolve().parents[2]
+    reader = StandardsReader(root / "standards", standard="asme_b31.3")
+
+    subsection = reader.load_subsection("B313-302.3.5", "e")
+
+    assert subsection.node_id == "B313-302.3.5"
+    assert subsection.subsection_id == "e"
+    assert subsection.paragraph == "302.3.5(e)"
+    assert subsection.metadata["output"]["symbol"] == "W"
+    assert "Unlisted Weld Strength Reduction Factors" not in subsection.body

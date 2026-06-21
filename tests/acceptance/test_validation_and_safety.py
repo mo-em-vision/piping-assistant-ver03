@@ -35,7 +35,7 @@ class TestValidationAcceptance:
     def test_invalid_format_rejected(self, standards_reader) -> None:
         inputs = sample_inputs(pressure="abc")
         result = ValidationEngine(standards_reader).validate_node(
-            "B313-304.1.1",
+            "B313-304.1.2",
             task_inputs=inputs,
             dependency_outputs={"allowable_stress": 193_000_000.0, "S": 193_000_000.0},
             prior_nodes_completed={"B313-material-stress"},
@@ -45,7 +45,7 @@ class TestValidationAcceptance:
     def test_unit_conversion_is_supported(self, standards_reader) -> None:
         inputs = sample_inputs()
         result = ValidationEngine(standards_reader).validate_node(
-            "B313-304.1.1",
+            "B313-304.1.2",
             task_inputs=inputs,
             dependency_outputs={"allowable_stress": 193_000_000.0, "S": 193_000_000.0},
             prior_nodes_completed={"B313-material-stress"},
@@ -79,8 +79,11 @@ class TestErrorHandlingAcceptance:
             user_message="Calculate pipe thickness",
         )
 
-        assert "design_temperature" in plan.missing_inputs
-        assert any("temperature" in question.lower() for question in plan.questions)
+        assert (
+            "straight_pipe_section" in plan.missing_assumptions
+            or "straight_pipe_section" in (plan.phase_missing.get("expansion_assumptions") or [])
+        )
+        assert any("straight" in question.lower() for question in plan.questions)
 
     def test_execution_pauses_and_requests_missing_values(
         self,

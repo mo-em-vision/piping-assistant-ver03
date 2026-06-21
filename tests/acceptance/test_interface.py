@@ -23,6 +23,7 @@ class TestSupportedInterface:
         result = CliRunner().invoke(app, ["graph", "show", PIPE_WALL_THICKNESS_ROOT])
         assert result.exit_code == 0
         assert "B313-304.1.1" in result.stdout
+        assert "B313-304.1.2" in result.stdout
         assert "B313-material-stress" in result.stdout
 
     def test_cli_node_validate_command(self) -> None:
@@ -82,9 +83,10 @@ class TestUserVisibility:
     """§21 User Visibility — selected nodes, dependencies, and execution path."""
 
     def test_graph_command_shows_dependencies_before_execution(self) -> None:
-        result = CliRunner().invoke(app, ["graph", "show", "B313-304.1.1"])
+        result = CliRunner().invoke(app, ["graph", "show", "B313-304.1.2"])
         assert result.exit_code == 0
         assert "B313-material-stress" in result.stdout
+        assert "B313-304.1.1" in result.stdout
 
     def test_planner_exposes_selected_nodes_and_missing_inputs(
         self,
@@ -95,9 +97,11 @@ class TestUserVisibility:
         plan = plan_pipe_thickness(standards_reader, state_manager, task)
 
         assert plan.selected_nodes
-        assert plan.missing_inputs
+        assert plan.missing_assumptions or plan.phase_missing.get("expansion_assumptions")
         assert plan.questions
         assert any(
-            "pressure" in question.lower() or "304.1.1" in question
+            "straight" in question.lower()
+            or "pressure" in question.lower()
+            or "304.1.1" in question
             for question in plan.questions
         )

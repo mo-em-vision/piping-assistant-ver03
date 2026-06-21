@@ -24,6 +24,7 @@ FAILURE_SCENARIOS = [
     "pipe_wall_thickness_missing_inputs",
     "pipe_wall_thickness_invalid_pressure",
     "pipe_wall_thickness_temperature_limit",
+    "pipe_wall_thickness_external_pressure",
 ]
 
 RECOVERY_SCENARIOS = [
@@ -56,7 +57,7 @@ class TestFailureTesting:
             source=InputSource.USER,
         )
         result = UnitValidator().validate_node_inputs(
-            "B313-304.1.1",
+            "B313-304.1.2",
             reader=standards_reader,
             task_inputs=inputs,
         )

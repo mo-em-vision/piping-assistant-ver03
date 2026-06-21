@@ -36,6 +36,15 @@ class NodeRecord:
 
 
 @dataclass
+class NodeSubsection:
+    node_id: str
+    subsection_id: str
+    paragraph: str
+    metadata: dict[str, Any]
+    body: str
+
+
+@dataclass
 class ValidationIssue:
     level: str
     message: str
@@ -112,6 +121,27 @@ class StandardsReader:
             raise FileNotFoundError(f"Node not found in standards pack: {node_id}")
         return self.load_file(path)
 
+    def load_subsection(self, node_id: str, subsection_id: str) -> NodeSubsection:
+        """Load a structured subsection without treating it as a graph node."""
+        record = self.load(node_id)
+        wanted = subsection_id.strip().lower().strip("()")
+        for item in record.metadata.get("subsections", []) or []:
+            if not isinstance(item, dict):
+                continue
+            item_id = str(item.get("id", "")).strip().lower().strip("()")
+            label = str(item.get("label", "")).strip().lower().strip("()")
+            paragraph = str(item.get("paragraph", "")).strip().lower()
+            if wanted not in {item_id, label} and not paragraph.endswith(f"({wanted})"):
+                continue
+            return NodeSubsection(
+                node_id=record.node_id,
+                subsection_id=str(item.get("id", wanted)),
+                paragraph=str(item.get("paragraph", "")),
+                metadata=item,
+                body=_extract_subsection_body(record.body, wanted),
+            )
+        raise KeyError(f"Subsection {subsection_id!r} not found in node: {node_id}")
+
     @staticmethod
     def load_file(path: Path) -> NodeRecord:
         text = path.read_text(encoding="utf-8")
@@ -156,13 +186,15 @@ class StandardsReader:
             issues.append(ValidationIssue("error", "Missing required field: type"))
 
         node_dir = record.path.parent
-        for formula in record.metadata.get("formulas", []) or []:
-            if not isinstance(formula, dict):
+        equation_refs = record.metadata.get("equations", []) or record.metadata.get("formulas", []) or []
+        label = "equation" if record.metadata.get("equations") is not None else "formula"
+        for equation in equation_refs:
+            if not isinstance(equation, dict):
                 continue
-            file_name = formula.get("file")
+            file_name = equation.get("file")
             if file_name and not (node_dir / file_name).exists():
                 issues.append(
-                    ValidationIssue("error", f"Missing formula file: {file_name}")
+                    ValidationIssue("error", f"Missing {label} file: {file_name}")
                 )
 
         for dep in record.depends_on:
@@ -188,3 +220,28 @@ def _split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
     metadata = yaml.safe_load(parts[1]) or {}
     body = parts[2].lstrip("\n")
     return metadata, body
+
+
+def _extract_subsection_body(body: str, subsection_id: str) -> str:
+    """Best-effort extraction for headings like '**e) ...**'."""
+    wanted = subsection_id.strip().lower().strip("()")
+    lines = body.splitlines()
+    start: int | None = None
+    for index, line in enumerate(lines):
+        stripped = line.strip().lower()
+        if stripped.startswith(f"**{wanted})") or stripped.startswith(f"**{wanted}."):
+            start = index
+            break
+    if start is None:
+        return ""
+
+    end = len(lines)
+    for index in range(start + 1, len(lines)):
+        stripped = lines[index].strip().lower()
+        if not stripped.startswith("**") or len(stripped) < 4:
+            continue
+        marker = stripped[2]
+        if marker.isalpha() and stripped[3] in {")", "."}:
+            end = index
+            break
+    return "\n".join(lines[start:end]).strip()

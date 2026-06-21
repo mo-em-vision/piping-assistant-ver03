@@ -9,14 +9,14 @@ from engine.executor.unit_manager import convert_to_si
 from engine.reference.standards_paths import resolve_standard_pack
 
 
-def _formula_path() -> Path:
+def _equation_path() -> Path:
     root = Path(__file__).resolve().parents[2]
     pack = resolve_standard_pack(root / "standards", "asme_b31.3")
     return (
         pack
         / "nodes"
-        / "B313-304.1.1"
-        / "formulas"
+        / "B313-304.1.2"
+        / "equations"
         / "wall_thickness.md"
     )
 
@@ -29,7 +29,7 @@ def test_wall_thickness_formula_known_values() -> None:
 
     result = CalculationEngine().execute_from_file(
         calculation_id="test-wall-thickness",
-        formula_path=_formula_path(),
+        formula_path=_equation_path(),
         variables=variables,
     )
 

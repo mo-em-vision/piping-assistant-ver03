@@ -16,10 +16,10 @@ when:
 expected:
   planner:
     selected_root: pipe_wall_thickness_design
-    missing_inputs_contains:
-      - outside_diameter
-      - material
-      - design_temperature
+    missing_assumptions_contains:
+      - straight_pipe_section
+      - pressure_loading
+    missing_inputs: []
 
   execution:
     status: awaiting_input
@@ -30,6 +30,5 @@ expected:
   report:
     status: INCOMPLETE
     missing_inputs_contains:
-      - outside_diameter
       - material
       - design_temperature

@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.reference.nomenclature_resolver import input_applies, load_nomenclature_for_node, resolve_input_spec
 from engine.reference.standards_reader import StandardsReader
-from models.input import EngineeringInput
+from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
 from models.validation import ComplianceStatus, LayerValidationResult, ValidationFinding, ValidationSeverity
 
 
@@ -25,9 +26,13 @@ class InputValidator:
         record = reader.load(node_id)
         errors: list[ValidationFinding] = []
         warnings: list[ValidationFinding] = []
+        nomenclature = load_nomenclature_for_node(reader, record.metadata)
 
         for spec in record.metadata.get("inputs", []) or []:
             if not isinstance(spec, dict):
+                continue
+            spec = resolve_input_spec(spec, nomenclature) if nomenclature else spec
+            if not input_applies(spec, task_inputs):
                 continue
             input_id = str(spec.get("id", ""))
             if not input_id:
@@ -55,19 +60,40 @@ class InputValidator:
                 continue
 
             if input_id in task_inputs:
-                value = task_inputs[input_id].value
-            elif source == "default" and spec.get("default") is not None:
-                value = spec.get("default")
-                if bool(spec.get("requires_confirmation", False)):
-                    warnings.append(
+                stored = task_inputs[input_id]
+                if bool(spec.get("requires_confirmation", False)) and not input_is_expansion_ready(
+                    stored
+                ):
+                    errors.append(
                         ValidationFinding(
-                            rule="default_unconfirmed",
-                            message=f"Default value for {input_id} should be confirmed by user.",
-                            severity=ValidationSeverity.WARNING,
+                            rule="missing_assumption",
+                            message=(
+                                f"Required assumption for {input_id} must be confirmed "
+                                f"before execution."
+                            ),
+                            severity=ValidationSeverity.ERROR,
                             input_id=input_id,
                             node_id=node_id,
                         )
                     )
+                    continue
+                value = stored.value
+            elif source == "default" and spec.get("default") is not None:
+                if bool(spec.get("requires_confirmation", False)) and required:
+                    errors.append(
+                        ValidationFinding(
+                            rule="missing_assumption",
+                            message=(
+                                f"Default value for {input_id} must be confirmed "
+                                f"before execution."
+                            ),
+                            severity=ValidationSeverity.ERROR,
+                            input_id=input_id,
+                            node_id=node_id,
+                        )
+                    )
+                    continue
+                value = spec.get("default")
 
             if value is None and required:
                 errors.append(
@@ -119,7 +145,7 @@ class InputValidator:
                 )
 
         status = _status_from_findings(errors, warnings)
-        if any(error.rule == "missing_input" for error in errors):
+        if any(error.rule in {"missing_input", "missing_assumption"} for error in errors):
             status = ComplianceStatus.INCOMPLETE
         return LayerValidationResult(
             status=status,

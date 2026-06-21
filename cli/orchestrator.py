@@ -13,11 +13,16 @@ from ai.agents.planner_agent import PlannerAgent
 from ai.agents._constants import missing_pipe_inputs
 from ai.client import MissingAPIKeyError, OpenAIClient
 from ai.input_extractor import ExtractionResult, extract_pipe_wall_thickness_inputs
+from ai.interaction_specs import default_pipe_wall_thickness_decision_interactions
+from engine.graph.node_interaction import NodeInteractionSpec
 from ai.response.response_handler import ResponseHandler
 from engine.reference.standards_reader import StandardsReader
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
+from engine.graph.navigation_phases import allowed_fields_for_phase
 from models.agent import AgentAction, AgentContext
+from models.planning import NavigationPhase
+from models.input import EngineeringInput, InputStatus
 from models.task import TaskStatus
 
 from cli.responses import CLIResponse
@@ -64,9 +69,29 @@ class ChatOrchestrator:
         debug: dict[str, Any] = {}
         active = self.state_manager.get_active_task()
         extraction = ExtractionResult()
+        navigation_plan = None
 
         if active and active.status not in {TaskStatus.COMPLETED, TaskStatus.INVALIDATED}:
-            extraction = self._extract_and_store_inputs(active.task_id, message)
+            intent_preview = self.intent_agent.analyze(
+                message,
+                context=AgentContext(
+                    active_task_id=active.task_id,
+                    user_message=message,
+                    workflow=self._resolve_workflow(active),
+                    missing_inputs=missing_pipe_inputs(active.inputs),
+                ),
+            )
+            navigation_plan = self.planner_agent.plan_navigation(
+                intent_preview,
+                active,
+                user_message=message,
+            )
+            allowed = allowed_fields_for_phase(navigation_plan.current_phase)
+            extraction = self._extract_and_store_inputs(
+                active.task_id,
+                message,
+                allowed_fields=allowed,
+            )
             active = self.state_manager.get_task(active.task_id)
 
         workflow = self._resolve_workflow(active)
@@ -124,13 +149,20 @@ class ChatOrchestrator:
         debug["Planner Agent"] = asdict(navigation_plan)
 
         if navigation_plan.action == AgentAction.CLARIFY:
-            options = navigation_plan.alternative_paths or navigation_plan.questions
-            message_text = (
-                "I found several possible engineering workflows:\n"
-                + "\n".join(f"- {item}" for item in options)
-                if options
-                else "Please clarify which engineering workflow you need."
+            options = (
+                navigation_plan.block_messages
+                or navigation_plan.alternative_paths
+                or navigation_plan.questions
             )
+            if navigation_plan.block_messages:
+                message_text = navigation_plan.block_messages[0]
+            elif options:
+                message_text = (
+                    "I found several possible engineering workflows:\n"
+                    + "\n".join(f"- {item}" for item in options)
+                )
+            else:
+                message_text = "Please clarify which engineering workflow you need."
             return (
                 CLIResponse(
                     status="clarify",
@@ -192,13 +224,90 @@ class ChatOrchestrator:
             return str(workflow)
         return PIPE_WALL_THICKNESS_DESIGN
 
-    def _extract_and_store_inputs(self, task_id: str, message: str) -> ExtractionResult:
-        result = extract_pipe_wall_thickness_inputs(message)
+    def _extract_and_store_inputs(
+        self,
+        task_id: str,
+        message: str,
+        *,
+        allowed_fields: frozenset[str] | None = None,
+    ) -> ExtractionResult:
+        task = self.state_manager.get_task(task_id)
+        pending_decisions = self._pending_decision_interactions(task)
+        pending_values = self._pending_value_confirmations(task)
+        result = extract_pipe_wall_thickness_inputs(
+            message,
+            pending_interactions=pending_decisions,
+            pending_value_confirmations=pending_values,
+            existing_inputs=task.inputs,
+            allowed_fields=allowed_fields,
+        )
         task = self.state_manager.get_task(task_id)
         for inp in result.extracted.values():
-            if inp.input_id not in task.inputs:
+            if self._should_store_input(task.inputs.get(inp.input_id), inp):
                 self.state_manager.store_input(task_id, inp)
         return result
+
+    @staticmethod
+    def _should_store_input(
+        existing: EngineeringInput | None,
+        incoming: EngineeringInput,
+    ) -> bool:
+        if existing is None:
+            return True
+        if existing.status == InputStatus.PROPOSED_DEFAULT:
+            return True
+        if existing.status == InputStatus.PENDING:
+            return True
+        if existing.status in {InputStatus.CONFIRMED, InputStatus.USER_OVERRIDE}:
+            return False
+        return True
+
+    def _pending_value_confirmations(
+        self,
+        task: Any,
+    ) -> tuple[NodeInteractionSpec, ...]:
+        from engine.graph.graph_engine import GraphEngine, normalize_root_id
+        from engine.graph.node_interaction import (
+            collect_path_interactions,
+            pending_value_confirmations,
+        )
+
+        root = task.outputs.get("selected_root") or "pipe_wall_thickness_design"
+        slug = normalize_root_id(str(root))
+        engine = GraphEngine()
+        plan = engine.build_plan(
+            task_id=task.task_id,
+            root_id=slug,
+            inputs=task.inputs,
+            reader=self.standards_reader,
+        )
+        node_ids = [
+            node_id
+            for node_id in plan.execution_order
+            if str(self.standards_reader.load(node_id).metadata.get("type", "")) != "root"
+        ]
+        specs = collect_path_interactions(self.standards_reader, node_ids)
+        pending = pending_value_confirmations(specs, task.inputs)
+        return tuple(pending)
+
+    def _pending_decision_interactions(
+        self,
+        task: Any,
+    ) -> tuple[NodeInteractionSpec, ...]:
+        root = task.outputs.get("selected_root")
+        if root:
+            from engine.graph.graph_engine import normalize_root_id
+            from engine.graph.node_interaction import (
+                collect_root_interactions,
+                pending_decision_interactions,
+            )
+
+            slug = normalize_root_id(str(root))
+            specs = collect_root_interactions(self.standards_reader, slug)
+            pending = pending_decision_interactions(specs, task.inputs)
+            if pending:
+                return tuple(pending)
+        return default_pipe_wall_thickness_decision_interactions()
 
     @staticmethod
     def _merge_extraction(

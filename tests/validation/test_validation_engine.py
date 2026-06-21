@@ -10,40 +10,12 @@ from engine.state.state_manager import TaskStateManager
 from engine.validation.validation_engine import ValidationEngine
 from models.input import EngineeringInput, InputSource
 from models.validation import ComplianceStatus
+from tests.acceptance.helpers import sample_inputs as _sample_inputs
 
 
 def _reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[2]
     return StandardsReader(root / "standards", standard="asme_b31.3")
-
-
-def _sample_inputs() -> dict[str, EngineeringInput]:
-    return {
-        "design_pressure": EngineeringInput(
-            input_id="design_pressure",
-            value=500,
-            unit="psi",
-            source=InputSource.USER,
-        ),
-        "outside_diameter": EngineeringInput(
-            input_id="outside_diameter",
-            value=10,
-            unit="in",
-            source=InputSource.USER,
-        ),
-        "material": EngineeringInput(
-            input_id="material",
-            value="SA-106B",
-            unit="dimensionless",
-            source=InputSource.USER,
-        ),
-        "design_temperature": EngineeringInput(
-            input_id="design_temperature",
-            value=200,
-            unit="F",
-            source=InputSource.USER,
-        ),
-    }
 
 
 def test_validate_plan_incomplete_when_inputs_missing() -> None:
@@ -115,7 +87,7 @@ def test_invalid_pressure_string_fails() -> None:
     )
 
     result = ValidationEngine(reader).validate_node(
-        "B313-304.1.1",
+        "B313-304.1.2",
         task_inputs=inputs,
         dependency_outputs={"allowable_stress": 193_000_000.0, "S": 193_000_000.0},
         prior_nodes_completed={"B313-material-stress"},
@@ -125,3 +97,25 @@ def test_invalid_pressure_string_fails() -> None:
     assert any(
         finding.rule in {"invalid_type", "positive_value"} for finding in result.errors
     )
+
+
+def test_unconfirmed_weld_efficiency_is_incomplete() -> None:
+    reader = _reader()
+    inputs = _sample_inputs()
+    inputs["weld_joint_efficiency"] = EngineeringInput(
+        input_id="weld_joint_efficiency",
+        value=1.0,
+        unit="dimensionless",
+        source=InputSource.DEFAULT,
+        requires_confirmation=True,
+    )
+
+    result = ValidationEngine(reader).validate_node(
+        "B313-304.1.2",
+        task_inputs=inputs,
+        dependency_outputs={"allowable_stress": 193_000_000.0, "S": 193_000_000.0},
+        prior_nodes_completed={"B313-material-stress"},
+    )
+
+    assert result.status == ComplianceStatus.INCOMPLETE
+    assert any(finding.rule == "missing_assumption" for finding in result.errors)

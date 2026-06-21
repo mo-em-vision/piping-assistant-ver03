@@ -22,7 +22,7 @@ from models.task import Task, TaskStatus
 
 PIPE_WALL_THICKNESS_WORKFLOW = "pipe_wall_thickness_design"
 ROOT_SLUG = "pipe_wall_thickness_design"
-WALL_THICKNESS_NODE = "B313-304.1.1"
+WALL_THICKNESS_NODE = "B313-304.1.2"
 
 REQUIRED_INPUTS = ("design_pressure", "outside_diameter", "material", "design_temperature")
 
@@ -305,9 +305,10 @@ def _flatten_traversal(reader: StandardsReader, root_id: str) -> list[ReportTrav
 
 def _load_formula_display(reader: StandardsReader, node_id: str) -> str | None:
     node = reader.load(node_id)
-    for formula in node.metadata.get("formulas", []) or []:
-        if isinstance(formula, dict) and formula.get("file"):
-            path = node.path.parent / str(formula["file"])
+    equations = node.metadata.get("equations", []) or node.metadata.get("formulas", []) or []
+    for equation in equations:
+        if isinstance(equation, dict) and equation.get("file"):
+            path = node.path.parent / str(equation["file"])
             if path.exists():
                 text = path.read_text(encoding="utf-8")
                 if "display:" in text:

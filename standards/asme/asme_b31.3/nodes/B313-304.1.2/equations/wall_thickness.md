@@ -1,32 +1,33 @@
 ---
-formula_id: wall_thickness
+equation_id: wall_thickness
 name: Internal Pressure Wall Thickness
 display: "t = PD / 2(SEW + PY)"
+nomenclature_ref: B313-304.1.1
 
 variables:
   P:
     symbol: P
-    description: Internal design pressure
+    description: Internal design gage pressure
     unit: Pa
   D:
     symbol: D
-    description: Outside diameter
+    description: Outside diameter of pipe
     unit: mm
   S:
     symbol: S
-    description: Allowable stress at design temperature
+    description: Stress value from Table A-1
     unit: Pa
   E:
     symbol: E
-    description: Weld joint quality factor
+    description: Quality factor from Tables A-1A and A-1B
     unit: dimensionless
   W:
     symbol: W
-    description: Weld strength reduction factor
+    description: Weld strength reduction factor per para. 302.3.5(e)
     unit: dimensionless
   Y:
     symbol: Y
-    description: Temperature coefficient
+    description: Coefficient from Table 304.1.1
     unit: dimensionless
 
 steps:
@@ -39,7 +40,7 @@ steps:
         assign: PY
 
   - name: compute_required_thickness
-    description: Calculate minimum required wall thickness
+    description: Calculate pressure design wall thickness
     expressions:
       - expression: "P * D / (2 * (SEW + PY))"
         assign: t
@@ -61,20 +62,21 @@ executor: calculate_wall_thickness
 t = PD / 2(SEW + PY)
 ```
 
-Where:
+Where symbols are defined in §304.1.1(b):
 
 | Symbol | Meaning |
 |--------|---------|
-| `t` | Required wall thickness |
-| `P` | Internal design pressure |
-| `D` | Outside diameter |
-| `S` | Allowable stress at design temperature |
-| `E` | Weld joint quality factor |
-| `W` | Weld strength reduction factor |
-| `Y` | Temperature coefficient |
+| `t` | Pressure design thickness |
+| `P` | Internal design gage pressure |
+| `D` | Outside diameter of pipe |
+| `S` | Stress value from Table A-1 |
+| `E` | Quality factor from Tables A-1A and A-1B |
+| `W` | Weld strength reduction factor per para. 302.3.5(e) |
+| `Y` | Coefficient from Table 304.1.1 |
 
 ## Execution notes
 
 - Inputs must be in SI units (`Pa`, `mm`) at execution time.
 - Result `t` is in `mm`.
 - Intermediate values `SEW` and `PY` must be retained in the execution trace without rounding.
+- Combine `t` with allowances `c` per §304.1.1 eq. (2) to obtain `t_m`.

@@ -47,7 +47,8 @@ class ValidationEngine:
         results: list[LayerValidationResult] = [self._conflict.validate_task(task)]
 
         for node_id in plan.execution_order:
-            if str(self._reader.load(node_id).metadata.get("type", "")) == "root":
+            node_type = str(self._reader.load(node_id).metadata.get("type", ""))
+            if node_type in {"root", "definition"}:
                 continue
             results.append(
                 self._input.validate_node_inputs(
@@ -90,7 +91,7 @@ class ValidationEngine:
         overrides: list[str] | None = None,
     ) -> LayerValidationResult:
         """Validate whether a single node execution is allowed."""
-        if str(self._reader.load(node_id).metadata.get("type", "")) == "root":
+        if str(self._reader.load(node_id).metadata.get("type", "")) in {"root", "definition"}:
             return LayerValidationResult(status=ComplianceStatus.PASS)
 
         results = [
@@ -210,7 +211,7 @@ def _merge_results(results: list[LayerValidationResult]) -> LayerValidationResul
 
 def _apply_incomplete_status(result: LayerValidationResult) -> None:
     if any(
-        finding.rule in {"missing_input", "missing_dependency_output"}
+        finding.rule in {"missing_input", "missing_dependency_output", "missing_assumption"}
         for finding in result.errors
     ):
         result.status = ComplianceStatus.INCOMPLETE

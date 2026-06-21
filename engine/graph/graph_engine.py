@@ -4,11 +4,32 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime, timezone
+from typing import Any
 
+from engine.graph.assumption_checker import (
+    AssumptionEvaluation,
+    evaluate_path_expansion_assumptions,
+    field_value,
+    normalize_assumption_value,
+    question_for,
+    NodeAssumptionSpec,
+)
+from engine.graph.node_interaction import (
+    collect_path_interactions,
+    collect_root_interactions,
+    evaluate_pending_interactions,
+    find_interaction,
+    node_expansion_ready,
+    propose_decision_defaults,
+    propose_default_values,
+    question_for_interaction,
+)
+from engine.graph.parameter_registry import seed_parameter_registry
+from engine.reference.nomenclature_resolver import input_applies
 from engine.reference.standards_reader import StandardsReader
 from models.execution import ExecutionPlan
 from models.graph import EdgeType, GraphEdge, GraphVersion
-from models.input import EngineeringInput
+from models.input import EngineeringInput, ParameterDescriptor
 from models.planning import WorkflowCandidate
 
 
@@ -47,6 +68,24 @@ class GraphCycleError(ValueError):
     """Raised when a dependency cycle is detected."""
 
 
+def when_clause_matches(
+    when: dict[str, Any] | None,
+    inputs: dict[str, EngineeringInput],
+) -> bool:
+    """Return True when a conditional dependency should be expanded."""
+    if not when:
+        return True
+    field_name = str(when.get("field", ""))
+    allowed = when.get("in") or []
+    if not field_name:
+        return True
+    value = field_value(field_name, inputs)
+    if value is None:
+        return False
+    normalized_allowed = {normalize_assumption_value(v) for v in allowed}
+    return value in normalized_allowed
+
+
 class GraphEngine:
     """Build deterministic execution plans from standards node dependencies."""
 
@@ -62,8 +101,18 @@ class GraphEngine:
         nodes_set: set[str] = set()
         edges: list[GraphEdge] = []
         node_versions: dict[str, str] = {}
+        skipped_nodes: list[dict[str, str]] = []
 
-        self._collect_nodes(root_id, reader, nodes_set, edges, node_versions, visiting=set())
+        self._collect_nodes(
+            root_id,
+            reader,
+            nodes_set,
+            edges,
+            node_versions,
+            visiting=set(),
+            inputs=inputs,
+            skipped_nodes=skipped_nodes,
+        )
 
         execution_order = self._topological_sort(nodes_set, edges)
         graph_version = GraphVersion(
@@ -82,6 +131,7 @@ class GraphEngine:
             inputs=dict(inputs),
             dependencies=tuple(edges),
             graph_version=graph_version,
+            skipped_nodes=tuple(skipped_nodes),
         )
 
     def discover_roots(
@@ -147,16 +197,66 @@ class GraphEngine:
         candidates.sort(key=lambda item: item.confidence, reverse=True)
         return candidates
 
+    def expansion_gate_ready(
+        self,
+        root_id: str,
+        reader: StandardsReader,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> bool:
+        """Return True when expansion assumptions (straight section + pressure case) are satisfied."""
+        inputs = existing_inputs or {}
+        evaluation = self.evaluate_assumptions(root_id, reader, existing_inputs=inputs)
+        if evaluation.is_blocked:
+            return False
+        for field_name in ("straight_pipe_section", "pressure_loading"):
+            if field_name in evaluation.missing_fields:
+                return False
+            if field_value(field_name, inputs) is None:
+                return False
+        return True
+
+    def seed_parameter_registry(
+        self,
+        root_id: str,
+        reader: StandardsReader,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> dict[str, ParameterDescriptor]:
+        """Build parameter registry descriptors from definition-node nomenclature."""
+        slug = normalize_root_id(root_id)
+        if not self.expansion_gate_ready(slug, reader, existing_inputs=existing_inputs):
+            return {}
+        plan = self.build_plan(
+            task_id="preview",
+            root_id=slug,
+            inputs=existing_inputs or {},
+            reader=reader,
+        )
+        return seed_parameter_registry(
+            reader,
+            execution_order=plan.execution_order,
+            existing_inputs=existing_inputs,
+        )
+
     def required_user_inputs(
         self,
         root_id: str,
         reader: StandardsReader,
         *,
         existing_inputs: set[str] | None = None,
+        task_inputs: dict[str, EngineeringInput] | None = None,
     ) -> list[str]:
         """Collect required user-provided inputs for a workflow root (no execution)."""
         slug = normalize_root_id(root_id)
-        plan = self.build_plan(task_id="preview", root_id=slug, inputs={}, reader=reader)
+        if not self.expansion_gate_ready(slug, reader, existing_inputs=task_inputs):
+            return []
+        plan = self.build_plan(
+            task_id="preview",
+            root_id=slug,
+            inputs=task_inputs or {},
+            reader=reader,
+        )
         existing = existing_inputs or set()
         required: list[str] = []
         seen: set[str] = set()
@@ -167,6 +267,8 @@ class GraphEngine:
                 continue
             for spec in record.metadata.get("inputs", []) or []:
                 if not isinstance(spec, dict):
+                    continue
+                if not input_applies(spec, task_inputs or {}):
                     continue
                 input_id = str(spec.get("id", ""))
                 if not input_id or input_id in seen or input_id in existing:
@@ -182,6 +284,192 @@ class GraphEngine:
 
         return required
 
+    def evaluate_assumptions(
+        self,
+        root_id: str,
+        reader: StandardsReader,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> AssumptionEvaluation:
+        """Check expansion assumptions along the filtered workflow path."""
+        slug = normalize_root_id(root_id)
+        plan = self.build_plan(
+            task_id="preview",
+            root_id=slug,
+            inputs=existing_inputs or {},
+            reader=reader,
+        )
+        evaluation = evaluate_path_expansion_assumptions(
+            plan.execution_order,
+            reader,
+            existing_inputs=existing_inputs,
+        )
+        root_interactions = collect_root_interactions(reader, slug)
+        path_interactions = collect_path_interactions(reader, plan.execution_order)
+        for skipped in plan.skipped_nodes:
+            if not skipped.get("pending"):
+                continue
+            field_name = str(skipped.get("field", ""))
+            if not field_name or field_name in evaluation.missing_fields:
+                continue
+            evaluation.missing_fields.append(field_name)
+            evaluation.field_nodes[field_name] = str(skipped.get("node_id", ""))
+            interaction = find_interaction(path_interactions, field_name)
+            if interaction is None:
+                interaction = find_interaction(root_interactions, field_name)
+            if interaction is not None:
+                evaluation.field_questions[field_name] = question_for_interaction(interaction)
+            else:
+                evaluation.field_questions[field_name] = question_for(
+                    NodeAssumptionSpec(
+                        id="pressure_loading_case",
+                        description="Confirm pressure loading case",
+                        field=field_name,
+                    )
+                )
+        return evaluation
+
+    def resolve_and_propose_path_inputs(
+        self,
+        root_id: str,
+        reader: StandardsReader,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> dict[str, EngineeringInput]:
+        """Propose default values for value-resolution specs on the active path."""
+        slug = normalize_root_id(root_id)
+        plan = self.build_plan(
+            task_id="preview",
+            root_id=slug,
+            inputs=existing_inputs or {},
+            reader=reader,
+        )
+        specs = collect_path_interactions(reader, plan.execution_order)
+        proposed = propose_default_values(specs, existing_inputs or {})
+        proposed.update(propose_decision_defaults(specs, existing_inputs or {}))
+        from engine.reference.coefficient_resolver import propose_coefficient_defaults
+        from models.input import proposed_default_input
+
+        coeff_defaults = propose_coefficient_defaults(
+            reader.pack_root,
+            existing_inputs=existing_inputs or {},
+        )
+        for input_id, (value, condition) in coeff_defaults.items():
+            if input_id in (existing_inputs or {}) or input_id in proposed:
+                continue
+            proposed[input_id] = proposed_default_input(
+                input_id,
+                value,
+                unit="dimensionless",
+                default=value,
+                default_condition=condition,
+            )
+        proposed.update(self._propose_provisional_assumptions(reader, plan.execution_order, existing_inputs or {}))
+        return proposed
+
+    @staticmethod
+    def _propose_provisional_assumptions(
+        reader: StandardsReader,
+        execution_order: tuple[str, ...] | list[str],
+        existing_inputs: dict[str, EngineeringInput],
+    ) -> dict[str, EngineeringInput]:
+        """Propose thin_wall and other provisional assumptions from node metadata."""
+        from models.input import InputSource, InputStatus, ResolutionMethod
+
+        proposed: dict[str, EngineeringInput] = {}
+        for node_id in execution_order:
+            record = reader.load(node_id)
+            for item in record.metadata.get("provisional_assumptions", []) or []:
+                if not isinstance(item, dict):
+                    continue
+                field_name = str(item.get("field", ""))
+                if not field_name or field_name in existing_inputs:
+                    continue
+                default = item.get("default", True)
+                proposed[field_name] = EngineeringInput(
+                    input_id=field_name,
+                    value=default,
+                    unit="dimensionless",
+                    source=InputSource.SYSTEM,
+                    status=InputStatus.CONFIRMED,
+                    description=str(item.get("description", "")),
+                    introduced_at_node=record.node_id,
+                    resolution_method=ResolutionMethod.SYSTEM,
+                )
+        return proposed
+
+    def evaluate_expansion_interactions(
+        self,
+        root_id: str,
+        reader: StandardsReader,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> AssumptionEvaluation:
+        """Check value confirmations required before full path expansion."""
+        from engine.graph.node_interaction import InteractionEvaluation
+
+        slug = normalize_root_id(root_id)
+        plan = self.build_plan(
+            task_id="preview",
+            root_id=slug,
+            inputs=existing_inputs or {},
+            reader=reader,
+        )
+        specs = collect_path_interactions(reader, plan.execution_order)
+        interaction_eval: InteractionEvaluation = evaluate_pending_interactions(
+            specs,
+            existing_inputs or {},
+            phase="expansion",
+        )
+        evaluation = AssumptionEvaluation()
+        for field_id in interaction_eval.missing_fields:
+            evaluation.missing_fields.append(field_id)
+            evaluation.field_nodes[field_id] = interaction_eval.field_nodes[field_id]
+            evaluation.field_questions[field_id] = interaction_eval.field_questions[field_id]
+        return evaluation
+
+    def expansion_ready_nodes(
+        self,
+        node_ids: list[str] | tuple[str, ...],
+        reader: StandardsReader,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> list[str]:
+        """Return node ids whose value requirements are confirmed for expansion."""
+        inputs = existing_inputs or {}
+        ready: list[str] = []
+        for node_id in node_ids:
+            record = reader.load(node_id)
+            if str(record.metadata.get("type", "")) == "root":
+                ready.append(node_id)
+                continue
+            if node_expansion_ready(record, inputs, reader=reader):
+                ready.append(node_id)
+        return ready
+
+    def evaluate_execution_assumptions(
+        self,
+        root_id: str,
+        reader: StandardsReader,
+        *,
+        existing_inputs: dict[str, EngineeringInput] | None = None,
+    ) -> AssumptionEvaluation:
+        """Check execution assumptions for nodes on the filtered workflow path."""
+        from engine.graph.assumption_checker import evaluate_path_execution_assumptions
+
+        slug = normalize_root_id(root_id)
+        plan = self.build_plan(
+            task_id="preview",
+            root_id=slug,
+            inputs=existing_inputs or {},
+            reader=reader,
+        )
+        return evaluate_path_execution_assumptions(
+            plan.execution_order,
+            reader,
+            existing_inputs=existing_inputs,
+        )
+
     def _collect_nodes(
         self,
         node_id: str,
@@ -191,6 +479,8 @@ class GraphEngine:
         node_versions: dict[str, str],
         *,
         visiting: set[str],
+        inputs: dict[str, EngineeringInput],
+        skipped_nodes: list[dict[str, str]],
     ) -> None:
         if node_id in visiting:
             raise GraphCycleError(f"Dependency cycle detected at node: {node_id}")
@@ -200,16 +490,47 @@ class GraphEngine:
         node_versions[record.node_id] = str(record.metadata.get("version", "1.0"))
         visiting.add(record.node_id)
 
-        for dep_id in record.depends_on:
-            dep_type = EdgeType.DEPENDENCY
-            for item in record.metadata.get("depends_on", []) or []:
-                if isinstance(item, dict) and item.get("node_id") == dep_id:
-                    raw_type = str(item.get("dependency_type", "dependency"))
-                    try:
-                        dep_type = EdgeType(raw_type)
-                    except ValueError:
-                        dep_type = EdgeType.DEPENDENCY
-                    break
+        for item in record.metadata.get("depends_on", []) or []:
+            if isinstance(item, dict):
+                dep_id = str(item.get("node_id", ""))
+                if not dep_id:
+                    continue
+                when = item.get("when") if isinstance(item.get("when"), dict) else None
+                if not when_clause_matches(when, inputs):
+                    reason = "conditional dependency not active"
+                    pending = False
+                    if when:
+                        field_name = str(when.get("field", ""))
+                        if field_name and field_value(field_name, inputs) is None:
+                            pending = True
+                            reason = f"when {field_name} in {when.get('in')} not satisfied (field missing)"
+                        else:
+                            reason = (
+                                f"when {when.get('field')} in {when.get('in')} not satisfied"
+                            )
+                    skipped_nodes.append(
+                        {
+                            "node_id": dep_id,
+                            "reason": reason,
+                            "field": str(when.get("field", "")) if when else "",
+                            "pending": pending,
+                        }
+                    )
+                    continue
+                raw_type = str(item.get("dependency_type", "dependency"))
+            elif isinstance(item, str):
+                dep_id = item
+                raw_type = "dependency"
+            else:
+                continue
+
+            try:
+                dep_type = EdgeType(raw_type)
+            except ValueError:
+                dep_type = EdgeType.DEPENDENCY
+
+            if dep_type == EdgeType.REFERENCE and dep_id in nodes:
+                continue
 
             edges.append(
                 GraphEdge(
@@ -226,6 +547,8 @@ class GraphEngine:
                 edges,
                 node_versions,
                 visiting=visiting.copy(),
+                inputs=inputs,
+                skipped_nodes=skipped_nodes,
             )
 
     @staticmethod

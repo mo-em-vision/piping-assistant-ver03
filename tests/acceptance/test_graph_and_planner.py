@@ -76,9 +76,17 @@ class TestPlannerAcceptance:
         )
 
         assert plan.selected_root == PIPE_WALL_THICKNESS_ROOT
-        assert WALL_THICKNESS_NODE in plan.selected_nodes
-        for missing in ("design_pressure", "design_temperature", "material", "outside_diameter"):
-            assert missing in plan.missing_inputs
+        assert MATERIAL_STRESS_NODE in plan.selected_nodes
+        assert WALL_THICKNESS_NODE not in plan.selected_nodes
+        assert (
+            "straight_pipe_section" in plan.missing_assumptions
+            or "straight_pipe_section" in (plan.phase_missing.get("expansion_assumptions") or [])
+        )
+        assert (
+            "pressure_loading" in plan.missing_assumptions
+            or "pressure_loading" in (plan.phase_missing.get("path_decisions") or [])
+        )
+        assert plan.missing_inputs == []
         assert plan.questions
 
     def test_generates_task_plan_in_state(

@@ -56,6 +56,9 @@ class FormulaDefinition:
     execution_function: str | None = None
 
 
+EquationDefinition = FormulaDefinition
+
+
 @dataclass(frozen=True)
 class StandardNode:
     id: str
@@ -71,5 +74,6 @@ class StandardNode:
     dependency_types: tuple[DependencyType, ...] = ()
     requires: tuple[NodeRequiredInput, ...] = ()
     provides: tuple[NodeProvidedOutput, ...] = ()
+    equations: tuple[EquationDefinition, ...] = ()
     formulas: tuple[FormulaDefinition, ...] = ()
     metadata: dict[str, Any] = field(default_factory=dict)

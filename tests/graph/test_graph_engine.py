@@ -9,7 +9,8 @@ import pytest
 from engine.graph.graph_engine import GraphCycleError, GraphEngine, normalize_root_id
 from engine.reference.standards_reader import StandardsReader
 from models.graph import EdgeType, GraphEdge
-from models.input import EngineeringInput, InputSource
+from models.input import EngineeringInput, InputSource, InputStatus
+from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
 
 
 def _reader() -> StandardsReader:
@@ -17,7 +18,7 @@ def _reader() -> StandardsReader:
     return StandardsReader(root / "standards", standard="asme_b31.3")
 
 
-def test_build_plan_execution_order() -> None:
+def test_build_plan_execution_order_without_pressure_loading() -> None:
     reader = _reader()
     plan = GraphEngine().build_plan(
         task_id="pipe-wall-thickness-design-test",
@@ -28,9 +29,48 @@ def test_build_plan_execution_order() -> None:
 
     assert "B313-material-stress" in plan.nodes
     assert "B313-304.1.1" in plan.nodes
-    assert plan.execution_order.index("B313-material-stress") < plan.execution_order.index(
-        "B313-304.1.1"
+    assert "B313-304.1.2" not in plan.nodes
+    assert plan.skipped_nodes
+
+
+def test_build_plan_internal_pressure_path() -> None:
+    reader = _reader()
+    plan = GraphEngine().build_plan(
+        task_id="pipe-wall-thickness-design-test",
+        root_id="pipe_wall_thickness_design",
+        inputs={"pressure_loading": internal_pressure_assumption()},
+        reader=reader,
     )
+
+    assert "B313-material-stress" in plan.nodes
+    assert "B313-304.1.1" in plan.nodes
+    assert "B313-304.1.2" in plan.nodes
+    assert "B313-304.1.3" not in plan.nodes
+    assert plan.execution_order.index("B313-material-stress") < plan.execution_order.index(
+        "B313-304.1.2"
+    )
+
+
+def test_build_plan_external_pressure_path() -> None:
+    reader = _reader()
+    plan = GraphEngine().build_plan(
+        task_id="pipe-wall-thickness-design-test",
+        root_id="pipe_wall_thickness_design",
+        inputs={
+            "pressure_loading": EngineeringInput(
+                input_id="pressure_loading",
+                value="external_pressure",
+                unit="dimensionless",
+                source=InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            )
+        },
+        reader=reader,
+    )
+
+    assert "B313-304.1.3" in plan.nodes
+    assert "B313-304.1.1" in plan.nodes
+    assert "B313-304.1.2" not in plan.nodes
 
 
 def test_build_plan_includes_dependencies() -> None:
@@ -39,12 +79,13 @@ def test_build_plan_includes_dependencies() -> None:
         task_id="task-deps",
         root_id="pipe_wall_thickness_design",
         inputs={
+            "pressure_loading": internal_pressure_assumption(),
             "design_pressure": EngineeringInput(
                 input_id="design_pressure",
                 value=500,
                 unit="psi",
                 source=InputSource.USER,
-            )
+            ),
         },
         reader=reader,
     )
@@ -85,7 +126,21 @@ def test_discover_roots_wall_thickness() -> None:
 
 def test_required_user_inputs() -> None:
     reader = _reader()
-    required = GraphEngine().required_user_inputs("pipe_wall_thickness_design", reader)
+    required = GraphEngine().required_user_inputs(
+        "pipe_wall_thickness_design",
+        reader,
+        task_inputs={
+            "straight_pipe_section": straight_section_assumption(),
+            "pressure_loading": internal_pressure_assumption(),
+            "d_input_mode": EngineeringInput(
+                input_id="d_input_mode",
+                value="direct_od",
+                unit="dimensionless",
+                source=InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+        },
+    )
 
     assert "design_pressure" in required
     assert "outside_diameter" in required

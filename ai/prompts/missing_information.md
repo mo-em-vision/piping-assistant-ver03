@@ -9,7 +9,7 @@ Return JSON:
   "input_id": "design_pressure",
   "symbol": "P",
   "reason": "Required by ASME B31.3 §304.1.1 for thickness calculation.",
-  "node_id": "B313-304.1.1"
+  "node_id": "B313-304.1.2"
 }
 ```
 

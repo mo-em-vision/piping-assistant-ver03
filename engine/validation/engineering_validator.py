@@ -6,8 +6,13 @@ from typing import Any
 
 import yaml
 
+from engine.graph.assumption_checker import (
+    evaluate_node_execution_assumptions,
+    evaluate_node_expansion_assumptions,
+)
 from engine.executor.unit_manager import convert_to_si
 from engine.reference.standards_reader import StandardsReader
+from models.input import EngineeringInput
 from models.validation import ComplianceStatus, LayerValidationResult, ValidationFinding, ValidationSeverity
 
 
@@ -53,6 +58,16 @@ class EngineeringValidator:
             warnings.extend(table_result.warnings)
             constraints.extend(table_result.constraints)
 
+        node_type = str(record.metadata.get("type", ""))
+        if node_type in {"calculation", "lookup"}:
+            for evaluation in (
+                evaluate_node_expansion_assumptions(record, existing_inputs=task_inputs),
+                evaluate_node_execution_assumptions(record, existing_inputs=task_inputs),
+            ):
+                assumption_result = self._assumption_findings(record, evaluation)
+                errors.extend(assumption_result.errors)
+                warnings.extend(assumption_result.warnings)
+
         status = ComplianceStatus.FAIL if errors else (
             ComplianceStatus.PASS_WITH_WARNING if warnings else ComplianceStatus.PASS
         )
@@ -62,6 +77,48 @@ class EngineeringValidator:
             warnings=warnings,
             constraints=constraints,
             affected_nodes=[node_id] if errors or warnings else [],
+        )
+
+    def _assumption_findings(
+        self,
+        record,
+        evaluation,
+    ) -> LayerValidationResult:
+        errors: list[ValidationFinding] = []
+        warnings: list[ValidationFinding] = []
+
+        for block in evaluation.blocked:
+            errors.append(
+                ValidationFinding(
+                    rule=block.assumption_id,
+                    message=block.message,
+                    severity=ValidationSeverity.ERROR,
+                    input_id=block.field,
+                    node_id=block.node_id,
+                    source=str(record.metadata.get("paragraph", "")),
+                )
+            )
+
+        for field_id in evaluation.missing_fields:
+            errors.append(
+                ValidationFinding(
+                    rule="missing_assumption",
+                    message=(
+                        f"Required assumption field '{field_id}' must be confirmed "
+                        f"before executing {record.node_id}."
+                    ),
+                    severity=ValidationSeverity.ERROR,
+                    input_id=field_id,
+                    node_id=record.node_id,
+                )
+            )
+
+        status = ComplianceStatus.FAIL if errors else ComplianceStatus.PASS
+        return LayerValidationResult(
+            status=status,
+            errors=errors,
+            warnings=warnings,
+            affected_nodes=[record.node_id] if errors else [],
         )
 
     def _validate_table_temperature(
@@ -86,7 +143,7 @@ class EngineeringValidator:
             return LayerValidationResult(status=ComplianceStatus.PASS)
 
         temp_f, _ = convert_to_si(float(inp.value), inp.unit, target_unit="f")
-        table_path = reader.pack_root / "tables" / "material_allowable_stress.yaml"
+        table_path = reader.pack_root / "nodes" / "B313-appendix_A" / "tables" / "A-1.yaml"
         if not table_path.exists():
             return LayerValidationResult(status=ComplianceStatus.PASS)
 

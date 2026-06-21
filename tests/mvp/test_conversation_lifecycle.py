@@ -75,7 +75,7 @@ class TestConversationLifecycle:
         )
         assert second.status == "waiting_input"
         assert second.task_id == task_id
-        assert "outside_diameter" in (second.data.get("missing_inputs") or [])
+        assert "pressure_loading" in (second.data.get("missing_inputs") or [])
 
     def test_follow_up_extracts_natural_language_inputs_without_manual_store(self) -> None:
         manager = TaskStateManager()
@@ -85,6 +85,9 @@ class TestConversationLifecycle:
         assert first.status == "waiting_input"
         task_id = first.task_id
         assert task_id is not None
+
+        orchestrator.handle_message("yes, straight section")
+        orchestrator.handle_message("internal pressure")
 
         second, _ = orchestrator.handle_message(
             "material ASTM A106, Temperature: 85 Celcius, Pressure: 4 inch",
@@ -100,6 +103,5 @@ class TestConversationLifecycle:
         assert "design_pressure" not in task.inputs
 
         missing = second.data.get("missing_inputs") or []
-        assert "design_pressure" in missing
-        assert "outside_diameter" in missing
+        assert "pressure_loading" not in missing
         assert "inch is a length unit" in (second.message or "").lower()

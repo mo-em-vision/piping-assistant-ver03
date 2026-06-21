@@ -59,15 +59,15 @@ class TestCalculationTraceAcceptance:
 
 
 class TestFormulaAcceptance:
-    """§14 Formula Acceptance — executable, readable, and referenced representation."""
+    """§14 Equation Acceptance — executable, readable, and referenced representation."""
 
-    def test_formula_file_contains_executable_and_display_representations(
+    def test_equation_file_contains_executable_and_display_representations(
         self,
         standards_reader,
     ) -> None:
         node = standards_reader.load(WALL_THICKNESS_NODE)
-        formula_path = node.path.parent / "formulas" / "wall_thickness.md"
-        text = formula_path.read_text(encoding="utf-8")
+        equation_path = node.path.parent / "equations" / "wall_thickness.md"
+        text = equation_path.read_text(encoding="utf-8")
 
         assert "display:" in text
         assert "steps:" in text
@@ -76,8 +76,8 @@ class TestFormulaAcceptance:
 
     def test_node_metadata_references_standard_paragraph(self, standards_reader) -> None:
         node = standards_reader.load(WALL_THICKNESS_NODE)
-        assert node.metadata.get("paragraph") == "304.1.1"
-        assert node.metadata.get("formulas")
+        assert node.metadata.get("paragraph") == "304.1.2"
+        assert node.metadata.get("equations")
 
     def test_report_includes_formula_display(self, standards_reader, state_manager) -> None:
         from tests.acceptance.helpers import rebuild_report_from_task

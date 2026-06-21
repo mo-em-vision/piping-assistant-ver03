@@ -1,14 +1,111 @@
 {
-  "active_task_id": "pipe-wall-thickness-desi-a4bf1f",
+  "active_task_id": "pipe-wall-thickness-desi-4501a3",
   "tasks": [
     {
       "task_id": "pipe-wall-thickness-desi-a4bf1f",
-      "status": "awaiting_input",
+      "status": "active",
       "active_nodes": [
         "B313-material-stress",
         "B313-304.1.1"
       ],
-      "inputs": {},
+      "inputs": {
+        "material": {
+          "input_id": "material",
+          "value": "SA-106B",
+          "unit": "dimensionless",
+          "source": "user",
+          "status": "pending",
+          "default": null,
+          "requires_confirmation": false,
+          "uncertainty": null,
+          "original_value": "ASTM a106",
+          "original_unit": null
+        },
+        "design_pressure": {
+          "input_id": "design_pressure",
+          "value": 8.0,
+          "unit": "bar",
+          "source": "user",
+          "status": "pending",
+          "default": null,
+          "requires_confirmation": false,
+          "uncertainty": null,
+          "original_value": 8.0,
+          "original_unit": "bar"
+        },
+        "outside_diameter": {
+          "input_id": "outside_diameter",
+          "value": 4.0,
+          "unit": "4inch",
+          "source": "user",
+          "status": "pending",
+          "default": null,
+          "requires_confirmation": false,
+          "uncertainty": null,
+          "original_value": 4.0,
+          "original_unit": "4inch"
+        },
+        "design_temperature": {
+          "input_id": "design_temperature",
+          "value": 85.0,
+          "unit": "C",
+          "source": "user",
+          "status": "pending",
+          "default": null,
+          "requires_confirmation": false,
+          "uncertainty": null,
+          "original_value": 85.0,
+          "original_unit": "C"
+        },
+        "pressure_loading": {
+          "input_id": "pressure_loading",
+          "value": "internal_pressure",
+          "unit": "dimensionless",
+          "source": "user",
+          "status": "confirmed",
+          "default": null,
+          "requires_confirmation": false,
+          "uncertainty": null,
+          "original_value": "internal pressure",
+          "original_unit": null
+        },
+        "weld_joint_efficiency": {
+          "input_id": "weld_joint_efficiency",
+          "value": 1.0,
+          "unit": "dimensionless",
+          "source": "user",
+          "status": "confirmed",
+          "default": 1.0,
+          "requires_confirmation": true,
+          "uncertainty": null,
+          "original_value": 1.0,
+          "original_unit": null
+        },
+        "weld_strength_reduction": {
+          "input_id": "weld_strength_reduction",
+          "value": 1.0,
+          "unit": "dimensionless",
+          "source": "user",
+          "status": "confirmed",
+          "default": 1.0,
+          "requires_confirmation": true,
+          "uncertainty": null,
+          "original_value": 1.0,
+          "original_unit": null
+        },
+        "temperature_coefficient": {
+          "input_id": "temperature_coefficient",
+          "value": 0.4,
+          "unit": "dimensionless",
+          "source": "user",
+          "status": "confirmed",
+          "default": 0.4,
+          "requires_confirmation": true,
+          "uncertainty": null,
+          "original_value": 0.4,
+          "original_unit": null
+        }
+      },
       "outputs": {
         "workflow": "pipe_wall_thickness_design",
         "selected_root": "pipe_wall_thickness_design",
@@ -20,12 +117,211 @@
             "B313-material-stress",
             "B313-304.1.1"
           ],
+          "missing_assumptions": [],
+          "missing_execution_assumptions": [],
+          "missing_inputs": [],
+          "path_decision": {
+            "field": "pressure_loading",
+            "value": "internal_pressure",
+            "selected_node": "B313-304.1.1"
+          },
+          "confidence": 0.95,
+          "action": "propose_path"
+        }
+      },
+      "warnings": [],
+      "conflicts": []
+    },
+    {
+      "task_id": "pipe-wall-thickness-desi-212cc1",
+      "status": "awaiting_input",
+      "active_nodes": [
+        "B313-material-stress"
+      ],
+      "inputs": {},
+      "outputs": {
+        "workflow": "pipe_wall_thickness_design",
+        "selected_root": "pipe_wall_thickness_design",
+        "planning_summary": {
+          "goal": "pipe wall thickness design",
+          "intent": "pipe_wall_thickness_design",
+          "selected_root": "pipe_wall_thickness_design",
+          "selected_nodes": [
+            "B313-material-stress"
+          ],
+          "missing_assumptions": [
+            "pressure_loading"
+          ],
+          "missing_execution_assumptions": [
+            "pressure_loading"
+          ],
+          "missing_inputs": [
+            "material",
+            "design_temperature"
+          ],
+          "path_decision": null,
+          "confidence": 0.95,
+          "action": "request_input"
+        }
+      },
+      "warnings": [],
+      "conflicts": []
+    },
+    {
+      "task_id": "pipe-wall-thickness-desi-4501a3",
+      "status": "awaiting_input",
+      "active_nodes": [
+        "B313-302.3.5",
+        "B313-material-stress",
+        "B313-304.1.1"
+      ],
+      "inputs": {
+        "straight_pipe_section": {
+          "input_id": "straight_pipe_section",
+          "value": true,
+          "unit": "dimensionless",
+          "source": "user",
+          "status": "confirmed",
+          "default": null,
+          "requires_confirmation": false,
+          "uncertainty": null,
+          "original_value": null,
+          "original_unit": null
+        },
+        "pressure_loading": {
+          "input_id": "pressure_loading",
+          "value": "internal_pressure",
+          "unit": "dimensionless",
+          "source": "user",
+          "status": "confirmed",
+          "default": null,
+          "requires_confirmation": false,
+          "uncertainty": null,
+          "original_value": "internal pressure",
+          "original_unit": null
+        },
+        "weld_joint_efficiency": {
+          "input_id": "weld_joint_efficiency",
+          "value": 1.0,
+          "unit": "dimensionless",
+          "source": "default",
+          "status": "proposed_default",
+          "default": 1.0,
+          "requires_confirmation": true,
+          "uncertainty": null,
+          "original_value": null,
+          "original_unit": null
+        },
+        "weld_strength_reduction": {
+          "input_id": "weld_strength_reduction",
+          "value": 1.0,
+          "unit": "dimensionless",
+          "source": "default",
+          "status": "proposed_default",
+          "default": 1.0,
+          "requires_confirmation": true,
+          "uncertainty": null,
+          "original_value": null,
+          "original_unit": null
+        },
+        "temperature_coefficient": {
+          "input_id": "temperature_coefficient",
+          "value": 0.4,
+          "unit": "dimensionless",
+          "source": "default",
+          "status": "proposed_default",
+          "default": 0.4,
+          "requires_confirmation": true,
+          "uncertainty": null,
+          "original_value": null,
+          "original_unit": null
+        },
+        "d_input_mode": {
+          "input_id": "d_input_mode",
+          "value": "nps_lookup",
+          "unit": "dimensionless",
+          "source": "user",
+          "status": "confirmed",
+          "default": null,
+          "requires_confirmation": false,
+          "uncertainty": null,
+          "original_value": "nps_lookup",
+          "original_unit": null
+        },
+        "joint_category": {
+          "input_id": "joint_category",
+          "value": "seamless",
+          "unit": "dimensionless",
+          "source": "default",
+          "status": "proposed_default",
+          "default": "seamless",
+          "requires_confirmation": true,
+          "uncertainty": null,
+          "original_value": null,
+          "original_unit": null
+        },
+        "thin_wall": {
+          "input_id": "thin_wall",
+          "value": true,
+          "unit": "dimensionless",
+          "source": "system",
+          "status": "confirmed",
+          "default": null,
+          "requires_confirmation": false,
+          "uncertainty": null,
+          "original_value": null,
+          "original_unit": null
+        },
+        "design_pressure": {
+          "input_id": "design_pressure",
+          "value": 8.0,
+          "unit": "bar",
+          "source": "user",
+          "status": "pending",
+          "default": null,
+          "requires_confirmation": false,
+          "uncertainty": null,
+          "original_value": 8.0,
+          "original_unit": "bar"
+        },
+        "outside_diameter": {
+          "input_id": "outside_diameter",
+          "value": 4.0,
+          "unit": "in",
+          "source": "user",
+          "status": "pending",
+          "default": null,
+          "requires_confirmation": false,
+          "uncertainty": null,
+          "original_value": 4.0,
+          "original_unit": "in"
+        }
+      },
+      "outputs": {
+        "workflow": "pipe_wall_thickness_design",
+        "selected_root": "pipe_wall_thickness_design",
+        "planning_summary": {
+          "goal": "pipe wall thickness design",
+          "intent": "pipe_wall_thickness_design",
+          "selected_root": "pipe_wall_thickness_design",
+          "selected_nodes": [
+            "B313-302.3.5",
+            "B313-material-stress",
+            "B313-304.1.1"
+          ],
+          "missing_assumptions": [],
+          "missing_execution_assumptions": [
+            "joint_category",
+            "weld_joint_efficiency",
+            "weld_strength_reduction",
+            "temperature_coefficient"
+          ],
           "missing_inputs": [
             "material",
             "design_temperature",
-            "design_pressure",
-            "outside_diameter"
+            "nominal_pipe_size"
           ],
+          "path_decision": null,
           "confidence": 0.95,
           "action": "request_input"
         }
@@ -34,5 +330,5 @@
       "conflicts": []
     }
   ],
-  "saved_at": "2026-06-18T04:07:29.288813+00:00"
+  "saved_at": "2026-06-21T01:44:02.108490+00:00"
 }

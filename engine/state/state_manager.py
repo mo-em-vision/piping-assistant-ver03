@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from models.input import EngineeringInput
+from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
 from models.task import InputConflict, Task, TaskStatus
 
 
@@ -73,6 +73,9 @@ class TaskStateManager:
         self._active_task_id = task_id
         return task
 
+    def clear_active_task(self) -> None:
+        self._active_task_id = None
+
     def update_task_status(self, task_id: str, status: TaskStatus) -> Task:
         task = self.get_task(task_id)
         task.status = status
@@ -110,17 +113,39 @@ class TaskStateManager:
         existing = task.inputs.get(engineering_input.input_id)
 
         if existing is not None and existing.value != engineering_input.value:
-            task.conflicts.append(
-                InputConflict(
-                    previous_calculation_invalid=True,
-                    reason="input changed",
-                    input_id=engineering_input.input_id,
-                    previous_value=existing.value,
-                    new_value=engineering_input.value,
+            if (
+                existing.status == InputStatus.PROPOSED_DEFAULT
+                and input_is_expansion_ready(engineering_input)
+            ):
+                pass
+            else:
+                task.conflicts.append(
+                    InputConflict(
+                        previous_calculation_invalid=True,
+                        reason="input changed",
+                        input_id=engineering_input.input_id,
+                        previous_value=existing.value,
+                        new_value=engineering_input.value,
+                    )
                 )
-            )
+        elif (
+            existing is not None
+            and existing.value == engineering_input.value
+            and existing.status == InputStatus.PROPOSED_DEFAULT
+            and input_is_expansion_ready(engineering_input)
+        ):
+            pass
 
         task.inputs[engineering_input.input_id] = engineering_input
+        return task
+
+    def store_parameter_registry(
+        self,
+        task_id: str,
+        registry: dict[str, Any],
+    ) -> Task:
+        task = self.get_task(task_id)
+        task.parameter_registry = dict(registry)
         return task
 
     def store_output(self, task_id: str, key: str, value: Any) -> Task:

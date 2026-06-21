@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from ai.input_extractor import extract_pipe_wall_thickness_inputs
+from models.input import InputStatus
 
 USER_MESSAGE = "material ASTM A106, Temperature: 85 Celcius, Pressure: 4 inch"
 
@@ -43,7 +44,16 @@ def test_extracts_valid_pressure_and_diameter() -> None:
     assert result.extracted["design_pressure"].unit == "psi"
     assert result.extracted["outside_diameter"].value == 10.0
     assert result.extracted["outside_diameter"].unit == "in"
+    assert result.extracted["d_input_mode"].value == "direct_od"
     assert not result.rejected
+
+
+def test_extracts_nps_for_b36_lookup() -> None:
+    result = extract_pipe_wall_thickness_inputs("NPS 2, design pressure 500 psi, material SA-106B, temp 200 F")
+
+    assert result.extracted["nominal_pipe_size"].value == "2"
+    assert result.extracted["d_input_mode"].value == "nps_lookup"
+    assert "outside_diameter" not in result.extracted
 
 
 def test_rejects_pressure_without_recognized_unit() -> None:
@@ -51,3 +61,30 @@ def test_rejects_pressure_without_recognized_unit() -> None:
 
     assert "design_pressure" not in result.extracted
     assert any(r.input_id == "design_pressure" for r in result.rejected)
+
+
+def test_extracts_internal_pressure_loading() -> None:
+    result = extract_pipe_wall_thickness_inputs("internal pressure")
+
+    assert result.extracted["pressure_loading"].value == "internal_pressure"
+    assert result.extracted["pressure_loading"].status == InputStatus.CONFIRMED
+
+
+def test_extracts_external_pressure_loading() -> None:
+    result = extract_pipe_wall_thickness_inputs("external pressure")
+
+    assert result.extracted["pressure_loading"].value == "external_pressure"
+    assert result.extracted["pressure_loading"].status == InputStatus.CONFIRMED
+
+
+def test_extracts_short_internal_reply() -> None:
+    result = extract_pipe_wall_thickness_inputs("internal")
+
+    assert result.extracted["pressure_loading"].value == "internal_pressure"
+
+
+def test_design_pressure_does_not_set_pressure_loading() -> None:
+    result = extract_pipe_wall_thickness_inputs("design pressure 500 psi")
+
+    assert "pressure_loading" not in result.extracted
+    assert result.extracted["design_pressure"].value == 500.0

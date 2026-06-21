@@ -12,6 +12,20 @@ from models.validation import ComplianceStatus, LayerValidationResult, Validatio
 class DependencyValidator:
     """Verify required dependency outputs exist before node execution."""
 
+    @staticmethod
+    def _execution_dependencies(metadata: dict) -> list[str]:
+        deps: list[str] = []
+        for item in metadata.get("depends_on", []) or []:
+            if isinstance(item, dict):
+                if str(item.get("dependency_type", "calculation")) == "reference":
+                    continue
+                node_id = item.get("node_id")
+                if node_id:
+                    deps.append(str(node_id))
+            elif isinstance(item, str):
+                deps.append(item)
+        return deps
+
     def validate_node(
         self,
         node_id: str,
@@ -24,7 +38,7 @@ class DependencyValidator:
         record = reader.load(node_id)
         errors: list[ValidationFinding] = []
 
-        for dep_id in record.depends_on:
+        for dep_id in self._execution_dependencies(record.metadata):
             if dep_id not in prior_nodes_completed and dep_id not in dependency_outputs:
                 errors.append(
                     ValidationFinding(

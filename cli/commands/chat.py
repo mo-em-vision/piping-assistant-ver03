@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import Any
+
 import typer
 from rich.prompt import Prompt
 
@@ -9,6 +12,54 @@ from cli.display import print_assistant, print_banner, print_cli_response, print
 from cli.orchestrator import ChatOrchestrator
 from cli.session_store import SessionStore
 from config.loader import CLIConfig
+from engine.state.state_manager import TaskStateManager
+from models.task import Task
+
+
+def resolve_incomplete_task_choice(
+    manager: TaskStateManager,
+    incomplete: list[Task],
+    *,
+    prompt_fn: Callable[..., Any] = Prompt.ask,
+    print_fn: Callable[[str], Any] = print,
+) -> None:
+    """Apply the user's startup choice for unfinished tasks."""
+    if not incomplete:
+        return
+
+    labels = ", ".join(f"{task.task_id} ({task.status.value})" for task in incomplete)
+    resume = prompt_fn(
+        f"Unfinished tasks found: {labels}. Resume a task?",
+        choices=["yes", "no"],
+        default="yes",
+    )
+
+    if resume == "no":
+        manager.clear_active_task()
+        return
+
+    if len(incomplete) == 1:
+        manager.set_active_task(incomplete[0].task_id)
+        return
+
+    active = manager.get_active_task()
+    print_fn("Unfinished tasks found:")
+    for index, task in enumerate(incomplete, start=1):
+        marker = " [active]" if active and task.task_id == active.task_id else ""
+        print_fn(f"  {index}. {task.task_id} ({task.status.value}){marker}")
+
+    choices = [str(index) for index in range(1, len(incomplete) + 1)]
+    choice = prompt_fn(
+        f"Select task to resume [1-{len(incomplete)}]",
+        choices=choices,
+        default="1" if active is None else str(
+            next(
+                (index for index, task in enumerate(incomplete, start=1) if active and task.task_id == active.task_id),
+                1,
+            )
+        ),
+    )
+    manager.set_active_task(incomplete[int(choice) - 1].task_id)
 
 
 def run_chat(config: CLIConfig, *, debug_ai: bool = False) -> None:
@@ -19,15 +70,8 @@ def run_chat(config: CLIConfig, *, debug_ai: bool = False) -> None:
     print_banner()
 
     if incomplete:
-        labels = ", ".join(f"{task.task_id} ({task.status.value})" for task in incomplete)
-        resume = Prompt.ask(
-            f"Unfinished tasks found: {labels}. Resume the active task?",
-            choices=["yes", "no"],
-            default="yes",
-        )
-        if resume == "no" and manager.get_active_task() is None and incomplete:
-            chosen = Prompt.ask("Enter task ID to resume", default=incomplete[0].task_id)
-            manager.set_active_task(chosen)
+        resolve_incomplete_task_choice(manager, incomplete)
+        store.save_state_manager(manager)
 
     orchestrator = ChatOrchestrator(manager)
 

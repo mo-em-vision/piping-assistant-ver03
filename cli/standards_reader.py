@@ -2,6 +2,7 @@
 
 from engine.reference.standards_reader import (
     NodeRecord,
+    NodeSubsection,
     NodeValidationResult,
     StandardsReader,
     ValidationIssue,
@@ -9,6 +10,7 @@ from engine.reference.standards_reader import (
 
 __all__ = [
     "NodeRecord",
+    "NodeSubsection",
     "NodeValidationResult",
     "StandardsReader",
     "ValidationIssue",

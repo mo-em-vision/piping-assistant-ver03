@@ -1,0 +1,27 @@
+# Development sample — not verbatim ASME B31.3 Table A-1B values.
+# Quality factor E for welded pipe and forgings.
+
+table_id: A-1B
+title: Table A-1B — Quality Factors for Welded Pipe and Forgings (sample)
+version: "1.0"
+
+keys:
+  - material
+  - joint_category
+
+rows:
+  - material: SA-106B
+    joint_category: seamless
+    quality_factor_E: 1.0
+  - material: A106-B
+    joint_category: seamless
+    quality_factor_E: 1.0
+  - material: SA-105
+    joint_category: forging
+    quality_factor_E: 1.0
+  - material: SA-106B
+    joint_category: erw
+    quality_factor_E: 0.85
+  - material: SA-106B
+    joint_category: furnace_butt_welded
+    quality_factor_E: 0.60

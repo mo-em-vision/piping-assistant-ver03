@@ -16,10 +16,12 @@ from tests.acceptance.helpers import (
     PIPE_WALL_THICKNESS_ROOT,
     WALL_THICKNESS_NODE,
     create_task_with_inputs,
+    internal_pressure_assumption,
     pipe_thickness_intent,
     plan_pipe_thickness,
     run_completed_workflow,
     sample_inputs,
+    straight_section_assumption,
 )
 
 
@@ -34,13 +36,13 @@ class TestMvpDefinition:
             dep.get("node_id") if isinstance(dep, dict) else str(dep)
             for dep in depends_on
         ]
-        assert WALL_THICKNESS_NODE in dep_ids or WALL_THICKNESS_NODE in root.depends_on
+        assert "B313-304.1.1" in dep_ids or "B313-304.1.1" in root.depends_on
 
     def test_workflow_includes_calculation_and_lookup_nodes(self, standards_reader) -> None:
         plan = GraphEngine().build_plan(
             task_id="acceptance-mvp-nodes",
             root_id=PIPE_WALL_THICKNESS_ROOT,
-            inputs={},
+            inputs={"pressure_loading": internal_pressure_assumption()},
             reader=standards_reader,
         )
         assert MATERIAL_STRESS_NODE in plan.nodes
@@ -113,14 +115,17 @@ def test_mvp_acceptance_checklist(
         task = state_manager.create_task("acceptance-checklist-plan", status=TaskStatus.AWAITING_INPUT)
         plan = plan_pipe_thickness(standards_reader, state_manager, task)
         stored = state_manager.get_task(task.task_id)
-        assert plan.missing_inputs
+        assert plan.missing_assumptions or plan.phase_missing.get("expansion_assumptions")
         assert stored.outputs.get("planning_summary") is not None
 
     elif criterion_id == "graph_finds_required_nodes":
         plan = GraphEngine().build_plan(
             task_id="acceptance-checklist-graph",
             root_id=PIPE_WALL_THICKNESS_ROOT,
-            inputs={},
+            inputs={
+                "straight_pipe_section": straight_section_assumption(),
+                "pressure_loading": internal_pressure_assumption(),
+            },
             reader=standards_reader,
         )
         assert MATERIAL_STRESS_NODE in plan.nodes
