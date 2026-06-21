@@ -46,10 +46,10 @@ pip install -r requirements.txt
 
 Optional environment variables (for AI chat):
 
-| Variable | Purpose |
-|----------|---------|
-| `OPENAI_API_KEY` | OpenAI API key |
-| `OPENAI_MODEL` | Model name (optional) |
+| Variable          | Purpose                        |
+| ----------------- | ------------------------------ |
+| `OPENAI_API_KEY`  | OpenAI API key                 |
+| `OPENAI_MODEL`    | Model name (optional)          |
 | `OPENAI_BASE_URL` | Custom API base URL (optional) |
 
 Configuration file: [`config/config.yaml`](config/config.yaml) (`default_standard`, `standards_root`, `sessions_dir`, etc.).
