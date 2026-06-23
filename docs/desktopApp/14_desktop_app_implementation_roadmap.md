@@ -434,101 +434,173 @@ Frontend responsibilities:
 
 ---
 
-# Phase 10 — Error Handling
+# Phase 10 — Error Handling ✅
 
-Implement:
+Implemented:
 
-- backend unavailable message
-- invalid input message
-- failed calculation state
-- retry options
+- backend unavailable message (`ConnectionErrorBanner` + Electron header retry)
+- invalid input message (API `recovery` payload + `ErrorBanner` in parameter form)
+- failed calculation state (`task_state.errors` for invalidated tasks + `TaskErrorList`)
+- retry options (connection, workspace, task refresh, chat/report reload)
 
-Errors should explain:
+Errors explain:
 
 - what happened
 - possible reason
 - next action
 
+**Backend:** `api/error_catalog.py` enriches all API error responses with `recovery` metadata; invalidated tasks expose `calculation_failed` in `task_state.errors`.
+
+**Frontend:** `ErrorBanner`, `ConnectionErrorBanner`, `TaskErrorList`, `services/errors/errorMapper.ts`, stores use `userError: UserFacingError`.
+
 ---
 
-# Phase 11 — Testing Integration
+# Phase 11 — Testing Integration ✅
 
-Add:
+Implemented:
 
 ## Component tests
 
-For:
+Vitest + Testing Library coverage for:
 
-- buttons
-- inputs
-- viewers
-
----
+- **buttons** — `ErrorBanner` retry, `ChatInput` send
+- **inputs** — `TextInput`, `CheckboxInput`
+- **viewers** — `TextOutput`, `OutputRenderer`, `StatusIndicator`
 
 ## Integration tests
 
-For:
-
-- backend communication
-- state updates
-
----
+- `errorMapper` and `taskStateManager` unit coverage
+- `taskStore` API loading and error mapping with mocked `fetch`
+- End-to-end workflow via stores: create task → submit input → generate report
 
 ## E2E tests
 
-For:
-
-complete workflows.
-
-Example:
+Playwright spec (`tests/e2e/engineeringWorkflow.spec.ts`) runs against `vite --mode test` (`VITE_MOCK_DATA=true`):
 
 ```
-
-Create task
-
-↓
-
-Input values
-
-↓
-
-Calculation
-
-↓
-
-Report
-
+Create task → Input values → Calculation outputs → Report
 ```
+
+**Tooling:** `vitest.config.ts`, `playwright.config.ts`, `npm run test`, `npm run test:run`, `npm run test:e2e`, `npm run dev:test`
+
+**Note:** Playwright E2E requires `npx playwright install` on the developer machine. A Vitest UI workflow test (`engineeringWorkflow.ui.test.tsx`) covers the same path when browsers are unavailable.
 
 ---
 
-# Phase 12 — Packaging
+# Phase 12 — Packaging ✅
 
-Prepare:
+Prepared Windows desktop installer via **electron-builder** (NSIS).
 
-Windows desktop installer.
+Includes:
 
-Include:
+- **Electron app** — `dist/` + `dist-electron/` packaged in the installer
+- **Backend runtime** — staged Python project + bundled `.venv` under `resources/backend`
+- **Resources** — `standards/` and backend packages copied at build time
 
-- Electron app
-- backend runtime
-- resources
-
-Startup:
+Startup (unchanged flow, now production-ready):
 
 ```
-
-Open App
-
-↓
-
-Start Backend
-
-↓
-
-Connect Frontend
-
+Open App → Start Backend → Connect Frontend
 ```
+
+**Build commands** (from `desktopApp/`):
+
+```bash
+npm run stage:backend      # copy api/engine/models/... into resources/backend
+npm run prepare:backend    # create bundled .venv (Windows PowerShell)
+npm run package:win        # stage + venv + vite build + NSIS installer
+```
+
+Installer output: `desktopApp/release/`
+
+**User data:** backend receives `DESKTOP_USER_DATA` (Electron `userData` / AppData) so SQLite and sessions are not written under Program Files.
+
+---
+
+# Phase 13 — MVP Verification ✅
+
+Validated the MVP completion criteria (roadmap Section 15):
+
+| Criterion | Verification |
+| --- | --- |
+| 1. Open application | Electron shell, backend startup, health connection |
+| 2. Create/select project | `projectStore` + project API; `test_mvp_project_task_and_input_collection` |
+| 3. Start engineering task | Task create/activate; UI + API tests |
+| 4. Provide inputs | `ParameterForm` + `submit_input` API |
+| 5. Receive backend results | Task state refresh after input submission |
+| 6. View calculations | `display_outputs` + `OutputRenderer`; completed workflow test |
+| 7. Generate report | `ReportPanel` + `test_mvp_calculation_outputs_and_report` |
+
+**Automated verification:**
+
+```bash
+cd desktopApp
+npm run verify:mvp
+```
+
+Runs frontend workflow integration/UI tests and `tests/mvp/test_desktop_mvp_workflow.py` backend MVP contract tests.
+
+**MVP status:** Complete — pipe wall thickness workflow is end-to-end from project creation through report generation.
+
+---
+
+# Phase 14 — Cursor Implementation Rules ✅
+
+Codified roadmap Section 14 and `13_frontend_development_workflow_with_cursor.md` as enforceable project guidance:
+
+| Artifact | Purpose |
+| --- | --- |
+| `AGENTS.md` | Root agent entry point — docs, boundaries, test commands, key paths |
+| `.cursor/rules/desktop-project.mdc` | Always-on workflow, architecture boundaries, verification |
+| `.cursor/rules/desktop-frontend.mdc` | `desktopApp/**` — stores, API client, components, Electron |
+| `.cursor/rules/backend-engine.mdc` | Python API/engine — contracts, errors, persistence |
+
+**Cursor should:**
+
+Before coding — read documentation, inspect existing code, propose plan.
+
+During coding — keep backend boundaries, avoid unnecessary libraries, maintain tests.
+
+After coding — explain changes, identify risks.
+
+`.gitignore` updated so `.cursor/rules/` is committed while other `.cursor/` machine state stays local.
+
+---
+
+# Phase 15 — MVP Completion & Release Readiness ✅
+
+Formalized roadmap Section 15 (MVP completion) and deployment §27 (release process).
+
+### MVP completion (Section 15)
+
+All seven user capabilities are implemented and covered by `npm run verify:mvp` (Phase 13).
+
+### Release readiness
+
+| Check | Implementation |
+| --- | --- |
+| Application startup | Electron bootstrap + logging |
+| Backend connection | `BackendProcessService` + health polling |
+| Main workflows | MVP integration/UI tests |
+| Reporting | Report API + `ReportPanel` |
+| Error handling | Phase 10 `ErrorBanner` + recovery metadata |
+
+### Polish & support
+
+- **`electron/services/appLogger.ts`** — logs to `%AppData%/…/logs/desktop.log`
+- **Help menu** — Open Logs Folder, Copy Diagnostics (version, backend status, log path)
+- Backend stderr captured in the log file
+
+### Automated release verification
+
+```bash
+cd desktopApp
+npm run verify:release
+```
+
+Runs TypeScript check, MVP smoke tests, release readiness tests, and Cursor rules tests.
+
+**Release build:** `npm run package:win` → installer in `desktopApp/release/`
 
 ---
 

@@ -1,0 +1,28 @@
+---
+description: Python backend and desktop API conventions
+globs: api/**/*.py,engine/**/*.py,storage/**/*.py,ai/**/*.py,models/**/*.py,config/**/*.py
+alwaysApply: false
+---
+
+# Backend and API rules
+
+## Desktop API
+
+- REST handlers in `api/server.py`; business logic in `api/desktop_service.py` and service modules.
+- Return structured errors via `ApiError` + `api/error_catalog.py` (`recovery` metadata for the UI).
+- Serialize with `api/serializers.py`; keep response shapes stable for `desktopApp/src/types/backend/`.
+
+## Engineering logic
+
+- Calculations, graph traversal, validation, and reports stay in `engine/` — not in API handlers or the frontend.
+- Task state via `TaskStateManager`; persistence via `storage/` (SQLite + session files).
+
+## User data (packaged desktop)
+
+- Honor `DESKTOP_USER_DATA` for writable paths (`config/loader.py`); keep `standards/` read-only under `PROJECT_ROOT`.
+
+## Tests
+
+- API changes: add/update tests in `tests/api/`.
+- Desktop MVP contract: `tests/mvp/test_desktop_mvp_workflow.py`.
+- Run `python -m pytest tests/api tests/mvp/test_desktop_mvp_workflow.py -q` after API changes.

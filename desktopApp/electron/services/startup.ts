@@ -19,7 +19,11 @@ export function resolveRepoRoot(): string {
 export async function runStartup(
   onStatusChange: (payload: ReturnType<BackendProcessService['getStatus']>) => void,
 ): Promise<BackendProcessService> {
-  const backendService = new BackendProcessService(resolveRepoRoot(), resolveBackendUrl())
+  const backendService = new BackendProcessService(
+    resolveRepoRoot(),
+    resolveBackendUrl(),
+    app.getPath('userData'),
+  )
 
   backendService.onStatusChange(onStatusChange)
 

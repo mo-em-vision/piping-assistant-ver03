@@ -55,7 +55,9 @@ credentials.json
 *.sublime-workspace
 
 # Cursor (keep shared rules; ignore local machine state)
-.cursor/
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
 
 # --- OS ---
 .DS_Store
@@ -81,6 +83,9 @@ Desktop.ini
 projects/*
 !projects/.gitkeep
 
+# SQLite desktop storage (projects, tasks, chat)
+data/
+
 # Generated reports in user projects
 **/reports/*.pdf
 **/reports/*.docx
@@ -99,6 +104,9 @@ desktopApp/dist/
 desktopApp/dist-electron/
 desktopApp/.env
 desktopApp/out/
+desktopApp/release/
+desktopApp/resources/backend/**
+!desktopApp/resources/backend/.gitkeep
 
 
 # --- git commands ---

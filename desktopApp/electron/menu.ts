@@ -1,8 +1,14 @@
-import { app, BrowserWindow, Menu, dialog, shell } from 'electron'
+import { app, BrowserWindow, Menu, clipboard, dialog, shell } from 'electron'
 
 import { constants } from '../src/config/constants'
+import { getLogDirectory } from './services/appLogger'
 
-export function createApplicationMenu(getMainWindow: () => BrowserWindow | null): void {
+interface ApplicationMenuOptions {
+  getMainWindow: () => BrowserWindow | null
+  getDiagnostics?: () => string
+}
+
+export function createApplicationMenu({ getMainWindow, getDiagnostics }: ApplicationMenuOptions): void {
   const isMac = process.platform === 'darwin'
 
   const template: Electron.MenuItemConstructorOptions[] = [
@@ -88,6 +94,25 @@ export function createApplicationMenu(getMainWindow: () => BrowserWindow | null)
           label: 'Open Project Repository',
           click: () => {
             void shell.openExternal('https://github.com/mo-em-vision/piping-assistant-ver03')
+          },
+        },
+        {
+          label: 'Open Logs Folder',
+          click: () => {
+            void shell.openPath(getLogDirectory())
+          },
+        },
+        {
+          label: 'Copy Diagnostics',
+          click: () => {
+            const diagnostics = getDiagnostics?.() ?? `Version ${app.getVersion()}`
+            clipboard.writeText(diagnostics)
+            void dialog.showMessageBox({
+              type: 'info',
+              title: 'Diagnostics',
+              message: 'Diagnostics copied to clipboard.',
+              detail: diagnostics,
+            })
           },
         },
       ],

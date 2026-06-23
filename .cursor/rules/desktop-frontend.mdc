@@ -1,0 +1,29 @@
+---
+description: React/Electron desktop client conventions
+globs: desktopApp/**/*
+alwaysApply: false
+---
+
+# Desktop frontend rules
+
+## State and API
+
+- Use Zustand stores in `desktopApp/src/store/`; do not cache engineering truth outside backend responses.
+- All HTTP via `desktopApp/src/services/api/backendClient.ts` and typed DTOs in `types/backend/`.
+- `VITE_MOCK_DATA=true` is for UI dev only; live behavior must work with `VITE_MOCK_DATA=false`.
+
+## Components
+
+- **Center panel**: task workspace (inputs, outputs, reports). **Right panel**: contextual chat when a task is active.
+- Render backend-driven data: `parameters`, `display_outputs`, `task_state.errors` — do not invent parameter schemas in the UI.
+- Use `ErrorBanner` / `UserFacingError` for user-visible failures (`services/errors/errorMapper.ts`).
+
+## Electron
+
+- Main process starts the Python backend (`electron/services/backendProcess.ts`); renderer never shells Python directly.
+- Packaged apps use `resources/backend` + bundled `.venv`; user data goes to `DESKTOP_USER_DATA`.
+
+## Tests
+
+- Component/integration: Vitest + Testing Library in `desktopApp/tests/`.
+- Run `npm run test:run` before finishing frontend work.

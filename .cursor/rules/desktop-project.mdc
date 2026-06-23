@@ -1,0 +1,36 @@
+---
+description: Core Cursor workflow and architecture boundaries for Ver03
+alwaysApply: true
+---
+
+# Ver03 project rules
+
+## Workflow
+
+Before significant changes: read `docs/desktopApp/` docs → inspect related code → plan → implement → run tests → summarize changes and risks.
+
+Ask before changing: API contracts, backend/frontend boundaries, state-management approach, or system architecture.
+
+## Backend vs frontend
+
+- **Backend** (`api/`, `engine/`, `storage/`, `ai/`, `models/`): source of truth for engineering behavior.
+- **Frontend** (`desktopApp/`): visualization, input collection, API calls only.
+
+Never duplicate engineering validation, calculations, or standards logic in TypeScript.
+
+## Code changes
+
+- Minimize scope; match existing naming and patterns.
+- Do not add dependencies without clear need.
+- Do not delete or weaken tests; extend `tests/api/`, `desktopApp/tests/`, or `tests/mvp/` as appropriate.
+- Avoid drive-by refactors and unrelated renames.
+
+## Build order for features
+
+Structure → data flow → backend connection → visualization → interaction → polish.
+
+## Verification
+
+- `cd desktopApp && npm run verify:mvp` for desktop MVP smoke tests.
+- `cd desktopApp && npm run verify:release` before packaging a release build.
+- `python -m pytest tests/api` after API/backend changes.

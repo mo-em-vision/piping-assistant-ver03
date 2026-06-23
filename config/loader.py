@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -42,10 +43,18 @@ class CLIConfig:
 
         sessions_dir = Path(file_data.get("sessions_dir", "sessions"))
         standards_root = Path(file_data.get("standards_root", "standards"))
-        if not sessions_dir.is_absolute():
-            sessions_dir = project_root / sessions_dir
-        if not standards_root.is_absolute():
-            standards_root = project_root / standards_root
+
+        desktop_user_data = os.environ.get("DESKTOP_USER_DATA")
+        if desktop_user_data:
+            user_root = Path(desktop_user_data)
+            sessions_dir = user_root / "sessions"
+            if not standards_root.is_absolute():
+                standards_root = project_root / standards_root
+        else:
+            if not sessions_dir.is_absolute():
+                sessions_dir = project_root / sessions_dir
+            if not standards_root.is_absolute():
+                standards_root = project_root / standards_root
 
         return cls(
             report_format=str(file_data.get("report_format", "pdf")),

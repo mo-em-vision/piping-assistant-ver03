@@ -1,0 +1,4 @@
+.connection-error-banner {
+  padding: 0 16px 12px;
+  background: var(--workspace-bg, #f4f5f7);
+}

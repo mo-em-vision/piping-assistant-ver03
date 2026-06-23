@@ -1,0 +1,31 @@
+.workspace {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: #f1f5f9;
+}
+
+.workspace__body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace__panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace__panel--left,
+.workspace__panel--right {
+  flex-shrink: 0;
+}
+
+.workspace__panel--center {
+  flex: 1;
+  min-width: 0;
+}

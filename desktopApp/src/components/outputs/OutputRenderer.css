@@ -1,0 +1,184 @@
+.output-renderer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.output-block {
+  padding: 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.output-block__title {
+  margin: 0 0 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.output-text {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #1e293b;
+}
+
+.output-text--warning {
+  color: #b45309;
+}
+
+.output-text--caption {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.output-equation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.output-equation__math {
+  overflow-x: auto;
+  padding: 0.5rem 0;
+}
+
+.output-equation__display {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.output-equation__variables {
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.output-equation__variables div {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr auto;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.output-equation__result {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 6px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.output-table__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
+.output-table__search {
+  width: 12rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.output-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.output-table th,
+.output-table td {
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.output-table th {
+  font-weight: 600;
+  color: #475569;
+  background: #f8fafc;
+}
+
+.output-table th button {
+  all: unset;
+  cursor: pointer;
+}
+
+.output-table th button:hover {
+  color: #2563eb;
+}
+
+.output-graph {
+  width: 100%;
+  height: 220px;
+}
+
+.output-graph__empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.output-reference__meta {
+  margin: 0 0 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.output-reference__excerpt {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #334155;
+}
+
+.output-reference__source {
+  margin: 0.45rem 0 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.output-result {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.output-result__label {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.output-result__value {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.output-result--pass .output-result__value {
+  color: #15803d;
+}
+
+.output-result--fail .output-result__value {
+  color: #b91c1c;
+}
+
+.output-result--info .output-result__value {
+  color: #1d4ed8;
+}

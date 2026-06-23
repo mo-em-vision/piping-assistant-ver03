@@ -1,7 +1,9 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import path from 'node:path'
 
+import { constants } from '../src/config/constants'
 import { createApplicationMenu } from './menu'
+import { getLogDirectory, initAppLogger, logAppEvent } from './services/appLogger'
 import type { BackendProcessService } from './services/backendProcess'
 import { normalizeDevServerUrl } from './services/devServer'
 import { runStartup } from './services/startup'
@@ -77,11 +79,33 @@ function registerIpcHandlers(): void {
   })
 }
 
+function buildDiagnostics(): string {
+  const status = backendService?.getStatus()
+  return [
+    `Application: ${constants.appName}`,
+    `Version: ${app.getVersion()}`,
+    `Platform: ${process.platform}`,
+    `Packaged: ${app.isPackaged}`,
+    `Logs: ${getLogDirectory()}`,
+    `Backend status: ${status?.status ?? 'unknown'}`,
+    `Backend url: ${status?.url ?? 'n/a'}`,
+    status?.detail ? `Backend detail: ${status.detail}` : null,
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
+
 async function bootstrap(): Promise<void> {
-  createApplicationMenu(() => mainWindow)
+  createApplicationMenu({
+    getMainWindow: () => mainWindow,
+    getDiagnostics: buildDiagnostics,
+  })
   registerIpcHandlers()
 
-  const backendPromise = runStartup(() => {
+  logAppEvent('info', 'Starting application bootstrap')
+
+  const backendPromise = runStartup((payload) => {
+    logAppEvent('info', 'Backend status changed', `${payload.status}${payload.detail ? ` (${payload.detail})` : ''}`)
     sendBackendStatus()
   })
 
@@ -89,13 +113,16 @@ async function bootstrap(): Promise<void> {
 
   backendService = await backendPromise
   sendBackendStatus()
+  logAppEvent('info', 'Application bootstrap complete')
 }
 
 void app.whenReady().then(async () => {
   try {
+    initAppLogger(app.getPath('userData'))
     await bootstrap()
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
+    logAppEvent('error', 'Application startup failed', message)
     console.error('Application startup failed:', error)
     await dialog.showErrorBox('Startup failed', message)
     app.quit()

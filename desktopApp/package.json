@@ -3,26 +3,87 @@
   "version": "0.1.0",
   "private": true,
   "description": "Desktop engineering workspace — presentation layer for the Ver03 backend",
+  "author": "Ver03 Engineering",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
+    "dev:test": "vite --mode test",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:e2e": "playwright test",
+    "stage:backend": "node scripts/stage-backend.mjs",
+    "prepare:backend": "powershell -ExecutionPolicy Bypass -File scripts/prepare-backend-venv.ps1",
+    "package:win": "npm run stage:backend && npm run prepare:backend && npm run build && electron-builder --win nsis",
+    "package": "npm run package:win",
+    "verify:mvp": "npm run test:run -- tests/integration/engineeringWorkflow.test.ts tests/integration/engineeringWorkflow.ui.test.tsx && cd .. && python -m pytest tests/mvp/test_desktop_mvp_workflow.py -q",
+    "verify:release": "npm run typecheck && npm run verify:mvp && cd .. && python -m pytest tests/test_release_readiness.py tests/test_cursor_rules.py -q"
   },
   "dependencies": {
+    "katex": "^0.17.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.53.2",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",
     "electron": "^36.4.0",
+    "electron-builder": "^26.15.3",
+    "jsdom": "^26.1.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vite-plugin-electron": "^0.29.0",
-    "vite-plugin-electron-renderer": "^0.14.6"
+    "vite-plugin-electron-renderer": "^0.14.6",
+    "vitest": "^3.2.4"
+  },
+  "build": {
+    "appId": "com.ver03.engineering-desktop",
+    "productName": "Engineering Workspace",
+    "copyright": "Copyright © 2026 Ver03 Engineering",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "asar": true,
+    "extraResources": [
+      {
+        "from": "resources/backend",
+        "to": "backend",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Engineering Workspace"
+    }
   }
 }

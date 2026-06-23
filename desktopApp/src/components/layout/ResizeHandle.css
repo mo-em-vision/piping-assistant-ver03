@@ -1,0 +1,11 @@
+.resize-handle {
+  flex: 0 0 4px;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.resize-handle:hover,
+.resize-handle:active {
+  background: #c7d2e3;
+}
