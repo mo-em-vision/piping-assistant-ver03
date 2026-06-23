@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "desktopApp/00_desktop_app_vision.md",
+                "file": "desktopApp/11_frontend_testing_strategy.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "00_desktop_app_vision"
+              "title": "11_frontend_testing_strategy"
             }
           }
         ]
@@ -185,6 +185,8 @@
   },
   "active": "d5d70c70fca8c20b",
   "lastOpenFiles": [
+    "desktopApp/12_frontend_deployment_and_distribution.md",
+    "desktopApp/00_desktop_app_vision.md",
     "desktopApp/01_technology_stack.md",
     "desktopApp/02_application_structure.md",
     "desktopApp/03_ui_design_system.md",
@@ -193,7 +195,6 @@
     "desktopApp/06_component_architecture.md",
     "desktopApp/07_frontend_data_models.md",
     "desktopApp/08_frontend_development_workflow.md",
-    "desktopApp/12_frontend_deployment_and_distribution.md",
     "desktopApp/11_frontend_testing_strategy.md",
     "desktopApp/10_frontend_api_integration.md",
     "desktopApp/09_desktop_app_folder_structure.md",
