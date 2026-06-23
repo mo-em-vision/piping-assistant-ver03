@@ -56,3 +56,10 @@ desktopApp/
 ```
 
 Implementation follows [`14_desktop_app_implementation_roadmap.md`](../docs/desktopApp/14_desktop_app_implementation_roadmap.md).
+
+## Phases
+
+| Phase | Status |
+| --- | --- |
+| 0 — Project initialization | Complete |
+| 1 — Desktop shell (menu, startup, backend) | Complete |
