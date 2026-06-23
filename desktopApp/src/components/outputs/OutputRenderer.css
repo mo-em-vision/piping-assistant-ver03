@@ -4,6 +4,13 @@
   gap: 0.85rem;
 }
 
+.output-renderer--inline .output-block {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
 .output-block {
   padding: 0.85rem;
   border: 1px solid #e2e8f0;

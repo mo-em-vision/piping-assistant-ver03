@@ -7,11 +7,11 @@ test.describe('engineering workflow (mock mode)', () => {
     await page.getByRole('button', { name: '+ New engineering task' }).click()
 
     await expect(page.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeVisible()
-    await expect(page.getByText('Engineering inputs')).toBeVisible()
+    await expect(page.getByPlaceholder(/enter nominal pipe size/i)).toBeVisible()
 
-    const npsField = page.getByRole('textbox').first()
+    const npsField = page.getByPlaceholder(/enter nominal pipe size/i)
     await npsField.fill('6')
-    await page.getByRole('button', { name: 'Save' }).click()
+    await page.getByRole('button', { name: 'Submit' }).click()
 
     await expect(page.getByText('nominal pipe size', { exact: false })).toBeVisible()
     await expect(page.getByText('6')).toBeVisible()

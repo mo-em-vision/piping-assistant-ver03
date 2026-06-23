@@ -12,18 +12,20 @@ import './OutputRenderer.css'
 interface OutputRendererProps {
   blocks: DisplayOutputBlock[]
   emptyMessage?: string
+  variant?: 'card' | 'inline'
 }
 
 export function OutputRenderer({
   blocks,
   emptyMessage = 'No engineering outputs yet.',
+  variant = 'card',
 }: OutputRendererProps) {
   if (blocks.length === 0) {
     return <p className="placeholder__hint">{emptyMessage}</p>
   }
 
   return (
-    <div className="output-renderer">
+    <div className={`output-renderer${variant === 'inline' ? ' output-renderer--inline' : ''}`}>
       {blocks.map((block) => {
         switch (block.type) {
           case 'text':

@@ -1,13 +1,18 @@
+import { useMemo } from 'react'
+
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { ErrorBanner } from '@/components/errors/ErrorBanner'
 import { TaskErrorList } from '@/components/errors/TaskErrorList'
-import { useActiveTaskViewModel } from '@/hooks/useActiveTaskViewModel'
-import { ParameterForm } from '@/components/inputs/ParameterForm'
-import { OutputRenderer } from '@/components/outputs/OutputRenderer'
-import { ReportPanel } from '@/components/reports/ReportPanel'
-import { useTaskStore } from '@/store/taskStore'
 import { StatusIndicator } from '@/components/engineering/StatusIndicator'
-import { TaskTimeline } from '@/components/engineering/TaskTimeline'
+import {
+  buildWorkflowHistory,
+  getCurrentEditableParameter,
+} from '@/components/workflow/buildWorkflowHistory'
+import { WorkflowComposer } from '@/components/workflow/WorkflowComposer'
+import { WorkflowHistory } from '@/components/workflow/WorkflowHistory'
+import '@/components/workflow/WorkflowPanel.css'
+import { useActiveTaskViewModel } from '@/hooks/useActiveTaskViewModel'
+import { useTaskStore } from '@/store/taskStore'
 
 import './CenterPanel.css'
 
@@ -20,6 +25,23 @@ export function CenterPanel() {
   const clearActiveTask = useTaskStore((state) => state.clearActiveTask)
   const viewModel = useActiveTaskViewModel()
 
+  const historyItems = useMemo(() => {
+    if (!viewModel) {
+      return []
+    }
+    return buildWorkflowHistory(
+      viewModel.timeline,
+      activeTaskState?.display_outputs ?? [],
+      activeTaskState?.inputs ?? {},
+      activeTaskState?.parameters ?? [],
+    )
+  }, [viewModel, activeTaskState?.display_outputs, activeTaskState?.inputs, activeTaskState?.parameters])
+
+  const currentParameter = useMemo(
+    () => getCurrentEditableParameter(activeTaskState),
+    [activeTaskState],
+  )
+
   if (!activeTask) {
     return (
       <main className="center-panel center-panel--chat">
@@ -27,13 +49,6 @@ export function CenterPanel() {
       </main>
     )
   }
-
-  const collectedInputs = activeTaskState
-    ? Object.entries(activeTaskState.inputs).filter(([, input]) => {
-        const record = input as { display_value?: string; value?: unknown }
-        return record.display_value != null || record.value != null
-      })
-    : []
 
   return (
     <main className="center-panel center-panel--task">
@@ -53,73 +68,42 @@ export function CenterPanel() {
         </button>
       </header>
 
-      <div className="center-panel__workspace">
-        <TaskErrorList
-          errors={activeTaskState?.errors ?? []}
-          onRefresh={() => {
-            void refreshActiveTask()
-          }}
-        />
+      {activeTaskState?.errors?.length ? (
+        <div className="center-panel__errors">
+          <TaskErrorList
+            errors={activeTaskState.errors}
+            onRefresh={() => {
+              void refreshActiveTask()
+            }}
+          />
+        </div>
+      ) : null}
 
-        {userError ? (
+      {userError ? (
+        <div className="center-panel__banner">
           <ErrorBanner
             error={userError}
             onRetry={() => {
               void refreshActiveTask()
             }}
           />
-        ) : null}
+        </div>
+      ) : null}
 
-        <section className="workspace-section workspace-section--timeline">
-          <h3>Workflow progress</h3>
-          {viewModel ? (
-            <TaskTimeline steps={viewModel.timeline} />
-          ) : (
-            <p className="placeholder__hint">Loading task state from backend…</p>
-          )}
-        </section>
+      <div className="workflow-panel">
+        {viewModel ? (
+          <WorkflowHistory items={historyItems} />
+        ) : (
+          <div className="workflow-panel__history">
+            <p className="workflow-panel__empty">Loading task state from backend…</p>
+          </div>
+        )}
 
-        <section className="workspace-section">
-          <h3>Engineering inputs</h3>
-          {activeTaskState?.parameters?.length ? (
-            <ParameterForm parameters={activeTaskState.parameters} />
-          ) : (
-            <p className="placeholder__hint">
-              {viewModel?.currentStep?.hint ?? 'No parameters requested yet.'}
-            </p>
-          )}
-
-          {collectedInputs.length > 0 ? (
-            <>
-              <h4 className="workspace-section__subheading">Collected</h4>
-              <dl className="collected-inputs">
-                {collectedInputs.map(([key, input]) => {
-                  const record = input as { display_value?: string; value?: unknown; unit?: string }
-                  const display =
-                    record.display_value ??
-                    (record.value != null ? String(record.value) : '') +
-                      (record.unit && record.unit !== 'dimensionless' ? ` ${record.unit}` : '')
-                  return (
-                    <div key={key}>
-                      <dt>{key.replace(/_/g, ' ')}</dt>
-                      <dd>{display}</dd>
-                    </div>
-                  )
-                })}
-              </dl>
-            </>
-          ) : null}
-        </section>
-
-        <section className="workspace-section">
-          <h3>Outputs</h3>
-          <OutputRenderer blocks={activeTaskState?.display_outputs ?? []} />
-        </section>
-
-        <section className="workspace-section">
-          <h3>Engineering report</h3>
-          <ReportPanel taskId={activeTask.id} />
-        </section>
+        <WorkflowComposer
+          parameter={currentParameter}
+          guidance={viewModel?.currentStep?.hint ?? null}
+          disabled={loading || !viewModel}
+        />
       </div>
     </main>
   )

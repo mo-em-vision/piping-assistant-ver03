@@ -45,14 +45,10 @@ describe('engineering workflow UI (mock mode)', () => {
 
     expect(screen.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeInTheDocument()
 
-    const inputsHeading = screen.getByRole('heading', { name: 'Engineering inputs' })
-    const inputsSection = inputsHeading.closest('section')
-    expect(inputsSection).not.toBeNull()
-
-    const npsField = within(inputsSection as HTMLElement).getByRole('textbox')
+    const npsField = screen.getByPlaceholderText(/enter nominal pipe size/i)
     await user.clear(npsField)
     await user.type(npsField, '6')
-    await user.click(within(inputsSection as HTMLElement).getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'Submit' }))
 
     await waitFor(() => {
       expect(screen.getByText('6')).toBeInTheDocument()

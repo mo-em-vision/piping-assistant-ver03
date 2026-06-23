@@ -120,6 +120,11 @@ class ApiHandler(BaseHTTPRequestHandler):
                 _json_response(self, 200, self.service.list_chat_messages(session_id))
                 return
 
+            if path == "/api/v1/materials/search":
+                search_query = str(query.get("q", [""])[0] or "")
+                _json_response(self, 200, self.service.search_materials(search_query))
+                return
+
             task_route = _parse_task_route(path)
             if task_route:
                 task_id, suffix = task_route

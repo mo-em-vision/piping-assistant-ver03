@@ -23,6 +23,7 @@ from api.report_service import (
     resolve_report_download,
 )
 from api.parameter_definitions import submit_task_input
+from api.material_catalog import search_astm_materials
 from api.serializers import task_state, task_summary, workflow_catalog
 
 
@@ -324,6 +325,10 @@ class DesktopApiService:
             raise ApiError("invalid_request", str(exc), status=400) from exc
         except FileNotFoundError as exc:
             raise ApiError("report_not_found", str(exc), status=404) from exc
+
+    def search_materials(self, query: str) -> dict[str, Any]:
+        materials = search_astm_materials(self.config.standards_root, query)
+        return {"materials": materials, "query": query}
 
     def _store_for(self, session_id: str | None) -> ProjectSessionStore:
         resolved = session_id or self.session_id

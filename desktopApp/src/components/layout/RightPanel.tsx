@@ -1,4 +1,5 @@
 import { ChatPanel } from '@/components/chat/ChatPanel'
+import { ReportPanel } from '@/components/reports/ReportPanel'
 import { useActiveTaskViewModel } from '@/hooks/useActiveTaskViewModel'
 import { useChatStore } from '@/store/chatStore'
 import { useTaskStore } from '@/store/taskStore'
@@ -94,6 +95,10 @@ export function RightPanel() {
             </ul>
           </PanelSection>
         ) : null}
+
+        <PanelSection title="Engineering report">
+          <ReportPanel taskId={activeTask.id} />
+        </PanelSection>
         </div>
 
         <PanelSection title="AI assistance" className="side-panel__chat-section">

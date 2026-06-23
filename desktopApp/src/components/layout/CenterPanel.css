@@ -95,12 +95,14 @@
   font-size: 0.875rem;
 }
 
-.center-panel__workspace {
-  flex: 1;
-  overflow-y: auto;
-  padding: 1rem 1.25rem;
-  display: grid;
-  gap: 1rem;
+.center-panel__banner {
+  flex-shrink: 0;
+  padding: 0 1.25rem;
+}
+
+.center-panel__errors {
+  flex-shrink: 0;
+  padding: 0.5rem 1.25rem 0;
 }
 
 .task-error-list {
