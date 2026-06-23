@@ -41,7 +41,7 @@ src/
 
 package.json
 
-```id="9fdz8l"
+```
 
 ---
 
@@ -162,7 +162,7 @@ PipeDesignProject/
       └── types/
 ```
 
-```
+
 
 ---
 
@@ -271,7 +271,7 @@ engineering/
 ├── ReferenceCard  
 ├── UnitInput
 
-```id="s8x9gu"
+```
 
 Shared components should not contain business logic.
 
@@ -519,25 +519,3 @@ The folder structure should follow the user's workflow:
 Project → Task → Engineering Work → Output.
 
 The code should mirror the product.
-```
-
-Next recommended document:
-
-`10_frontend_api_integration.md`
-
-This will define how Cursor connects React to your existing backend:
-
-- API calls
-    
-- request flow
-    
-- authentication later
-    
-- streaming AI
-    
-- error handling
-    
-- mock mode
-    
-
-This is probably the last major architecture document before coding starts.
