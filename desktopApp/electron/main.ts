@@ -1,8 +1,9 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import path from 'node:path'
 
 import { createApplicationMenu } from './menu'
 import type { BackendProcessService } from './services/backendProcess'
+import { normalizeDevServerUrl } from './services/devServer'
 import { runStartup } from './services/startup'
 
 const isDev = !app.isPackaged
@@ -18,7 +19,19 @@ function sendBackendStatus(): void {
   mainWindow.webContents.send('backend:status', backendService.getStatus())
 }
 
-function createWindow(): void {
+async function loadRenderer(window: BrowserWindow): Promise<void> {
+  const devServerUrl = process.env.VITE_DEV_SERVER_URL
+
+  if (isDev && devServerUrl) {
+    const url = normalizeDevServerUrl(devServerUrl)
+    await window.loadURL(url)
+    return
+  }
+
+  await window.loadFile(path.join(__dirname, '../dist/index.html'))
+}
+
+async function createWindow(): Promise<void> {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -47,11 +60,7 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  if (isDev && process.env.VITE_DEV_SERVER_URL) {
-    void mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
-  } else {
-    void mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
-  }
+  await loadRenderer(mainWindow)
 }
 
 function registerIpcHandlers(): void {
@@ -68,21 +77,35 @@ function registerIpcHandlers(): void {
   })
 }
 
-void app.whenReady().then(async () => {
+async function bootstrap(): Promise<void> {
   createApplicationMenu(() => mainWindow)
   registerIpcHandlers()
-  createWindow()
 
-  backendService = await runStartup(() => {
+  const backendPromise = runStartup(() => {
     sendBackendStatus()
   })
 
+  await createWindow()
+
+  backendService = await backendPromise
   sendBackendStatus()
+}
+
+void app.whenReady().then(async () => {
+  try {
+    await bootstrap()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    console.error('Application startup failed:', error)
+    await dialog.showErrorBox('Startup failed', message)
+    app.quit()
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
-      sendBackendStatus()
+      void bootstrap().catch((error) => {
+        console.error('Failed to recreate window:', error)
+      })
     }
   })
 })
