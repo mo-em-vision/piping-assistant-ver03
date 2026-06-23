@@ -93,6 +93,13 @@ tmp/
 temp/
 .cache/
 
+# --- Desktop app (Electron + React) ---
+desktopApp/node_modules/
+desktopApp/dist/
+desktopApp/dist-electron/
+desktopApp/.env
+desktopApp/out/
+
 
 # --- git commands ---
 docs/git workflow/
