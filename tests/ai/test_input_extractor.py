@@ -13,7 +13,7 @@ def test_extracts_material_and_temperature_from_user_message() -> None:
     result = extract_pipe_wall_thickness_inputs(USER_MESSAGE)
 
     assert "material" in result.extracted
-    assert result.extracted["material"].value == "SA-106B"
+    assert result.extracted["material"].value == "astm_a106_gr_b"
     assert "design_temperature" in result.extracted
     assert result.extracted["design_temperature"].value == 85.0
     assert result.extracted["design_temperature"].unit == "C"

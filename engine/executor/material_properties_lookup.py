@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from engine.reference.material_catalog_db import resolve_material_id, standards_root_from_pack_root
+from engine.reference.material_ids import is_material_id
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_paths import resolve_standard_pack
 from engine.reference.standards_tables import StandardsTablesDatabase
@@ -85,7 +87,12 @@ class MaterialPropertiesLookup:
     ) -> MaterialPropertiesResult:
         grade_key = self._resolve_grade(grade)
         materials = self._table.get("materials", {}) or {}
-        row = materials[grade_key]
+        material_key = grade_key
+        for key, payload in materials.items():
+            if str(payload.get("grade_key", key)) == grade_key:
+                material_key = key
+                break
+        row = materials[material_key]
         mech = self._select_mechanical(row, test_temperature_f=test_temperature_f)
 
         return MaterialPropertiesResult(
@@ -106,6 +113,17 @@ class MaterialPropertiesLookup:
 
     def _resolve_grade(self, grade: str) -> str:
         text = str(grade).strip()
+        standards_root = standards_root_from_pack_root(self._pack_root)
+        if is_material_id(text) and text in (self._table.get("materials", {}) or {}):
+            payload = (self._table.get("materials", {}) or {})[text]
+            return str(payload.get("grade_key", text))
+
+        resolved_id = resolve_material_id(standards_root, text)
+        materials = self._table.get("materials", {}) or {}
+        if resolved_id is not None and resolved_id in materials:
+            payload = materials[resolved_id]
+            return str(payload.get("grade_key", resolved_id))
+
         aliases = self._table.get("aliases", {}).get("grade", {}) or {}
         for alias, target in aliases.items():
             if text.lower() == str(alias).lower():

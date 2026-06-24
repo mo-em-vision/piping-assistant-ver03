@@ -7,8 +7,10 @@ from typing import Any
 
 from ai.interaction_specs import default_pipe_wall_thickness_decision_interactions
 from engine.executor.allowable_stress_resolver import apply_allowable_stress_lookup
+from engine.executor.coefficient_lookup import apply_coefficient_lookups
 from engine.executor.nps_input_resolver import apply_nominal_pipe_size_lookup
 from engine.executor.unit_manager import normalize_unit
+from engine.reference.material_resolver import canonical_material_id
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
@@ -48,8 +50,8 @@ _PARAMETER_SPECS: dict[str, dict[str, Any]] = {
     "nominal_pipe_size": {
         "label": "Nominal Pipe Size",
         "type": "text",
-        "units": [],
-        "default_unit": "dimensionless",
+        "units": ["NPS", "DN"],
+        "default_unit": "NPS",
     },
     "allowable_stress": {
         "label": "Allowable Stress",
@@ -180,6 +182,7 @@ def build_parameter_definitions(task: Task) -> list[dict[str, Any]]:
         planning = {}
 
     requested_ids = _requested_parameter_ids(task, planning)
+    submittable_ids = set(submittable_parameter_ids(task, planning))
 
     parameters: list[dict[str, Any]] = []
     editing = active_edit_parameter(task)
@@ -203,6 +206,7 @@ def build_parameter_definitions(task: Task) -> list[dict[str, Any]]:
                 "requires_confirmation": bool(existing.requires_confirmation) if existing else False,
                 "guidance": _parameter_guidance(planning, parameter_id),
                 "editing": editing == parameter_id,
+                "submittable": parameter_id in submittable_ids,
             }
         )
 
@@ -324,10 +328,17 @@ def submit_task_input(
     coerced = _coerce_value(definition, value)
     _validate_against_spec(definition, coerced)
 
+    if parameter == "material" and standards_root is not None:
+        resolved_material = canonical_material_id(str(coerced), standards_root=standards_root)
+        if resolved_material is not None:
+            coerced = resolved_material
+
     resolved_unit = unit or definition.get("default_unit") or "dimensionless"
     if definition["type"] == "number" and definition.get("units"):
         resolved_unit = normalize_unit(resolved_unit)
-    elif definition["type"] in {"dropdown", "checkbox", "material", "text", "multi_select"}:
+    elif definition["type"] == "text" and definition.get("units"):
+        resolved_unit = str(resolved_unit).strip().upper()
+    elif definition["type"] in {"dropdown", "checkbox", "material", "multi_select"}:
         resolved_unit = definition.get("default_unit", "dimensionless")
 
     engineering_input = EngineeringInput(
@@ -353,6 +364,13 @@ def submit_task_input(
         if standards_root is None:
             raise ValueError("Standards root is required to resolve allowable stress.")
         apply_allowable_stress_lookup(task, standards_root)
+        manager.replace_task(task_id, task)
+        task = manager.get_task(task_id)
+
+    if parameter in ("material", "design_temperature", "joint_category"):
+        if standards_root is None:
+            raise ValueError("Standards root is required to resolve weld joint coefficients.")
+        apply_coefficient_lookups(task, standards_root)
         manager.replace_task(task_id, task)
         task = manager.get_task(task_id)
 

@@ -13,6 +13,7 @@ from ai.user_response_extractor import (
     resolve_pending_value_responses,
 )
 from engine.executor.unit_manager import normalize_unit
+from engine.reference.material_ids import ASTM_A106_GR_B
 from engine.graph.node_interaction import NodeInteractionSpec
 from models.input import EngineeringInput, InputSource, InputStatus
 
@@ -440,9 +441,9 @@ def _normalize_material(raw: str) -> str:
     text = re.sub(r"\s+", " ", raw.strip())
     upper = text.upper().replace(" ", "")
     if upper in {"ASTMA106", "A106"}:
-        return "SA-106B"
+        return ASTM_A106_GR_B
     if re.fullmatch(r"ASTM\s*A106", text, re.IGNORECASE):
-        return "SA-106B"
+        return ASTM_A106_GR_B
     return text
 
 

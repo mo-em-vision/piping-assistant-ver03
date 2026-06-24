@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import re
+from pathlib import Path
 from typing import Any
 
 from engine.messaging.formula_parameter_prompt import classify_formula_parameters
+from engine.reference.material_catalog_db import material_display_name
+from engine.reference.material_resolver import canonical_material_id
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import Task
 
 _HIDDEN_UNITS = frozenset({"dimensionless", ""})
+_DEFAULT_STANDARDS_ROOT = Path(__file__).resolve().parent.parent / "standards"
 
 FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str, str], ...] = (
     ("material", "", "Design material"),
@@ -106,12 +111,24 @@ def _joint_category_label(task: Task) -> str | None:
     return raw.replace("_", " ").replace("-", " ")
 
 
-def _material_label(task: Task) -> str | None:
+def _resolve_material_display(raw: str, *, standards_root: Path | None = None) -> str:
+    cleaned = raw.strip()
+    if not cleaned:
+        return cleaned
+    root = standards_root or _DEFAULT_STANDARDS_ROOT
+    material_id = canonical_material_id(cleaned, standards_root=root) or cleaned
+    label = material_display_name(root, material_id)
+    return label or cleaned
+
+
+def _material_label(task: Task, *, standards_root: Path | None = None) -> str | None:
     engineering_input = task.inputs.get("material")
     if not _input_has_displayable_value(engineering_input):
         return None
     raw = str(engineering_input.value).strip()
-    return raw or None
+    if not raw:
+        return None
+    return _resolve_material_display(raw, standards_root=standards_root)
 
 
 def _design_temperature_display(task: Task) -> str | None:
@@ -225,8 +242,9 @@ def _allowable_stress_display_value(task: Task) -> str | None:
     mat = lookup.get("material")
     temp_f = lookup.get("design_temperature_f")
     if mat is not None and temp_f is not None:
+        mat_label = _resolve_material_display(str(mat))
         interp = " (interpolated)" if lookup.get("interpolated") else ""
-        display += f" ({_ASME_B31_3} Table A-1, {mat} @ {temp_f:g} \u00b0F{interp})"
+        display += f" ({_ASME_B31_3} Table A-1, {mat_label} @ {temp_f:g} \u00b0F{interp})"
     return display
 
 
@@ -270,6 +288,8 @@ def _temperature_coefficient_display_value(task: Task) -> str | None:
 
 
 def _input_display_value(task: Task, input_id: str) -> str | None:
+    if input_id == "material":
+        return _material_label(task)
     if input_id == "outside_diameter":
         return _outside_diameter_display_value(task)
     if input_id == "allowable_stress":
@@ -343,6 +363,94 @@ def primary_formula_inputs_complete(task: Task, planning: dict[str, Any]) -> boo
         input_id in task.inputs and input_id not in missing
         for input_id in PRIMARY_FORMULA_INPUT_IDS
     )
+
+
+def _format_substitution_value(value: float) -> str:
+    """Decimal literal safe for LaTeX math (no scientific notation with +)."""
+    if value == 0:
+        return "0"
+    rounded = float(f"{value:.8g}")
+    if abs(rounded - round(rounded)) < 1e-9 and abs(rounded) < 1e15:
+        return str(int(round(rounded)))
+    text = f"{rounded:.8f}".rstrip("0").rstrip(".")
+    return text or "0"
+
+
+def _format_result_thickness(value: float) -> str:
+    return f"{round(float(value), 3):.3f}"
+
+
+def format_thickness_result_display(value: float, unit: str = "mm") -> str:
+    return f"{_format_result_thickness(value)} {unit.strip() or 'mm'}"
+
+
+def build_wall_thickness_substituted_rhs(
+    *,
+    variables_si: dict[str, float],
+) -> str:
+    """Return the PD / 2((S)(E)(W) + (P)(Y)) RHS with numeric values substituted."""
+    p = float(variables_si["P"])
+    d = float(variables_si["D"])
+    s = float(variables_si["S"])
+    e = float(variables_si["E"])
+    w = float(variables_si["W"])
+    y = float(variables_si["Y"])
+    fmt = _format_substitution_value
+    return (
+        f"({fmt(p)})({fmt(d)})"
+        f" / 2(({fmt(s)})({fmt(e)})({fmt(w)}) + ({fmt(p)})({fmt(y)}))"
+    )
+
+
+def build_wall_thickness_substituted_equation(
+    *,
+    result_value: float,
+    result_unit: str,
+    variables_si: dict[str, float],
+) -> tuple[str, str]:
+    """Return plain display and LaTeX for t = PD / 2((S)(E)(W) + (P)(Y)) = result."""
+    rhs = build_wall_thickness_substituted_rhs(variables_si=variables_si)
+    result_text = _format_result_thickness(result_value)
+    unit = result_unit.strip() or "mm"
+    numerator, denominator = rhs.split(" / ", 1)
+    display = f"t = {rhs} = {result_text} {unit}"
+    latex = (
+        f"t = \\frac{{{numerator.strip()}}}{{{denominator.strip()}}} = "
+        f"{result_text}\\ \\mathrm{{{unit}}}"
+    )
+    return display, latex
+
+
+def _substitute_formula_rhs(rhs: str, values: dict[str, float]) -> str:
+    text = rhs
+    for symbol in sorted((key for key in values if len(key) > 1), key=len, reverse=True):
+        text = text.replace(symbol, _format_substitution_value(values[symbol]))
+    if "P" in values and "D" in values and "PD" in text:
+        text = text.replace(
+            "PD",
+            f"({_format_substitution_value(values['P'])})({_format_substitution_value(values['D'])})",
+        )
+    for symbol in ("P", "D", "S", "E", "W", "Y", "t"):
+        if symbol not in values:
+            continue
+        formatted = _format_substitution_value(values[symbol])
+        text = re.sub(rf"(?<![A-Za-z]){re.escape(symbol)}(?![A-Za-z])", formatted, text)
+    return text
+
+
+def build_substituted_formula_display(
+    formula_display: str,
+    *,
+    variables_si: dict[str, float],
+    intermediates: dict[str, float],
+) -> str:
+    """Return the governing equation with numeric values substituted for symbols."""
+    values = {**variables_si, **intermediates}
+    text = formula_display.strip()
+    if " = " not in text:
+        return _substitute_formula_rhs(text, values)
+    lhs, rhs = text.split(" = ", 1)
+    return f"{lhs.strip()} = {_substitute_formula_rhs(rhs.strip(), values)}"
 
 
 def enrich_equation_variables(

@@ -1,6 +1,7 @@
 import { startTransition } from 'react'
 import { create } from 'zustand'
 
+import { applyOptimisticParameterSubmit } from '@/components/workflow/optimisticWorkflowTransition'
 import { inputApi } from '@/services/api/inputApi'
 import { taskApi } from '@/services/api/taskApi'
 import { toNavTaskSummary, workflowToSummary } from '@/services/api/responseParser'
@@ -273,21 +274,42 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       return
     }
 
+    const snapshot = get().activeTaskState
     set({ userError: null })
+
+    if (snapshot) {
+      set({
+        activeTaskState: applyOptimisticParameterSubmit(snapshot, parameter, value, unit),
+      })
+    }
+
     try {
       const state = await inputApi.submit(
         activeTask.id,
         { parameter, value, unit },
         get().sessionId ?? getActiveSessionId(),
       )
+
+      const previousDisplayOutputs = get().activeTaskState?.display_outputs
+      set({
+        activeTask: stateToSummary(state),
+        activeTaskState: {
+          ...state,
+          display_outputs: previousDisplayOutputs ?? state.display_outputs,
+        },
+        userError: null,
+      })
+
       startTransition(() => {
         set({
           activeTask: stateToSummary(state),
           activeTaskState: state,
-          userError: null,
         })
       })
     } catch (error) {
+      if (snapshot) {
+        set({ activeTaskState: snapshot })
+      }
       set({ userError: toUserFacingError(error) })
     }
   },

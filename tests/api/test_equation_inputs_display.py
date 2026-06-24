@@ -10,6 +10,7 @@ from api.equation_inputs_display import (
     AWAITING_USER_INPUT,
     build_formula_inputs_input_table,
     build_formula_inputs_table_rows,
+    build_substituted_formula_display,
     definitions_from_equation_variables,
     primary_formula_inputs_complete,
 )
@@ -55,7 +56,7 @@ def test_build_formula_inputs_table_rows_from_task_inputs() -> None:
     assert rows[0] == {
         "symbol": "",
         "definition": "Design material",
-        "value": "A106 Gr A",
+        "value": "ASTM A106 Grade A",
     }
     assert rows[1] == {
         "symbol": "P",
@@ -262,7 +263,7 @@ def test_allowable_stress_value_includes_asme_b31_3_lookup_context() -> None:
 
     rows = build_formula_inputs_table_rows(task)
     stress_row = next(row for row in rows if row["symbol"] == "S")
-    assert stress_row["value"] == "193 MPa (ASME B31.3 Table A-1, SA-106B @ 400 °F)"
+    assert stress_row["value"] == "193 MPa (ASME B31.3 Table A-1, ASTM A106 Grade B @ 400 °F)"
 
 
 def test_build_formula_inputs_table_rows_include_coefficients() -> None:
@@ -414,10 +415,77 @@ def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
     assert equation["input_table"]["rows"][0] == {
         "symbol": "",
         "definition": "Design material",
-        "value": "A106 Gr A",
+        "value": "ASTM A106 Grade A",
     }
     pressure_row = equation["input_table"]["rows"][1]
     assert pressure_row["symbol"] == "P"
     assert pressure_row["value"] == "3.0 bar"
     assert "pressure" in pressure_row["definition"].lower()
     assert equation["input_table"]["rows"][2]["value"] == AWAITING_USER_INPUT
+
+
+def test_allowable_stress_not_emitted_as_standalone_result_block(standards_reader) -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-test10", status=TaskStatus.AWAITING_INPUT)
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "allowable_stress": 193_000_000,
+        "allowable_stress_unit": "Pa",
+        "planning_summary": {
+            "goal": "pipe wall thickness design",
+            "action": "request_input",
+            "active_definition_node": "B313-304.1.1",
+            "path_decision": {
+                "pressure_loading": "internal_pressure",
+                "selected_node": "B313-304.1.2",
+            },
+            "missing_inputs": ["design_pressure"],
+            "current_phase": "formula_parameters",
+        },
+    }
+    task.active_nodes = ["B313-304.1.1", "B313-304.1.2"]
+
+    blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
+    assert not any(
+        block["type"] == "result" and "allowable" in str(block.get("title", "")).lower()
+        for block in blocks
+    )
+
+    equation = next(
+        block
+        for block in blocks
+        if block["type"] == "equation" and block["id"].startswith("path-preview-equation-")
+    )
+    stress_row = next(row for row in equation["input_table"]["rows"] if row["symbol"] == "S")
+    assert stress_row["value"] == "193 MPa"
+
+
+def test_build_substituted_formula_display_replaces_symbols() -> None:
+    from api.equation_inputs_display import build_wall_thickness_substituted_equation
+
+    display, latex = build_wall_thickness_substituted_equation(
+        result_value=2.252389391087652,
+        result_unit="mm",
+        variables_si={
+            "P": 3_447_378.65,
+            "D": 254.0,
+            "S": 193_000_000.0,
+            "E": 1.0,
+            "W": 1.0,
+            "Y": 0.4,
+        },
+    )
+
+    assert display.startswith("t = ")
+    assert display.endswith("= 2.252 mm")
+    assert "PD" not in display
+    assert "SEW" not in display
+    assert "PY" not in display
+    assert "(3447378" in display
+    assert "(254)" in display
+    assert "(193000000)(1)(1)" in display
+    assert "(3447378" in display and ")(0.4)" in display
+    assert "e+" not in display
+    assert "e+" not in latex
+    assert "\\frac" in latex
+    assert "2.252\\ \\mathrm{mm}" in latex

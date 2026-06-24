@@ -1,7 +1,7 @@
 import type { ParameterDefinitionDto } from '@/types/backend/parameters'
 import type { TimelineStepViewModel } from '@/types/frontend/taskState'
 
-const HIDDEN_STEP_IDS = new Set(['straight_pipe_section'])
+const HIDDEN_STEP_IDS = new Set(['straight_pipe_section', 'd_input_mode', 'thin_wall'])
 
 export const FORMULA_INPUT_STEP_IDS = new Set([
   'material',
@@ -20,12 +20,15 @@ export function isHiddenWorkflowStep(stepId: string): boolean {
   return HIDDEN_STEP_IDS.has(stepId)
 }
 
+export const PIPE_MATERIAL_PROMPT =
+  'Select the pipe material. (start typing to see the available options)'
+
 export function parameterNextStepPrompt(parameter: ParameterDefinitionDto): string {
   switch (parameter.name) {
     case 'pressure_loading':
       return 'Specify whether the pipe is internally or externally pressurized.'
     case 'material':
-      return 'Select the pipe design material.'
+      return PIPE_MATERIAL_PROMPT
     case 'design_pressure':
       return 'Enter the design pressure for the pipe.'
     case 'design_temperature':
@@ -36,7 +39,7 @@ export function parameterNextStepPrompt(parameter: ParameterDefinitionDto): stri
       return 'Enter the outside diameter of the pipe.'
     default:
       if (parameter.type === 'material') {
-        return 'Select the pipe design material.'
+        return PIPE_MATERIAL_PROMPT
       }
       return `Enter ${parameter.label.toLowerCase()}.`
   }
@@ -78,6 +81,13 @@ export function completedStepStatement(step: TimelineStepViewModel): string | nu
     case 'nominal_pipe_size':
     case 'outside_diameter':
     case 'joint_category':
+    case 'allowable_stress':
+    case 'weld_joint_efficiency':
+    case 'weld_strength_reduction':
+    case 'temperature_coefficient':
+      return null
+    case 'd_input_mode':
+    case 'thin_wall':
       return null
     case 'thickness':
       return `Required wall thickness: ${step.displayValue}.`
@@ -95,7 +105,7 @@ export function activeStepPrompt(step: TimelineStepViewModel): { body: string; h
       }
     case 'material':
       return {
-        body: 'Select the pipe design material.',
+        body: PIPE_MATERIAL_PROMPT,
         hint: step.hint,
       }
     case 'design_pressure':

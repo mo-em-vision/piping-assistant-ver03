@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import Task, TaskStatus
 
+from api.json_encoding import dumps as json_dumps
 from api.serializers import task_state, task_summary, workflow_catalog
 
 
@@ -79,7 +82,7 @@ def test_task_state_includes_curated_timeline() -> None:
         "Report",
     ]
     assert state["progress"]["timeline"][0]["display_value"] == "The pipe is internally pressurized."
-    assert state["progress"]["timeline"][1]["display_value"] == "SA-106B"
+    assert state["progress"]["timeline"][1]["display_value"] == "ASTM A106 Grade B"
     assert state["progress"]["timeline"][2]["display_value"] == "8.0 bar"
     assert state["progress"]["timeline"][3]["status"] == "active"
     report_step = next(step for step in state["progress"]["timeline"] if step["id"] == "report")
@@ -199,6 +202,62 @@ def test_task_state_report_step_active_after_thickness_complete() -> None:
     assert report_step["hint"] == "Generate the engineering report"
 
 
+def test_thickness_timeline_display_is_rounded_with_units() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-test10", status=TaskStatus.COMPLETED)
+    task.outputs = {
+        "workflow": "B313-PIPE-WALL-THICKNESS-DESIGN",
+        "required_thickness": 0.25946870333750355,
+        "planning_summary": {},
+    }
+    manager.replace_task(task.task_id, task)
+
+    timeline = task_state(task, manager)["progress"]["timeline"]
+    thickness_step = next(step for step in timeline if step["id"] == "thickness")
+
+    assert thickness_step["display_value"] == "0.259 mm"
+
+
+def test_completed_pipe_wall_timeline_omits_internal_assumption_steps() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-test09", status=TaskStatus.COMPLETED)
+    task.inputs["pressure_loading"] = EngineeringInput(
+        input_id="pressure_loading",
+        value="internal_pressure",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+    task.inputs["d_input_mode"] = EngineeringInput(
+        input_id="d_input_mode",
+        value="nps_lookup",
+        unit="dimensionless",
+        source=InputSource.SYSTEM,
+        status=InputStatus.CONFIRMED,
+    )
+    task.inputs["thin_wall"] = EngineeringInput(
+        input_id="thin_wall",
+        value=True,
+        unit="dimensionless",
+        source=InputSource.SYSTEM,
+        status=InputStatus.CONFIRMED,
+    )
+    task.outputs = {
+        "workflow": "B313-PIPE-WALL-THICKNESS-DESIGN",
+        "required_thickness": 2.25,
+        "t": 2.25,
+        "planning_summary": {},
+    }
+    manager.replace_task(task.task_id, task)
+
+    timeline_ids = [step["id"] for step in task_state(task, manager)["progress"]["timeline"]]
+
+    assert "d_input_mode" not in timeline_ids
+    assert "thin_wall" not in timeline_ids
+    assert "straight_pipe_section" not in timeline_ids
+    assert "thickness" in timeline_ids
+
+
 def test_task_state_includes_calculation_error_when_invalidated() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test03", status=TaskStatus.INVALIDATED)
@@ -211,3 +270,38 @@ def test_task_state_includes_calculation_error_when_invalidated() -> None:
     assert state["errors"][0]["code"] == "calculation_failed"
     assert state["errors"][0]["recovery"]["title"] == "Calculation failed"
     assert "Wall thickness" in state["errors"][0]["message"]
+
+
+def test_task_state_is_json_serializable_when_step_progress_contains_datetime() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-test08", status=TaskStatus.AWAITING_INPUT)
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "planning_summary": {
+            "current_phase": "coefficient_resolution",
+            "phase_missing": {"coefficient_resolution": ["weld_joint_efficiency"]},
+        },
+        "_execution_trace": [
+            {
+                "node_id": "B313-304.1.2",
+                "timestamp": datetime(2026, 6, 25, 12, 0, tzinfo=timezone.utc),
+            }
+        ],
+    }
+    manager.replace_task(task.task_id, task)
+    manager.store_step_progress(
+        task.task_id,
+        "B313-304.1.2",
+        "completed",
+        result={
+            "node_id": "B313-304.1.2",
+            "timestamp": datetime(2026, 6, 25, 12, 0, tzinfo=timezone.utc),
+            "status": "completed",
+        },
+    )
+
+    state = task_state(manager.get_task(task.task_id), manager)
+    payload = json_dumps(state)
+
+    assert '"timestamp": "2026-06-25T12:00:00+00:00"' in payload
+    assert "step_progress" in payload

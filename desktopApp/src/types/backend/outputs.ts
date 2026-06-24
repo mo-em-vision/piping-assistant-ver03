@@ -48,6 +48,7 @@ export interface EquationOutputBlock extends OutputBlockBase {
   variables?: EquationVariableDto[]
   input_table?: EquationInputTableDto
   result?: EquationResultDto | null
+  leading_result?: EquationResultDto | null
   nomenclature_reference?: ReferenceLinkDto | null
 }
 

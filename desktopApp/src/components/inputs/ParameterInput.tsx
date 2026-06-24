@@ -16,6 +16,8 @@ interface ParameterInputProps {
   onValueChange: (value: unknown) => void
   onUnitChange: (unit: string) => void
   disabled?: boolean
+  hideUnitSelector?: boolean
+  placeholder?: string
 }
 
 export function ParameterInput({
@@ -25,6 +27,8 @@ export function ParameterInput({
   onValueChange,
   onUnitChange,
   disabled,
+  hideUnitSelector,
+  placeholder,
 }: ParameterInputProps) {
   switch (parameter.type) {
     case 'number':
@@ -36,6 +40,8 @@ export function ParameterInput({
           onValueChange={(next) => onValueChange(next)}
           onUnitChange={onUnitChange}
           disabled={disabled}
+          hideUnitSelector={hideUnitSelector}
+          placeholder={placeholder}
         />
       )
     case 'checkbox':
@@ -82,6 +88,8 @@ export function ParameterInput({
           onValueChange={(next) => onValueChange(next)}
           onUnitChange={onUnitChange}
           disabled={disabled}
+          hideUnitSelector={hideUnitSelector}
+          placeholder={placeholder}
         />
       )
     case 'text':

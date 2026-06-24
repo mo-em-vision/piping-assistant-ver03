@@ -46,7 +46,9 @@ def test_global_catalog_search_finds_a106_alias(standards_root: Path) -> None:
 def test_global_catalog_search_finds_tp316(standards_root: Path) -> None:
     results = search_materials(standards_root, "tp3")
     assert results
-    assert any("TP316" in item["value"] or "TP304" in item["value"] for item in results)
+    assert any(
+        "tp316" in item["value"] or "tp304" in item["value"] for item in results
+    )
 
 
 def test_rebuild_global_catalog(tmp_path: Path, project_root: Path) -> None:

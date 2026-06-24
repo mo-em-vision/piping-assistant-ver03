@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from engine.executor.unit_manager import convert_to_si
+from engine.reference.material_catalog_db import standards_root_from_pack_root
+from engine.reference.material_resolver import canonical_material_id, resolve_material_table_key
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_tables import StandardsTablesDatabase
 from models.calculation import CalculationResult, CalculationStatus, CalculationStep, QuantityResult
@@ -54,6 +56,9 @@ class LookupEngine:
         if not material:
             raise ValueError("material is required for stress lookup")
 
+        standards_root = standards_root_from_pack_root(self._pack_root)
+        material_id = canonical_material_id(material, standards_root=standards_root) or material
+
         temp_value = float(inputs["design_temperature"])
         temp_unit = str(inputs.get("design_temperature_unit", "F"))
         temp_f, _ = convert_to_si(temp_value, temp_unit, target_unit="f")
@@ -61,14 +66,15 @@ class LookupEngine:
         interpolation = bool(lookup_config.get("interpolation", table_data.get("interpolation", False)))
         stress_pa, row, interpolated = self._lookup_stress(
             table_data,
-            material=material,
+            material=material_id,
             temperature_f=temp_f,
             interpolate=interpolation,
+            standards_root=standards_root,
         )
 
         trace = LookupTrace(
             table_id=str(table_data.get("table_id", table_ref)),
-            material=material,
+            material=material_id,
             design_temperature_f=temp_f,
             allowable_stress_pa=stress_pa,
             interpolated=interpolated,
@@ -78,14 +84,14 @@ class LookupEngine:
         calculation = CalculationResult(
             calculation_id=f"{node_id}:lookup",
             inputs={
-                "material": material,
+                "material": material_id,
                 "design_temperature": temp_f,
                 "design_temperature_unit": "F",
             },
             steps=[
                 CalculationStep(
                     name="table_lookup",
-                    inputs={"material": material, "design_temperature_F": temp_f},
+                    inputs={"material": material_id, "design_temperature_F": temp_f},
                     result=stress_pa,
                 )
             ],
@@ -102,9 +108,14 @@ class LookupEngine:
         material: str,
         temperature_f: float,
         interpolate: bool,
+        standards_root: Path | None = None,
     ) -> tuple[float, dict[str, Any] | None, bool]:
         materials = table_data.get("materials", {}) or {}
-        material_key = self._resolve_material_key(materials, material)
+        material_key = resolve_material_table_key(
+            materials,
+            material,
+            standards_root=standards_root,
+        )
         if material_key is None:
             raise ValueError(f"Material not found in lookup table: {material}")
 
@@ -149,24 +160,3 @@ class LookupEngine:
         fraction = (temperature_f - t0) / (t1 - t0)
         stress = s0 + fraction * (s1 - s0)
         return stress, {"design_temperature": temperature_f, "allowable_stress": stress}, True
-
-    @staticmethod
-    def _resolve_material_key(materials: dict[str, Any], material: str) -> str | None:
-        normalized = material.strip().upper().replace(" ", "")
-        for key in materials:
-            if key.upper().replace(" ", "") == normalized:
-                return key
-        aliases = {
-            "A106B": "SA-106B",
-            "SA106B": "SA-106B",
-            "A106-B": "A106-B",
-            "A106GRA": "SA-106B",
-            "A106GRB": "SA-106B",
-            "A106GRADEA": "SA-106B",
-            "A106GRADEB": "SA-106B",
-            "SA106GRB": "SA-106B",
-        }
-        alias = aliases.get(normalized)
-        if alias and alias in materials:
-            return alias
-        return None

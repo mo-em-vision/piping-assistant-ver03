@@ -1,0 +1,9 @@
+# Engineering materials referenced in standards tables but not owned by an ASTM property pack.
+materials:
+  - material_id: asme_sa_105
+    standard_slug: asme_b31.3
+    grade_key: SA-105
+    display_name: SA-105 Forging
+    aliases:
+      - SA-105
+      - SA105

@@ -34,6 +34,7 @@ aliases:
 
 materials:
   A106 Gr A:
+    material_id: astm_a106_gr_a
     display_name: "ASTM A106 Grade A"
     specification: ASTM A106/A106M
     product_form: seamless_pipe
@@ -71,6 +72,7 @@ materials:
       - Grade A is the lower-strength carbon steel grade in the A106 family.
 
   A106 Gr B:
+    material_id: astm_a106_gr_b
     display_name: "ASTM A106 Grade B"
     specification: ASTM A106/A106M
     product_form: seamless_pipe
@@ -125,6 +127,7 @@ materials:
       - Elevated-temperature yield values are engineering reference reductions for design screening only.
 
   A106 Gr C:
+    material_id: astm_a106_gr_c
     display_name: "ASTM A106 Grade C"
     specification: ASTM A106/A106M
     product_form: seamless_pipe

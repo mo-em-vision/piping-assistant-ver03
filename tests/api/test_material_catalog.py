@@ -30,11 +30,24 @@ def test_search_finds_a106_grade_b_alias(standards_root: Path) -> None:
         "ASTM A106 Grade B",
         "ASTM A106 Grade C",
     }
-    assert {item["value"] for item in a106} == {"A106 Gr A", "A106 Gr B", "A106 Gr C"}
+    assert {item["value"] for item in a106} == {
+        "astm_a106_gr_a",
+        "astm_a106_gr_b",
+        "astm_a106_gr_c",
+    }
 
 
 def test_search_finds_stainless_tp316(standards_root: Path) -> None:
     results = search_astm_materials(standards_root, "tp3")
     assert results
-    assert any("TP316" in item["value"] or "TP304" in item["value"] for item in results)
+    assert any(
+        "tp316" in item["value"] or "tp304" in item["value"] for item in results
+    )
     assert all(item["standard"].startswith("astm_") for item in results)
+
+
+def test_warm_material_catalog_endpoint_shape(standards_root: Path) -> None:
+    from api.material_catalog import warm_astm_material_catalog
+
+    payload = warm_astm_material_catalog(standards_root)
+    assert payload["ready"] is True

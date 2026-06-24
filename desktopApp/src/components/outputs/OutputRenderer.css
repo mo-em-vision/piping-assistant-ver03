@@ -63,12 +63,54 @@
   gap: 0.65rem;
 }
 
+.output-equation__math-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+}
+
+.output-equation__leading-result {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+}
+
 .output-equation__math {
   overflow-x: auto;
   padding: 0.5rem 0;
   width: fit-content;
   max-width: 100%;
   margin: 0 auto;
+}
+
+.output-equation--evaluated .output-equation__math-row {
+  justify-content: center;
+}
+
+.output-equation__math--evaluated {
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
+  text-align: center;
+}
+
+.output-equation__math--evaluated.engineering-math-display {
+  overflow: visible;
+  text-align: center;
+}
+
+.output-equation__math--evaluated .katex-display {
+  overflow: visible;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.output-equation__math--evaluated .katex-display > .katex {
+  white-space: normal;
+  text-align: center;
 }
 
 .output-equation__display {

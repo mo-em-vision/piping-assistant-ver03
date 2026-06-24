@@ -56,7 +56,7 @@ def test_mvp_project_task_and_input_collection(mvp_service: DesktopApiService) -
 
     updated = _submit_initial_pipe_inputs(mvp_service, task_id, session_id)
     assert "material" in updated["inputs"]
-    assert updated["inputs"]["material"]["value"] == "SA-106B"
+    assert updated["inputs"]["material"]["value"] == "astm_a106_gr_b"
 
     tasks = mvp_service.list_tasks(session_id)
     assert len(tasks["tasks"]) == 1

@@ -83,7 +83,7 @@ def sample_inputs(
     *,
     pressure: float | str = 500,
     diameter: float = 10,
-    material: str = "SA-106B",
+    material: str = "astm_a106_gr_b",
     temperature: float = 200,
 ) -> dict[str, EngineeringInput]:
     inputs = {

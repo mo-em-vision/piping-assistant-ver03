@@ -6,16 +6,22 @@ from pathlib import Path
 from typing import Any
 
 from api.error_catalog import enrich_api_error_payload
+from api.equation_inputs_display import format_thickness_result_display
+from api.json_encoding import dumps as json_dumps, json_safe
 from api.node_context import active_node_context_for_task
 from api.output_blocks import build_display_outputs
 from api.parameter_definitions import build_parameter_definitions
-from api.parameter_edit import active_edit_parameter, is_timeline_parameter_editable
 from api.workflow_timeline import (
     collect_all_missing,
+    is_pipe_wall_thickness_task,
     pipe_wall_input_step_done,
     pipe_wall_step_title,
     revealed_pipe_wall_input_ids,
+    submittable_parameter_ids,
 )
+from api.parameter_edit import active_edit_parameter, is_timeline_parameter_editable
+from engine.reference.material_catalog_db import material_display_name
+from engine.reference.material_resolver import canonical_material_id
 from engine.reference.standards_reader import StandardsReader
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
@@ -117,7 +123,22 @@ def _format_display_value(value: Any, unit: str | None) -> str | None:
     return str(value)
 
 
-def _input_display(task: Task, input_id: str) -> str | None:
+def _thickness_step_display_value(task: Task, thickness: float) -> str:
+    unit = str(
+        task.outputs.get("thickness_unit")
+        or task.outputs.get("required_thickness_unit")
+        or task.outputs.get("t_unit")
+        or "mm"
+    )
+    return format_thickness_result_display(float(thickness), unit)
+
+
+def _input_display(
+    task: Task,
+    input_id: str,
+    *,
+    standards_root: Path | None = None,
+) -> str | None:
     engineering_input = task.inputs.get(input_id)
     if engineering_input is None and input_id == "allowable_stress":
         stress = task.outputs.get("allowable_stress") or task.outputs.get("S")
@@ -128,6 +149,14 @@ def _input_display(task: Task, input_id: str) -> str | None:
         return None
     if input_id == "pressure_loading":
         return _pressure_loading_report_value(engineering_input.value)
+    if input_id == "material":
+        raw = str(engineering_input.value).strip()
+        if not raw:
+            return None
+        root = standards_root or (Path(__file__).resolve().parent.parent / "standards")
+        material_id = canonical_material_id(raw, standards_root=root) or raw
+        label = material_display_name(root, material_id)
+        return label or raw
     return _format_display_value(engineering_input.value, engineering_input.unit)
 
 
@@ -162,7 +191,12 @@ def _step(
     }
 
 
-def _build_pipe_wall_timeline(task: Task, planning: dict[str, Any]) -> list[dict[str, Any]]:
+def _build_pipe_wall_timeline(
+    task: Task,
+    planning: dict[str, Any],
+    *,
+    standards_root: Path | None = None,
+) -> list[dict[str, Any]]:
     phase_missing = planning.get("phase_missing") or {}
     phase_questions = planning.get("phase_questions") or {}
     current_phase = str(planning.get("current_phase") or "")
@@ -193,7 +227,7 @@ def _build_pipe_wall_timeline(task: Task, planning: dict[str, Any]) -> list[dict
             if thickness_done:
                 status = "done"
                 hint = None
-                display_value = _format_display_value(thickness_output, task.outputs.get("thickness_unit"))
+                display_value = _thickness_step_display_value(task, float(thickness_output))
             elif not active_assigned and current_phase not in {
                 "expansion_assumptions",
                 "path_decisions",
@@ -221,14 +255,14 @@ def _build_pipe_wall_timeline(task: Task, planning: dict[str, Any]) -> list[dict
             if editing_parameter and step_id == editing_parameter:
                 status = "active"
                 hint = "Update this value in the workflow composer."
-                display_value = _input_display(task, step_id)
+                display_value = _input_display(task, step_id, standards_root=standards_root)
                 active_assigned = True
             else:
                 input_done = pipe_wall_input_step_done(task, step_id, all_missing)
                 if input_done:
                     status = "done"
                     hint = None
-                    display_value = _input_display(task, step_id)
+                    display_value = _input_display(task, step_id, standards_root=standards_root)
                 elif not active_assigned:
                     status = "active"
                     hint = _step_hint(step_id, phase_missing, phase_questions, current_phase)
@@ -280,10 +314,14 @@ def _step_hint(
     return None
 
 
-def _build_progress_steps(task: Task, planning: dict[str, Any]) -> list[dict[str, Any]]:
-    workflow_id = _task_workflow_id(task)
-    if workflow_id == PIPE_WALL_THICKNESS_DESIGN:
-        return _build_pipe_wall_timeline(task, planning)
+def _build_progress_steps(
+    task: Task,
+    planning: dict[str, Any],
+    *,
+    standards_root: Path | None = None,
+) -> list[dict[str, Any]]:
+    if is_pipe_wall_thickness_task(task):
+        return _build_pipe_wall_timeline(task, planning, standards_root=standards_root)
 
     steps: list[dict[str, Any]] = []
     missing_inputs = set(planning.get("missing_inputs") or [])
@@ -352,17 +390,22 @@ def task_state(
     if not isinstance(planning, dict):
         planning = {}
 
-    timeline = _build_progress_steps(task, planning)
+    resolved_standards_root = standards_root or (Path(__file__).resolve().parent.parent / "standards")
+    resolved_reader = reader or StandardsReader(resolved_standards_root, standard="asme_b31.3")
+
+    timeline = _build_progress_steps(task, planning, standards_root=resolved_standards_root)
     step_progress = [
-        {"step_id": step.step_id, "status": step.status, "result": step.result}
+        {
+            "step_id": step.step_id,
+            "status": step.status,
+            "result": json_safe(step.result),
+        }
         for step in manager.list_step_progress(task.task_id)
     ]
 
     completed = sum(1 for step in timeline if step["status"] == "done")
     active = next((step for step in timeline if step["status"] == "active"), None)
 
-    resolved_standards_root = standards_root or (Path(__file__).resolve().parent.parent / "standards")
-    resolved_reader = reader or StandardsReader(resolved_standards_root, standard="asme_b31.3")
     active_node_context = active_node_context_for_task(task, resolved_reader)
 
     return {
@@ -381,10 +424,11 @@ def task_state(
             "current_step_id": active["id"] if active else None,
             "missing_inputs": list(planning.get("missing_inputs") or []),
             "missing_assumptions": list(planning.get("missing_assumptions") or []),
+            "submittable_parameters": submittable_parameter_ids(task, planning),
             "step_progress": step_progress,
         },
         "inputs": {key: _input_to_dict(value) for key, value in task.inputs.items()},
-        "outputs": dict(task.outputs),
+        "outputs": json_safe(dict(task.outputs)),
         "warnings": list(task.warnings),
         "parameters": build_parameter_definitions(task),
         "display_outputs": build_display_outputs(

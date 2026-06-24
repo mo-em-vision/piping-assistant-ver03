@@ -32,7 +32,7 @@ from api.workflow_bootstrap import (
     refresh_task_planning,
     standards_reader_for_config,
 )
-from api.material_catalog import search_astm_materials
+from api.material_catalog import search_astm_materials, warm_astm_material_catalog
 from api.parameter_edit import (
     assess_parameter_edit,
     begin_parameter_edit as begin_parameter_edit_session,
@@ -87,6 +87,7 @@ class DesktopApiService:
         root = project_root or Path(__file__).resolve().parent.parent
         service = cls(config=CLIConfig.load(project_root=root))
         service._ensure_storage()
+        warm_astm_material_catalog(service.config.standards_root)
         return service
 
     def _ensure_storage(self) -> None:
@@ -432,6 +433,9 @@ class DesktopApiService:
     def search_materials(self, query: str) -> dict[str, Any]:
         materials = search_astm_materials(self.config.standards_root, query)
         return {"materials": materials, "query": query}
+
+    def warm_material_catalog(self) -> dict[str, Any]:
+        return warm_astm_material_catalog(self.config.standards_root)
 
     def get_standards_node(self, node_id: str) -> dict[str, Any]:
         reader = standards_reader_for_config(self.config)

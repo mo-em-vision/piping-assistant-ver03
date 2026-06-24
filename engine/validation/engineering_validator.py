@@ -9,6 +9,8 @@ from engine.graph.assumption_checker import (
     evaluate_node_expansion_assumptions,
 )
 from engine.executor.unit_manager import convert_to_si
+from engine.reference.material_catalog_db import standards_root_from_pack_root
+from engine.reference.material_resolver import resolve_material_table_key
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput
 from models.validation import ComplianceStatus, LayerValidationResult, ValidationFinding, ValidationSeverity
@@ -145,7 +147,11 @@ class EngineeringValidator:
             table_data = reader.load_table("A-1")
         except FileNotFoundError:
             return LayerValidationResult(status=ComplianceStatus.PASS)
-        material_key = self._resolve_material(table_data, material)
+        material_key = resolve_material_table_key(
+            table_data.get("materials", {}) or {},
+            material,
+            standards_root=standards_root_from_pack_root(reader.pack_root),
+        )
         if material_key is None:
             errors.append(
                 ValidationFinding(
@@ -207,12 +213,3 @@ class EngineeringValidator:
             warnings=warnings,
             constraints=constraints,
         )
-
-    @staticmethod
-    def _resolve_material(table_data: dict[str, Any], material: str) -> str | None:
-        materials = table_data.get("materials", {}) or {}
-        normalized = material.strip().upper().replace(" ", "")
-        for key in materials:
-            if key.upper().replace(" ", "") == normalized:
-                return key
-        return None

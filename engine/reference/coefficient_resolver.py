@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from engine.reference.material_catalog_db import material_display_name, standards_root_from_pack_root
+from engine.reference.material_resolver import canonical_material_id, resolve_material_table_key
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_tables import StandardsTablesDatabase
 
@@ -76,27 +78,6 @@ def _load_table(pack_root: Path, table_ref: str) -> dict[str, Any]:
     return data
 
 
-def _normalize_material(material: str) -> str:
-    return material.strip().upper().replace(" ", "")
-
-
-def _resolve_material_key(materials: dict[str, Any], material: str) -> str | None:
-    normalized = _normalize_material(material)
-    for key in materials:
-        if key.upper().replace(" ", "") == normalized:
-            return key
-    aliases = {
-        "A106B": "SA-106B",
-        "SA106B": "SA-106B",
-        "A106-B": "A106-B",
-        "SA105": "SA-105",
-    }
-    alias = aliases.get(normalized)
-    if alias and alias in materials:
-        return alias
-    return None
-
-
 def temperature_to_fahrenheit(value: float, unit: str = "F") -> float:
     from engine.executor.unit_manager import convert_to_si
 
@@ -138,6 +119,10 @@ def inside_diameter_from_od_and_thickness(outside_diameter: float, thickness: fl
     return outside_diameter - 2.0 * thickness
 
 
+def _row_material_token(row: dict[str, Any]) -> str:
+    return str(row.get("material_id") or row.get("material", ""))
+
+
 def lookup_quality_factor(
     pack_root: Path,
     *,
@@ -145,12 +130,21 @@ def lookup_quality_factor(
     joint_category: str,
 ) -> float | None:
     """Look up E from Tables A-1A and A-1B by material and joint category."""
-    material_key = _normalize_material(material)
     category = joint_category.strip().lower().replace("-", "_")
+    standards_root = standards_root_from_pack_root(pack_root)
     for table_ref in ("A-1A", "A-1B"):
         table_data = _load_table(pack_root, table_ref)
-        for row in table_data.get("rows", []) or []:
-            row_material = _normalize_material(str(row.get("material", "")))
+        rows = table_data.get("rows", []) or []
+        material_keys = {_row_material_token(row): row for row in rows}
+        material_key = resolve_material_table_key(
+            material_keys,
+            material,
+            standards_root=standards_root,
+        )
+        if material_key is None:
+            continue
+        for row in rows:
+            row_material = _row_material_token(row)
             row_category = str(row.get("joint_category", "")).strip().lower().replace("-", "_")
             if row_material == material_key and row_category == category:
                 return float(row["quality_factor_E"])
@@ -173,16 +167,18 @@ def lookup_w_factor(
     rows = table_data.get("rows", []) or []
     if not rows:
         return 1.0
-    material_key = _resolve_material_key(
-        {str(row.get("material", "")): row for row in rows},
+    standards_root = standards_root_from_pack_root(pack_root)
+    material_key = resolve_material_table_key(
+        {_row_material_token(row): row for row in rows},
         material,
+        standards_root=standards_root,
     )
     if material_key is None:
         return 1.0
     temp_f = temperature_to_fahrenheit(design_temperature, design_temperature_unit)
     category = weld_joint_category.strip().lower().replace("-", "_")
     for row in rows:
-        row_material = str(row.get("material", ""))
+        row_material = _row_material_token(row)
         row_category = str(row.get("weld_joint_category", "")).strip().lower().replace("-", "_")
         if row_material == material_key and row_category == category:
             return float(row.get("weld_strength_reduction_W", row.get("W", 1.0)))
@@ -251,9 +247,16 @@ def propose_coefficient_defaults(
         except (ValueError, FileNotFoundError):
             e_value = None
         if e_value is not None:
+            mat_label = str(mat_value)
+            standards_root = standards_root_from_pack_root(pack_root)
+            material_id = canonical_material_id(mat_label, standards_root=standards_root)
+            if material_id is not None:
+                display = material_display_name(standards_root, material_id)
+                if display:
+                    mat_label = display
             proposed["weld_joint_efficiency"] = (
                 e_value,
-                f"Tables A-1A/A-1B for {mat_value} ({cat_value})",
+                f"Tables A-1A/A-1B for {mat_label} ({cat_value})",
             )
 
     if material is not None and temp is not None:

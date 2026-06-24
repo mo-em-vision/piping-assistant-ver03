@@ -108,3 +108,30 @@ def test_submittable_parameters_remain_phase_scoped() -> None:
 
     submittable = submittable_parameter_ids(task, task.outputs["planning_summary"])
     assert submittable == ["weld_joint_efficiency"]
+
+
+def test_submittable_includes_unconfirmed_proposed_defaults_in_current_phase() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-timeline04", status=TaskStatus.AWAITING_INPUT)
+    task.inputs["joint_category"] = EngineeringInput(
+        input_id="joint_category",
+        value="seamless",
+        unit="dimensionless",
+        source=InputSource.DEFAULT,
+        status=InputStatus.PROPOSED_DEFAULT,
+        default="seamless",
+        requires_confirmation=True,
+    )
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "planning_summary": {
+            "current_phase": "coefficient_resolution",
+            "phase_missing": {
+                "coefficient_resolution": ["weld_joint_efficiency"],
+            },
+        },
+    }
+    manager.replace_task(task.task_id, task)
+
+    submittable = submittable_parameter_ids(task, task.outputs["planning_summary"])
+    assert submittable == ["joint_category", "weld_joint_efficiency"]

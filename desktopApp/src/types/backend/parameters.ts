@@ -34,6 +34,7 @@ export interface ParameterDefinitionDto {
   requires_confirmation: boolean
   guidance?: string | null
   editing?: boolean
+  submittable?: boolean
 }
 
 export interface SubmitInputPayload {

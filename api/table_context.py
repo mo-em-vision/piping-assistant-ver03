@@ -60,7 +60,13 @@ def _flatten_table_rows(data: dict[str, Any]) -> list[dict[str, Any]]:
 
                 continue
 
-            flattened.append({"material": material_key, **row})
+            flattened.append(
+                {
+                    "material_id": material_key,
+                    "material": str(material_data.get("display_name", material_key)),
+                    **row,
+                }
+            )
 
     return flattened
 

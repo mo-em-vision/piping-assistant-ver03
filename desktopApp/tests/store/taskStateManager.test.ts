@@ -5,7 +5,7 @@ import type { TimelineStepViewModel } from '@/types/frontend/taskState'
 
 function timelineWithReportStatus(status: TimelineStepViewModel['status']): TimelineStepViewModel[] {
   return [
-    { id: 'material', title: 'Material', status: 'done', displayValue: 'SA-106B', hint: null, editable: false },
+    { id: 'material', title: 'Material', status: 'done', displayValue: 'ASTM A106 Grade B', hint: null, editable: false },
     { id: 'thickness', title: 'Thickness', status: 'done', displayValue: '12.5 mm', hint: null, editable: false },
     { id: 'report', title: 'Report', status, displayValue: null, hint: null, editable: false },
   ]

@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.graph.navigation_phases import allowed_fields_for_phase
+from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from models.input import InputStatus
+from models.planning import NavigationPhase
 from models.task import Task
 
 PIPE_WALL_NAVIGATION_PHASES: tuple[str, ...] = (
@@ -50,7 +53,18 @@ PIPE_WALL_STEP_TITLES: dict[str, str] = {
     "report": "Report",
 }
 
-_HIDDEN_TIMELINE_INPUTS = frozenset({"straight_pipe_section", "d_input_mode"})
+_HIDDEN_TIMELINE_INPUTS = frozenset({"straight_pipe_section", "d_input_mode", "thin_wall"})
+
+
+def is_pipe_wall_thickness_task(task: Task) -> bool:
+    workflow = str(task.outputs.get("workflow") or task.outputs.get("selected_root") or "")
+    if workflow in {PIPE_WALL_THICKNESS_DESIGN, "B313-PIPE-WALL-THICKNESS-DESIGN"}:
+        return True
+    if "pipe_wall_thickness" in workflow.lower():
+        return True
+    loading = task.inputs.get("pressure_loading")
+    loading_value = getattr(loading, "value", None) if loading is not None else None
+    return loading_value in {"internal_pressure", "external_pressure"}
 
 
 def collect_all_missing(planning: dict[str, Any]) -> set[str]:
@@ -105,6 +119,42 @@ def revealed_pipe_wall_input_ids(task: Task, planning: dict[str, Any]) -> list[s
     return ordered
 
 
+def _ordered_submittable_ids(candidates: set[str]) -> list[str]:
+    ordered: list[str] = []
+    for step_id in PIPE_WALL_INPUT_STEP_ORDER:
+        if step_id in candidates:
+            ordered.append(step_id)
+    for item in sorted(candidates.difference(PIPE_WALL_INPUT_STEP_ORDER)):
+        if item not in _HIDDEN_TIMELINE_INPUTS:
+            ordered.append(item)
+    return ordered
+
+
+def _phase_allowed_input_ids(current_phase: str) -> frozenset[str]:
+    try:
+        return allowed_fields_for_phase(NavigationPhase(current_phase))
+    except ValueError:
+        return frozenset()
+
+
+def _unconfirmed_proposed_defaults_for_phase(
+    task: Task,
+    *,
+    allowed_ids: frozenset[str],
+    phase_fields: set[str],
+) -> list[str]:
+    extras: list[str] = []
+    for input_id, existing in task.inputs.items():
+        if (
+            input_id in allowed_ids
+            and input_id not in phase_fields
+            and input_id not in _HIDDEN_TIMELINE_INPUTS
+            and existing.status == InputStatus.PROPOSED_DEFAULT
+        ):
+            extras.append(input_id)
+    return extras
+
+
 def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]:
     """Parameters the user may submit on the current navigation phase."""
     edit_session = task.outputs.get("edit_session")
@@ -114,9 +164,19 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
     phase_missing = planning.get("phase_missing") or {}
     current_phase = str(planning.get("current_phase") or "")
     if isinstance(phase_missing, dict) and current_phase:
-        phase_fields = phase_missing.get(current_phase) or []
+        phase_fields = [
+            str(item)
+            for item in (phase_missing.get(current_phase) or [])
+            if str(item) not in _HIDDEN_TIMELINE_INPUTS
+        ]
         if phase_fields:
-            return [str(item) for item in phase_fields if str(item) not in _HIDDEN_TIMELINE_INPUTS]
+            allowed_ids = _phase_allowed_input_ids(current_phase)
+            extras = _unconfirmed_proposed_defaults_for_phase(
+                task,
+                allowed_ids=allowed_ids,
+                phase_fields=set(phase_fields),
+            )
+            return _ordered_submittable_ids(set(phase_fields) | set(extras))
 
     requested_ids: list[str] = []
     for key in ("missing_assumptions", "missing_execution_assumptions", "missing_inputs"):

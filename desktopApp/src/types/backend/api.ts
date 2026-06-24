@@ -123,6 +123,7 @@ export interface TaskStateDto {
     current_step_id?: string | null
     missing_inputs: string[]
     missing_assumptions: string[]
+    submittable_parameters?: string[]
     step_progress: Array<{ step_id: string; status: string; result: unknown }>
   }
   inputs: Record<string, unknown>

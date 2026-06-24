@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import { ParameterInput } from '@/components/inputs/ParameterInput'
 import { useTaskStore } from '@/store/taskStore'
 
 import type { ParameterDefinitionDto } from '@/types/backend/parameters'
 
 import { ComposerInput } from './ComposerInput'
+import { ComposerInlineInput } from './ComposerInlineInput'
 import { MaterialSearchInput } from './MaterialSearchInput'
 
+import './ComposerInlineInput.css'
 import './ComposerInput.css'
 import './WorkflowPanel.css'
 
@@ -43,11 +44,7 @@ function composerPlaceholder(parameter: ParameterDefinitionDto | null): string {
   }
 
   if (parameter.type === 'material') {
-    return 'Search ASTM materials (type at least 3 letters)…'
-  }
-
-  if (parameter.type === 'dropdown' || parameter.type === 'multi_select') {
-    return 'Choose an option above…'
+    return 'Start typing to search materials…'
   }
 
   if (parameter.type === 'checkbox') {
@@ -55,6 +52,79 @@ function composerPlaceholder(parameter: ParameterDefinitionDto | null): string {
   }
 
   return `Enter ${parameter.label.toLowerCase()}…`
+}
+
+function usesComposerUnitPills(parameter: ParameterDefinitionDto): boolean {
+  return parameter.units.length > 0
+}
+
+function usesInlineComposerRow(parameter: ParameterDefinitionDto | null): boolean {
+  if (!parameter) {
+    return false
+  }
+
+  return (
+    parameter.type === 'text' ||
+    parameter.type === 'number' ||
+    parameter.type === 'unit' ||
+    parameter.type === 'material'
+  )
+}
+
+function renderInlineComposerInput({
+  parameter,
+  textValue,
+  unit,
+  setValue,
+  setUnit,
+  busy,
+  submitting,
+  canSubmit,
+  submitCurrentValue,
+}: {
+  parameter: ParameterDefinitionDto
+  textValue: string
+  unit: string
+  setValue: (value: unknown) => void
+  setUnit: (unit: string) => void
+  busy: boolean
+  submitting: boolean
+  canSubmit: boolean
+  submitCurrentValue: (nextValue?: unknown) => Promise<void>
+}) {
+  if (parameter.type === 'material') {
+    return (
+      <MaterialSearchInput
+        inline
+        value={textValue}
+        onChange={setValue}
+        onSubmit={(nextValue) => void submitCurrentValue(nextValue)}
+        disabled={busy}
+        submitting={submitting}
+        placeholder={composerPlaceholder(parameter)}
+      />
+    )
+  }
+
+  const showUnits = usesComposerUnitPills(parameter)
+
+  return (
+    <ComposerInlineInput
+      value={textValue}
+      onChange={(next) => setValue(next)}
+      placeholder="Value…"
+      disabled={busy}
+      submitting={submitting}
+      canSubmit={canSubmit}
+      onSubmit={() => void submitCurrentValue()}
+      inputMode={parameter.type === 'text' ? 'text' : 'decimal'}
+      variant={parameter.type === 'text' ? 'text' : 'numeric'}
+      units={showUnits ? parameter.units : undefined}
+      unit={showUnits ? unit : undefined}
+      onUnitChange={showUnits ? setUnit : undefined}
+      unitAriaLabel={showUnits ? `${parameter.label} unit` : undefined}
+    />
+  )
 }
 
 export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: WorkflowComposerProps) {
@@ -65,6 +135,7 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
+    setSubmitting(false)
     if (!parameter) {
       setValue('')
       setUnit('dimensionless')
@@ -93,7 +164,7 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
       await submitParameter(
         parameter.name,
         payload,
-        parameter.type === 'number' || parameter.type === 'unit' ? unit : undefined,
+        parameter.units.length > 0 ? unit : undefined,
       )
       setValue(parameter.type === 'multi_select' ? [] : '')
     } finally {
@@ -111,6 +182,7 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
         : value !== '' && value != null))
 
   const textValue = value == null ? '' : String(value)
+  const inlineComposerRow = usesInlineComposerRow(parameter)
 
   return (
     <div className="workflow-panel__composer">
@@ -119,10 +191,34 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
           Editing this input. Downstream values were cleared; submit to continue the workflow.
         </p>
       ) : null}
-      {nextStepPrompt ? (
-        <p className="workflow-panel__next-step">
-          <strong>Next Step:</strong> {nextStepPrompt}
-        </p>
+      {nextStepPrompt || inlineComposerRow ? (
+        <div className="workflow-panel__next-step">
+          {nextStepPrompt ? (
+            <p className="workflow-panel__next-step-heading">
+              <strong>Next Step:</strong>
+            </p>
+          ) : null}
+          {inlineComposerRow && parameter ? (
+            <div className="workflow-panel__next-step-inline">
+              {nextStepPrompt ? (
+                <span className="workflow-panel__next-step-text">{nextStepPrompt}</span>
+              ) : null}
+              {renderInlineComposerInput({
+                parameter,
+                textValue,
+                unit,
+                setValue,
+                setUnit,
+                busy,
+                submitting,
+                canSubmit,
+                submitCurrentValue,
+              })}
+            </div>
+          ) : nextStepPrompt ? (
+            <span className="workflow-panel__next-step-text">{nextStepPrompt}</span>
+          ) : null}
+        </div>
       ) : null}
 
       {parameter && (parameter.type === 'dropdown' || parameter.type === 'multi_select') && options.length > 0 ? (
@@ -181,75 +277,7 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
             No
           </button>
         </div>
-      ) : parameter?.type === 'material' ? (
-        <MaterialSearchInput
-          value={textValue}
-          onChange={setValue}
-          onSubmit={(nextValue) => void submitCurrentValue(nextValue)}
-          disabled={busy}
-          submitting={submitting}
-          placeholder={composerPlaceholder(parameter)}
-        />
-      ) : parameter?.type === 'text' ? (
-        <ComposerInput
-          disabled={busy}
-          submitting={submitting}
-          canSubmit={canSubmit}
-          placeholder={composerPlaceholder(parameter)}
-          onSubmit={() => void submitCurrentValue()}
-        >
-          <textarea
-            className="composer-input__field"
-            value={textValue}
-            placeholder={composerPlaceholder(parameter)}
-            disabled={busy}
-            rows={1}
-            onChange={(event) => setValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault()
-                if (canSubmit) {
-                  void submitCurrentValue()
-                }
-              }
-            }}
-          />
-        </ComposerInput>
-      ) : parameter?.type === 'dropdown' || parameter?.type === 'multi_select' ? (
-        <ComposerInput
-          disabled
-          canSubmit={false}
-          placeholder={composerPlaceholder(parameter)}
-          onSubmit={() => undefined}
-        >
-          <textarea
-            className="composer-input__field"
-            value=""
-            readOnly
-            placeholder={composerPlaceholder(parameter)}
-            disabled
-            rows={1}
-            aria-hidden="true"
-          />
-        </ComposerInput>
-      ) : parameter ? (
-        <ComposerInput
-          disabled={busy}
-          submitting={submitting}
-          canSubmit={canSubmit}
-          placeholder={composerPlaceholder(parameter)}
-          onSubmit={() => void submitCurrentValue()}
-        >
-          <ParameterInput
-            parameter={parameter}
-            value={value}
-            unit={unit}
-            onValueChange={setValue}
-            onUnitChange={setUnit}
-            disabled={busy}
-          />
-        </ComposerInput>
-      ) : (
+      ) : inlineComposerRow ? null : !parameter ? (
         <ComposerInput disabled canSubmit={false} placeholder={composerPlaceholder(parameter)} onSubmit={() => undefined}>
           <textarea
             className="composer-input__field"
@@ -261,7 +289,7 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
             aria-hidden="true"
           />
         </ComposerInput>
-      )}
+      ) : null}
 
       {parameter?.type === 'multi_select' ? (
         <div className="workflow-panel__multi-actions">
@@ -278,4 +306,3 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
     </div>
   )
 }
-

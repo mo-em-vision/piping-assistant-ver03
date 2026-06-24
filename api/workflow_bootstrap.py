@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from config.loader import CLIConfig
+from engine.executor.coefficient_lookup import apply_coefficient_lookups
 from engine.executor.executor import execute_workflow
 from engine.graph.graph_engine import normalize_root_id
 from engine.graph.navigation_phases import build_phased_navigation
@@ -17,7 +18,8 @@ from models.agent import AgentAction
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.planning import NavigationPhase
 from models.task import Task, TaskStatus
-from engine.state.state_manager import TaskStateManager
+from api.material_catalog_service import warm_material_catalog
+from api.workflow_timeline import submittable_parameter_ids
 
 
 def standards_reader_for_config(config: CLIConfig) -> StandardsReader:
@@ -110,6 +112,9 @@ def refresh_task_planning(
                 inputs=existing_inputs,
             )
 
+    apply_coefficient_lookups(task, reader.standards_root)
+    existing_inputs = dict(task.inputs)
+
     exec_nodes = _execution_nodes(reader, preview.execution_order)
 
     assumption_eval = graph.evaluate_assumptions(
@@ -199,6 +204,12 @@ def refresh_task_planning(
         "action": action.value,
     }
     task.active_nodes = active_nodes
+
+    planning_summary = task.outputs.get("planning_summary")
+    if isinstance(planning_summary, dict) and "material" in submittable_parameter_ids(
+        task, planning_summary
+    ):
+        warm_material_catalog(reader.standards_root)
 
 
 def task_ready_for_execution(task: Task) -> bool:

@@ -113,6 +113,10 @@ describe('WorkflowComposer', () => {
     const label = screen.getByText('Next Step:')
     expect(label.tagName).toBe('STRONG')
     expect(screen.getByText(/Enter the nominal pipe size\./)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Value…')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Nominal Pipe Size unit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'NPS' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'DN' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('does not show the confirmation hint when no default value is available', () => {
@@ -138,6 +142,36 @@ describe('WorkflowComposer', () => {
     )
 
     expect(screen.queryByText(/Confirm or change the proposed default value/i)).not.toBeInTheDocument()
+    expect(screen.queryByPlaceholderText(/Choose an option above/i)).not.toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Seamless' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Welded' })).toBeInTheDocument()
+  })
+
+  it('renders inline unit pills beside the next step prompt for numeric inputs', () => {
+    render(
+      <WorkflowComposer
+        parameter={{
+          name: 'design_pressure',
+          label: 'Design Pressure',
+          type: 'number',
+          required: true,
+          units: ['bar', 'psi', 'kPa'],
+          default_unit: 'bar',
+          default_value: null,
+          value: null,
+          options: [],
+          status: 'pending',
+          requires_confirmation: false,
+        }}
+        nextStepPrompt="Enter the design pressure for the pipe."
+      />,
+    )
+
+    expect(screen.getByText(/Enter the design pressure for the pipe\./)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Value…')).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Design Pressure unit' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'bar' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'psi' })).toHaveAttribute('aria-pressed', 'false')
   })
 
   it('prefills the input when a proposed default value is available', () => {
@@ -160,6 +194,6 @@ describe('WorkflowComposer', () => {
     )
 
     expect(screen.queryByText(/Confirm or change the proposed default value/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('spinbutton')).toHaveValue(1)
+    expect(screen.getByRole('textbox', { name: 'Value…' })).toHaveValue('1')
   })
 })

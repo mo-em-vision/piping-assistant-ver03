@@ -42,7 +42,7 @@ def test_orchestrator_extracts_partial_inputs_on_follow_up() -> None:
 
     task = manager.get_task(task_id)
     assert task.inputs["design_pressure"].value == 500.0
-    assert task.inputs["material"].value == "SA-106B"
+    assert task.inputs["material"].value == "astm_a106_gr_b"
     assert task.inputs["design_temperature"].value == 85.0
     assert "pressure_loading" not in (second.data.get("missing_inputs") or [])
 

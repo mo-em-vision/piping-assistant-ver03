@@ -28,7 +28,7 @@ describe('MaterialSearchInput', () => {
     await vi.advanceTimersByTimeAsync(200)
 
     await waitFor(() => {
-      expect(screen.getByRole('option', { name: /SA-106B/i })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'astm_a106_gr_b' })).toBeInTheDocument()
     })
   })
 
@@ -45,11 +45,11 @@ describe('MaterialSearchInput', () => {
     await vi.advanceTimersByTimeAsync(200)
 
     await waitFor(() => {
-      expect(screen.getByRole('option', { name: /SA-106B/i })).toBeInTheDocument()
+      expect(screen.getByRole('option', { name: 'astm_a106_gr_b' })).toBeInTheDocument()
     })
 
-    await user.click(screen.getByRole('option', { name: /SA-106B/i }))
+    await user.click(screen.getByRole('option', { name: 'astm_a106_gr_b' }))
 
-    expect(onSubmit).toHaveBeenCalledWith('SA-106B')
+    expect(onSubmit).toHaveBeenCalledWith('astm_a106_gr_b')
   })
 })

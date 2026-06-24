@@ -54,6 +54,23 @@ def test_validate_plan_pass_with_warnings_for_limitations() -> None:
     assert result.status in {ComplianceStatus.PASS, ComplianceStatus.PASS_WITH_WARNING}
 
 
+def test_catalog_material_name_passes_stress_table_validation() -> None:
+    reader = _reader()
+    engine = ValidationEngine(reader)
+    inputs = _sample_inputs(material="A106 Gr B")
+
+    result = engine.validate_node(
+        "B313-material-stress",
+        task_inputs=inputs,
+        dependency_outputs={},
+        prior_nodes_completed=set(),
+    )
+
+    assert not any(
+        finding.rule == "material_not_in_table" for finding in result.errors
+    )
+
+
 def test_temperature_out_of_table_range_fails() -> None:
     reader = _reader()
     engine = ValidationEngine(reader)

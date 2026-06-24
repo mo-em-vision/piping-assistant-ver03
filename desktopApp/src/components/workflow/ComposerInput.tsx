@@ -10,6 +10,7 @@ interface ComposerInputProps {
   onSubmit: () => void
   children: ReactNode
   submitLabel?: string
+  variant?: 'default' | 'underlined'
 }
 
 function ArrowUpIcon() {
@@ -31,11 +32,12 @@ export function ComposerInput({
   onSubmit,
   children,
   submitLabel = 'Submit',
+  variant = 'default',
 }: ComposerInputProps) {
   return (
     <div className="composer-input">
       <form
-        className="composer-input__shell"
+        className={`composer-input__shell${variant === 'underlined' ? ' composer-input__shell--underlined' : ''}`}
         onSubmit={(event) => {
           event.preventDefault()
           if (!disabled && !submitting && canSubmit) {

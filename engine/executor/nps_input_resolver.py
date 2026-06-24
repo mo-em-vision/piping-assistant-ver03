@@ -17,6 +17,56 @@ from models.task import Task
 
 B36_10_TABLE_REF = "asme_b36.10/welded_seamless_pipe_dimensions"
 
+# ISO 6708 / common DN to ASME B36.10 NPS keys used in the dimension tables.
+_DN_TO_NPS: dict[str, str] = {
+    "6": "1/8",
+    "8": "1/4",
+    "10": "3/8",
+    "15": "1/2",
+    "20": "3/4",
+    "25": "1",
+    "32": "1-1/4",
+    "40": "1-1/2",
+    "50": "2",
+    "65": "2-1/2",
+    "80": "3",
+    "100": "4",
+    "125": "5",
+    "150": "6",
+    "200": "8",
+    "250": "10",
+    "300": "12",
+    "350": "14",
+    "400": "16",
+}
+
+
+def _normalize_entry_unit(unit: str | None) -> str:
+    text = (unit or "NPS").strip().upper()
+    if text in {"NPS", "DN"}:
+        return text
+    if text in {"IN", "INCH", "INCHES"}:
+        return "NPS"
+    raise ValueError(f"Unsupported nominal pipe size unit: {unit}")
+
+
+def _to_nps_lookup_key(value: str, unit: str) -> str:
+    text = str(value).strip().strip('"').strip("'")
+    if not text:
+        raise ValueError("Nominal pipe size is required.")
+
+    if unit == "DN":
+        dn = text.upper().replace("DN", "").strip()
+        mapped = _DN_TO_NPS.get(dn)
+        if mapped is None:
+            raise ValueError(
+                f"DN size {value!r} is not recognized. "
+                "Enter a standard DN value (for example 50, 100, or 150)."
+            )
+        return mapped
+
+    return text
+
 
 def apply_nominal_pipe_size_lookup(task: Task, standards_root: Path) -> None:
     """Look up NPS in the pipe dimension database and store outside diameter."""
@@ -28,9 +78,12 @@ def apply_nominal_pipe_size_lookup(task: Task, standards_root: Path) -> None:
     if not raw_nps:
         raise ValueError("Nominal pipe size is required.")
 
+    entry_unit = _normalize_entry_unit(nps_input.unit)
+    lookup_nps = _to_nps_lookup_key(raw_nps, entry_unit)
+
     lookup = PipeDimensionLookup(standards_root)
     try:
-        result = lookup.lookup(raw_nps)
+        result = lookup.lookup(lookup_nps)
     except FileNotFoundError as exc:
         raise ValueError(
             "Pipe dimension database is not available. "

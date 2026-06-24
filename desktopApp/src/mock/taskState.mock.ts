@@ -15,9 +15,9 @@ export const mockTaskState: TaskStateDto = {
         id: 'material',
         title: 'Material',
         status: 'done',
-        value: 'SA-106B',
+        value: 'astm_a106_gr_b',
         unit: 'dimensionless',
-        display_value: 'SA-106B',
+        display_value: 'ASTM A106 Grade B',
       },
       {
         id: 'design_pressure',
@@ -55,9 +55,9 @@ export const mockTaskState: TaskStateDto = {
   inputs: {
     material: {
       input_id: 'material',
-      value: 'SA-106B',
+      value: 'astm_a106_gr_b',
       unit: 'dimensionless',
-      display_value: 'SA-106B',
+      display_value: 'ASTM A106 Grade B',
     },
     design_pressure: {
       input_id: 'design_pressure',
@@ -77,8 +77,8 @@ export const mockTaskState: TaskStateDto = {
       label: 'Nominal Pipe Size',
       type: 'text',
       required: true,
-      units: [],
-      default_unit: 'dimensionless',
+      units: ['NPS', 'DN'],
+      default_unit: 'NPS',
       default_value: null,
       value: null,
       options: null,

@@ -58,6 +58,35 @@ def test_build_parameter_definitions_from_missing_inputs() -> None:
     pressure = next(item for item in parameters if item["name"] == "pressure_loading")
     assert pressure["type"] == "dropdown"
     assert pressure["status"] == "pending"
+    assert pressure["submittable"] is True
+
+
+def test_build_parameter_definitions_marks_only_submittable_fields() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-test08", status=TaskStatus.AWAITING_INPUT)
+    task.inputs["joint_category"] = EngineeringInput(
+        input_id="joint_category",
+        value="seamless",
+        unit="dimensionless",
+        source=InputSource.DEFAULT,
+        status=InputStatus.PROPOSED_DEFAULT,
+        default="seamless",
+        requires_confirmation=True,
+    )
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "planning_summary": {
+            "current_phase": "parameter_gathering",
+            "phase_missing": {
+                "parameter_gathering": ["design_pressure"],
+            },
+        },
+    }
+    manager.replace_task(task.task_id, task)
+
+    parameters = {item["name"]: item for item in build_parameter_definitions(manager.get_task(task.task_id))}
+    assert parameters["design_pressure"]["submittable"] is True
+    assert parameters["joint_category"]["submittable"] is False
 
 
 def test_submit_task_input_stores_confirmed_value() -> None:

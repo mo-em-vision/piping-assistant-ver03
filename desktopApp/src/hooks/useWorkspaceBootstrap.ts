@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 
 import type { BackendStatusPayload } from '@/config/constants'
+import { materialApi } from '@/services/api/materialApi'
 import { useConnectionStore } from '@/store/connectionStore'
 import { useChatStore } from '@/store/chatStore'
 import { useProjectStore } from '@/store/projectStore'
@@ -22,6 +23,7 @@ export function useWorkspaceBootstrap(backendStatus: BackendStatusPayload) {
 
     void checkApiConnection().then((ok) => {
       if (ok) {
+        void materialApi.warm().catch(() => undefined)
         void loadProjects().then(() => {
           void loadWorkspace()
           void loadMessages()

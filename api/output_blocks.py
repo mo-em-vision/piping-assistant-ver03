@@ -8,11 +8,13 @@ from typing import Any
 
 from api.equation_inputs_display import (
     build_formula_inputs_input_table,
+    build_wall_thickness_substituted_equation,
     definitions_from_equation_variables,
     primary_formula_inputs_complete,
 )
 from api.node_display import build_activated_node_blocks
 from api.workflow_bootstrap import resolve_activated_definition_node
+from api.workflow_timeline import is_pipe_wall_thickness_task
 from engine.reference.formula_display import (
     load_equation_context,
     resolve_equation_display_variables,
@@ -47,8 +49,6 @@ _RESULT_KEYS: tuple[tuple[str, str, str], ...] = (
     ("t", "Required Thickness", "mm"),
     ("minimum_required_thickness", "Minimum Required Pipe Wall Thickness", "mm"),
     ("t_m", "Minimum Required Pipe Wall Thickness", "mm"),
-    ("allowable_stress", "Allowable Stress", "MPa"),
-    ("S", "Allowable Stress", "MPa"),
 )
 
 _WALL_THICKNESS_FORMULA = "t = PD / 2(SEW + PY)"
@@ -67,8 +67,23 @@ def build_display_outputs(
 
     resolved_reader = reader or _reader_for(standards_root)
     trace = task.outputs.get("_execution_trace")
+    has_trace = isinstance(trace, list) and bool(trace)
 
-    if not (isinstance(trace, list) and trace):
+    if _pipe_wall_calculation_complete(task, has_trace=has_trace):
+        blocks.extend(
+            _path_calculation_preview_blocks(
+                task,
+                planning,
+                resolved_reader,
+                trace=trace if has_trace else None,
+            )
+        )
+        substituted = _substituted_calculation_equation_block(trace)
+        if substituted:
+            blocks.append(substituted)
+        return blocks
+
+    if not has_trace:
         blocks.extend(_activated_definition_blocks(task, planning, resolved_reader))
 
     for warning in task.warnings:
@@ -76,9 +91,9 @@ def build_display_outputs(
 
     blocks.extend(_result_blocks(task))
 
-    if isinstance(trace, list) and trace:
+    if has_trace:
         blocks.extend(_blocks_from_execution_trace(trace, task))
-    elif _task_workflow_id(task) == PIPE_WALL_THICKNESS_DESIGN:
+    elif is_pipe_wall_thickness_task(task):
         blocks.extend(_path_calculation_preview_blocks(task, planning, resolved_reader))
 
     status_block = _planning_status_block(task, planning)
@@ -122,15 +137,11 @@ def _path_calculation_preview_blocks(
     task: Task,
     planning: dict[str, Any],
     reader: StandardsReader,
+    *,
+    trace: list[Any] | None = None,
 ) -> list[dict[str, Any]]:
     """After path expansion, preview the selected calculation node's governing equation."""
-    if task.outputs.get("required_thickness") is not None or task.outputs.get("t") is not None:
-        return []
-
-    path = planning.get("path_decision") or {}
-    if not isinstance(path, dict):
-        return []
-    selected_node = path.get("selected_node")
+    selected_node = _resolve_calculation_node_id(task, planning, trace)
     if not selected_node:
         return []
 
@@ -162,6 +173,100 @@ def _path_calculation_preview_blocks(
         blocks.append(equation_block)
 
     return blocks
+
+
+def _resolve_calculation_node_id(
+    task: Task,
+    planning: dict[str, Any],
+    trace: list[Any] | None,
+) -> str | None:
+    path = planning.get("path_decision") or {}
+    if isinstance(path, dict) and path.get("selected_node"):
+        return str(path["selected_node"])
+
+    loading = task.inputs.get("pressure_loading")
+    loading_value = getattr(loading, "value", None) if loading is not None else None
+    if loading_value == "internal_pressure":
+        return "B313-304.1.2"
+    if loading_value == "external_pressure":
+        return "B313-304.1.3"
+
+    if isinstance(trace, list):
+        for entry in trace:
+            if not isinstance(entry, dict):
+                continue
+            node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
+            if node_trace.get("calculation"):
+                node_id = entry.get("node_id")
+                if node_id:
+                    return str(node_id)
+    return None
+
+
+def _pipe_wall_calculation_complete(task: Task, *, has_trace: bool) -> bool:
+    if not is_pipe_wall_thickness_task(task) or not has_trace:
+        return False
+    return task.outputs.get("required_thickness") is not None or task.outputs.get("t") is not None
+
+
+def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] | None:
+    calc_entry = _wall_thickness_calculation_trace_entry(trace)
+    if not calc_entry:
+        return None
+
+    node_trace = calc_entry.get("trace") if isinstance(calc_entry.get("trace"), dict) else {}
+    calculation = node_trace.get("calculation")
+    if not isinstance(calculation, dict):
+        return None
+
+    variables_si = node_trace.get("variables_si")
+    if not isinstance(variables_si, dict):
+        return None
+
+    final = calculation.get("final_result")
+    if not isinstance(final, dict) or final.get("value") is None:
+        return None
+
+    variables = {
+        key: float(value)
+        for key, value in variables_si.items()
+        if isinstance(value, (int, float))
+    }
+    if not {"P", "D", "S", "E", "W", "Y"}.issubset(variables):
+        return None
+
+    result_unit = str(final.get("unit") or "mm")
+    display, latex = build_wall_thickness_substituted_equation(
+        result_value=float(final["value"]),
+        result_unit=result_unit,
+        variables_si=variables,
+    )
+
+    return {
+        "id": "path-calculation-substituted-equation",
+        "type": "equation",
+        "title": None,
+        "content": latex,
+        "display": display,
+    }
+
+
+def _wall_thickness_calculation_trace_entry(trace: list[Any]) -> dict[str, Any] | None:
+    preferred = ("B313-304.1.2", "B313-304.1.3")
+    for node_id in preferred:
+        for entry in trace:
+            if isinstance(entry, dict) and entry.get("node_id") == node_id:
+                node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
+                if node_trace.get("calculation"):
+                    return entry
+
+    for entry in trace:
+        if not isinstance(entry, dict):
+            continue
+        node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
+        if node_trace.get("calculation"):
+            return entry
+    return None
 
 
 def _path_preview_intro_block(selected_node: str, reference: dict[str, str]) -> dict[str, Any]:

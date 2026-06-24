@@ -64,6 +64,11 @@ def test_lookup_quality_factor_a1b_seamless_and_forging() -> None:
     assert e_forging == 1.0
 
 
+def test_lookup_quality_factor_resolves_material_catalog_alias() -> None:
+    pack = _pack_root()
+    assert lookup_quality_factor(pack, material="A106 Gr B", joint_category="seamless") == 1.0
+
+
 def test_lookup_quality_factor_unknown_returns_none() -> None:
     pack = _pack_root()
     assert lookup_quality_factor(pack, material="UNKNOWN", joint_category="seamless") is None

@@ -7,6 +7,8 @@ interface NumberInputProps {
   onValueChange: (value: string) => void
   onUnitChange: (unit: string) => void
   disabled?: boolean
+  hideUnitSelector?: boolean
+  placeholder?: string
 }
 
 export function NumberInput({
@@ -16,6 +18,8 @@ export function NumberInput({
   onValueChange,
   onUnitChange,
   disabled,
+  hideUnitSelector,
+  placeholder,
 }: NumberInputProps) {
   return (
     <div className="parameter-field__row parameter-field__row--number">
@@ -23,10 +27,13 @@ export function NumberInput({
         className="parameter-control parameter-control--number"
         type="number"
         value={value}
+        placeholder={placeholder}
         onChange={(event) => onValueChange(event.target.value)}
         disabled={disabled}
       />
-      <UnitSelector units={units} value={unit} onChange={onUnitChange} disabled={disabled} />
+      {hideUnitSelector ? null : (
+        <UnitSelector units={units} value={unit} onChange={onUnitChange} disabled={disabled} />
+      )}
     </div>
   )
 }

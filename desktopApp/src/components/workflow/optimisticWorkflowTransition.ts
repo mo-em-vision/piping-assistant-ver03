@@ -1,0 +1,130 @@
+import type { TaskStateDto } from '@/types/backend/api'
+/** Matches backend `PIPE_WALL_INPUT_STEP_ORDER` for optimistic composer transitions. */
+const PIPE_WALL_STEP_ORDER = [
+  'pressure_loading',
+  'material',
+  'design_pressure',
+  'design_temperature',
+  'nominal_pipe_size',
+  'outside_diameter',
+  'external_design_pressure',
+  'joint_category',
+  'allowable_stress',
+  'weld_joint_efficiency',
+  'weld_strength_reduction',
+  'temperature_coefficient',
+  'corrosion_allowance',
+] as const
+
+function formatDisplayValue(value: unknown, unit?: string): string {
+  if (typeof value === 'boolean') {
+    return value ? 'Yes' : 'No'
+  }
+  if (unit && unit !== 'dimensionless') {
+    return `${value} ${unit}`
+  }
+  return String(value)
+}
+
+function findNextPipeWallStep(parameter: string): string | null {
+  const index = PIPE_WALL_STEP_ORDER.indexOf(parameter as (typeof PIPE_WALL_STEP_ORDER)[number])
+  if (index === -1 || index >= PIPE_WALL_STEP_ORDER.length - 1) {
+    return null
+  }
+  return PIPE_WALL_STEP_ORDER[index + 1]
+}
+
+function advanceTimeline(
+  timeline: TaskStateDto['progress']['timeline'],
+  parameter: string,
+  nextStepId: string | null,
+  displayValue: string,
+  value: unknown,
+  unit?: string,
+) {
+  let activeAssigned = false
+
+  return timeline.map((step) => {
+    if (step.id === parameter) {
+      return {
+        ...step,
+        status: 'done' as const,
+        value,
+        unit: unit ?? step.unit ?? null,
+        display_value: displayValue,
+      }
+    }
+
+    if (nextStepId && step.id === nextStepId && !activeAssigned) {
+      activeAssigned = true
+      return {
+        ...step,
+        status: 'active' as const,
+        display_value: null,
+        hint: step.hint ?? null,
+      }
+    }
+
+    if (step.status === 'active' && step.id !== nextStepId) {
+      return { ...step, status: 'pending' as const }
+    }
+
+    return step
+  })
+}
+
+function canOptimisticallyActivateStep(state: TaskStateDto, stepId: string): boolean {
+  return (
+    state.parameters.some((parameter) => parameter.name === stepId) ||
+    state.progress.timeline.some((step) => step.id === stepId)
+  )
+}
+
+export function applyOptimisticParameterSubmit(
+  state: TaskStateDto,
+  parameter: string,
+  value: unknown,
+  unit?: string,
+): TaskStateDto {
+  const displayValue = formatDisplayValue(value, unit)
+  const candidateNextStepId =
+    state.workflow_id === 'pipe_wall_thickness_design' ? findNextPipeWallStep(parameter) : null
+  const nextStepId =
+    candidateNextStepId != null && canOptimisticallyActivateStep(state, candidateNextStepId)
+      ? candidateNextStepId
+      : null
+
+  const parameters = state.parameters.map((item) =>
+    item.name === parameter ? { ...item, value, status: 'confirmed' as const } : item,
+  )
+
+  const timeline = advanceTimeline(
+    state.progress.timeline,
+    parameter,
+    nextStepId,
+    displayValue,
+    value,
+    unit,
+  )
+
+  return {
+    ...state,
+    parameters,
+    inputs: {
+      ...state.inputs,
+      [parameter]: {
+        input_id: parameter,
+        value,
+        unit: unit ?? 'dimensionless',
+        display_value: displayValue,
+      },
+    },
+    progress: {
+      ...state.progress,
+      timeline,
+      steps: timeline,
+      current_step_id: nextStepId ?? state.progress.current_step_id,
+      missing_inputs: state.progress.missing_inputs.filter((item) => item !== parameter),
+    },
+  }
+}

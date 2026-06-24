@@ -46,10 +46,32 @@ def test_completed_workflow_outputs_include_results_and_equation(
 
     blocks = build_display_outputs(task)
     types = [block["type"] for block in blocks]
+    ids = [block["id"] for block in blocks]
 
-    assert "result" in types
-    assert "equation" in types
-    assert any(block["type"] == "table" for block in blocks)
+    assert types.count("equation") == 2
+    assert "path-preview-equation-B313-304.1.2" in ids
+    assert "path-calculation-substituted-equation" in ids
+    assert "result" not in types
+    assert "table" not in types
+    assert "graph" not in types
+    assert "reference" not in types
+    assert "planning-status" not in ids
+
+    preview = next(block for block in blocks if block["id"] == "path-preview-equation-B313-304.1.2")
+    assert "input_table" in preview
+    assert preview["input_table"]["rows"]
+
+    substituted = next(
+        block for block in blocks if block["id"] == "path-calculation-substituted-equation"
+    )
+    assert "leading_result" not in substituted
+    assert substituted["display"].startswith("t = ")
+    assert " = " in substituted["display"]
+    assert substituted["display"].rstrip().endswith("mm")
+    assert "input_table" not in substituted
+    assert "SEW" not in substituted["display"]
+    assert "(1)(1)" in substituted["display"] or "(1.0)(1)" in substituted["display"]
+    assert "e+" not in substituted["content"]
 
 
 def test_task_state_includes_display_outputs(

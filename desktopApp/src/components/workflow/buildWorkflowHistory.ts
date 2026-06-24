@@ -94,6 +94,43 @@ export function buildWorkflowHistory(
   return items
 }
 
+function parameterIsSubmittable(
+  parameter: { name: string; submittable?: boolean },
+  state: TaskStateDto,
+): boolean {
+  if (parameter.submittable != null) {
+    return parameter.submittable
+  }
+  const submittable = state.progress.submittable_parameters
+  if (submittable) {
+    return submittable.includes(parameter.name)
+  }
+  return true
+}
+
+function firstEditableParameter(state: TaskStateDto) {
+  const activeStepId = state.progress.current_step_id
+  if (activeStepId) {
+    const fromActiveStep = state.parameters.find(
+      (parameter) =>
+        parameter.name === activeStepId &&
+        parameterIsSubmittable(parameter, state) &&
+        parameter.status !== 'confirmed',
+    )
+    if (fromActiveStep) {
+      return fromActiveStep
+    }
+  }
+
+  return (
+    state.parameters.find(
+      (parameter) =>
+        parameterIsSubmittable(parameter, state) &&
+        (parameter.status === 'pending' || parameter.status === 'confirmation_required'),
+    ) ?? null
+  )
+}
+
 export function getCurrentEditableParameter(state: TaskStateDto | null) {
   if (!state?.parameters?.length) {
     return null
@@ -109,9 +146,5 @@ export function getCurrentEditableParameter(state: TaskStateDto | null) {
     return state.parameters.find((parameter) => parameter.name === editSession.parameter) ?? null
   }
 
-  return (
-    state.parameters.find(
-      (parameter) => parameter.status === 'pending' || parameter.status === 'confirmation_required',
-    ) ?? null
-  )
+  return firstEditableParameter(state)
 }

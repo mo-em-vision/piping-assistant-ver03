@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from engine.reference.material_ids import ASTM_A106_GR_B
 from engine.reference.standards_reader import StandardsReader
 from engine.reference.standards_tables import StandardsTablesDatabase
 
@@ -22,7 +23,7 @@ def test_standards_tables_db_exists(standards_reader: StandardsReader) -> None:
 def test_resolve_legacy_yaml_alias(standards_reader: StandardsReader) -> None:
     data = standards_reader.load_table("nodes/B313-appendix_A/tables/A-1.yaml")
     assert data["table_id"] == "A-1"
-    assert "SA-106B" in data["materials"]
+    assert ASTM_A106_GR_B in data["materials"]
 
 
 def test_load_table_by_id_returns_db_path(standards_reader: StandardsReader) -> None:

@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 from api.desktop_service import ApiError, DesktopApiService
 from api.error_catalog import enrich_api_error_payload
+from api.json_encoding import dumps as json_dumps
 
 
 def _api_error_payload(code: str, message: str, *, details: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -22,7 +23,7 @@ def _api_error_from_exception(exc: ApiError) -> dict[str, Any]:
 
 
 def _json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict[str, Any]) -> None:
-    body = json.dumps(payload).encode("utf-8")
+    body = json_dumps(payload).encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json")
     handler.send_header("Content-Length", str(len(body)))
@@ -123,6 +124,10 @@ class ApiHandler(BaseHTTPRequestHandler):
             if path == "/api/v1/materials/search":
                 search_query = str(query.get("q", [""])[0] or "")
                 _json_response(self, 200, self.service.search_materials(search_query))
+                return
+
+            if path == "/api/v1/materials/warm":
+                _json_response(self, 200, self.service.warm_material_catalog())
                 return
 
             if path.startswith("/api/v1/standards/nodes/"):

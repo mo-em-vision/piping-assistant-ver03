@@ -1,16 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 
 import { materialApi } from '@/services/api/materialApi'
 import { searchMockMaterials } from '@/mock/materials.mock'
 
 import type { MaterialOptionDto } from '@/types/backend/materials'
 
-import { ComposerInput } from './ComposerInput'
+import { ComposerInlineInput } from './ComposerInlineInput'
 
+import './ComposerInlineInput.css'
 import './ComposerInput.css'
 
 const useMockData = import.meta.env.VITE_MOCK_DATA === 'true'
 const MIN_QUERY_LENGTH = 3
+const SEARCH_DEBOUNCE_MS = 80
 
 interface MaterialSearchInputProps {
   value: string
@@ -19,6 +21,7 @@ interface MaterialSearchInputProps {
   disabled?: boolean
   submitting?: boolean
   placeholder?: string
+  inline?: boolean
 }
 
 export function MaterialSearchInput({
@@ -28,13 +31,39 @@ export function MaterialSearchInput({
   disabled,
   submitting,
   placeholder = 'Search materials (e.g. SA-106B, TP316L)…',
+  inline = false,
 }: MaterialSearchInputProps) {
   const [suggestions, setSuggestions] = useState<MaterialOptionDto[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(-1)
+  const [catalogReady, setCatalogReady] = useState(useMockData)
 
   const query = value.trim()
   const showSuggestions = query.length >= MIN_QUERY_LENGTH && suggestions.length > 0
+
+  useEffect(() => {
+    if (useMockData) {
+      return
+    }
+
+    let cancelled = false
+    void materialApi
+      .warm()
+      .then((response) => {
+        if (!cancelled) {
+          setCatalogReady(response.ready)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setCatalogReady(true)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     setHighlightIndex(-1)
@@ -43,6 +72,10 @@ export function MaterialSearchInput({
   useEffect(() => {
     if (query.length < MIN_QUERY_LENGTH) {
       setSuggestions([])
+      return
+    }
+
+    if (!catalogReady) {
       return
     }
 
@@ -72,13 +105,13 @@ export function MaterialSearchInput({
       }
 
       void run()
-    }, 180)
+    }, SEARCH_DEBOUNCE_MS)
 
     return () => {
       controller.abort()
       window.clearTimeout(timer)
     }
-  }, [query])
+  }, [catalogReady, query])
 
   const canSubmit = useMemo(() => value.trim().length > 0, [value])
 
@@ -86,6 +119,70 @@ export function MaterialSearchInput({
     onChange(option.value)
     onSubmit(option.value)
     setSuggestions([])
+  }
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'ArrowDown' && suggestions.length > 0) {
+      event.preventDefault()
+      setHighlightIndex((current) => Math.min(current + 1, suggestions.length - 1))
+      return
+    }
+
+    if (event.key === 'ArrowUp' && suggestions.length > 0) {
+      event.preventDefault()
+      setHighlightIndex((current) => Math.max(current - 1, 0))
+      return
+    }
+
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault()
+      if (highlightIndex >= 0 && suggestions[highlightIndex]) {
+        chooseSuggestion(suggestions[highlightIndex])
+      }
+    }
+  }
+
+  if (inline) {
+    return (
+      <div className="material-search-input material-search-input--inline">
+        <ComposerInlineInput
+          value={value}
+          onChange={onChange}
+          placeholder="Search…"
+          disabled={disabled}
+          submitting={submitting || loadingSuggestions}
+          canSubmit={canSubmit}
+          onSubmit={() => onSubmit()}
+          inputMode="search"
+          variant="text"
+          onKeyDown={handleKeyDown}
+        />
+        {showSuggestions ? (
+          <div className="composer-suggestions" role="listbox" aria-label="Material suggestions">
+            {suggestions.map((option, index) => (
+              <button
+                key={`${option.standard}-${option.value}`}
+                type="button"
+                role="option"
+                aria-label={option.value}
+                aria-selected={highlightIndex === index}
+                className={`composer-suggestions__item${
+                  highlightIndex === index ? ' composer-suggestions__item--highlighted' : ''
+                }`}
+                disabled={disabled || submitting}
+                onMouseEnter={() => setHighlightIndex(index)}
+                onClick={() => chooseSuggestion(option)}
+              >
+                <span className="composer-suggestions__value">{option.value}</span>
+                <span className="composer-suggestions__meta">
+                  {option.label} · {option.specification}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    )
   }
 
   return (
@@ -97,6 +194,7 @@ export function MaterialSearchInput({
               key={`${option.standard}-${option.value}`}
               type="button"
               role="option"
+              aria-label={option.value}
               aria-selected={highlightIndex === index}
               className={`composer-suggestions__item${
                 highlightIndex === index ? ' composer-suggestions__item--highlighted' : ''
@@ -114,46 +212,18 @@ export function MaterialSearchInput({
         </div>
       ) : null}
 
-      <ComposerInput
+      <ComposerInlineInput
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
         disabled={disabled}
         submitting={submitting || loadingSuggestions}
         canSubmit={canSubmit}
-        placeholder={placeholder}
         onSubmit={() => onSubmit()}
-      >
-        <textarea
-          className="composer-input__field"
-          value={value}
-          placeholder={placeholder}
-          disabled={disabled || submitting}
-          rows={1}
-          onChange={(event) => onChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'ArrowDown' && suggestions.length > 0) {
-              event.preventDefault()
-              setHighlightIndex((current) => Math.min(current + 1, suggestions.length - 1))
-              return
-            }
-
-            if (event.key === 'ArrowUp' && suggestions.length > 0) {
-              event.preventDefault()
-              setHighlightIndex((current) => Math.max(current - 1, 0))
-              return
-            }
-
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault()
-              if (highlightIndex >= 0 && suggestions[highlightIndex]) {
-                chooseSuggestion(suggestions[highlightIndex])
-                return
-              }
-              if (canSubmit) {
-                onSubmit()
-              }
-            }
-          }}
-        />
-      </ComposerInput>
+        inputMode="search"
+        variant="text"
+        onKeyDown={handleKeyDown}
+      />
     </div>
   )
 }

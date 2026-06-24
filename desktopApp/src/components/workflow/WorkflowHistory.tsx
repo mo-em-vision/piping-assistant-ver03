@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useDeferredValue, useEffect, useRef } from 'react'
 
 import { OutputRenderer } from '@/components/outputs/OutputRenderer'
 
@@ -40,17 +40,18 @@ export function WorkflowHistory({
   emptyMessage = 'Workflow history will appear here as you progress.',
 }: WorkflowHistoryProps) {
   const endRef = useRef<HTMLDivElement>(null)
+  const deferredItems = useDeferredValue(items)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [items])
+  }, [deferredItems])
 
   return (
     <div className="workflow-panel__history" aria-live="polite">
-      {items.length === 0 ? (
+      {deferredItems.length === 0 ? (
         <p className="workflow-panel__empty">{emptyMessage}</p>
       ) : (
-        items.map((item) => <WorkflowHistoryMessage key={item.id} item={item} />)
+        deferredItems.map((item) => <WorkflowHistoryMessage key={item.id} item={item} />)
       )}
       <div ref={endRef} />
     </div>
