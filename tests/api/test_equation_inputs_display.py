@@ -86,7 +86,7 @@ def test_design_temperature_value_uses_degree_celsius_symbol() -> None:
     }
 
 
-def test_outside_diameter_definition_includes_nps_and_hides_nps_row() -> None:
+def test_outside_diameter_value_includes_nps_and_hides_nps_row() -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test-nps-d", status=TaskStatus.AWAITING_INPUT)
     task.inputs = {
@@ -131,8 +131,8 @@ def test_outside_diameter_definition_includes_nps_and_hides_nps_row() -> None:
     diameter_row = next(row for row in rows if row["symbol"] == "D")
     assert diameter_row == {
         "symbol": "D",
-        "definition": "Outside diameter of pipe as measured (NPS: 4 inch)",
-        "value": "114.3 mm",
+        "definition": "Outside diameter of pipe as measured",
+        "value": "114.3 mm (NPS: 4 inch, ASME B36.10)",
     }
 
 
@@ -159,6 +159,8 @@ def test_nps_row_hidden_before_nominal_pipe_size_entered() -> None:
     diameter_row = next(row for row in rows if row["symbol"] == "D")
     assert diameter_row["definition"] == "Outside diameter of pipe as measured"
     assert "(NPS:" not in diameter_row["definition"]
+    assert "NPS" not in diameter_row["value"]
+    assert "B36" not in diameter_row["value"]
     assert diameter_row["value"] == AWAITING_USER_INPUT
 
 
@@ -221,8 +223,46 @@ def test_weld_joint_efficiency_includes_joint_category_in_table() -> None:
     assert rows[5] == {
         "symbol": "E",
         "definition": "Joint efficiency",
-        "value": "1.0 (Tables A-1A/A-1B, seamless)",
+        "value": "1.0 (ASME B31.3 Tables A-1A/A-1B, seamless)",
     }
+
+
+
+
+def test_allowable_stress_value_includes_asme_b31_3_lookup_context() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("eq-inputs-test-s-lookup", status=TaskStatus.AWAITING_INPUT)
+    task.inputs = {
+        "material": EngineeringInput(
+            input_id="material",
+            value="SA-106B",
+            unit="dimensionless",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
+        "design_temperature": EngineeringInput(
+            input_id="design_temperature",
+            value=400.0,
+            unit="F",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
+    }
+    task.outputs = {
+        "allowable_stress": 193_000_000,
+        "allowable_stress_unit": "Pa",
+        "allowable_stress_lookup": {
+            "standard": "asme_b31.3",
+            "table_id": "material_allowable_stress",
+            "material": "SA-106B",
+            "design_temperature_f": 400.0,
+            "interpolated": False,
+        },
+    }
+
+    rows = build_formula_inputs_table_rows(task)
+    stress_row = next(row for row in rows if row["symbol"] == "S")
+    assert stress_row["value"] == "193 MPa (ASME B31.3 Table A-1, SA-106B @ 400 °F)"
 
 
 def test_build_formula_inputs_table_rows_include_coefficients() -> None:

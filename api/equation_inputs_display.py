@@ -6,7 +6,7 @@ from typing import Any
 
 from engine.messaging.formula_parameter_prompt import classify_formula_parameters
 from engine.reference.standards_reader import StandardsReader
-from models.input import EngineeringInput, InputStatus
+from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import Task
 
 _HIDDEN_UNITS = frozenset({"dimensionless", ""})
@@ -43,6 +43,14 @@ PRIMARY_FORMULA_INPUT_IDS = frozenset(
     {"material", "design_pressure", "design_temperature"},
 )
 
+_ASME_B31_3 = "ASME B31.3"
+_ASME_B36_10 = "ASME B36.10"
+
+_STANDARD_LABELS: dict[str, str] = {
+    "asme_b31.3": _ASME_B31_3,
+    "asme_b36.10": _ASME_B36_10,
+}
+
 
 def _format_scalar(value: object) -> str:
     return str(value)
@@ -51,20 +59,29 @@ def _format_scalar(value: object) -> str:
 def _format_unit_for_display(unit: str) -> str:
     normalized = unit.strip().lower()
     if normalized == "c":
-        return "°C"
+        return "\u00b0C"
     if normalized == "f":
-        return "°F"
+        return "\u00b0F"
     if normalized == "k":
         return "K"
     return unit
 
 
-def _input_has_displayable_value(engineering_input: EngineeringInput) -> bool:
+def _input_has_displayable_value(engineering_input: EngineeringInput | None) -> bool:
+    if engineering_input is None:
+        return False
     if engineering_input.value is None:
         return False
     if engineering_input.status == InputStatus.PROPOSED_DEFAULT:
         return False
     return True
+
+
+def _standard_display_label(standard_slug: object) -> str | None:
+    if not standard_slug:
+        return None
+    slug = str(standard_slug).strip().lower()
+    return _STANDARD_LABELS.get(slug)
 
 
 def _input_display_value_from_input(task: Task, input_id: str) -> str | None:
@@ -81,12 +98,28 @@ def _input_display_value_from_input(task: Task, input_id: str) -> str | None:
 
 def _joint_category_label(task: Task) -> str | None:
     engineering_input = task.inputs.get("joint_category")
-    if engineering_input is None or not _input_has_displayable_value(engineering_input):
+    if not _input_has_displayable_value(engineering_input):
         return None
     raw = str(engineering_input.value).strip()
     if not raw:
         return None
     return raw.replace("_", " ").replace("-", " ")
+
+
+def _material_label(task: Task) -> str | None:
+    engineering_input = task.inputs.get("material")
+    if not _input_has_displayable_value(engineering_input):
+        return None
+    raw = str(engineering_input.value).strip()
+    return raw or None
+
+
+def _design_temperature_display(task: Task) -> str | None:
+    engineering_input = task.inputs.get("design_temperature")
+    if not _input_has_displayable_value(engineering_input):
+        return None
+    unit = _format_unit_for_display(str(engineering_input.unit or "F"))
+    return f"{_format_scalar(engineering_input.value)}{unit}"
 
 
 def _d_input_mode(task: Task) -> str:
@@ -119,6 +152,15 @@ def _nps_display_label(task: Task) -> str | None:
     return None
 
 
+def _is_table_sourced(task: Task, input_id: str) -> bool:
+    engineering_input = task.inputs.get(input_id)
+    return (
+        engineering_input is not None
+        and engineering_input.source == InputSource.TABLE
+        and _input_has_displayable_value(engineering_input)
+    )
+
+
 def _skip_formula_input_row(task: Task, input_id: str) -> bool:
     """NPS is collected in the workflow composer and folded into the D row when used."""
     return input_id == "nominal_pipe_size"
@@ -130,43 +172,114 @@ def _row_definition(
     default_definition: str,
     overrides: dict[str, str],
 ) -> str:
-    definition = overrides.get(input_id, default_definition)
-    if input_id == "outside_diameter" and _uses_nps_for_outside_diameter(task):
-        if "(NPS:" not in definition:
-            nps_label = _nps_display_label(task)
-            if nps_label:
-                return f"{definition} (NPS: {nps_label})"
-    return definition
+    return overrides.get(input_id, default_definition)
+
+
+def _outside_diameter_display_value(task: Task) -> str | None:
+    if _uses_nps_for_outside_diameter(task):
+        nps_input = task.inputs.get("nominal_pipe_size")
+        od_input = task.inputs.get("outside_diameter")
+        if not (
+            _input_has_displayable_value(nps_input)
+            and _input_has_displayable_value(od_input)
+        ):
+            return None
+        display = _input_display_value_from_input(task, "outside_diameter")
+        if not display:
+            return None
+        nps_label = _nps_display_label(task)
+        lookup = task.outputs.get("outside_diameter_lookup")
+        standard_label = None
+        if isinstance(lookup, dict):
+            standard_label = _standard_display_label(lookup.get("standard"))
+        if nps_label and standard_label:
+            return f"{display} (NPS: {nps_label}, {standard_label})"
+        return display
+    return _input_display_value_from_input(task, "outside_diameter")
+
+
+def _allowable_stress_display_value(task: Task) -> str | None:
+    stress = task.outputs.get("allowable_stress") or task.outputs.get("S")
+    if stress is None:
+        return None
+    unit = str(task.outputs.get("allowable_stress_unit") or task.outputs.get("S_unit") or "Pa")
+    if unit == "Pa":
+        display = f"{float(stress) / 1_000_000:g} MPa"
+    elif unit not in _HIDDEN_UNITS:
+        display = f"{_format_scalar(stress)} {unit}"
+    else:
+        display = _format_scalar(stress)
+
+    lookup = task.outputs.get("allowable_stress_lookup")
+    if not isinstance(lookup, dict) or not lookup.get("table_id"):
+        return display
+
+    material_input = task.inputs.get("material")
+    temp_input = task.inputs.get("design_temperature")
+    if not (
+        _input_has_displayable_value(material_input)
+        and _input_has_displayable_value(temp_input)
+    ):
+        return None
+
+    mat = lookup.get("material")
+    temp_f = lookup.get("design_temperature_f")
+    if mat is not None and temp_f is not None:
+        interp = " (interpolated)" if lookup.get("interpolated") else ""
+        display += f" ({_ASME_B31_3} Table A-1, {mat} @ {temp_f:g} \u00b0F{interp})"
+    return display
+
+
+def _weld_joint_efficiency_display_value(task: Task) -> str | None:
+    display = _input_display_value_from_input(task, "weld_joint_efficiency")
+    if not display:
+        return None
+    if not _is_table_sourced(task, "weld_joint_efficiency"):
+        return display
+    if not _input_has_displayable_value(task.inputs.get("joint_category")):
+        return None
+    joint_category = _joint_category_label(task)
+    if not joint_category:
+        return None
+    return f"{display} ({_ASME_B31_3} Tables A-1A/A-1B, {joint_category})"
+
+
+def _weld_strength_reduction_display_value(task: Task) -> str | None:
+    display = _input_display_value_from_input(task, "weld_strength_reduction")
+    if not display:
+        return None
+    if not _is_table_sourced(task, "weld_strength_reduction"):
+        return display
+    material = _material_label(task)
+    if not material:
+        return None
+    return f"{display} ({_ASME_B31_3} Table 302.3.5, {material})"
+
+
+def _temperature_coefficient_display_value(task: Task) -> str | None:
+    display = _input_display_value_from_input(task, "temperature_coefficient")
+    if not display:
+        return None
+    if not _is_table_sourced(task, "temperature_coefficient"):
+        return display
+    material = _material_label(task)
+    temp_display = _design_temperature_display(task)
+    if not material or not temp_display:
+        return None
+    return f"{display} ({_ASME_B31_3} Table 304.1.1, {material} @ {temp_display})"
 
 
 def _input_display_value(task: Task, input_id: str) -> str | None:
+    if input_id == "outside_diameter":
+        return _outside_diameter_display_value(task)
     if input_id == "allowable_stress":
-        stress = task.outputs.get("allowable_stress") or task.outputs.get("S")
-        if stress is not None:
-            unit = str(task.outputs.get("allowable_stress_unit") or task.outputs.get("S_unit") or "Pa")
-            lookup = task.outputs.get("allowable_stress_lookup")
-            if unit == "Pa":
-                display = f"{float(stress) / 1_000_000:g} MPa"
-            elif unit not in _HIDDEN_UNITS:
-                display = f"{_format_scalar(stress)} {unit}"
-            else:
-                display = _format_scalar(stress)
-            if isinstance(lookup, dict) and lookup.get("table_id"):
-                mat = lookup.get("material")
-                temp_f = lookup.get("design_temperature_f")
-                if mat is not None and temp_f is not None:
-                    interp = " (interpolated)" if lookup.get("interpolated") else ""
-                    display += f" (Table A-1, {mat} @ {temp_f:g} °F{interp})"
-            return display
-
+        return _allowable_stress_display_value(task)
     if input_id == "weld_joint_efficiency":
-        display = _input_display_value_from_input(task, input_id)
-        if display:
-            joint_category = _joint_category_label(task)
-            if joint_category:
-                return f"{display} (Tables A-1A/A-1B, {joint_category})"
-        return display
-
+        return _weld_joint_efficiency_display_value(task)
+    if input_id == "weld_strength_reduction":
+        return _weld_strength_reduction_display_value(task)
+    if input_id == "temperature_coefficient":
+        return _temperature_coefficient_display_value(task)
     return _input_display_value_from_input(task, input_id)
 
 
@@ -261,5 +374,3 @@ def enrich_equation_variables(
             row["value"] = known_by_symbol[symbol]
         enriched.append(row)
     return enriched
-
-
