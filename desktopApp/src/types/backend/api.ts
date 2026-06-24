@@ -56,6 +56,55 @@ export interface ProgressStepDto {
   unit: string | null
   display_value?: string | null
   hint?: string | null
+  editable?: boolean
+}
+
+export interface ParameterEditImpactDto {
+  parameter: string
+  affects_path: boolean
+  affects_design: boolean
+  downstream_parameters: string[]
+  message?: string | null
+}
+
+export interface EditSessionDto {
+  parameter: string
+  affects_design?: boolean
+  affects_path?: boolean
+  message?: string | null
+}
+
+export interface ActiveNodeContextDto {
+  node_id: string
+  standard: string
+  paragraph?: string | null
+  display_heading: string
+  hover_excerpt: string
+}
+
+export interface NodeSourceDto {
+  node_id: string
+  title: string
+  standard: string
+  paragraph?: string | null
+  section?: string | null
+  body: string
+  hover_excerpt: string
+}
+
+export interface TableSourceColumnDto {
+  key: string
+  label: string
+}
+
+export interface TableSourceDto {
+  table_id: string
+  title: string
+  standard: string
+  source_path?: string | null
+  columns: TableSourceColumnDto[]
+  rows: Record<string, unknown>[]
+  hover_excerpt: string
 }
 
 export interface TaskStateDto {
@@ -81,6 +130,7 @@ export interface TaskStateDto {
   warnings: string[]
   parameters: ParameterDefinitionDto[]
   display_outputs: DisplayOutputBlock[]
+  active_node_context?: ActiveNodeContextDto | null
   options: {
     available_workflows?: WorkflowDto[]
   }

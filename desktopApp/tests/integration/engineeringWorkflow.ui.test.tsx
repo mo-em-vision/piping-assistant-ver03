@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -31,7 +31,7 @@ describe('engineering workflow UI (mock mode)', () => {
     })
   })
 
-  it('creates a task, submits input, and generates a report', async () => {
+  it('creates a task, submits input, and hides report until workflow completes', async () => {
     const { default: App } = await import('@/App')
     const user = userEvent.setup()
 
@@ -54,11 +54,6 @@ describe('engineering workflow UI (mock mode)', () => {
       expect(screen.getByText('6')).toBeInTheDocument()
     })
 
-    const reportSection = screen.getByRole('heading', { name: 'Engineering report' }).closest('section')
-    await user.click(within(reportSection as HTMLElement).getByRole('button', { name: 'Generate report' }))
-
-    await waitFor(() => {
-      expect(within(reportSection as HTMLElement).getByText('Generated')).toBeInTheDocument()
-    })
+    expect(screen.queryByRole('heading', { name: 'Engineering report' })).not.toBeInTheDocument()
   })
 })

@@ -32,6 +32,8 @@ export interface ParameterDefinitionDto {
   validation: ParameterValidationDto | null
   status: ParameterStatus
   requires_confirmation: boolean
+  guidance?: string | null
+  editing?: boolean
 }
 
 export interface SubmitInputPayload {

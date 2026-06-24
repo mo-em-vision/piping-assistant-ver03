@@ -8,7 +8,9 @@ import {
   getCurrentEditableParameter,
 } from '@/components/workflow/buildWorkflowHistory'
 import { WorkflowComposer } from '@/components/workflow/WorkflowComposer'
+import { WorkflowHeader } from '@/components/workflow/WorkflowHeader'
 import { WorkflowHistory } from '@/components/workflow/WorkflowHistory'
+import { getNextStepPrompt } from '@/components/workflow/workflowReport'
 import '@/components/workflow/WorkflowPanel.css'
 import { useActiveTaskViewModel } from '@/hooks/useActiveTaskViewModel'
 import { useTaskStore } from '@/store/taskStore'
@@ -21,24 +23,27 @@ export function CenterPanel() {
   const loading = useTaskStore((state) => state.loading)
   const userError = useTaskStore((state) => state.userError)
   const refreshActiveTask = useTaskStore((state) => state.refreshActiveTask)
+  const deleteTask = useTaskStore((state) => state.deleteTask)
   const viewModel = useActiveTaskViewModel()
-
-  const historyItems = useMemo(() => {
-    if (!viewModel) {
-      return []
-    }
-    return buildWorkflowHistory(
-      viewModel.timeline,
-      activeTaskState?.display_outputs ?? [],
-      activeTaskState?.inputs ?? {},
-      activeTaskState?.parameters ?? [],
-    )
-  }, [viewModel, activeTaskState?.display_outputs, activeTaskState?.inputs, activeTaskState?.parameters])
 
   const currentParameter = useMemo(
     () => getCurrentEditableParameter(activeTaskState),
     [activeTaskState],
   )
+
+  const historyItems = useMemo(() => {
+    if (!viewModel) {
+      return []
+    }
+    return buildWorkflowHistory(viewModel.timeline, activeTaskState?.display_outputs ?? [])
+  }, [viewModel, activeTaskState?.display_outputs])
+
+  const nextStepPrompt = useMemo(() => {
+    if (!viewModel) {
+      return null
+    }
+    return getNextStepPrompt(viewModel.timeline, currentParameter)
+  }, [viewModel, currentParameter])
 
   if (!activeTask) {
     return (
@@ -72,6 +77,14 @@ export function CenterPanel() {
         </div>
       ) : null}
 
+      <WorkflowHeader
+        taskName={activeTask.name}
+        context={activeTaskState?.active_node_context}
+        deleteDisabled={loading}
+        onDelete={() => {
+          void deleteTask(activeTask.id)
+        }}
+      />
       <div className="workflow-panel">
         {viewModel ? (
           <WorkflowHistory items={historyItems} />
@@ -83,7 +96,7 @@ export function CenterPanel() {
 
         <WorkflowComposer
           parameter={currentParameter}
-          guidance={viewModel?.currentStep?.hint ?? null}
+          nextStepPrompt={nextStepPrompt}
           disabled={loading || !viewModel}
         />
       </div>

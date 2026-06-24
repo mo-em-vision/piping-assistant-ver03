@@ -72,7 +72,9 @@ export function ReportPanel({ taskId }: ReportPanelProps) {
               <span className="report-panel__badge report-panel__badge--neutral">Not generated</span>
             )}
           </div>
-          <p className="report-panel__meta">{summary.conclusion}</p>
+          {summary.generated && summary.conclusion ? (
+            <p className="report-panel__meta">{summary.conclusion}</p>
+          ) : null}
         </>
       ) : (
         <p className="report-panel__meta">Loading report status…</p>

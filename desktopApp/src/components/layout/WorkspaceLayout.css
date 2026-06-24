@@ -23,6 +23,11 @@
 .workspace__panel--left,
 .workspace__panel--right {
   flex-shrink: 0;
+  max-width: 100%;
+}
+
+.workspace__panel--right {
+  min-width: 0;
 }
 
 .workspace__panel--center {

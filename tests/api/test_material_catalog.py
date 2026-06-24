@@ -21,11 +21,16 @@ def test_search_requires_three_characters(standards_root: Path) -> None:
 
 def test_search_finds_a106_grade_b_alias(standards_root: Path) -> None:
     results = search_astm_materials(standards_root, "106")
-    values = {item["value"] for item in results}
     labels = {item["label"] for item in results}
+    a106 = [item for item in results if item["standard"] == "astm_a106"]
 
-    assert any("106" in value.lower() for value in values)
-    assert any("A106" in label for label in labels)
+    assert len(a106) == 3
+    assert labels == {
+        "ASTM A106 Grade A",
+        "ASTM A106 Grade B",
+        "ASTM A106 Grade C",
+    }
+    assert {item["value"] for item in a106} == {"A106 Gr A", "A106 Gr B", "A106 Gr C"}
 
 
 def test_search_finds_stainless_tp316(standards_root: Path) -> None:

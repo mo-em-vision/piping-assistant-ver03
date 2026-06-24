@@ -43,12 +43,14 @@ class GraphTools:
         *,
         existing_inputs: set[str] | None = None,
         task_inputs: dict[str, EngineeringInput] | None = None,
+        plan: ExecutionPlan | None = None,
     ) -> list[str]:
         return self._engine.required_user_inputs(
             root_id,
             self._reader,
             existing_inputs=existing_inputs,
             task_inputs=task_inputs,
+            plan=plan,
         )
 
     def evaluate_execution_assumptions(
@@ -56,11 +58,13 @@ class GraphTools:
         root_id: str,
         *,
         existing_inputs: dict[str, EngineeringInput] | None = None,
+        plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         return self._engine.evaluate_execution_assumptions(
             root_id,
             self._reader,
             existing_inputs=existing_inputs,
+            plan=plan,
         )
 
     def evaluate_assumptions(
@@ -68,11 +72,13 @@ class GraphTools:
         root_id: str,
         *,
         existing_inputs: dict[str, EngineeringInput] | None = None,
+        plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         return self._engine.evaluate_assumptions(
             root_id,
             self._reader,
             existing_inputs=existing_inputs,
+            plan=plan,
         )
 
     def preview_plan(
@@ -110,11 +116,13 @@ class GraphTools:
         root_id: str,
         *,
         existing_inputs: dict[str, EngineeringInput] | None = None,
+        plan: ExecutionPlan | None = None,
     ) -> dict[str, EngineeringInput]:
         return self._engine.resolve_and_propose_path_inputs(
             root_id,
             self._reader,
             existing_inputs=existing_inputs,
+            plan=plan,
         )
 
     def evaluate_expansion_interactions(
@@ -122,11 +130,13 @@ class GraphTools:
         root_id: str,
         *,
         existing_inputs: dict[str, EngineeringInput] | None = None,
+        plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         return self._engine.evaluate_expansion_interactions(
             root_id,
             self._reader,
             existing_inputs=existing_inputs,
+            plan=plan,
         )
 
     def expansion_ready_nodes(

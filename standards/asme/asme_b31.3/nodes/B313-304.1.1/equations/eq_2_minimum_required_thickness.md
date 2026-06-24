@@ -1,6 +1,6 @@
 ---
 equation_id: eq-2
-name: Minimum Required Thickness
+name: Minimum Required Pipe Wall Thickness
 display: "t_m = t + c"
 nomenclature_ref: B313-304.1.1
 

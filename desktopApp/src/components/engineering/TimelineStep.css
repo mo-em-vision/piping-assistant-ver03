@@ -59,6 +59,31 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.35rem;
+  position: relative;
+}
+
+.timeline-step__content:hover .timeline-step__edit,
+.timeline-step__edit:focus-visible {
+  opacity: 1;
+}
+
+.timeline-step__edit {
+  margin-left: auto;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0.1rem 0.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.timeline-step__edit:hover {
+  color: #2563eb;
+  background: #eff6ff;
 }
 
 .timeline-step__title {

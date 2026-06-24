@@ -1,0 +1,11 @@
+sources:
+  - standard: astm_a106
+    group: astm
+    table_id: astm_a106_material_properties
+    db_file: astm_a106.db
+    source_node: ASTM-a106-material-properties
+  - standard: astm_a312
+    group: astm
+    table_id: astm_a312_material_properties
+    db_file: astm_a312.db
+    source_node: ASTM-a312-material-properties

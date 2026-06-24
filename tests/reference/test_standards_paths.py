@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from engine.reference.standards_paths import list_standard_packs, resolve_standard_pack
+from engine.reference.pack_tables_db import resolve_pack_tables_db
 
 
 def test_resolve_grouped_asme_b31_3() -> None:
@@ -16,6 +17,9 @@ def test_resolve_grouped_asme_b31_3() -> None:
     assert pack.parent.name == "asme"
     assert (pack / "nodes" / "B313-304.1.1" / "node.md").exists()
     assert (pack / "nodes" / "B313-304.1.2" / "node.md").exists()
+    tables_db = resolve_pack_tables_db(pack)
+    assert tables_db.name in {"standards_tables.db", "asme_b313_tables.db"}
+    assert tables_db.is_file()
 
 
 def test_resolve_grouped_asme_b36_10() -> None:
@@ -50,4 +54,4 @@ def test_resolve_grouped_astm_a106() -> None:
     root = Path(__file__).resolve().parents[2] / "standards"
     pack = resolve_standard_pack(root, "astm_a106")
     assert pack.parent.name == "astm"
-    assert (pack / "tables" / "material_properties.yaml").exists()
+    assert resolve_pack_tables_db(pack).name == "astm_a106.db"

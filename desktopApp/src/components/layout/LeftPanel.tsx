@@ -1,5 +1,8 @@
+import { useEffect, useState, type MouseEvent } from 'react'
+
 import { useChatStore } from '@/store/chatStore'
 import { ErrorBanner } from '@/components/errors/ErrorBanner'
+import { TaskContextMenu } from '@/components/tasks/TaskContextMenu'
 import { useProjectStore } from '@/store/projectStore'
 import { useTaskStore } from '@/store/taskStore'
 import { useUiStore } from '@/store/uiStore'
@@ -8,15 +11,20 @@ import type { TaskSummary } from '@/types/frontend/workspace'
 import { PanelSection } from './PanelSection'
 import './SidePanel.css'
 
+const STRAIGHT_PIPE_TASK_CONFIRMATION =
+  'Is the pipe wall thickness you would like to calculate for a straight section of pipe? Non-straight sections (fittings, bends) are not yet supported.'
+
 function TaskListItem({
   task,
   isActive,
   onSelect,
+  onContextMenu,
   disabled,
 }: {
   task: TaskSummary
   isActive: boolean
   onSelect: () => void
+  onContextMenu?: (task: TaskSummary, event: MouseEvent) => void
   disabled?: boolean
 }) {
   return (
@@ -25,6 +33,14 @@ function TaskListItem({
       className={`list-button${isActive ? ' list-button--active' : ''}`}
       onClick={onSelect}
       disabled={disabled}
+      onContextMenu={
+        onContextMenu
+          ? (event) => {
+              event.preventDefault()
+              onContextMenu(task, event)
+            }
+          : undefined
+      }
     >
       <span className="list-button__name">{task.name}</span>
       <span className="list-button__meta">{task.description}</span>
@@ -41,8 +57,14 @@ export function LeftPanel() {
   const userError = useTaskStore((state) => state.userError)
   const createTask = useTaskStore((state) => state.createTask)
   const selectTask = useTaskStore((state) => state.selectTask)
+  const deleteTask = useTaskStore((state) => state.deleteTask)
   const clearActiveTask = useTaskStore((state) => state.clearActiveTask)
   const loadWorkspace = useTaskStore((state) => state.loadWorkspace)
+  const [contextMenu, setContextMenu] = useState<{
+    task: TaskSummary
+    x: number
+    y: number
+  } | null>(null)
   const projects = useProjectStore((state) => state.projects)
   const activeProjectId = useProjectStore((state) => state.activeProjectId)
   const projectLoading = useProjectStore((state) => state.loading)
@@ -54,6 +76,16 @@ export function LeftPanel() {
 
   const defaultWorkflow = availableTasks[0]
   const busy = loading || projectLoading
+
+  const handleCreateWorkflow = (workflowId: string) => {
+    if (workflowId === 'pipe_wall_thickness_design') {
+      const confirmed = window.confirm(STRAIGHT_PIPE_TASK_CONFIRMATION)
+      if (!confirmed) {
+        return
+      }
+    }
+    void createTask(workflowId)
+  }
 
   const handleProjectSelect = (projectId: string) => {
     void selectProject(projectId).then(() => {
@@ -74,6 +106,29 @@ export function LeftPanel() {
       void loadMessages()
     })
   }
+
+  const openTaskContextMenu = (task: TaskSummary, x: number, y: number) => {
+    setContextMenu({ task, x, y })
+  }
+
+  const handleDeleteTask = (task: TaskSummary) => {
+    void deleteTask(task.id)
+  }
+
+  useEffect(() => {
+    if (!contextMenu) {
+      return
+    }
+
+    const closeMenu = () => {
+      setContextMenu(null)
+    }
+
+    window.addEventListener('resize', closeMenu)
+    return () => {
+      window.removeEventListener('resize', closeMenu)
+    }
+  }, [contextMenu])
 
   return (
     <aside className="side-panel side-panel--left">
@@ -146,7 +201,7 @@ export function LeftPanel() {
             disabled={busy || !defaultWorkflow}
             onClick={() => {
               if (defaultWorkflow) {
-                void createTask(defaultWorkflow.id)
+                handleCreateWorkflow(defaultWorkflow.id)
               }
             }}
           >
@@ -162,7 +217,7 @@ export function LeftPanel() {
               isActive={activeTask?.id === task.id}
               disabled={busy}
               onSelect={() => {
-                void createTask(task.id)
+                handleCreateWorkflow(task.id)
               }}
             />
           ))}
@@ -181,11 +236,26 @@ export function LeftPanel() {
                 onSelect={() => {
                   void selectTask(task.id)
                 }}
+                onContextMenu={(selectedTask, event) => {
+                  openTaskContextMenu(selectedTask, event.clientX, event.clientY)
+                }}
               />
             ))
           )}
         </PanelSection>
       </div>
+
+      {contextMenu ? (
+        <TaskContextMenu
+          task={contextMenu.task}
+          x={contextMenu.x}
+          y={contextMenu.y}
+          onDelete={handleDeleteTask}
+          onClose={() => {
+            setContextMenu(null)
+          }}
+        />
+      ) : null}
     </aside>
   )
 }

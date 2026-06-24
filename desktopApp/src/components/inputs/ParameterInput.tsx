@@ -7,6 +7,8 @@ import { TextInput } from './TextInput'
 
 import type { ParameterDefinitionDto } from '@/types/backend/parameters'
 
+import './ParameterForm.css'
+
 interface ParameterInputProps {
   parameter: ParameterDefinitionDto
   value: unknown

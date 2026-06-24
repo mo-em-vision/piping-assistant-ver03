@@ -1,0 +1,9 @@
+default_standard: asme_b36.10
+
+sources:
+  - standard: asme_b36.10
+    group: asme
+    table_id: welded_seamless_pipe_dimensions
+    db_file: pipe_dimensions.db
+    yaml_source: tables/welded_seamless_pipe_dimensions.yaml
+    default: true

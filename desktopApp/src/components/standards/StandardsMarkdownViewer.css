@@ -1,0 +1,109 @@
+.standards-markdown {
+  color: #1e293b;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.standards-markdown__h1 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.standards-markdown__h2 {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.standards-markdown__h3 {
+  margin: 0.85rem 0 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.standards-markdown__p {
+  margin: 0 0 0.65rem;
+}
+
+.standards-markdown__ul {
+  margin: 0 0 0.75rem;
+  padding-left: 1.2rem;
+}
+
+.standards-markdown__li {
+  margin-bottom: 0.35rem;
+}
+
+.standards-markdown__table-wrap {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.standards-markdown__table {
+  width: 100%;
+  min-width: 28rem;
+  border-collapse: collapse;
+  background: #ffffff;
+}
+
+.standards-markdown__th,
+.standards-markdown__td {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.standards-markdown__th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #475569;
+  background: #f8fafc;
+}
+
+.standards-markdown__td {
+  font-size: 0.78rem;
+  color: #334155;
+}
+
+.standards-markdown__inline-code {
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  background: #f1f5f9;
+  font-size: 0.9em;
+}
+
+.standards-markdown .external-link {
+  margin: 0 0.05rem;
+}
+
+.standards-markdown .standard-reference-link__button {
+  margin: 0 0.05rem;
+}
+
+.standards-markdown__td .engineering-math-inline .katex {
+  font-size: 1.05em;
+}
+
+.standards-markdown__pre {
+  margin: 0.75rem 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 8px;
+  background: #f8fafc;
+  overflow-x: auto;
+}
+
+.standards-markdown__equation {
+  margin: 0.85rem 0;
+  padding: 0.65rem 0.5rem;
+  border-radius: 8px;
+  background: #f8fafc;
+}

@@ -18,9 +18,9 @@ export function NumberInput({
   disabled,
 }: NumberInputProps) {
   return (
-    <div className="parameter-field__row">
+    <div className="parameter-field__row parameter-field__row--number">
       <input
-        className="parameter-control"
+        className="parameter-control parameter-control--number"
         type="number"
         value={value}
         onChange={(event) => onValueChange(event.target.value)}

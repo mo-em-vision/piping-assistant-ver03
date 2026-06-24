@@ -12,30 +12,22 @@ interface WorkflowHistoryProps {
 }
 
 function WorkflowHistoryMessage({ item }: { item: WorkflowHistoryItem }) {
-  if (item.kind === 'prompt') {
-    return (
-      <article className={`workflow-message workflow-message--assistant workflow-message--${item.stepStatus}`}>
-        <div className="workflow-message__meta">Workflow</div>
-        <div className="workflow-message__bubble">
-          <p className="workflow-message__title">{item.title}</p>
-          {item.body ? <p className="workflow-message__body">{item.body}</p> : null}
-        </div>
-      </article>
-    )
+  if (item.kind === 'report-statement') {
+    return <p className="workflow-report__paragraph">{item.body}</p>
   }
 
-  if (item.kind === 'user-input') {
+  if (item.kind === 'node-content') {
     return (
-      <article className="workflow-message workflow-message--user">
-        <div className="workflow-message__meta">{item.label}</div>
-        <div className="workflow-message__bubble">{item.value}</div>
+      <article className="workflow-message workflow-message--node-content">
+        <div className="workflow-message__content">
+          <OutputRenderer blocks={[item.block]} emptyMessage="" variant="inline" />
+        </div>
       </article>
     )
   }
 
   return (
     <article className="workflow-message workflow-message--output">
-      <div className="workflow-message__meta">Output</div>
       <div className="workflow-message__content">
         <OutputRenderer blocks={[item.block]} emptyMessage="" variant="inline" />
       </div>

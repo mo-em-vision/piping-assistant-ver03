@@ -39,9 +39,8 @@ class TestStandardsCoverage:
         assert wall_node.metadata.get("paragraph") == "304.1.2"
         assert wall_node.metadata.get("type") == "calculation"
         assert stress_node.metadata.get("type") == "lookup"
-        assert (
-            standards_reader.pack_root / "nodes" / "B313-appendix_A" / "tables" / "A-1.yaml"
-        ).exists()
+        assert standards_reader.tables_db_path.is_file()
+        assert standards_reader.load_table("A-1")["materials"]
 
         equation_path = wall_node.path.parent / "equations" / "wall_thickness.md"
         assert equation_path.exists()

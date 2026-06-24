@@ -6,9 +6,14 @@ import './TaskTimeline.css'
 interface TaskTimelineProps {
   steps: TimelineStepViewModel[]
   emptyMessage?: string
+  onEditStep?: (stepId: string) => void
 }
 
-export function TaskTimeline({ steps, emptyMessage = 'No progress information yet.' }: TaskTimelineProps) {
+export function TaskTimeline({
+  steps,
+  emptyMessage = 'No progress information yet.',
+  onEditStep,
+}: TaskTimelineProps) {
   if (steps.length === 0) {
     return <p className="task-timeline__empty">{emptyMessage}</p>
   }
@@ -23,6 +28,8 @@ export function TaskTimeline({ steps, emptyMessage = 'No progress information ye
             displayValue={step.displayValue}
             hint={step.hint}
             isLast={index === steps.length - 1}
+            editable={step.editable}
+            onEdit={step.editable && onEditStep ? () => onEditStep(step.id) : undefined}
           />
         </div>
       ))}

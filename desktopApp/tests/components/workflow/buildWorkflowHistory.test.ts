@@ -12,20 +12,27 @@ describe('buildWorkflowHistory', () => {
     const viewModel = buildTaskStateViewModel(mockTaskState)
     expect(viewModel).not.toBeNull()
 
-    const items = buildWorkflowHistory(
-      viewModel!.timeline,
-      mockTaskState.display_outputs,
-      mockTaskState.inputs,
-      mockTaskState.parameters,
-    )
+    const items = buildWorkflowHistory(viewModel!.timeline, mockTaskState.display_outputs)
 
-    expect(items.some((item) => item.kind === 'prompt' && item.title === 'Material')).toBe(true)
-    expect(items.some((item) => item.kind === 'user-input' && item.value === 'SA-106B')).toBe(true)
-    expect(items.some((item) => item.kind === 'prompt' && item.title === 'Thickness')).toBe(true)
+    expect(items.some((item) => item.kind === 'report-statement' && item.body === 'Design material: SA-106B.')).toBe(
+      false,
+    )
+    expect(items.some((item) => item.kind === 'report-statement' && item.body === 'Design pressure: 8 bar.')).toBe(
+      false,
+    )
+    expect(
+      items.some(
+        (item) =>
+          item.kind === 'output' &&
+          item.block.type === 'table' &&
+          item.block.id.startsWith('path-preview-inputs-table'),
+      ),
+    ).toBe(false)
     expect(items.some((item) => item.kind === 'output' && item.block.id === 'preview-equation')).toBe(
       true,
     )
-    expect(items.some((item) => item.kind === 'prompt' && item.title === 'Report')).toBe(false)
+    expect(items.some((item) => item.id === 'planning-status')).toBe(false)
+    expect(items.some((item) => item.kind === 'next-step')).toBe(false)
   })
 })
 

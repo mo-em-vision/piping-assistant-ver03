@@ -8,7 +8,7 @@ Material property reference pack for **ASTM A312** seamless and welded austeniti
 
 | File | Description |
 |------|-------------|
-| `tables/material_properties.yaml` | Chemical composition limits, minimum tensile/yield strength, elongation, physical properties |
+| `standards_tables.db` | Chemical composition limits, minimum tensile/yield strength, elongation, physical properties |
 
 ## Covered grades
 

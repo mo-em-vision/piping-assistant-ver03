@@ -27,7 +27,7 @@ def _json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict[s
     handler.send_header("Content-Type", "application/json")
     handler.send_header("Content-Length", str(len(body)))
     handler.send_header("Access-Control-Allow-Origin", "*")
-    handler.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+    handler.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
     handler.send_header("Access-Control-Allow-Headers", "Content-Type")
     handler.end_headers()
     handler.wfile.write(body)
@@ -83,7 +83,7 @@ class ApiHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self) -> None:
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
@@ -125,6 +125,20 @@ class ApiHandler(BaseHTTPRequestHandler):
                 _json_response(self, 200, self.service.search_materials(search_query))
                 return
 
+            if path.startswith("/api/v1/standards/nodes/"):
+                node_id = path.removeprefix("/api/v1/standards/nodes/").strip("/")
+                if not node_id:
+                    raise ApiError("invalid_request", "node_id is required", status=400)
+                _json_response(self, 200, self.service.get_standards_node(node_id))
+                return
+
+            if path.startswith("/api/v1/standards/tables/"):
+                table_id = path.removeprefix("/api/v1/standards/tables/").strip("/")
+                if not table_id:
+                    raise ApiError("invalid_request", "table_id is required", status=400)
+                _json_response(self, 200, self.service.get_standards_table(table_id))
+                return
+
             task_route = _parse_task_route(path)
             if task_route:
                 task_id, suffix = task_route
@@ -164,6 +178,19 @@ class ApiHandler(BaseHTTPRequestHandler):
 
                 if suffix is None:
                     _json_response(self, 200, self.service.get_task(task_id, session_id))
+                    return
+
+                if suffix.startswith("inputs/") and suffix.endswith("/edit-impact"):
+                    parameter = suffix.removeprefix("inputs/").removesuffix("/edit-impact")
+                    _json_response(
+                        self,
+                        200,
+                        self.service.preview_parameter_edit(
+                            task_id,
+                            parameter,
+                            session_id=session_id,
+                        ),
+                    )
                     return
 
             _json_response(
@@ -233,6 +260,21 @@ class ApiHandler(BaseHTTPRequestHandler):
             task_route = _parse_task_route(path)
             if task_route:
                 task_id, suffix = task_route
+                if suffix and suffix.startswith("inputs/") and suffix.endswith("/edit"):
+                    parameter = suffix.removeprefix("inputs/").removesuffix("/edit")
+                    if not parameter:
+                        raise ApiError("invalid_request", "parameter is required", status=400)
+                    _json_response(
+                        self,
+                        200,
+                        self.service.begin_parameter_edit(
+                            task_id,
+                            parameter,
+                            session_id=session_id,
+                        ),
+                    )
+                    return
+
                 if suffix == "reports":
                     body = _read_json_body(self)
                     report_format = str(body.get("format") or "html")
@@ -266,6 +308,34 @@ class ApiHandler(BaseHTTPRequestHandler):
                     ),
                 )
                 return
+
+            _json_response(
+                self,
+                404,
+                _api_error_payload("not_found", f"No route for {path}"),
+            )
+        except ApiError as exc:
+            _json_response(self, exc.status, _api_error_from_exception(exc))
+        except Exception as exc:  # noqa: BLE001
+            _json_response(
+                self,
+                500,
+                _api_error_payload("internal_error", str(exc)),
+            )
+
+    def do_DELETE(self) -> None:
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+        query = parse_qs(parsed.query)
+        session_id = query.get("session_id", [None])[0]
+
+        try:
+            task_route = _parse_task_route(path)
+            if task_route:
+                task_id, suffix = task_route
+                if suffix is None:
+                    _json_response(self, 200, self.service.delete_task(task_id, session_id))
+                    return
 
             _json_response(
                 self,

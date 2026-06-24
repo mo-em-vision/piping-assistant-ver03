@@ -88,6 +88,11 @@ standards/
 ├── astm/
 │   ├── astm_a106/      # carbon steel pipe material properties
 │   └── astm_a312/      # stainless steel pipe material properties
+├── materials/
+│   ├── registry.yaml   # links ASTM/API material packs into global search
+│   └── materials.db    # global material autocomplete index
+├── pipe_dimensions/
+│   └── registry.yaml   # links dimension packs (NPS / schedule) into lookup
 └── api/
     ├── api_570/
     └── api_650/
@@ -112,6 +117,24 @@ PipeDimensionLookup(root).lookup("2", schedule="40")
 MaterialPropertiesLookup(root, standard="astm_a106").lookup("SA-106B")
 MaterialPropertiesLookup(root, standard="astm_a312").lookup("TP316L")
 ```
+
+### Build standards lookup databases
+
+After changing ASTM material seed YAML or adding a pack to `standards/materials/registry.yaml`:
+
+```bash
+python scripts/build_material_catalog_db.py
+```
+
+This rebuilds per-pack `{slug}.db` files (e.g. `astm_a106.db`) and the global search index at `standards/materials/materials.db`.
+
+After changing pipe dimension YAML or adding a pack to `standards/pipe_dimensions/registry.yaml`:
+
+```bash
+python scripts/build_pipe_dimensions_db.py
+```
+
+This builds `pipe_dimensions.db` in each registered pack (e.g. `standards/asme/asme_b36.10/pipe_dimensions.db`).
 
 ## Project structure
 

@@ -8,7 +8,7 @@ Material property reference pack for **ASTM A106** grades used in piping applica
 
 | File | Description |
 |------|-------------|
-| `tables/material_properties.yaml` | Chemical composition limits, minimum tensile/yield strength, elongation, physical properties |
+| `standards_tables.db` | Chemical composition limits, minimum tensile/yield strength, elongation, physical properties |
 
 ## Covered grades
 

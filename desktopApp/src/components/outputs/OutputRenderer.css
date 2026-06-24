@@ -29,6 +29,17 @@
   margin: 0;
   font-size: 0.85rem;
   line-height: 1.5;
+  color: #334155;
+  white-space: pre-wrap;
+}
+
+.output-text__references {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+}
+  line-height: 1.5;
   color: #1e293b;
 }
 
@@ -41,6 +52,11 @@
   font-size: 0.8rem;
 }
 
+.output-text--assumption .output-text__assumption-label {
+  font-weight: 700;
+  color: #0f172a;
+}
+
 .output-equation {
   display: flex;
   flex-direction: column;
@@ -50,27 +66,94 @@
 .output-equation__math {
   overflow-x: auto;
   padding: 0.5rem 0;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0 auto;
 }
 
 .output-equation__display {
-  margin: 0;
+  margin: 0 auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.8rem;
   color: #64748b;
+  text-align: center;
 }
 
 .output-equation__variables {
-  margin: 0;
+  margin: 0 auto;
   display: grid;
   gap: 0.35rem;
+  width: max-content;
+  max-width: 100%;
 }
 
 .output-equation__variables div {
   display: grid;
-  grid-template-columns: 2.5rem 1fr auto;
-  gap: 0.5rem;
+  grid-template-columns: auto 1fr auto;
+  gap: 0.5rem 0.75rem;
+  align-items: baseline;
   font-size: 0.8rem;
   color: #475569;
+}
+
+.output-equation__variables dt {
+  text-align: right;
+}
+
+.output-equation__variables dd {
+  margin: 0;
+}
+
+.output-equation__variables dd:last-child {
+  text-align: right;
+  color: #64748b;
+}
+
+.output-equation__nomenclature-ref {
+  margin: 0 auto;
+  max-width: 100%;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.output-equation__input-table {
+  margin: 0 auto;
+  width: max-content;
+  max-width: 100%;
+}
+
+.output-equation__input-table .output-table {
+  width: auto;
+  max-width: 100%;
+}
+
+.output-equation__input-table .output-table th,
+.output-equation__input-table .output-table td {
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid #e8edf3;
+}
+
+.output-equation__input-table .output-table th {
+  background: transparent;
+  color: #64748b;
+  font-weight: 500;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.output-equation__input-table .output-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.output-equation__input-pending {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.output-equation__input-empty {
+  color: #cbd5e1;
 }
 
 .output-equation__result {
@@ -123,6 +206,37 @@
 
 .output-table th button:hover {
   color: #2563eb;
+}
+
+.output-block--compact-table {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 0.35rem;
+}
+
+.output-block--compact-table .output-table {
+  width: auto;
+  max-width: 100%;
+}
+
+.output-block--compact-table .output-table th,
+.output-block--compact-table .output-table td {
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  text-align: center;
+  border-bottom: 1px solid #e8edf3;
+}
+
+.output-block--compact-table .output-table th {
+  background: transparent;
+  color: #64748b;
+  font-weight: 500;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.output-block--compact-table .output-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .output-graph {

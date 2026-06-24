@@ -3,9 +3,38 @@
 from __future__ import annotations
 
 from engine.state.state_manager import TaskStateManager
+from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import TaskStatus
 
 from api.parameter_definitions import build_parameter_definitions, submit_task_input
+
+
+def test_build_parameter_definitions_includes_revealed_pipe_wall_inputs() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-test07", status=TaskStatus.AWAITING_INPUT)
+    task.inputs["material"] = EngineeringInput(
+        input_id="material",
+        value="SA-106B",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "planning_summary": {
+            "missing_inputs": ["design_pressure"],
+            "missing_assumptions": [],
+            "current_phase": "parameter_gathering",
+            "phase_missing": {"parameter_gathering": ["design_pressure"]},
+        },
+    }
+    manager.replace_task(task.task_id, task)
+
+    parameters = build_parameter_definitions(manager.get_task(task.task_id))
+    names = [item["name"] for item in parameters]
+    assert names == ["material", "design_pressure"]
+    assert parameters[0]["status"] == "confirmed"
+    assert parameters[1]["status"] == "pending"
 
 
 def test_build_parameter_definitions_from_missing_inputs() -> None:
@@ -16,17 +45,18 @@ def test_build_parameter_definitions_from_missing_inputs() -> None:
         "planning_summary": {
             "missing_inputs": ["design_pressure", "material"],
             "missing_assumptions": ["pressure_loading"],
+            "current_phase": "path_decisions",
+            "phase_missing": {"path_decisions": ["pressure_loading"]},
         },
     }
     manager.replace_task(task.task_id, task)
 
     parameters = build_parameter_definitions(manager.get_task(task.task_id))
     names = [item["name"] for item in parameters]
-    assert names == ["design_pressure", "material", "pressure_loading"]
+    assert names == ["pressure_loading"]
 
-    pressure = next(item for item in parameters if item["name"] == "design_pressure")
-    assert pressure["type"] == "number"
-    assert "bar" in pressure["units"]
+    pressure = next(item for item in parameters if item["name"] == "pressure_loading")
+    assert pressure["type"] == "dropdown"
     assert pressure["status"] == "pending"
 
 

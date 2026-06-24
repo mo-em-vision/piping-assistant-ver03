@@ -14,10 +14,10 @@ interface ComposerInputProps {
 
 function ArrowUpIcon() {
   return (
-    <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true">
       <path
         fill="currentColor"
-        d="M8 3.5 3.5 8l.7.7L7.25 5.65V12.5h1.5V5.65l3.05 3.05.7-.7L8 3.5Z"
+        d="M8 1.75 2.75 7l1.35 1.35L7 5.45V14h2V5.45l3.9 3.9L14.25 7 8 1.75Z"
       />
     </svg>
   )

@@ -18,10 +18,10 @@ from tests.acceptance.helpers import run_completed_workflow
 
 def _submit_initial_pipe_inputs(service: DesktopApiService, task_id: str, session_id: str) -> dict:
     submissions = [
+        ("pressure_loading", "internal_pressure", None),
         ("material", "SA-106B", None),
         ("design_pressure", 8.0, "bar"),
         ("design_temperature", 38.0, "degC"),
-        ("pressure_loading", "internal_pressure", None),
     ]
 
     state: dict = service.get_task(task_id, session_id)
@@ -51,7 +51,8 @@ def test_mvp_project_task_and_input_collection(mvp_service: DesktopApiService) -
     task_state = mvp_service.create_task("pipe_wall_thickness_design", session_id)
     task_id = task_state["task_id"]
     assert task_state["workflow_id"] == "pipe_wall_thickness_design"
-    assert any(item["name"] == "material" for item in task_state["parameters"])
+    assert task_state["parameters"][0]["name"] == "pressure_loading"
+    assert task_state["active_nodes"] == ["B313-304.1.1"]
 
     updated = _submit_initial_pipe_inputs(mvp_service, task_id, session_id)
     assert "material" in updated["inputs"]

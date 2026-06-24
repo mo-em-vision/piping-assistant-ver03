@@ -109,16 +109,31 @@ export const mockTaskState: TaskStateDto = {
       ],
     },
     {
-      id: 'preview-reference',
-      type: 'reference',
-      title: 'Straight Pipe Under Internal Pressure',
-      standard: 'ASME B31.3',
-      paragraph: '304.1.2',
-      excerpt:
-        'The minimum required wall thickness for straight pipe under internal pressure shall be computed.',
-      source_node: 'B313-304.1.2',
+      id: 'preview-intro',
+      type: 'text',
+      content:
+        'The minimum required wall thickness for straight pipe under internal pressure shall be computed based on',
+      content_suffix: ' with the following equation:',
+      variant: 'body',
+      reference_links: [
+        {
+          node_id: 'B313-304.1.2',
+          label: '§304.1.2',
+          paragraph: '304.1.2',
+        },
+      ],
+      reference_links_placement: 'inline',
     },
   ],
+  active_node_context: {
+    node_id: 'B313-304.1.1',
+    standard: 'ASME B31.3',
+    paragraph: '304.1.1',
+    display_heading:
+      'Calculation of Minimum Required Thickness of a straight section pipe (according to ASME B 31.3 paragraph 304.1.1)',
+    hover_excerpt:
+      'The required thickness of straight sections of pipe shall be determined in accordance with eq. (2).',
+  },
   options: {},
   errors: [],
 }

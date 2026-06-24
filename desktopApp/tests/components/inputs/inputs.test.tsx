@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { CheckboxInput } from '@/components/inputs/CheckboxInput'
 import { TextInput } from '@/components/inputs/TextInput'
+import { UnitSelector } from '@/components/inputs/UnitSelector'
 
 describe('TextInput', () => {
   it('calls onChange with updated value', async () => {
@@ -35,5 +36,21 @@ describe('CheckboxInput', () => {
     await user.click(screen.getByRole('checkbox'))
 
     expect(onChange).toHaveBeenCalledWith(true)
+  })
+})
+
+describe('UnitSelector', () => {
+  it('opens a custom menu and selects a unit', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+
+    render(
+      <UnitSelector units={['bar', 'MPa', 'psi']} value="bar" onChange={onChange} />,
+    )
+
+    await user.click(screen.getByRole('button', { name: /bar/i }))
+    await user.click(screen.getByRole('option', { name: 'MPa' }))
+
+    expect(onChange).toHaveBeenCalledWith('MPa')
   })
 })

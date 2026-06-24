@@ -27,7 +27,7 @@ export function MaterialSearchInput({
   onSubmit,
   disabled,
   submitting,
-  placeholder = 'Search ASTM materials (e.g. SA-106B)…',
+  placeholder = 'Search materials (e.g. SA-106B, TP316L)…',
 }: MaterialSearchInputProps) {
   const [suggestions, setSuggestions] = useState<MaterialOptionDto[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)

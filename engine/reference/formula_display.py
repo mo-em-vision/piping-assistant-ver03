@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -64,6 +65,123 @@ def load_equation_context(reader: StandardsReader, node_id: str) -> dict[str, An
         "node_id": node_id,
         "title": str(node.metadata.get("title", "")).strip(),
     }
+
+
+def resolve_equation_display_variables(
+    reader: StandardsReader,
+    node_id: str,
+) -> dict[str, Any]:
+    """Resolve equation variable rows and nomenclature reference for display blocks."""
+    node = reader.load(node_id)
+    equation_data = _primary_equation_data(reader, node_id)
+    if not equation_data:
+        return {"variables": [], "nomenclature_reference": None}
+    return _resolve_equation_display_from_data(reader, equation_data, node.metadata)
+
+
+def _resolve_equation_display_from_data(
+    reader: StandardsReader,
+    equation_data: dict[str, Any],
+    node_metadata: dict[str, Any],
+) -> dict[str, Any]:
+    from engine.reference.nomenclature_resolver import (
+        entry_for_symbol,
+        load_nomenclature,
+        load_nomenclature_for_node,
+    )
+
+    nomenclature_ref = str(equation_data.get("nomenclature_ref", "")).strip()
+    nomenclature: dict[str, Any] = {}
+    if nomenclature_ref:
+        nomenclature = load_nomenclature(reader, nomenclature_ref)
+    nomenclature.update(load_nomenclature_for_node(reader, node_metadata))
+
+    variables_block = equation_data.get("variables") or {}
+    if not isinstance(variables_block, dict):
+        variables_block = {}
+
+    rows: list[dict[str, str]] = []
+    for key, payload in variables_block.items():
+        if not isinstance(payload, dict):
+            continue
+        symbol = str(payload.get("symbol") or key).strip()
+        if not symbol:
+            continue
+        name = _resolve_variable_description(
+            payload,
+            nomenclature=nomenclature,
+            symbol=symbol,
+            key=str(key),
+        )
+        row: dict[str, str] = {"symbol": symbol, "name": name}
+        unit = str(payload.get("unit", "")).strip()
+        if unit and unit != "dimensionless":
+            row["unit"] = unit
+        rows.append(row)
+
+    return {
+        "variables": rows,
+        "nomenclature_reference": _nomenclature_reference_link(reader, nomenclature_ref),
+    }
+
+
+def _primary_equation_data(reader: StandardsReader, node_id: str) -> dict[str, Any]:
+    node = reader.load(node_id)
+    equations = node.metadata.get("equations", []) or node.metadata.get("formulas", []) or []
+    for equation in equations:
+        if not isinstance(equation, dict) or not equation.get("file"):
+            continue
+        path = node.path.parent / str(equation["file"])
+        if not path.exists():
+            continue
+        data = _parse_equation_frontmatter(path)
+        if data:
+            return data
+    return {}
+
+
+def _resolve_variable_description(
+    payload: dict[str, Any],
+    *,
+    nomenclature: dict[str, Any],
+    symbol: str,
+    key: str,
+) -> str:
+    from engine.reference.nomenclature_resolver import entry_for_symbol
+
+    description = _collapse_whitespace(str(payload.get("description", "")).strip())
+    if description:
+        return description
+
+    entry = entry_for_symbol(nomenclature, symbol=symbol, input_id=key)
+    if entry is not None and entry.description:
+        return _collapse_whitespace(entry.description)
+
+    return symbol
+
+
+def _nomenclature_reference_link(
+    reader: StandardsReader,
+    nomenclature_ref: str,
+) -> dict[str, str] | None:
+    if not nomenclature_ref:
+        return None
+    try:
+        record = reader.load(nomenclature_ref)
+    except FileNotFoundError:
+        return {"node_id": nomenclature_ref, "label": nomenclature_ref}
+
+    paragraph = str(record.metadata.get("paragraph", "")).strip()
+    label = f"§{paragraph}(b)" if paragraph else nomenclature_ref
+    return {
+        "node_id": nomenclature_ref,
+        "label": label,
+        "paragraph": paragraph or None,
+    }
+
+
+def _collapse_whitespace(text: str) -> str:
+    return re.sub(r"\s+", " ", text.strip())
 
 
 def _display_from_equation_file(path: Path) -> str | None:

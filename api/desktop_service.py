@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from cli.session_store import new_task_id
 from config.loader import CLIConfig
-from engine.router import PIPE_WALL_THICKNESS_DESIGN, Router
+from engine.reference.standards_reader import StandardsReader
+from engine.router import Router
 from engine.state.state_manager import TaskNotFoundError, TaskStateManager
 from models.task import TaskStatus
 from storage.migrate_legacy_sessions import migrate_legacy_sessions
@@ -23,8 +24,34 @@ from api.report_service import (
     resolve_report_download,
 )
 from api.parameter_definitions import submit_task_input
+from api.node_context import node_source_payload
+from api.table_context import table_source_payload
+from api.workflow_bootstrap import (
+    bootstrap_new_task,
+    maybe_execute_ready_workflow,
+    refresh_task_planning,
+    standards_reader_for_config,
+)
 from api.material_catalog import search_astm_materials
+from api.parameter_edit import (
+    assess_parameter_edit,
+    begin_parameter_edit as begin_parameter_edit_session,
+)
 from api.serializers import task_state, task_summary, workflow_catalog
+
+_PROPOSE_DEFAULTS_ON_FIELDS = frozenset(
+    {
+        "material",
+        "design_temperature",
+        "nominal_pipe_size",
+        "outside_diameter",
+        "joint_category",
+        "weld_joint_efficiency",
+        "weld_strength_reduction",
+        "temperature_coefficient",
+        "corrosion_allowance",
+    }
+)
 
 
 class ApiError(Exception):
@@ -40,6 +67,20 @@ class ApiError(Exception):
 class DesktopApiService:
     config: CLIConfig
     session_id: str = "default"
+    _standards_reader: StandardsReader | None = field(default=None, init=False, repr=False)
+
+    def _reader(self) -> StandardsReader:
+        if self._standards_reader is None:
+            self._standards_reader = standards_reader_for_config(self.config)
+        return self._standards_reader
+
+    def _task_state(self, task, manager) -> dict[str, Any]:
+        return task_state(
+            task,
+            manager,
+            standards_root=self.config.standards_root,
+            reader=self._reader(),
+        )
 
     @classmethod
     def from_project_root(cls, project_root: Path | None = None) -> DesktopApiService:
@@ -138,7 +179,7 @@ class DesktopApiService:
             task = manager.get_task(task_id)
         except TaskNotFoundError as exc:
             raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
-        return task_state(task, manager)
+        return self._task_state(task, manager)
 
     def create_task(self, workflow_id: str, session_id: str | None = None) -> dict[str, Any]:
         router = Router()
@@ -154,24 +195,10 @@ class DesktopApiService:
         manager = store.load_state_manager()
         task_id = new_task_id(workflow_id)
         task = manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
-        task.outputs["workflow"] = workflow_id
-        task.outputs["selected_root"] = workflow_id
-        if workflow_id == PIPE_WALL_THICKNESS_DESIGN:
-            task.outputs["planning_summary"] = {
-                "goal": "pipe wall thickness design",
-                "intent": workflow_id,
-                "selected_root": workflow_id,
-                "selected_nodes": [],
-                "missing_assumptions": ["pressure_loading"],
-                "missing_execution_assumptions": ["pressure_loading"],
-                "missing_inputs": ["material", "design_pressure", "design_temperature"],
-                "path_decision": None,
-                "confidence": 1.0,
-                "action": "request_input",
-            }
+        bootstrap_new_task(task, workflow_id, self.config)
         manager.replace_task(task_id, task)
         self._save_manager(manager, session_id)
-        return task_state(task, manager)
+        return self._task_state(task, manager)
 
     def activate_task(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
         store = self._store_for(session_id)
@@ -181,7 +208,23 @@ class DesktopApiService:
         except TaskNotFoundError as exc:
             raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
         self._save_manager(manager, session_id)
-        return task_state(task, manager)
+        return self._task_state(task, manager)
+
+    def delete_task(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
+        store = self._store_for(session_id)
+        manager = store.load_state_manager()
+        try:
+            manager.get_task(task_id)
+        except TaskNotFoundError as exc:
+            raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+
+        manager.delete_task(task_id)
+        self._save_manager(manager, session_id)
+        return {
+            "task_id": task_id,
+            "deleted": True,
+            "session_id": store.session_id,
+        }
 
     def submit_input(
         self,
@@ -206,6 +249,7 @@ class DesktopApiService:
                 parameter=parameter,
                 value=value,
                 unit=unit,
+                standards_root=self._reader().standards_root,
             )
         except ValueError as exc:
             raise ApiError(
@@ -215,8 +259,67 @@ class DesktopApiService:
                 details={"parameter": parameter},
             ) from exc
 
+        refresh_task_planning(
+            task,
+            self._reader(),
+            propose_defaults=parameter in _PROPOSE_DEFAULTS_ON_FIELDS,
+        )
+        manager.replace_task(task_id, task)
+        task = maybe_execute_ready_workflow(task_id, manager, self._reader())
+
         self._save_manager(manager, session_id)
-        return task_state(task, manager)
+        return self._task_state(task, manager)
+
+    def preview_parameter_edit(
+        self,
+        task_id: str,
+        parameter: str,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        store = self._store_for(session_id)
+        manager = store.load_state_manager()
+        try:
+            task = manager.get_task(task_id)
+        except TaskNotFoundError as exc:
+            raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+
+        try:
+            return assess_parameter_edit(task, parameter)
+        except ValueError as exc:
+            raise ApiError(
+                "invalid_input",
+                str(exc),
+                status=400,
+                details={"parameter": parameter},
+            ) from exc
+
+    def begin_parameter_edit(
+        self,
+        task_id: str,
+        parameter: str,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        store = self._store_for(session_id)
+        manager = store.load_state_manager()
+        try:
+            task = manager.get_task(task_id)
+        except TaskNotFoundError as exc:
+            raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+
+        try:
+            begin_parameter_edit_session(task, parameter)
+        except ValueError as exc:
+            raise ApiError(
+                "invalid_input",
+                str(exc),
+                status=400,
+                details={"parameter": parameter},
+            ) from exc
+
+        refresh_task_planning(task, self._reader(), propose_defaults=False)
+        manager.replace_task(task_id, task)
+        self._save_manager(manager, session_id)
+        return self._task_state(task, manager)
 
     def list_chat_messages(self, session_id: str | None = None) -> dict[str, Any]:
         store = self._store_for(session_id)
@@ -329,6 +432,20 @@ class DesktopApiService:
     def search_materials(self, query: str) -> dict[str, Any]:
         materials = search_astm_materials(self.config.standards_root, query)
         return {"materials": materials, "query": query}
+
+    def get_standards_node(self, node_id: str) -> dict[str, Any]:
+        reader = standards_reader_for_config(self.config)
+        try:
+            return node_source_payload(reader, node_id)
+        except FileNotFoundError as exc:
+            raise ApiError("node_not_found", f"Node not found: {node_id}", status=404) from exc
+
+    def get_standards_table(self, table_id: str) -> dict[str, Any]:
+        reader = standards_reader_for_config(self.config)
+        try:
+            return table_source_payload(reader, table_id)
+        except FileNotFoundError as exc:
+            raise ApiError("table_not_found", f"Table not found: {table_id}", status=404) from exc
 
     def _store_for(self, session_id: str | None) -> ProjectSessionStore:
         resolved = session_id or self.session_id

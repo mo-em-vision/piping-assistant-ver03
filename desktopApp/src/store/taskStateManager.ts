@@ -28,6 +28,7 @@ function mapStepDto(step: ProgressStepDto): TimelineStepViewModel {
     status: mapStepStatus(step.status),
     displayValue: displayValue ?? null,
     hint: step.hint ?? null,
+    editable: Boolean(step.editable),
   }
 }
 
@@ -90,4 +91,12 @@ export function buildTaskStateViewModel(state: TaskStateDto | null): TaskStateVi
     timeline,
     warnings: state.warnings ?? [],
   }
+}
+
+export function isReportSectionVisible(timeline: TimelineStepViewModel[]): boolean {
+  const reportStep = timeline.find((step) => step.id === 'report')
+  if (!reportStep) {
+    return false
+  }
+  return reportStep.status === 'active' || reportStep.status === 'done'
 }

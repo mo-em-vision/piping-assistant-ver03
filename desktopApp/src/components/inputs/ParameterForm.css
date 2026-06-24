@@ -40,10 +40,21 @@
 .parameter-field__row {
   display: flex;
   gap: 0.5rem;
-  align-items: stretch;
+  align-items: center;
 }
 
-.parameter-field__row > .parameter-control {
+.parameter-field__row--number {
+  width: fit-content;
+  max-width: 100%;
+}
+
+.parameter-field__row > .parameter-control--number {
+  flex: 1 1 5.5rem;
+  min-width: 4.5rem;
+  max-width: 11rem;
+}
+
+.parameter-field__row > .parameter-control:not(.parameter-control--number) {
   flex: 1;
   min-width: 0;
 }
@@ -61,10 +72,6 @@
 .parameter-control:focus {
   outline: 2px solid #93c5fd;
   border-color: #3b82f6;
-}
-
-.parameter-control--unit {
-  flex: 0 0 5.5rem;
 }
 
 .parameter-field__checkbox {

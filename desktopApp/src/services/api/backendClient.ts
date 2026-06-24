@@ -47,6 +47,10 @@ export class BackendClient {
     return this.request<T>(path, { ...options, method: 'POST', body })
   }
 
+  async delete<T>(path: string, options?: RequestOptions): Promise<T> {
+    return this.request<T>(path, { ...options, method: 'DELETE' })
+  }
+
   private async parseJson(response: Response): Promise<unknown> {
     const text = await response.text()
     if (!text) {

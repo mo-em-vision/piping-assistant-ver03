@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('engineering workflow (mock mode)', () => {
-  test('create task, submit input, and generate report', async ({ page }) => {
+  test('create task, submit input, and hide report until workflow completes', async ({ page }) => {
     await page.goto('/')
 
     await page.getByRole('button', { name: '+ New engineering task' }).click()
@@ -16,8 +16,6 @@ test.describe('engineering workflow (mock mode)', () => {
     await expect(page.getByText('nominal pipe size', { exact: false })).toBeVisible()
     await expect(page.getByText('6')).toBeVisible()
 
-    await page.getByRole('button', { name: 'Generate report' }).click()
-
-    await expect(page.getByText('Generated', { exact: false })).toBeVisible({ timeout: 10_000 })
+    await expect(page.getByRole('heading', { name: 'Engineering report' })).toHaveCount(0)
   })
 })

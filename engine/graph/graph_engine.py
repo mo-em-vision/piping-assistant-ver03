@@ -89,6 +89,32 @@ def when_clause_matches(
 class GraphEngine:
     """Build deterministic execution plans from standards node dependencies."""
 
+    def _resolve_plan(
+        self,
+        *,
+        root_id: str,
+        reader: StandardsReader,
+        inputs: dict[str, EngineeringInput],
+        plan: ExecutionPlan | None = None,
+    ) -> ExecutionPlan:
+        if plan is not None:
+            return plan
+        slug = normalize_root_id(root_id)
+        return self.build_plan(
+            task_id="preview",
+            root_id=slug,
+            inputs=inputs,
+            reader=reader,
+        )
+
+    @staticmethod
+    def _expansion_inputs_ready(inputs: dict[str, EngineeringInput] | None) -> bool:
+        data = inputs or {}
+        for field_name in ("straight_pipe_section", "pressure_loading"):
+            if field_value(field_name, data) is None:
+                return False
+        return True
+
     def build_plan(
         self,
         *,
@@ -246,22 +272,27 @@ class GraphEngine:
         *,
         existing_inputs: set[str] | None = None,
         task_inputs: dict[str, EngineeringInput] | None = None,
+        plan: ExecutionPlan | None = None,
     ) -> list[str]:
         """Collect required user-provided inputs for a workflow root (no execution)."""
         slug = normalize_root_id(root_id)
-        if not self.expansion_gate_ready(slug, reader, existing_inputs=task_inputs):
+        inputs = task_inputs or {}
+        if plan is None:
+            if not self.expansion_gate_ready(slug, reader, existing_inputs=inputs):
+                return []
+        elif not self._expansion_inputs_ready(inputs):
             return []
-        plan = self.build_plan(
-            task_id="preview",
+        resolved_plan = self._resolve_plan(
             root_id=slug,
-            inputs=task_inputs or {},
             reader=reader,
+            inputs=inputs,
+            plan=plan,
         )
         existing = existing_inputs or set()
         required: list[str] = []
         seen: set[str] = set()
 
-        for node_id in plan.execution_order:
+        for node_id in resolved_plan.execution_order:
             record = reader.load(node_id)
             if str(record.metadata.get("type", "")) == "root":
                 continue
@@ -290,23 +321,25 @@ class GraphEngine:
         reader: StandardsReader,
         *,
         existing_inputs: dict[str, EngineeringInput] | None = None,
+        plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         """Check expansion assumptions along the filtered workflow path."""
         slug = normalize_root_id(root_id)
-        plan = self.build_plan(
-            task_id="preview",
+        inputs = existing_inputs or {}
+        resolved_plan = self._resolve_plan(
             root_id=slug,
-            inputs=existing_inputs or {},
             reader=reader,
+            inputs=inputs,
+            plan=plan,
         )
         evaluation = evaluate_path_expansion_assumptions(
-            plan.execution_order,
+            resolved_plan.execution_order,
             reader,
-            existing_inputs=existing_inputs,
+            existing_inputs=inputs,
         )
         root_interactions = collect_root_interactions(reader, slug)
-        path_interactions = collect_path_interactions(reader, plan.execution_order)
-        for skipped in plan.skipped_nodes:
+        path_interactions = collect_path_interactions(reader, resolved_plan.execution_order)
+        for skipped in resolved_plan.skipped_nodes:
             if not skipped.get("pending"):
                 continue
             field_name = str(skipped.get("field", ""))
@@ -335,16 +368,17 @@ class GraphEngine:
         reader: StandardsReader,
         *,
         existing_inputs: dict[str, EngineeringInput] | None = None,
+        plan: ExecutionPlan | None = None,
     ) -> dict[str, EngineeringInput]:
         """Propose default values for value-resolution specs on the active path."""
         slug = normalize_root_id(root_id)
-        plan = self.build_plan(
-            task_id="preview",
+        resolved_plan = self._resolve_plan(
             root_id=slug,
-            inputs=existing_inputs or {},
             reader=reader,
+            inputs=existing_inputs or {},
+            plan=plan,
         )
-        specs = collect_path_interactions(reader, plan.execution_order)
+        specs = collect_path_interactions(reader, resolved_plan.execution_order)
         proposed = propose_default_values(specs, existing_inputs or {})
         proposed.update(propose_decision_defaults(specs, existing_inputs or {}))
         from engine.reference.coefficient_resolver import propose_coefficient_defaults
@@ -364,7 +398,7 @@ class GraphEngine:
                 default=value,
                 default_condition=condition,
             )
-        proposed.update(self._propose_provisional_assumptions(reader, plan.execution_order, existing_inputs or {}))
+        proposed.update(self._propose_provisional_assumptions(reader, resolved_plan.execution_order, existing_inputs or {}))
         return proposed
 
     @staticmethod
@@ -404,18 +438,20 @@ class GraphEngine:
         reader: StandardsReader,
         *,
         existing_inputs: dict[str, EngineeringInput] | None = None,
+        plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         """Check value confirmations required before full path expansion."""
         from engine.graph.node_interaction import InteractionEvaluation
 
         slug = normalize_root_id(root_id)
-        plan = self.build_plan(
-            task_id="preview",
+        inputs = existing_inputs or {}
+        resolved_plan = self._resolve_plan(
             root_id=slug,
-            inputs=existing_inputs or {},
             reader=reader,
+            inputs=inputs,
+            plan=plan,
         )
-        specs = collect_path_interactions(reader, plan.execution_order)
+        specs = collect_path_interactions(reader, resolved_plan.execution_order)
         interaction_eval: InteractionEvaluation = evaluate_pending_interactions(
             specs,
             existing_inputs or {},
@@ -453,21 +489,23 @@ class GraphEngine:
         reader: StandardsReader,
         *,
         existing_inputs: dict[str, EngineeringInput] | None = None,
+        plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         """Check execution assumptions for nodes on the filtered workflow path."""
         from engine.graph.assumption_checker import evaluate_path_execution_assumptions
 
         slug = normalize_root_id(root_id)
-        plan = self.build_plan(
-            task_id="preview",
+        inputs = existing_inputs or {}
+        resolved_plan = self._resolve_plan(
             root_id=slug,
-            inputs=existing_inputs or {},
             reader=reader,
+            inputs=inputs,
+            plan=plan,
         )
         return evaluate_path_execution_assumptions(
-            plan.execution_order,
+            resolved_plan.execution_order,
             reader,
-            existing_inputs=existing_inputs,
+            existing_inputs=inputs,
         )
 
     def _collect_nodes(

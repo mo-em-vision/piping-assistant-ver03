@@ -1,21 +1,23 @@
 import type { TaskStateDto } from '@/types/backend/api'
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
-import type { ParameterDefinitionDto } from '@/types/backend/parameters'
 import type { TimelineStepViewModel } from '@/types/frontend/taskState'
+
+import {
+  completedStepStatement,
+  FORMULA_INPUT_STEP_IDS,
+  isHiddenWorkflowStep,
+} from './workflowReport'
 
 export type WorkflowHistoryItem =
   | {
       id: string
-      kind: 'prompt'
-      title: string
-      body?: string | null
-      stepStatus: 'done' | 'active'
+      kind: 'report-statement'
+      body: string
     }
   | {
       id: string
-      kind: 'user-input'
-      label: string
-      value: string
+      kind: 'node-content'
+      block: DisplayOutputBlock
     }
   | {
       id: string
@@ -25,72 +27,68 @@ export type WorkflowHistoryItem =
 
 function visibleTimelineSteps(timeline: TimelineStepViewModel[]): TimelineStepViewModel[] {
   const pendingIndex = timeline.findIndex((step) => step.status === 'pending')
-  if (pendingIndex === -1) {
-    return timeline
+  const visible =
+    pendingIndex === -1
+      ? timeline
+      : timeline.slice(0, pendingIndex + 1).filter((step) => step.status !== 'pending')
+  return visible.filter((step) => !isHiddenWorkflowStep(step.id))
+}
+
+function isHistoryOutputBlock(block: DisplayOutputBlock): boolean {
+  if (block.id.startsWith('node-activation-')) {
+    return false
   }
-  return timeline.slice(0, pendingIndex + 1).filter((step) => step.status !== 'pending')
+  if (block.id === 'planning-status') {
+    return false
+  }
+  if (block.id.startsWith('path-preview-reference-')) {
+    return false
+  }
+  return true
 }
 
 export function buildWorkflowHistory(
   timeline: TimelineStepViewModel[],
   displayOutputs: DisplayOutputBlock[],
-  inputs: Record<string, unknown> = {},
-  parameters: ParameterDefinitionDto[] = [],
 ): WorkflowHistoryItem[] {
   const items: WorkflowHistoryItem[] = []
-  const steps = visibleTimelineSteps(timeline)
 
-  for (const step of steps) {
-    items.push({
-      id: `prompt-${step.id}`,
-      kind: 'prompt',
-      title: step.title,
-      body: step.hint,
-      stepStatus: step.status === 'done' ? 'done' : 'active',
-    })
-
-    if (step.status === 'done' && step.displayValue) {
-      items.push({
-        id: `input-${step.id}`,
-        kind: 'user-input',
-        label: step.title,
-        value: step.displayValue,
-      })
-    }
-  }
-
-  const shownValues = new Set(
-    items.filter((item) => item.kind === 'user-input').map((item) => item.value),
+  const activationBlocks = displayOutputs.filter(
+    (block) =>
+      block.id.startsWith('node-activation-') && !block.id.startsWith('node-activation-reference-'),
   )
+  const otherBlocks = displayOutputs.filter(isHistoryOutputBlock)
 
-  for (const [key, raw] of Object.entries(inputs)) {
-    const record = raw as { display_value?: string; value?: unknown; unit?: string }
-    const display =
-      record.display_value ??
-      (record.value != null
-        ? `${String(record.value)}${record.unit && record.unit !== 'dimensionless' ? ` ${record.unit}` : ''}`
-        : '')
-
-    if (!display || shownValues.has(display)) {
-      continue
-    }
-
-    const parameter = parameters.find((entry) => entry.name === key)
+  for (const block of activationBlocks) {
     items.push({
-      id: `input-record-${key}`,
-      kind: 'user-input',
-      label: parameter?.label ?? key.replace(/_/g, ' '),
-      value: display,
+      id: `node-content-${block.id}`,
+      kind: 'node-content',
+      block,
     })
-    shownValues.add(display)
   }
 
-  for (const block of displayOutputs) {
+  for (const block of otherBlocks) {
     items.push({
       id: `output-${block.id}`,
       kind: 'output',
       block,
     })
+  }
+
+  const steps = visibleTimelineSteps(timeline)
+
+  for (const step of steps) {
+    if (step.status !== 'done' || FORMULA_INPUT_STEP_IDS.has(step.id)) {
+      continue
+    }
+    const statement = completedStepStatement(step)
+    if (statement) {
+      items.push({
+        id: `statement-${step.id}`,
+        kind: 'report-statement',
+        body: statement,
+      })
+    }
   }
 
   return items
@@ -99,6 +97,16 @@ export function buildWorkflowHistory(
 export function getCurrentEditableParameter(state: TaskStateDto | null) {
   if (!state?.parameters?.length) {
     return null
+  }
+
+  const editing = state.parameters.find((parameter) => parameter.editing)
+  if (editing) {
+    return editing
+  }
+
+  const editSession = state.outputs?.edit_session as { parameter?: string } | undefined
+  if (editSession?.parameter) {
+    return state.parameters.find((parameter) => parameter.name === editSession.parameter) ?? null
   }
 
   return (

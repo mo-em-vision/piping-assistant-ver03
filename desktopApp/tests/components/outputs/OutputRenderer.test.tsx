@@ -17,6 +17,27 @@ describe('TextOutput', () => {
     expect(screen.getByRole('heading', { name: 'Task status' })).toBeInTheDocument()
     expect(screen.getByText(/Waiting for inputs: nominal_pipe_size/)).toBeInTheDocument()
   })
+
+  it('renders inline reference links inside the paragraph', () => {
+    render(
+      <TextOutput
+        block={{
+          id: 'preview-intro',
+          type: 'text',
+          content:
+            'The minimum required wall thickness for straight pipe under internal pressure shall be computed based on',
+          content_suffix: ' with the following equation:',
+          variant: 'body',
+          reference_links: [{ node_id: 'B313-304.1.2', label: '§304.1.2' }],
+          reference_links_placement: 'inline',
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: '§304.1.2' })).toBeInTheDocument()
+    expect(screen.getByText(/with the following equation:/)).toBeInTheDocument()
+    expect(screen.queryByText('Straight Pipe Under Internal Pressure')).not.toBeInTheDocument()
+  })
 })
 
 describe('OutputRenderer', () => {
@@ -31,6 +52,9 @@ describe('OutputRenderer', () => {
 
     expect(screen.getByText('Task status')).toBeInTheDocument()
     expect(screen.getByText('Governing equation')).toBeInTheDocument()
-    expect(screen.getByText('Straight Pipe Under Internal Pressure')).toBeInTheDocument()
+    expect(
+      screen.getByText(/minimum required wall thickness for straight pipe under internal pressure/i),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '§304.1.2' })).toBeInTheDocument()
   })
 })

@@ -6,7 +6,7 @@ Austenitic stainless steel pipe material properties per **ASTM A312/A312M**.
 
 | Table | Description |
 |-------|-------------|
-| [tables/material_properties.yaml](tables/material_properties.yaml) | TP grades — chemical limits and minimum mechanical properties |
+| `standards_tables.db` | TP grades — chemical limits and minimum mechanical properties (`astm_a312_material_properties`) |
 
 ## Grades
 

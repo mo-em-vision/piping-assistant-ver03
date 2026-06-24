@@ -1,3 +1,5 @@
+import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
+
 import type { ReferenceOutputBlock } from '@/types/backend/outputs'
 
 interface ReferenceOutputProps {
@@ -12,7 +14,15 @@ export function ReferenceOutput({ block }: ReferenceOutputProps) {
       {block.title ? <h4 className="output-block__title">{block.title}</h4> : null}
       {meta ? <p className="output-reference__meta">{meta}</p> : null}
       {block.excerpt ? <p className="output-reference__excerpt">{block.excerpt}</p> : null}
-      {block.source_node ? <p className="output-reference__source">Source node: {block.source_node}</p> : null}
+      {block.source_node ? (
+        <p className="output-reference__source">
+          Source:{' '}
+          <StandardReferenceLink
+            nodeId={block.source_node}
+            label={block.paragraph ? `§${block.paragraph}` : block.source_node}
+          />
+        </p>
+      ) : null}
     </article>
   )
 }

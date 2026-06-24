@@ -3,8 +3,21 @@
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
+from api.equation_inputs_display import (
+    build_formula_inputs_input_table,
+    definitions_from_equation_variables,
+    primary_formula_inputs_complete,
+)
+from api.node_display import build_activated_node_blocks
+from api.workflow_bootstrap import resolve_activated_definition_node
+from engine.reference.formula_display import (
+    load_equation_context,
+    resolve_equation_display_variables,
+)
+from engine.reference.standards_reader import StandardsReader
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from models.task import Task, TaskStatus
 
@@ -32,8 +45,8 @@ _NODE_REFERENCES: dict[str, dict[str, str]] = {
 _RESULT_KEYS: tuple[tuple[str, str, str], ...] = (
     ("required_thickness", "Required Thickness", "mm"),
     ("t", "Required Thickness", "mm"),
-    ("minimum_required_thickness", "Minimum Required Thickness", "mm"),
-    ("t_m", "Minimum Required Thickness", "mm"),
+    ("minimum_required_thickness", "Minimum Required Pipe Wall Thickness", "mm"),
+    ("t_m", "Minimum Required Pipe Wall Thickness", "mm"),
     ("allowable_stress", "Allowable Stress", "MPa"),
     ("S", "Allowable Stress", "MPa"),
 )
@@ -41,28 +54,136 @@ _RESULT_KEYS: tuple[tuple[str, str, str], ...] = (
 _WALL_THICKNESS_FORMULA = "t = PD / 2(SEW + PY)"
 
 
-def build_display_outputs(task: Task) -> list[dict[str, Any]]:
+def build_display_outputs(
+    task: Task,
+    *,
+    standards_root: Path | None = None,
+    reader: StandardsReader | None = None,
+) -> list[dict[str, Any]]:
     blocks: list[dict[str, Any]] = []
     planning = task.outputs.get("planning_summary") or {}
     if not isinstance(planning, dict):
         planning = {}
 
-    status_block = _planning_status_block(task, planning)
-    if status_block:
-        blocks.append(status_block)
+    resolved_reader = reader or _reader_for(standards_root)
+    trace = task.outputs.get("_execution_trace")
+
+    if not (isinstance(trace, list) and trace):
+        blocks.extend(_activated_definition_blocks(task, planning, resolved_reader))
 
     for warning in task.warnings:
         blocks.append(_warning_block(warning))
 
     blocks.extend(_result_blocks(task))
 
-    trace = task.outputs.get("_execution_trace")
     if isinstance(trace, list) and trace:
         blocks.extend(_blocks_from_execution_trace(trace, task))
     elif _task_workflow_id(task) == PIPE_WALL_THICKNESS_DESIGN:
-        blocks.extend(_preview_blocks_for_pipe_workflow(task, planning))
+        blocks.extend(_path_calculation_preview_blocks(task, planning, resolved_reader))
+
+    status_block = _planning_status_block(task, planning)
+    if status_block:
+        blocks.append(status_block)
 
     return blocks
+
+
+def _reader_for(standards_root: Path | None) -> StandardsReader:
+    if standards_root is not None:
+        return StandardsReader(standards_root, standard="asme_b31.3")
+    project_root = Path(__file__).resolve().parent.parent
+    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+
+
+def _activated_definition_blocks(
+    task: Task,
+    planning: dict[str, Any],
+    reader: StandardsReader,
+) -> list[dict[str, Any]]:
+    node_id = planning.get("active_definition_node")
+    if not node_id:
+        workflow_id = _task_workflow_id(task)
+        if workflow_id:
+            node_id = resolve_activated_definition_node(reader, workflow_id)
+    if not node_id:
+        for candidate in task.active_nodes:
+            try:
+                if str(reader.load(candidate).metadata.get("type", "")) == "definition":
+                    node_id = candidate
+                    break
+            except FileNotFoundError:
+                continue
+    if not node_id:
+        return []
+    return build_activated_node_blocks(reader, str(node_id))
+
+
+def _path_calculation_preview_blocks(
+    task: Task,
+    planning: dict[str, Any],
+    reader: StandardsReader,
+) -> list[dict[str, Any]]:
+    """After path expansion, preview the selected calculation node's governing equation."""
+    if task.outputs.get("required_thickness") is not None or task.outputs.get("t") is not None:
+        return []
+
+    path = planning.get("path_decision") or {}
+    if not isinstance(path, dict):
+        return []
+    selected_node = path.get("selected_node")
+    if not selected_node:
+        return []
+
+    reference = _NODE_REFERENCES.get(str(selected_node))
+    blocks: list[dict[str, Any]] = []
+    if reference:
+        blocks.append(_path_preview_intro_block(str(selected_node), reference))
+
+    context = load_equation_context(reader, str(selected_node))
+    display = context.get("display")
+    if display:
+        resolved = resolve_equation_display_variables(reader, str(selected_node))
+        definition_overrides = definitions_from_equation_variables(resolved.get("variables"))
+        equation_block: dict[str, Any] = {
+            "id": f"path-preview-equation-{selected_node}",
+            "type": "equation",
+            "title": None,
+            "content": _display_to_latex(str(display)),
+            "display": str(display),
+            "input_table": build_formula_inputs_input_table(
+                task,
+                definition_overrides=definition_overrides,
+            ),
+        }
+        nomenclature_reference = resolved.get("nomenclature_reference")
+        if nomenclature_reference:
+            equation_block["nomenclature_reference"] = nomenclature_reference
+
+        blocks.append(equation_block)
+
+    return blocks
+
+
+def _path_preview_intro_block(selected_node: str, reference: dict[str, str]) -> dict[str, Any]:
+    paragraph = str(reference.get("paragraph", "")).strip()
+    excerpt = str(reference.get("excerpt", "")).strip().rstrip(".")
+    label = f"§{paragraph}" if paragraph else selected_node
+    return {
+        "id": f"path-preview-intro-{selected_node}",
+        "type": "text",
+        "title": None,
+        "content": f"{excerpt} based on",
+        "content_suffix": " with the following equation:",
+        "variant": "body",
+        "reference_links": [
+            {
+                "node_id": selected_node,
+                "label": label,
+                "paragraph": paragraph or None,
+            }
+        ],
+        "reference_links_placement": "inline",
+    }
 
 
 def _task_workflow_id(task: Task) -> str:
@@ -322,59 +443,6 @@ def _intermediate_graph_block(trace: list[Any]) -> dict[str, Any] | None:
         "y_label": "SI value",
         "series": [{"name": "Values", "points": points}],
     }
-
-
-def _preview_blocks_for_pipe_workflow(task: Task, planning: dict[str, Any]) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
-
-    if task.outputs.get("required_thickness") is None and task.outputs.get("t") is None:
-        blocks.append(
-            {
-                "id": "preview-equation",
-                "type": "equation",
-                "title": "Governing equation",
-                "content": _display_to_latex(_WALL_THICKNESS_FORMULA),
-                "display": _WALL_THICKNESS_FORMULA,
-                "variables": [
-                    {"symbol": "P", "name": "Design pressure"},
-                    {"symbol": "D", "name": "Outside diameter"},
-                    {"symbol": "S", "name": "Allowable stress"},
-                    {"symbol": "E", "name": "Joint efficiency"},
-                    {"symbol": "W", "name": "Weld strength reduction"},
-                    {"symbol": "Y", "name": "Temperature coefficient"},
-                ],
-            }
-        )
-
-        missing = list(planning.get("missing_inputs") or [])
-        if missing:
-            blocks.append(
-                {
-                    "id": "preview-inputs-table",
-                    "type": "table",
-                    "title": "Inputs still required",
-                    "columns": [
-                        {"key": "parameter", "label": "Parameter", "sortable": True},
-                        {"key": "status", "label": "Status", "sortable": True},
-                    ],
-                    "rows": [{"parameter": item, "status": "pending"} for item in missing],
-                    "searchable": True,
-                }
-            )
-
-        blocks.append(
-            {
-                "id": "preview-reference",
-                "type": "reference",
-                "title": "Straight Pipe Under Internal Pressure",
-                "standard": "ASME B31.3",
-                "paragraph": "304.1.2",
-                "excerpt": _NODE_REFERENCES["B313-304.1.2"]["excerpt"],
-                "source_node": "B313-304.1.2",
-            }
-        )
-
-    return blocks
 
 
 def _variable_rows(calculation: dict[str, Any], outputs: dict[str, Any]) -> list[dict[str, Any]]:

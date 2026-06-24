@@ -1,32 +1,42 @@
 import { create } from 'zustand'
 
-const MIN_PANEL_WIDTH = 200
-const MAX_PANEL_WIDTH = 480
-const DEFAULT_LEFT_WIDTH = 260
-const DEFAULT_RIGHT_WIDTH = 320
+import {
+  clampLeftPanelWidth,
+  clampRightPanelWidth,
+  DEFAULT_LEFT_WIDTH,
+  DEFAULT_RIGHT_WIDTH,
+  MIN_PANEL_WIDTH,
+} from '@/utils/panelLayout'
 
 interface UiState {
   leftWidth: number
   rightWidth: number
+  maxRightWidth: number
   leftCollapsed: boolean
   rightCollapsed: boolean
   setLeftWidth: (width: number) => void
-  setRightWidth: (width: number) => void
+  setRightWidth: (width: number, maxWidth?: number) => void
+  setMaxRightWidth: (maxWidth: number) => void
   toggleLeftCollapsed: () => void
   toggleRightCollapsed: () => void
 }
 
-function clampPanelWidth(width: number): number {
-  return Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, width))
-}
-
-export const useUiStore = create<UiState>((set) => ({
+export const useUiStore = create<UiState>((set, get) => ({
   leftWidth: DEFAULT_LEFT_WIDTH,
   rightWidth: DEFAULT_RIGHT_WIDTH,
+  maxRightWidth: MIN_PANEL_WIDTH,
   leftCollapsed: false,
   rightCollapsed: false,
-  setLeftWidth: (width) => set({ leftWidth: clampPanelWidth(width) }),
-  setRightWidth: (width) => set({ rightWidth: clampPanelWidth(width) }),
+  setLeftWidth: (width) => set({ leftWidth: clampLeftPanelWidth(width) }),
+  setMaxRightWidth: (maxWidth) => {
+    const nextMax = Math.max(MIN_PANEL_WIDTH, maxWidth)
+    const rightWidth = clampRightPanelWidth(get().rightWidth, nextMax)
+    set({ maxRightWidth: nextMax, rightWidth })
+  },
+  setRightWidth: (width, maxWidth) => {
+    const limit = maxWidth ?? get().maxRightWidth
+    set({ rightWidth: clampRightPanelWidth(width, limit) })
+  },
   toggleLeftCollapsed: () => set((state) => ({ leftCollapsed: !state.leftCollapsed })),
   toggleRightCollapsed: () => set((state) => ({ rightCollapsed: !state.rightCollapsed })),
 }))

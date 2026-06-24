@@ -18,14 +18,16 @@ modified: "2026-06-19"
 paragraph: "304.1.1"
 section: "304 Pressure Design of Components"
 topic: pipe_wall_thickness
+display_heading: >
+  Calculation of Minimum Required Thickness of a straight section pipe
+  (according to ASME B 31.3 paragraph 304.1.1)
 
 # ==========================================
 # Purpose
 # ==========================================
 
 purpose: >
-  Establish the minimum required thickness relationship (eq. 2) and the
-  nomenclature used in pressure design equations for straight pipe.
+  Establish the minimum required thickness for straight sectioned pipe according to ASME B31.3.
 engineering_intent: pipe_wall_thickness_design
 
 # ==========================================
@@ -52,7 +54,7 @@ assumptions:
   - id: straight_pipe_section
     field: straight_pipe_section
     description: >
-      Pipe wall thickness applies to a straight section of pipe.
+      Applied to a straight section of a pipe.
     required_for_expansion: true
     requires_confirmation: true
     allowed_values: [true, false]
@@ -163,15 +165,17 @@ nomenclature:
     references:
       - paragraph: "304.1.1(b)"
       - table: "Table A-1A"
-        file: nodes/B313-appendix_A/tables/A-1A.yaml
+        table_id: A-1A
+        node_id: B313-table-A-1A
       - table: "Table A-1B"
-        file: nodes/B313-appendix_A/tables/A-1B.yaml
+        table_id: A-1B
+        node_id: B313-table-A-1B
     resolution:
       - method: table_lookup
         keys: [material, joint_category]
         tables:
-          - nodes/B313-appendix_A/tables/A-1A.yaml
-          - nodes/B313-appendix_A/tables/A-1B.yaml
+          - A-1A
+          - A-1B
 
   - symbol: P
     input_id: design_pressure
@@ -190,7 +194,8 @@ nomenclature:
     references:
       - paragraph: "304.1.1(b)"
       - table: "Table A-1"
-        file: nodes/B313-appendix_A/tables/A-1.yaml
+        table_id: A-1
+        node_id: B313-table-A-1
       - node_id: B313-material-stress
 
   - symbol: T
@@ -231,8 +236,8 @@ nomenclature:
     resolution:
       method: table_lookup
       keys: [material, design_temperature, weld_joint_category]
-      table: nodes/B313-302.3.5/tables/302.3.5.yaml
-      node_id: B313-302.3.5
+      table_id: "302.3.5"
+      node_id: B313-table-302-3-5
       subsection: e
 
   - symbol: Y
@@ -244,11 +249,12 @@ nomenclature:
     references:
       - paragraph: "304.1.1(b)"
       - table: "Table 304.1.1"
-        file: nodes/B313-304.1.1/tables/table_304_1_1.yaml
+        table_id: table_304_1_1
+        node_id: B313-table-304-1-1
     resolution:
       - when: { field: thin_wall, in: [true] }
         method: table_lookup
-        table: nodes/B313-304.1.1/tables/table_304_1_1.yaml
+        table_id: table_304_1_1
         key: design_temperature
         interpolation: true
       - when: { field: thin_wall, in: [false] }
@@ -314,14 +320,17 @@ ai_hints:
 
 ---
 
-# Standard Paragraph Content
+# ASME B31.3 Paragraph 304.1.1
 
 ## (a)
 
 The required thickness of straight sections of pipe shall be determined in accordance with eq. (2):
 
 ```
+$$
 t_m = t + c
+\tag{2}
+$$
 ```
 
 The minimum thickness, **T**, for the pipe selected, considering manufacturer's minus tolerance, shall be not less than **t_m**.
@@ -330,19 +339,21 @@ The minimum thickness, **T**, for the pipe selected, considering manufacturer's 
 
 The following nomenclature is used in the equations for pressure design of straight pipe:
 
-| Symbol  | Description                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **c**   | sum of the mechanical allowances (thread or<br>groove depth) plus corrosion and erosion<br>allowances. For threaded components, the<br>nominal thread depth (dimension h of<br>ASME B1.20.1, or equivalent) shall apply. For<br>machined surfaces or grooves where the tolerance<br>is not specified, the tolerance shall be<br>assumed to be 0.5 mm (0.02 in.) in addition to<br>the specified depth of the cut. |
-| **D**   | outside diameter of pipe as listed in tables of<br>standards or specifications or as measured                                                                                                                                                                                                                                                                                                                     |
-| **d**   | inside diameter of pipe. For pressure design<br>calculation, the inside diameter of the pipe is the maximum value allowable under the purchase<br>specification.                                                                                                                                                                                                                                                  |
-| **E**   | quality factor from Table A-1A or Table A-1B                                                                                                                                                                                                                                                                                                                                                                      |
-| **P**   | internal design gage pressure                                                                                                                                                                                                                                                                                                                                                                                     |
-| **S**   | stress value for material from Table A-1                                                                                                                                                                                                                                                                                                                                                                          |
-| **T**   | pipe wall thickness (measured or minimum in<br>accordance with the purchase specification)                                                                                                                                                                                                                                                                                                                        |
-| **t**   | pressure design thickness, as calculated in<br>accordance with para. 304.1.2 for internal pressure<br>or as determined in accordance with<br>para. 304.1.3 for external pressure                                                                                                                                                                                                                                  |
-| **t_m** | minimum required thickness, including<br>mechanical, corrosion, and erosion allowances                                                                                                                                                                                                                                                                                                                            |
-| **W**   | weld joint strength reduction factor in accordance<br>with para. 302.3.5(e)                                                                                                                                                                                                                                                                                                                                       |
-| **Y**   | coefficient from Table 304.1.1, valid for t < D/6 and for materials shown. The value of Y may be interpolated for intermediate temperatures. For t ≥ D/6: Y=(d + 2c)/(D + d + 2c)                                                                                                                                                                                                                                 |
+
+| Symbol  | Description                                                                                                                                                                                                                                                                                                                                                                               |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **c**   | sum of the mechanical allowances (thread or groove depth) plus corrosion and erosion allowances. For threaded components, the nominal thread depth (dimension h of ASME B1.20.1, or equivalent) shall apply. For machined surfaces or grooves where the tolerance is not specified, the tolerance shall be assumed to be 0.5 mm (0.02 in.) in addition to the specified depth of the cut. |
+| **D**   | outside diameter of pipe as listed in tables of standards or specifications or as measured                                                                                                                                                                                                                                                                                                |
+| **d**   | inside diameter of pipe. For pressure design calculation, the inside diameter of the pipe is the maximum value allowable under the purchase specification.                                                                                                                                                                                                                                |
+| **E**   | quality factor from [Table A-1A](table:table_b31_3_A-1A) or [Table A-1B](table:A-1B)                                                                                                                                                                                                                                                                                            |
+| **P**   | internal design gage pressure                                                                                                                                                                                                                                                                                                                                                             |
+| **S**   | stress value for material from Table A-1                                                                                                                                                                                                                                                                                                                                                  |
+| **T**   | pipe wall thickness (measured or minimum in accordance with the purchase specification)                                                                                                                                                                                                                                                                                                   |
+| **t**   | pressure design thickness, as calculated in accordance with para. 304.1.2 for internal pressure or as determined in accordance with para. 304.1.3 for external pressure                                                                                                                                                                                                                   |
+| **t_m** | minimum required thickness, including mechanical, corrosion, and erosion allowances                                                                                                                                                                                                                                                                                                       |
+| **W**   | weld joint strength reduction factor in accordance with para. 302.3.5(e)                                                                                                                                                                                                                                                                                                                  |
+| **Y**   | coefficient from Table 304.1.1, valid for t < D/6 and for materials shown. The value of Y may be interpolated for intermediate temperatures. For t ≥ D/6: Y=(d + 2c)/(D + d + 2c)                                                                                                                                                                                                         |
+
 
 ---
 
@@ -356,6 +367,7 @@ The selected pipe wall thickness **T** must account for manufacturing under-tole
 
 # Related Provisions
 
-- for internally pressurized pipes the minimum pipe thickness **t** is calculated in node `B313-304.1.2` (§304.1.2).
-- For externally pressurized pipes the minimum pipe wall thickness **t** is calculated in node B313-304.1.3 (§304.1.3).
-- Allowable stress **S** is obtained from `B313-material-stress` (Table A-1).
+- for internally pressurized pipes the minimum pipe thickness **t** is calculated in [§304.1.2](node:B313-304.1.2).
+- For externally pressurized pipes the minimum pipe wall thickness **t** is calculated in [§304.1.3](node:B313-304.1.3).
+- Allowable stress **S** is obtained from [Table A-1](node:B313-material-stress).
+

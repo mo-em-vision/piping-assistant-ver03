@@ -75,16 +75,20 @@ def build_phased_navigation(
         result.questions = result.block_messages[:1] or ["Workflow path is blocked."]
         return result
 
-    phase1 = [
-        field_id
-        for field_id in assumption_eval.missing_fields + expansion_eval.missing_fields
-        if field_id in _PHASE1_FIELDS
-    ]
-    phase2 = [
-        field_id
-        for field_id in assumption_eval.missing_fields + expansion_eval.missing_fields
-        if field_id in _PHASE2_FIELDS
-    ]
+    phase1 = list(
+        dict.fromkeys(
+            field_id
+            for field_id in assumption_eval.missing_fields + expansion_eval.missing_fields
+            if field_id in _PHASE1_FIELDS
+        )
+    )
+    phase2 = list(
+        dict.fromkeys(
+            field_id
+            for field_id in assumption_eval.missing_fields + expansion_eval.missing_fields
+            if field_id in _PHASE2_FIELDS
+        )
+    )
 
     phase3 = _ordered_missing(user_inputs, _PHASE3_ORDER)
     phase4_source = [

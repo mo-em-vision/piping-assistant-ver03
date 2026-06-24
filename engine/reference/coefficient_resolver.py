@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import yaml
+from engine.reference.pack_tables_db import resolve_pack_tables_db
+from engine.reference.standards_tables import StandardsTablesDatabase
 
 
 def interpolate_by_temperature(
@@ -64,11 +65,15 @@ def interpolate_by_temperature(
     return value, {"design_temperature": temperature_f, value_key: value}, True
 
 
-def _load_table(pack_root: Path, table_rel: str) -> dict[str, Any]:
-    table_path = pack_root / table_rel
-    if not table_path.exists():
-        raise FileNotFoundError(f"Lookup table not found: {table_path}")
-    return yaml.safe_load(table_path.read_text(encoding="utf-8")) or {}
+def _tables_db(pack_root: Path) -> StandardsTablesDatabase:
+    return StandardsTablesDatabase(resolve_pack_tables_db(pack_root))
+
+
+def _load_table(pack_root: Path, table_ref: str) -> dict[str, Any]:
+    data = _tables_db(pack_root).get_table(table_ref)
+    if data is None:
+        raise FileNotFoundError(f"Lookup table not found: {table_ref}")
+    return data
 
 
 def _normalize_material(material: str) -> str:
@@ -106,7 +111,7 @@ def lookup_y_coefficient(
     design_temperature_unit: str = "F",
 ) -> tuple[float, bool]:
     """Return Y from Table 304.1.1 at design temperature."""
-    table_data = _load_table(pack_root, "nodes/B313-304.1.1/tables/table_304_1_1.yaml")
+    table_data = _load_table(pack_root, "table_304_1_1")
     temp_f = temperature_to_fahrenheit(design_temperature, design_temperature_unit)
     rows = table_data.get("rows", []) or []
     interpolate = bool(table_data.get("interpolation", True))
@@ -142,11 +147,8 @@ def lookup_quality_factor(
     """Look up E from Tables A-1A and A-1B by material and joint category."""
     material_key = _normalize_material(material)
     category = joint_category.strip().lower().replace("-", "_")
-    for table_rel in (
-        "nodes/B313-appendix_A/tables/A-1A.yaml",
-        "nodes/B313-appendix_A/tables/A-1B.yaml",
-    ):
-        table_data = _load_table(pack_root, table_rel)
+    for table_ref in ("A-1A", "A-1B"):
+        table_data = _load_table(pack_root, table_ref)
         for row in table_data.get("rows", []) or []:
             row_material = _normalize_material(str(row.get("material", "")))
             row_category = str(row.get("joint_category", "")).strip().lower().replace("-", "_")
@@ -165,7 +167,7 @@ def lookup_w_factor(
 ) -> float | None:
     """Look up W from Table 302.3.5 when rows are available; otherwise return 1.0."""
     try:
-        table_data = _load_table(pack_root, "nodes/B313-302.3.5/tables/302.3.5.yaml")
+        table_data = _load_table(pack_root, "302.3.5")
     except FileNotFoundError:
         return None
     rows = table_data.get("rows", []) or []
@@ -240,11 +242,14 @@ def propose_coefficient_defaults(
     if material is not None and joint_category is not None:
         mat_value = material.value if hasattr(material, "value") else material
         cat_value = joint_category.value if hasattr(joint_category, "value") else joint_category
-        e_value = lookup_quality_factor(
-            pack_root,
-            material=str(mat_value),
-            joint_category=str(cat_value),
-        )
+        try:
+            e_value = lookup_quality_factor(
+                pack_root,
+                material=str(mat_value),
+                joint_category=str(cat_value),
+            )
+        except (ValueError, FileNotFoundError):
+            e_value = None
         if e_value is not None:
             proposed["weld_joint_efficiency"] = (
                 e_value,
@@ -260,13 +265,16 @@ def propose_coefficient_defaults(
             cat_value = (
                 joint_category.value if hasattr(joint_category, "value") else joint_category
             )
-        w_value = lookup_w_factor(
-            pack_root,
-            material=str(mat_value),
-            design_temperature=float(raw_temp),
-            design_temperature_unit=str(temp_unit or "F"),
-            weld_joint_category=str(cat_value),
-        )
+        try:
+            w_value = lookup_w_factor(
+                pack_root,
+                material=str(mat_value),
+                design_temperature=float(raw_temp),
+                design_temperature_unit=str(temp_unit or "F"),
+                weld_joint_category=str(cat_value),
+            )
+        except (ValueError, FileNotFoundError):
+            w_value = None
         if w_value is not None:
             proposed["weld_strength_reduction"] = (
                 w_value,

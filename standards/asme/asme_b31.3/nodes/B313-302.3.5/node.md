@@ -59,7 +59,8 @@ subsections:
         required: true
         references:
           - table: "Table A-1"
-            file: nodes/B313-appendix_A/tables/A-1.yaml
+            table_id: A-1
+            node_id: B313-table-A-1
 
   - id: d
     label: "(d)"
@@ -157,7 +158,8 @@ subsections:
       - Allowable displacement stress range S_A in para. 302.3.5(d).
     references:
       - table: "Table 302.3.5"
-        file: nodes/B313-302.3.5/tables/302.3.5.yaml
+        table_id: "302.3.5"
+        node_id: B313-table-302-3-5
       - paragraph: "304"
       - paragraph: "302.2.4"
       - subsection: d

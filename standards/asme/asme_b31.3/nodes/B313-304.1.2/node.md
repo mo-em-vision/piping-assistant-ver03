@@ -331,7 +331,7 @@ ai_hints:
 
 ---
 
-# Standard Paragraph Content
+# ASME B31.3 Paragraph 304.1.2
 
 ## Paragraph Text
 
@@ -341,7 +341,6 @@ equation 3b: t = P(d+2c)/2(SEW - P(1-Y))
 
 (b) For t ≥ D/6 or for P/SE > 0.385, calculation of pressure design thickness for straight pipe requires special consideration of factors such as theory of failure,
 effects of fatigue, and thermal stress.
-
 
 ---
 
@@ -385,3 +384,4 @@ t = PD / 2(SEW + PY)
 - All calculation inputs are converted to SI units before execution; original user units are preserved for traceability.
 - Intermediate values are not rounded during execution.
 - Refer to `B313-304.1.1` for symbol definitions and the t_m = t + c relationship.
+

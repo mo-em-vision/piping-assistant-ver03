@@ -1,0 +1,39 @@
+.table-reference-tab__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.table-reference-tab__meta {
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.table-reference-tab__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.table-reference-tab__table th,
+.table-reference-tab__table td {
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.table-reference-tab__table th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #475569;
+  background: #f8fafc;
+}
+
+.table-reference-tab__table td {
+  color: #334155;
+}

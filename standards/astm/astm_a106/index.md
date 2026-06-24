@@ -6,7 +6,7 @@ Seamless carbon steel pipe material properties per **ASTM A106/A106M**.
 
 | Table | Description |
 |-------|-------------|
-| [tables/material_properties.yaml](tables/material_properties.yaml) | Grades A, B, C — chemical limits and minimum mechanical properties |
+| `standards_tables.db` | Grades A, B, C — chemical limits and minimum mechanical properties (`astm_a106_material_properties`) |
 
 ## Grades
 

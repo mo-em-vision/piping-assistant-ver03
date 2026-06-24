@@ -2,11 +2,21 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from api.error_catalog import enrich_api_error_payload
+from api.node_context import active_node_context_for_task
 from api.output_blocks import build_display_outputs
 from api.parameter_definitions import build_parameter_definitions
+from api.parameter_edit import active_edit_parameter, is_timeline_parameter_editable
+from api.workflow_timeline import (
+    collect_all_missing,
+    pipe_wall_input_step_done,
+    pipe_wall_step_title,
+    revealed_pipe_wall_input_ids,
+)
+from engine.reference.standards_reader import StandardsReader
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
 from models.task import Task, TaskStatus
@@ -109,9 +119,24 @@ def _format_display_value(value: Any, unit: str | None) -> str | None:
 
 def _input_display(task: Task, input_id: str) -> str | None:
     engineering_input = task.inputs.get(input_id)
+    if engineering_input is None and input_id == "allowable_stress":
+        stress = task.outputs.get("allowable_stress") or task.outputs.get("S")
+        if stress is not None:
+            return _format_display_value(stress, "MPa")
+        return None
     if engineering_input is None:
         return None
+    if input_id == "pressure_loading":
+        return _pressure_loading_report_value(engineering_input.value)
     return _format_display_value(engineering_input.value, engineering_input.unit)
+
+
+def _pressure_loading_report_value(value: Any) -> str:
+    if value == "internal_pressure":
+        return "The pipe is internally pressurized."
+    if value == "external_pressure":
+        return "The pipe is externally pressurized."
+    return str(value).replace("_", " ").capitalize()
 
 
 def _step(
@@ -123,6 +148,7 @@ def _step(
     unit: str | None = None,
     display_value: str | None = None,
     hint: str | None = None,
+    editable: bool = False,
 ) -> dict[str, Any]:
     return {
         "id": step_id,
@@ -132,98 +158,126 @@ def _step(
         "unit": unit,
         "display_value": display_value,
         "hint": hint,
+        "editable": editable,
     }
 
 
 def _build_pipe_wall_timeline(task: Task, planning: dict[str, Any]) -> list[dict[str, Any]]:
-    missing_inputs = set(planning.get("missing_inputs") or [])
-    missing_assumptions = set(planning.get("missing_assumptions") or [])
+    phase_missing = planning.get("phase_missing") or {}
+    phase_questions = planning.get("phase_questions") or {}
+    current_phase = str(planning.get("current_phase") or "")
 
-    material_done = "material" in task.inputs and "material" not in missing_inputs
-    pressure_done = "design_pressure" in task.inputs and "design_pressure" not in missing_inputs
+    all_missing = collect_all_missing(planning)
+
+    revealed_inputs = revealed_pipe_wall_input_ids(task, planning)
+    ordered_steps: list[tuple[str, str]] = [
+        (step_id, pipe_wall_step_title(step_id)) for step_id in revealed_inputs
+    ]
+    ordered_steps.extend(
+        [
+            ("thickness", pipe_wall_step_title("thickness")),
+            ("report", pipe_wall_step_title("report")),
+        ]
+    )
+
     thickness_output = task.outputs.get("required_thickness") or task.outputs.get("thickness")
     thickness_done = thickness_output is not None
     report_done = task.status == TaskStatus.COMPLETED
 
     timeline: list[dict[str, Any]] = []
+    active_assigned = False
+    editing_parameter = active_edit_parameter(task)
 
-    if material_done:
-        material_status = "done"
-        material_hint = None
-    elif "material" in missing_inputs:
-        material_status = "active"
-        material_hint = "Waiting for material selection"
-    else:
-        material_status = "pending"
-        material_hint = None
+    for step_id, title in ordered_steps:
+        if step_id == "thickness":
+            if thickness_done:
+                status = "done"
+                hint = None
+                display_value = _format_display_value(thickness_output, task.outputs.get("thickness_unit"))
+            elif not active_assigned and current_phase not in {
+                "expansion_assumptions",
+                "path_decisions",
+            }:
+                status = "active"
+                hint = "Waiting for thickness calculation"
+                display_value = None
+                active_assigned = True
+            else:
+                status = "pending"
+                hint = None
+                display_value = None
+        elif step_id == "report":
+            if report_done:
+                status = "done"
+                hint = None
+            elif thickness_done:
+                status = "active"
+                hint = "Generate the engineering report"
+            else:
+                status = "pending"
+                hint = "Available after calculation completes"
+            display_value = None
+        else:
+            if editing_parameter and step_id == editing_parameter:
+                status = "active"
+                hint = "Update this value in the workflow composer."
+                display_value = _input_display(task, step_id)
+                active_assigned = True
+            else:
+                input_done = pipe_wall_input_step_done(task, step_id, all_missing)
+                if input_done:
+                    status = "done"
+                    hint = None
+                    display_value = _input_display(task, step_id)
+                elif not active_assigned:
+                    status = "active"
+                    hint = _step_hint(step_id, phase_missing, phase_questions, current_phase)
+                    display_value = None
+                    active_assigned = True
+                else:
+                    status = "pending"
+                    hint = None
+                    display_value = None
 
-    timeline.append(
-        _step(
-            step_id="material",
-            title="Material",
-            status=material_status,
-            display_value=_input_display(task, "material"),
-            hint=material_hint,
+        timeline.append(
+            _step(
+                step_id=step_id,
+                title=title,
+                status=status,
+                display_value=display_value,
+                hint=hint,
+                editable=(
+                    status == "done"
+                    and is_timeline_parameter_editable(task, step_id)
+                    and step_id != editing_parameter
+                ),
+            )
         )
-    )
-
-    if pressure_done:
-        pressure_status = "done"
-        pressure_hint = None
-    elif "design_pressure" in missing_inputs:
-        pressure_status = "active" if material_done else "pending"
-        pressure_hint = "Waiting for design pressure"
-    else:
-        pressure_status = "pending"
-        pressure_hint = None
-
-    timeline.append(
-        _step(
-            step_id="design_pressure",
-            title="Pressure",
-            status=pressure_status,
-            display_value=_input_display(task, "design_pressure"),
-            hint=pressure_hint,
-        )
-    )
-
-    if thickness_done:
-        thickness_status = "done"
-        thickness_hint = None
-        thickness_display = _format_display_value(thickness_output, task.outputs.get("thickness_unit"))
-    elif material_done and pressure_done and not missing_assumptions:
-        thickness_status = "active"
-        thickness_hint = "Waiting for thickness calculation"
-        thickness_display = None
-    elif material_done and pressure_done:
-        thickness_status = "active"
-        thickness_hint = "Complete remaining assumptions before calculation"
-        thickness_display = None
-    else:
-        thickness_status = "pending"
-        thickness_hint = None
-        thickness_display = None
-
-    timeline.append(
-        _step(
-            step_id="thickness",
-            title="Thickness",
-            status=thickness_status,
-            display_value=thickness_display,
-            hint=thickness_hint,
-        )
-    )
-
-    timeline.append(
-        _step(
-            step_id="report",
-            title="Report",
-            status="done" if report_done else "pending",
-            hint=None if report_done else "Available after calculation completes",
-        )
-    )
 
     return timeline
+
+
+def _step_hint(
+    step_id: str,
+    phase_missing: dict[str, Any],
+    phase_questions: dict[str, Any],
+    current_phase: str,
+) -> str | None:
+    if isinstance(phase_missing, dict):
+        for phase, fields in phase_missing.items():
+            if isinstance(fields, list) and step_id in fields:
+                questions = phase_questions.get(phase) if isinstance(phase_questions, dict) else None
+                if isinstance(questions, list):
+                    index = fields.index(step_id)
+                    if index < len(questions):
+                        return str(questions[index])
+    if step_id == "pressure_loading":
+        return "Specify whether the pipe is internally or externally pressurized."
+    if step_id == "material":
+        return "Waiting for material selection"
+    if step_id == "design_pressure":
+        return "Waiting for design pressure"
+    return None
 
 
 def _build_progress_steps(task: Task, planning: dict[str, Any]) -> list[dict[str, Any]]:
@@ -252,8 +306,19 @@ def _build_progress_steps(task: Task, planning: dict[str, Any]) -> list[dict[str
             )
         )
 
-    report_status = "done" if task.status == TaskStatus.COMPLETED else "pending"
-    steps.append(_step(step_id="report", title="Report", status=report_status))
+    report_status = "pending"
+    if task.status == TaskStatus.COMPLETED:
+        report_status = "done"
+    elif steps and all(step["status"] == "done" for step in steps):
+        report_status = "active"
+    steps.append(
+        _step(
+            step_id="report",
+            title="Report",
+            status=report_status,
+            hint=None if report_status != "pending" else "Available after calculation completes",
+        )
+    )
     return steps
 
 
@@ -274,7 +339,13 @@ def task_summary(task: Task) -> dict[str, Any]:
     }
 
 
-def task_state(task: Task, manager: TaskStateManager) -> dict[str, Any]:
+def task_state(
+    task: Task,
+    manager: TaskStateManager,
+    *,
+    standards_root: Path | None = None,
+    reader: StandardsReader | None = None,
+) -> dict[str, Any]:
     workflow_id = _task_workflow_id(task)
     meta = _workflow_meta(workflow_id)
     planning = task.outputs.get("planning_summary") or {}
@@ -289,6 +360,10 @@ def task_state(task: Task, manager: TaskStateManager) -> dict[str, Any]:
 
     completed = sum(1 for step in timeline if step["status"] == "done")
     active = next((step for step in timeline if step["status"] == "active"), None)
+
+    resolved_standards_root = standards_root or (Path(__file__).resolve().parent.parent / "standards")
+    resolved_reader = reader or StandardsReader(resolved_standards_root, standard="asme_b31.3")
+    active_node_context = active_node_context_for_task(task, resolved_reader)
 
     return {
         "task_id": task.task_id,
@@ -312,7 +387,12 @@ def task_state(task: Task, manager: TaskStateManager) -> dict[str, Any]:
         "outputs": dict(task.outputs),
         "warnings": list(task.warnings),
         "parameters": build_parameter_definitions(task),
-        "display_outputs": build_display_outputs(task),
+        "display_outputs": build_display_outputs(
+            task,
+            standards_root=resolved_standards_root,
+            reader=resolved_reader,
+        ),
+        "active_node_context": active_node_context,
         "options": {
             "available_workflows": [item for item in WORKFLOW_CATALOG if item["available"]],
         },

@@ -1,0 +1,265 @@
+"""Build equation input tables and variable substitution for display blocks."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from engine.messaging.formula_parameter_prompt import classify_formula_parameters
+from engine.reference.standards_reader import StandardsReader
+from models.input import EngineeringInput, InputStatus
+from models.task import Task
+
+_HIDDEN_UNITS = frozenset({"dimensionless", ""})
+
+FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str, str], ...] = (
+    ("material", "", "Design material"),
+    ("design_pressure", "P", "Design pressure"),
+    ("design_temperature", "T", "Design temperature"),
+    ("nominal_pipe_size", "NPS", "Nominal pipe size"),
+    ("outside_diameter", "D", "Outside diameter"),
+    ("allowable_stress", "S", "Allowable stress"),
+    ("weld_joint_efficiency", "E", "Joint efficiency"),
+    ("weld_strength_reduction", "W", "Weld strength reduction"),
+    ("temperature_coefficient", "Y", "Temperature coefficient"),
+)
+
+FORMULA_INPUT_STEP_IDS = frozenset(row[0] for row in FORMULA_INPUT_DISPLAY_ROWS)
+
+_SYMBOL_TO_INPUT_ID: dict[str, str] = {
+    "P": "design_pressure",
+    "D": "outside_diameter",
+    "NPS": "nominal_pipe_size",
+    "S": "allowable_stress",
+    "E": "weld_joint_efficiency",
+    "W": "weld_strength_reduction",
+    "Y": "temperature_coefficient",
+    "T": "design_temperature",
+    "c": "corrosion_allowance",
+}
+
+AWAITING_USER_INPUT = "Awaiting user input"
+
+PRIMARY_FORMULA_INPUT_IDS = frozenset(
+    {"material", "design_pressure", "design_temperature"},
+)
+
+
+def _format_scalar(value: object) -> str:
+    return str(value)
+
+
+def _format_unit_for_display(unit: str) -> str:
+    normalized = unit.strip().lower()
+    if normalized == "c":
+        return "°C"
+    if normalized == "f":
+        return "°F"
+    if normalized == "k":
+        return "K"
+    return unit
+
+
+def _input_has_displayable_value(engineering_input: EngineeringInput) -> bool:
+    if engineering_input.value is None:
+        return False
+    if engineering_input.status == InputStatus.PROPOSED_DEFAULT:
+        return False
+    return True
+
+
+def _input_display_value_from_input(task: Task, input_id: str) -> str | None:
+    engineering_input = task.inputs.get(input_id)
+    if engineering_input is not None and _input_has_displayable_value(engineering_input):
+        value = engineering_input.value
+        unit = engineering_input.unit
+        if unit and unit not in _HIDDEN_UNITS:
+            return f"{_format_scalar(value)} {_format_unit_for_display(unit)}"
+        return _format_scalar(value)
+
+    return None
+
+
+def _joint_category_label(task: Task) -> str | None:
+    engineering_input = task.inputs.get("joint_category")
+    if engineering_input is None or not _input_has_displayable_value(engineering_input):
+        return None
+    raw = str(engineering_input.value).strip()
+    if not raw:
+        return None
+    return raw.replace("_", " ").replace("-", " ")
+
+
+def _d_input_mode(task: Task) -> str:
+    mode_input = task.inputs.get("d_input_mode")
+    if mode_input is not None and _input_has_displayable_value(mode_input):
+        return str(mode_input.value)
+    return "nps_lookup"
+
+
+def _uses_nps_for_outside_diameter(task: Task) -> bool:
+    if _d_input_mode(task) == "direct_od":
+        return False
+    if isinstance(task.outputs.get("outside_diameter_lookup"), dict):
+        return True
+    return _d_input_mode(task) == "nps_lookup"
+
+
+def _nps_display_label(task: Task) -> str | None:
+    nps_input = task.inputs.get("nominal_pipe_size")
+    if nps_input is not None and _input_has_displayable_value(nps_input):
+        original = nps_input.original_value
+        if original is not None and str(original).strip():
+            return str(original).strip()
+        return str(nps_input.value).strip()
+
+    lookup = task.outputs.get("outside_diameter_lookup")
+    if isinstance(lookup, dict) and lookup.get("nps"):
+        return str(lookup["nps"]).strip()
+
+    return None
+
+
+def _skip_formula_input_row(task: Task, input_id: str) -> bool:
+    """NPS is collected in the workflow composer and folded into the D row when used."""
+    return input_id == "nominal_pipe_size"
+
+
+def _row_definition(
+    task: Task,
+    input_id: str,
+    default_definition: str,
+    overrides: dict[str, str],
+) -> str:
+    definition = overrides.get(input_id, default_definition)
+    if input_id == "outside_diameter" and _uses_nps_for_outside_diameter(task):
+        if "(NPS:" not in definition:
+            nps_label = _nps_display_label(task)
+            if nps_label:
+                return f"{definition} (NPS: {nps_label})"
+    return definition
+
+
+def _input_display_value(task: Task, input_id: str) -> str | None:
+    if input_id == "allowable_stress":
+        stress = task.outputs.get("allowable_stress") or task.outputs.get("S")
+        if stress is not None:
+            unit = str(task.outputs.get("allowable_stress_unit") or task.outputs.get("S_unit") or "Pa")
+            lookup = task.outputs.get("allowable_stress_lookup")
+            if unit == "Pa":
+                display = f"{float(stress) / 1_000_000:g} MPa"
+            elif unit not in _HIDDEN_UNITS:
+                display = f"{_format_scalar(stress)} {unit}"
+            else:
+                display = _format_scalar(stress)
+            if isinstance(lookup, dict) and lookup.get("table_id"):
+                mat = lookup.get("material")
+                temp_f = lookup.get("design_temperature_f")
+                if mat is not None and temp_f is not None:
+                    interp = " (interpolated)" if lookup.get("interpolated") else ""
+                    display += f" (Table A-1, {mat} @ {temp_f:g} °F{interp})"
+            return display
+
+    if input_id == "weld_joint_efficiency":
+        display = _input_display_value_from_input(task, input_id)
+        if display:
+            joint_category = _joint_category_label(task)
+            if joint_category:
+                return f"{display} (Tables A-1A/A-1B, {joint_category})"
+        return display
+
+    return _input_display_value_from_input(task, input_id)
+
+
+def definitions_from_equation_variables(
+    variables: list[dict[str, Any]] | None,
+) -> dict[str, str]:
+    """Map input ids to nomenclature descriptions from equation variable rows."""
+    overrides: dict[str, str] = {}
+    for variable in variables or []:
+        symbol = str(variable.get("symbol", "")).strip()
+        name = str(variable.get("name", "")).strip()
+        input_id = _SYMBOL_TO_INPUT_ID.get(symbol)
+        if input_id and name:
+            overrides[input_id] = name
+    return overrides
+
+
+def build_formula_inputs_table_rows(
+    task: Task,
+    *,
+    definition_overrides: dict[str, str] | None = None,
+) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+    overrides = definition_overrides or {}
+    for input_id, symbol, default_definition in FORMULA_INPUT_DISPLAY_ROWS:
+        if _skip_formula_input_row(task, input_id):
+            continue
+        display = _input_display_value(task, input_id)
+        rows.append(
+            {
+                "symbol": symbol,
+                "definition": _row_definition(task, input_id, default_definition, overrides),
+                "value": display if display else AWAITING_USER_INPUT,
+            }
+        )
+    return rows
+
+
+def build_formula_inputs_input_table(
+    task: Task,
+    *,
+    definition_overrides: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "columns": [
+            {"key": "symbol", "label": "Symbol", "sortable": False},
+            {"key": "definition", "label": "Definition", "sortable": False},
+            {"key": "value", "label": "Value", "sortable": False},
+        ],
+        "rows": build_formula_inputs_table_rows(
+            task,
+            definition_overrides=definition_overrides,
+        ),
+    }
+
+
+def primary_formula_inputs_complete(task: Task, planning: dict[str, Any]) -> bool:
+    missing = set(planning.get("missing_inputs") or [])
+    missing.update(planning.get("missing_assumptions") or [])
+    return all(
+        input_id in task.inputs and input_id not in missing
+        for input_id in PRIMARY_FORMULA_INPUT_IDS
+    )
+
+
+def enrich_equation_variables(
+    reader: StandardsReader,
+    node_id: str,
+    task: Task,
+    planning: dict[str, Any],
+    variables: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not variables:
+        return variables
+
+    missing = list(planning.get("missing_inputs") or [])
+    known, _missing = classify_formula_parameters(
+        reader,
+        node_id,
+        task_inputs=task.inputs,
+        missing_input_ids=missing,
+    )
+    if not known:
+        return variables
+
+    known_by_symbol = {item.symbol: item.display_value for item in known}
+    enriched: list[dict[str, Any]] = []
+    for variable in variables:
+        row = dict(variable)
+        symbol = str(row.get("symbol", ""))
+        if symbol in known_by_symbol:
+            row["value"] = known_by_symbol[symbol]
+        enriched.append(row)
+    return enriched
+
+

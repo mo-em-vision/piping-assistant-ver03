@@ -16,4 +16,8 @@ Navigation only. Paragraph content lives in node folders.
 | B313-304.1.2 | Internal pressure wall thickness calculation (thin-wall) |
 | B313-304.1.3 | External pressure wall thickness (stub) |
 | B313-302.3.5 | Limits of calculated stresses, including W in subsection (e) |
-| B313-appendix_A | Appendix A tables (A-1, A-1A, A-1B sample data) |
+| B313-table-A-1 | Table A-1 allowable stress lookup |
+| B313-table-A-1A | Table A-1A quality factor lookup |
+| B313-table-A-1B | Table A-1B quality factor lookup |
+| B313-table-304-1-1 | Table 304.1.1 coefficient Y lookup |
+| B313-table-302-3-5 | Table 302.3.5 weld strength reduction lookup |

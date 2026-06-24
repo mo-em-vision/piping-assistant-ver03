@@ -8,7 +8,9 @@ from typing import Any
 
 import yaml
 
+from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_paths import list_standard_packs, resolve_standard_pack
+from engine.reference.standards_tables import StandardsTablesDatabase
 
 
 @dataclass
@@ -67,13 +69,32 @@ class StandardsReader:
         self.nodes_dir = self.pack_root / "nodes"
         self.roots_dir = self.pack_root / "roots"
         self.tables_dir = self.pack_root / "tables"
+        self.tables_db_path = resolve_pack_tables_db(self.pack_root)
+        self._tables_db = StandardsTablesDatabase(self.tables_db_path)
+        self._node_path_cache: dict[str, Path | None] = {}
+        self._node_record_cache: dict[str, NodeRecord] = {}
 
-    def load_table(self, table_rel: str) -> dict[str, Any]:
-        """Load a YAML table from the current standards pack."""
-        path = self.pack_root / table_rel
-        if not path.exists():
-            raise FileNotFoundError(f"Table not found: {path}")
-        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    @property
+    def tables_database(self) -> StandardsTablesDatabase:
+        return self._tables_db
+
+    def load_table(self, table_ref: str) -> dict[str, Any]:
+        """Load a lookup table from the pack SQLite database."""
+        data = self._tables_db.get_table(table_ref)
+        if data is None:
+            raise FileNotFoundError(f"Table not found in standards pack: {table_ref}")
+        return data
+
+    def find_table_path(self, table_id: str) -> Path | None:
+        if self._tables_db.resolve_table_id(table_id) is None:
+            return None
+        return self.tables_db_path
+
+    def load_table_by_id(self, table_id: str) -> tuple[Path, dict[str, Any]]:
+        data = self._tables_db.get_table(table_id)
+        if data is None:
+            raise FileNotFoundError(f"Table not found in standards pack: {table_id}")
+        return self.tables_db_path, data
 
     @staticmethod
     def resolve_pack(standards_root: Path, standard: str) -> Path:
@@ -84,42 +105,53 @@ class StandardsReader:
         return list_standard_packs(standards_root)
 
     def find_node_path(self, node_id: str) -> Path | None:
+        if node_id in self._node_path_cache:
+            return self._node_path_cache[node_id]
+
+        resolved: Path | None = None
         if node_id.endswith("/root") or node_id.endswith("root.md"):
             slug = node_id.replace("/root", "").replace("root.md", "").strip("/")
             if slug:
                 candidate = self.roots_dir / slug / "root.md"
                 if candidate.exists():
-                    return candidate
-        if node_id.startswith("roots/"):
+                    resolved = candidate
+        if resolved is None and node_id.startswith("roots/"):
             candidate = self.pack_root / node_id
             if candidate.suffix != ".md":
                 candidate = candidate / "root.md"
             if candidate.exists():
-                return candidate
+                resolved = candidate
 
-        if self.nodes_dir.is_dir():
+        if resolved is None and self.nodes_dir.is_dir():
             direct = self.nodes_dir / node_id / "node.md"
             if direct.exists():
-                return direct
+                resolved = direct
+            else:
+                for path in self.nodes_dir.glob("*/node.md"):
+                    record = self.load_file(path)
+                    if record.node_id == node_id:
+                        resolved = path
+                        break
 
-            for path in self.nodes_dir.glob("*/node.md"):
-                record = self.load_file(path)
-                if record.node_id == node_id:
-                    return path
-
-        if self.roots_dir.is_dir():
+        if resolved is None and self.roots_dir.is_dir():
             for path in self.roots_dir.glob("*/root.md"):
                 record = self.load_file(path)
                 if record.node_id == node_id or path.parent.name == node_id:
-                    return path
+                    resolved = path
+                    break
 
-        return None
+        self._node_path_cache[node_id] = resolved
+        return resolved
 
     def load(self, node_id: str) -> NodeRecord:
+        if node_id in self._node_record_cache:
+            return self._node_record_cache[node_id]
         path = self.find_node_path(node_id)
         if path is None:
             raise FileNotFoundError(f"Node not found in standards pack: {node_id}")
-        return self.load_file(path)
+        record = self.load_file(path)
+        self._node_record_cache[node_id] = record
+        return record
 
     def load_subsection(self, node_id: str, subsection_id: str) -> NodeSubsection:
         """Load a structured subsection without treating it as a graph node."""

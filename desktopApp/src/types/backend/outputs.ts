@@ -1,6 +1,6 @@
 export type OutputBlockType = 'text' | 'equation' | 'table' | 'graph' | 'reference' | 'result'
 
-export type TextVariant = 'body' | 'caption' | 'warning'
+export type TextVariant = 'body' | 'caption' | 'warning' | 'assumption'
 
 export interface OutputBlockBase {
   id: string
@@ -8,10 +8,19 @@ export interface OutputBlockBase {
   title?: string
 }
 
+export interface ReferenceLinkDto {
+  node_id: string
+  label: string
+  paragraph?: string | null
+}
+
 export interface TextOutputBlock extends OutputBlockBase {
   type: 'text'
   content: string
+  content_suffix?: string
   variant?: TextVariant
+  reference_links?: ReferenceLinkDto[]
+  reference_links_placement?: 'inline' | 'below'
 }
 
 export interface EquationVariableDto {
@@ -27,12 +36,19 @@ export interface EquationResultDto {
   unit?: string
 }
 
+export interface EquationInputTableDto {
+  columns: TableColumnDto[]
+  rows: Array<Record<string, string>>
+}
+
 export interface EquationOutputBlock extends OutputBlockBase {
   type: 'equation'
   content: string
   display?: string
   variables?: EquationVariableDto[]
+  input_table?: EquationInputTableDto
   result?: EquationResultDto | null
+  nomenclature_reference?: ReferenceLinkDto | null
 }
 
 export interface TableColumnDto {
@@ -46,6 +62,7 @@ export interface TableOutputBlock extends OutputBlockBase {
   columns: TableColumnDto[]
   rows: Array<Record<string, unknown>>
   searchable?: boolean
+  compact?: boolean
 }
 
 export interface GraphPointDto {

@@ -10,7 +10,7 @@ from api.serializers import task_state
 from tests.acceptance.helpers import run_completed_workflow
 
 
-def test_preview_outputs_for_awaiting_input_task() -> None:
+def test_preview_outputs_for_awaiting_input_task(standards_reader) -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test06", status=TaskStatus.AWAITING_INPUT)
     task.outputs = {
@@ -18,19 +18,22 @@ def test_preview_outputs_for_awaiting_input_task() -> None:
         "planning_summary": {
             "goal": "pipe wall thickness design",
             "action": "request_input",
+            "active_definition_node": "B313-304.1.1",
             "missing_inputs": ["material", "design_pressure"],
-            "missing_assumptions": [],
+            "missing_assumptions": ["straight_pipe_section"],
+            "current_phase": "expansion_assumptions",
+            "phase_missing": {"expansion_assumptions": ["straight_pipe_section"]},
         },
     }
+    task.active_nodes = ["B313-304.1.1"]
     manager.replace_task(task.task_id, task)
 
-    blocks = build_display_outputs(task)
+    blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     types = {block["type"] for block in blocks}
 
-    assert "text" in types
     assert "equation" in types
-    assert "table" in types
-    assert "reference" in types
+    assert "table" not in types
+    assert any(block["id"].startswith("node-activation-") for block in blocks)
 
 
 def test_completed_workflow_outputs_include_results_and_equation(
@@ -60,3 +63,54 @@ def test_task_state_includes_display_outputs(
     state = task_state(task, state_manager)
     assert isinstance(state["display_outputs"], list)
     assert len(state["display_outputs"]) > 0
+
+
+def test_path_preview_equation_resolves_variable_descriptions(standards_reader) -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-test09", status=TaskStatus.AWAITING_INPUT)
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "planning_summary": {
+            "goal": "pipe wall thickness design",
+            "action": "request_input",
+            "active_definition_node": "B313-304.1.1",
+            "path_decision": {
+                "pressure_loading": "internal_pressure",
+                "selected_node": "B313-304.1.2",
+            },
+            "missing_inputs": ["material", "design_pressure"],
+            "current_phase": "formula_parameters",
+        },
+    }
+    task.active_nodes = ["B313-304.1.1", "B313-304.1.2"]
+
+    blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
+    equation_blocks = [
+        block
+        for block in blocks
+        if block["type"] == "equation" and block["id"].startswith("path-preview-equation-")
+    ]
+    assert len(equation_blocks) == 1
+
+    intro_blocks = [block for block in blocks if block["id"] == "path-preview-intro-B313-304.1.2"]
+    assert len(intro_blocks) == 1
+    intro = intro_blocks[0]
+    assert intro["type"] == "text"
+    assert "minimum required wall thickness" in intro["content"].lower()
+    assert intro["content_suffix"] == " with the following equation:"
+    assert intro["reference_links"][0]["node_id"] == "B313-304.1.2"
+    assert intro["reference_links"][0]["label"] == "§304.1.2"
+    assert not any(block["type"] == "reference" for block in blocks if block["id"].startswith("path-preview-"))
+
+    equation = equation_blocks[0]
+    assert equation.get("title") is None
+    assert "variables" not in equation
+    assert "input_table" in equation
+    pressure_row = next(row for row in equation["input_table"]["rows"] if row["symbol"] == "P")
+    assert pressure_row["definition"] == "Internal design gage pressure"
+    assert pressure_row["value"] == "Awaiting user input"
+
+    nomenclature_reference = equation.get("nomenclature_reference")
+    assert nomenclature_reference is not None
+    assert nomenclature_reference["node_id"] == "B313-304.1.1"
+    assert nomenclature_reference["label"] == "§304.1.1(b)"

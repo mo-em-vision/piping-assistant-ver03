@@ -7,13 +7,18 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
-
+from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_paths import resolve_standard_pack
+from engine.reference.standards_tables import StandardsTablesDatabase
 
 A106_SLUG = "astm_a106"
 A312_SLUG = "astm_a312"
 DEFAULT_TABLE = "tables/material_properties.yaml"
+
+_DEFAULT_TABLE_IDS = {
+    A106_SLUG: "astm_a106_material_properties",
+    A312_SLUG: "astm_a312_material_properties",
+}
 
 
 @dataclass(frozen=True)
@@ -50,13 +55,19 @@ class MaterialPropertiesLookup:
         *,
         standard: str = A106_SLUG,
         table_rel: str = DEFAULT_TABLE,
+        table_id: str | None = None,
     ) -> None:
         self._standard = standard
         self._pack_root = resolve_standard_pack(standards_root, standard)
-        self._table_path = self._pack_root / table_rel
-        if not self._table_path.exists():
-            raise FileNotFoundError(f"Material properties table not found: {self._table_path}")
-        self._table = yaml.safe_load(self._table_path.read_text(encoding="utf-8")) or {}
+        self._tables_db_path = resolve_pack_tables_db(self._pack_root)
+        self._tables_db = StandardsTablesDatabase(self._tables_db_path)
+        table_ref = table_id or table_rel or _DEFAULT_TABLE_IDS.get(standard, "material_properties")
+        table_data = self._tables_db.get_table(table_ref)
+        if table_data is None:
+            raise FileNotFoundError(
+                f"Material properties table not found in {self._tables_db_path}: {table_ref}"
+            )
+        self._table = table_data
 
     @property
     def table_id(self) -> str:

@@ -6,9 +6,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
-
-from engine.executor.unit_manager import convert_to_si, normalize_unit
+from engine.executor.unit_manager import convert_to_si
+from engine.reference.pack_tables_db import resolve_pack_tables_db
+from engine.reference.standards_tables import StandardsTablesDatabase
 from models.calculation import CalculationResult, CalculationStatus, CalculationStep, QuantityResult
 
 
@@ -33,6 +33,7 @@ class LookupEngine:
 
     def __init__(self, standards_pack_root: Path) -> None:
         self._pack_root = standards_pack_root
+        self._tables_db = StandardsTablesDatabase(resolve_pack_tables_db(standards_pack_root))
 
     def execute_lookup(
         self,
@@ -41,12 +42,14 @@ class LookupEngine:
         lookup_config: dict[str, Any],
         inputs: dict[str, Any],
     ) -> LookupResult:
-        table_rel = str(lookup_config.get("table", ""))
-        table_path = self._pack_root / table_rel
-        if not table_path.exists():
-            raise FileNotFoundError(f"Lookup table not found: {table_path}")
-
-        table_data = yaml.safe_load(table_path.read_text(encoding="utf-8")) or {}
+        table_ref = str(
+            lookup_config.get("table_id")
+            or lookup_config.get("table")
+            or ""
+        ).strip()
+        table_data = self._tables_db.get_table(table_ref)
+        if table_data is None:
+            raise FileNotFoundError(f"Lookup table not found: {table_ref}")
         material = str(inputs.get("material", "")).strip()
         if not material:
             raise ValueError("material is required for stress lookup")
@@ -64,7 +67,7 @@ class LookupEngine:
         )
 
         trace = LookupTrace(
-            table_id=str(table_data.get("table_id", table_rel)),
+            table_id=str(table_data.get("table_id", table_ref)),
             material=material,
             design_temperature_f=temp_f,
             allowable_stress_pa=stress_pa,
@@ -157,6 +160,11 @@ class LookupEngine:
             "A106B": "SA-106B",
             "SA106B": "SA-106B",
             "A106-B": "A106-B",
+            "A106GRA": "SA-106B",
+            "A106GRB": "SA-106B",
+            "A106GRADEA": "SA-106B",
+            "A106GRADEB": "SA-106B",
+            "SA106GRB": "SA-106B",
         }
         alias = aliases.get(normalized)
         if alias and alias in materials:

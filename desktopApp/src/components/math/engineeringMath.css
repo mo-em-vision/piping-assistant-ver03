@@ -1,0 +1,17 @@
+.engineering-math-inline {
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.engineering-math-inline .katex {
+  font-size: 1em;
+}
+
+.engineering-math-display {
+  overflow-x: auto;
+  text-align: center;
+}
+
+.engineering-math-display .katex {
+  font-size: 1.05em;
+}

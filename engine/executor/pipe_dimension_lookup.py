@@ -1,4 +1,4 @@
-"""ASME B36.10M pipe dimension table lookup."""
+"""ASME B36.10M and other registered pipe dimension table lookup."""
 
 from __future__ import annotations
 
@@ -9,16 +9,22 @@ from typing import Any
 
 import yaml
 
+from engine.reference.pack_pipe_dimensions_db import resolve_pack_pipe_dimensions_db
+from engine.reference.pipe_dimensions_db import INCH_TO_MM, PipeDimensionsDatabase
+from engine.reference.pipe_dimensions_registry import (
+    load_pipe_dimensions_registry,
+    resolve_pipe_dimension_source,
+)
 from engine.reference.standards_paths import resolve_standard_pack
 
 B36_10_SLUG = "asme_b36.10"
-DEFAULT_TABLE = "tables/welded_seamless_pipe_dimensions.yaml"
-INCH_TO_MM = 25.4
+DEFAULT_TABLE = "welded_seamless_pipe_dimensions"
+DEFAULT_TABLE_YAML = "tables/welded_seamless_pipe_dimensions.yaml"
 
 
 @dataclass(frozen=True)
 class PipeDimensionResult:
-    """Resolved pipe dimensions from ASME B36.10M sample table."""
+    """Resolved pipe dimensions from a registered pipe dimension table."""
 
     nps: str
     schedule: str | None
@@ -30,28 +36,57 @@ class PipeDimensionResult:
     inner_diameter_mm: float | None = None
     weight_lb_per_ft: float | None = None
     table_id: str = ""
+    standard_slug: str = ""
     interpolated: bool = False
 
 
 class PipeDimensionLookup:
-    """Lookup nominal pipe size and schedule dimensions from ASME B36.10 tables."""
+    """Lookup nominal pipe size and schedule dimensions from registered standards."""
 
     def __init__(
         self,
         standards_root: Path,
         *,
         standard: str = B36_10_SLUG,
-        table_rel: str = DEFAULT_TABLE,
+        table_id: str | None = None,
+        table_rel: str = DEFAULT_TABLE_YAML,
     ) -> None:
-        self._pack_root = resolve_standard_pack(standards_root, standard)
-        self._table_path = self._pack_root / table_rel
-        if not self._table_path.exists():
-            raise FileNotFoundError(f"Pipe dimension table not found: {self._table_path}")
-        self._table = yaml.safe_load(self._table_path.read_text(encoding="utf-8")) or {}
+        self._standards_root = standards_root.resolve()
+        self._standard = standard
+        self._pack_root = resolve_standard_pack(self._standards_root, standard)
+        self._table_rel = table_rel
+        self._db_path = resolve_pack_pipe_dimensions_db(self._pack_root)
+
+        _, registry_sources = load_pipe_dimensions_registry(self._standards_root)
+        if registry_sources:
+            source = resolve_pipe_dimension_source(self._standards_root, standard)
+            self._table_id = table_id or source.table_id
+            self._standard = source.standard
+        else:
+            self._table_id = table_id or DEFAULT_TABLE
+
+        self._database: PipeDimensionsDatabase | None = None
+        self._yaml_table: dict[str, Any] | None = None
+
+        if self._db_path.is_file():
+            self._database = PipeDimensionsDatabase(self._db_path)
+        else:
+            table_path = self._pack_root / table_rel
+            if not table_path.exists():
+                raise FileNotFoundError(f"Pipe dimension table not found: {table_path}")
+            self._yaml_table = yaml.safe_load(table_path.read_text(encoding="utf-8")) or {}
+            if table_id:
+                self._table_id = table_id
+            elif self._yaml_table.get("table_id"):
+                self._table_id = str(self._yaml_table["table_id"])
 
     @property
     def table_id(self) -> str:
-        return str(self._table.get("table_id", "welded_seamless_pipe_dimensions"))
+        return self._table_id
+
+    @property
+    def standard_slug(self) -> str:
+        return self._standard
 
     def lookup(
         self,
@@ -59,11 +94,42 @@ class PipeDimensionLookup:
         *,
         schedule: str | None = None,
     ) -> PipeDimensionResult:
-        nps_key = self._resolve_nps(nominal_pipe_size)
-        pipes = self._table.get("pipes", {}) or {}
-        if nps_key not in pipes:
-            raise ValueError(f"Nominal pipe size not found in B36.10 table: {nominal_pipe_size}")
+        if self._database is not None:
+            row = self._database.lookup(
+                self._table_id,
+                nominal_pipe_size,
+                schedule=schedule,
+            )
+            return PipeDimensionResult(
+                nps=row.nps,
+                schedule=row.schedule,
+                outside_diameter_in=row.outside_diameter_in,
+                outside_diameter_mm=row.outside_diameter_mm,
+                wall_thickness_in=row.wall_thickness_in,
+                wall_thickness_mm=row.wall_thickness_mm,
+                inner_diameter_in=row.inner_diameter_in,
+                inner_diameter_mm=row.inner_diameter_mm,
+                weight_lb_per_ft=row.weight_lb_per_ft,
+                table_id=row.table_id,
+                standard_slug=row.standard_slug,
+            )
 
+        return self._lookup_yaml(nominal_pipe_size, schedule=schedule)
+
+    def list_nps_sizes(self) -> list[str]:
+        if self._database is not None:
+            return self._database.list_nps_sizes(self._table_id)
+        return self._list_nps_sizes_yaml()
+
+    def _lookup_yaml(
+        self,
+        nominal_pipe_size: str,
+        *,
+        schedule: str | None = None,
+    ) -> PipeDimensionResult:
+        table = self._yaml_table or {}
+        nps_key = self._resolve_nps_yaml(table, nominal_pipe_size)
+        pipes = table.get("pipes", {}) or {}
         pipe_row = pipes[nps_key]
         od_in = float(pipe_row["outside_diameter_in"])
         od_mm = float(pipe_row.get("outside_diameter_mm", od_in * INCH_TO_MM))
@@ -76,11 +142,11 @@ class PipeDimensionLookup:
         weight: float | None = None
 
         if schedule is not None:
-            schedule_key = self._resolve_schedule(schedule)
-            sched_row = self._schedule_row(pipe_row, schedule_key)
+            schedule_key = self._resolve_schedule_yaml(table, schedule)
+            sched_row = self._schedule_row_yaml(pipe_row, schedule_key)
             if sched_row is None:
                 raise ValueError(
-                    f"Schedule {schedule} not defined for NPS {nps_key} in B36.10 table"
+                    f"Schedule {schedule} not defined for NPS {nps_key} in pipe dimension table"
                 )
             wall_in = float(sched_row["wall_thickness_in"])
             wall_mm = float(sched_row.get("wall_thickness_mm", wall_in * INCH_TO_MM))
@@ -103,16 +169,17 @@ class PipeDimensionLookup:
             inner_diameter_in=id_in,
             inner_diameter_mm=id_mm,
             weight_lb_per_ft=weight,
-            table_id=self.table_id,
+            table_id=self._table_id,
+            standard_slug=self._standard,
         )
 
-    def list_nps_sizes(self) -> list[str]:
-        pipes = self._table.get("pipes", {}) or {}
+    def _list_nps_sizes_yaml(self) -> list[str]:
+        pipes = (self._yaml_table or {}).get("pipes", {}) or {}
         return sorted(pipes.keys(), key=self._nps_sort_key)
 
-    def _resolve_nps(self, nps: str) -> str:
+    def _resolve_nps_yaml(self, table: dict[str, Any], nps: str) -> str:
         text = str(nps).strip().strip('"').strip("'")
-        aliases = self._table.get("aliases", {}).get("nps", {}) or {}
+        aliases = table.get("aliases", {}).get("nps", {}) or {}
         for alias, target in aliases.items():
             if text.lower() == str(alias).lower():
                 return str(target)
@@ -122,7 +189,7 @@ class PipeDimensionLookup:
         if normalized.endswith('"'):
             normalized = normalized[:-1].strip()
 
-        pipes = self._table.get("pipes", {}) or {}
+        pipes = table.get("pipes", {}) or {}
         if normalized in pipes:
             return normalized
 
@@ -130,19 +197,19 @@ class PipeDimensionLookup:
             if key.lower() == normalized.lower():
                 return key
 
-        raise ValueError(f"Nominal pipe size not found in B36.10 table: {nps}")
+        raise ValueError(f"Nominal pipe size not found in pipe dimension table: {nps}")
 
-    def _resolve_schedule(self, schedule: str) -> str:
+    def _resolve_schedule_yaml(self, table: dict[str, Any], schedule: str) -> str:
         text = str(schedule).strip().upper()
         text = re.sub(r"^SCH(?:EDULE)?\s*", "", text).strip()
-        aliases = self._table.get("aliases", {}).get("schedule", {}) or {}
+        aliases = table.get("aliases", {}).get("schedule", {}) or {}
         for alias, target in aliases.items():
             if text == str(alias).upper():
                 return str(target)
         return text
 
     @staticmethod
-    def _schedule_row(pipe_row: dict[str, Any], schedule_key: str) -> dict[str, Any] | None:
+    def _schedule_row_yaml(pipe_row: dict[str, Any], schedule_key: str) -> dict[str, Any] | None:
         schedules = pipe_row.get("schedules", {}) or {}
         if schedule_key in schedules:
             row = schedules[schedule_key]

@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from ai.interaction_specs import default_pipe_wall_thickness_decision_interactions
+from engine.executor.allowable_stress_resolver import apply_allowable_stress_lookup
+from engine.executor.nps_input_resolver import apply_nominal_pipe_size_lookup
 from engine.executor.unit_manager import normalize_unit
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import Task
+
+from api.parameter_edit import active_edit_parameter, clear_edit_session
+from api.workflow_timeline import revealed_pipe_wall_input_ids, submittable_parameter_ids
 
 _PARAMETER_SPECS: dict[str, dict[str, Any]] = {
     "material": {
@@ -146,6 +152,9 @@ def _base_spec(parameter_id: str) -> dict[str, Any]:
 
 
 def _parameter_status(task: Task, parameter_id: str) -> str:
+    if active_edit_parameter(task) == parameter_id:
+        return "pending"
+
     existing = task.inputs.get(parameter_id)
     if existing is None:
         return "pending"
@@ -170,20 +179,10 @@ def build_parameter_definitions(task: Task) -> list[dict[str, Any]]:
     if not isinstance(planning, dict):
         planning = {}
 
-    requested_ids: list[str] = []
-    for key in ("missing_inputs", "missing_assumptions", "missing_execution_assumptions"):
-        for item in planning.get(key) or []:
-            if item not in requested_ids:
-                requested_ids.append(str(item))
-
-    for input_id, existing in task.inputs.items():
-        if existing.status == InputStatus.PROPOSED_DEFAULT and input_id not in requested_ids:
-            requested_ids.append(input_id)
-
-    if not requested_ids and _task_workflow_id(task) == PIPE_WALL_THICKNESS_DESIGN:
-        requested_ids = list(planning.get("missing_inputs") or ["material", "design_pressure", "design_temperature"])
+    requested_ids = _requested_parameter_ids(task, planning)
 
     parameters: list[dict[str, Any]] = []
+    editing = active_edit_parameter(task)
     for parameter_id in requested_ids:
         spec = _base_spec(parameter_id)
         options = spec.get("options") or _INTERACTION_OPTIONS.get(parameter_id)
@@ -202,10 +201,57 @@ def build_parameter_definitions(task: Task) -> list[dict[str, Any]]:
                 "validation": spec.get("validation"),
                 "status": _parameter_status(task, parameter_id),
                 "requires_confirmation": bool(existing.requires_confirmation) if existing else False,
+                "guidance": _parameter_guidance(planning, parameter_id),
+                "editing": editing == parameter_id,
             }
         )
 
     return parameters
+
+
+def _requested_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]:
+    if _task_workflow_id(task) == PIPE_WALL_THICKNESS_DESIGN:
+        requested = revealed_pipe_wall_input_ids(task, planning)
+        editing = active_edit_parameter(task)
+        if editing and editing not in requested:
+            requested = [editing, *requested]
+        return requested
+
+    requested_ids: list[str] = []
+    for key in ("missing_assumptions", "missing_execution_assumptions", "missing_inputs"):
+        for item in planning.get(key) or []:
+            item_id = str(item)
+            if item_id == "straight_pipe_section":
+                continue
+            if item_id not in requested_ids:
+                requested_ids.append(item_id)
+
+    for input_id, existing in task.inputs.items():
+        if (
+            input_id != "straight_pipe_section"
+            and existing.status == InputStatus.PROPOSED_DEFAULT
+            and input_id not in requested_ids
+        ):
+            requested_ids.append(input_id)
+
+    return requested_ids
+
+
+def _parameter_guidance(planning: dict[str, Any], parameter_id: str) -> str | None:
+    phase_missing = planning.get("phase_missing") or {}
+    phase_questions = planning.get("phase_questions") or {}
+    if not isinstance(phase_missing, dict) or not isinstance(phase_questions, dict):
+        return None
+    for phase, fields in phase_missing.items():
+        if not isinstance(fields, list) or parameter_id not in fields:
+            continue
+        questions = phase_questions.get(phase)
+        if not isinstance(questions, list):
+            continue
+        index = fields.index(parameter_id)
+        if index < len(questions):
+            return str(questions[index])
+    return None
 
 
 def _task_workflow_id(task: Task) -> str:
@@ -259,8 +305,17 @@ def submit_task_input(
     parameter: str,
     value: Any,
     unit: str | None,
+    standards_root: Path | None = None,
 ) -> Task:
     task = manager.get_task(task_id)
+    planning = task.outputs.get("planning_summary")
+    if not isinstance(planning, dict):
+        planning = {}
+
+    allowed_ids = set(submittable_parameter_ids(task, planning))
+    if parameter not in allowed_ids:
+        raise ValueError(f"Parameter is not currently requested: {parameter}")
+
     definitions = {item["name"]: item for item in build_parameter_definitions(task)}
     if parameter not in definitions:
         raise ValueError(f"Parameter is not currently requested: {parameter}")
@@ -286,11 +341,34 @@ def submit_task_input(
     )
     manager.store_input(task_id, engineering_input)
 
+    task = manager.get_task(task_id)
+    if parameter == "nominal_pipe_size":
+        if standards_root is None:
+            raise ValueError("Standards root is required to resolve nominal pipe size.")
+        apply_nominal_pipe_size_lookup(task, standards_root)
+        manager.replace_task(task_id, task)
+        task = manager.get_task(task_id)
+
+    if parameter in ("material", "design_temperature"):
+        if standards_root is None:
+            raise ValueError("Standards root is required to resolve allowable stress.")
+        apply_allowable_stress_lookup(task, standards_root)
+        manager.replace_task(task_id, task)
+        task = manager.get_task(task_id)
+
+    if active_edit_parameter(task) == parameter:
+        clear_edit_session(task)
+
     planning = task.outputs.get("planning_summary")
     if isinstance(planning, dict):
         for key in ("missing_inputs", "missing_assumptions", "missing_execution_assumptions"):
             items = planning.get(key)
             if isinstance(items, list) and parameter in items:
                 planning[key] = [item for item in items if item != parameter]
+        phase_missing = planning.get("phase_missing")
+        if isinstance(phase_missing, dict):
+            for phase, fields in phase_missing.items():
+                if isinstance(fields, list) and parameter in fields:
+                    planning["phase_missing"][phase] = [item for item in fields if item != parameter]
 
     return manager.get_task(task_id)

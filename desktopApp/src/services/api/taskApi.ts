@@ -33,6 +33,15 @@ export const taskApi = {
     )
   },
 
+  delete(taskId: string, sessionId?: string) {
+    const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''
+    return requestManager.run(`tasks:delete:${taskId}`, () =>
+      backendClient.delete<{ task_id: string; deleted: boolean; session_id: string }>(
+        `/api/v1/tasks/${taskId}${query}`,
+      ),
+    )
+  },
+
   listWorkflows() {
     return requestManager.run('workflows:list', () =>
       backendClient.get<{ workflows: WorkflowDto[] }>('/api/v1/workflows').then(parseWorkflows),

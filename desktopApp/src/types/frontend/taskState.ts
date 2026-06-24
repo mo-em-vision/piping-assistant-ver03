@@ -8,6 +8,7 @@ export interface TimelineStepViewModel {
   status: TimelineStepStatus
   displayValue: string | null
   hint: string | null
+  editable: boolean
 }
 
 export interface TaskStateViewModel {

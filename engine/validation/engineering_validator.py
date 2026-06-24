@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-import yaml
-
 from engine.graph.assumption_checker import (
     evaluate_node_execution_assumptions,
     evaluate_node_expansion_assumptions,
@@ -143,11 +141,10 @@ class EngineeringValidator:
             return LayerValidationResult(status=ComplianceStatus.PASS)
 
         temp_f, _ = convert_to_si(float(inp.value), inp.unit, target_unit="f")
-        table_path = reader.pack_root / "nodes" / "B313-appendix_A" / "tables" / "A-1.yaml"
-        if not table_path.exists():
+        try:
+            table_data = reader.load_table("A-1")
+        except FileNotFoundError:
             return LayerValidationResult(status=ComplianceStatus.PASS)
-
-        table_data = yaml.safe_load(table_path.read_text(encoding="utf-8")) or {}
         material_key = self._resolve_material(table_data, material)
         if material_key is None:
             errors.append(

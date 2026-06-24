@@ -1,10 +1,13 @@
+import { startTransition } from 'react'
 import { create } from 'zustand'
 
 import { inputApi } from '@/services/api/inputApi'
 import { taskApi } from '@/services/api/taskApi'
 import { toNavTaskSummary, workflowToSummary } from '@/services/api/responseParser'
 import { getActiveSessionId } from '@/store/projectStore'
+import { useRightPanelStore } from '@/store/rightPanelStore'
 import { toUserFacingError } from '@/types/backend/errors'
+import { confirmTaskDeletion } from '@/utils/confirmTaskDeletion'
 import type { UserFacingError } from '@/types/frontend/userError'
 import type { TaskStateDto, TaskSummaryDto } from '@/types/backend/api'
 import type { TaskSummary } from '@/types/frontend/workspace'
@@ -29,8 +32,10 @@ interface TaskStoreState {
   selectTask: (taskId: string) => Promise<void>
   createTask: (workflowId: string) => Promise<void>
   clearActiveTask: () => void
+  deleteTask: (taskId: string) => Promise<void>
   refreshActiveTask: () => Promise<void>
   submitParameter: (parameter: string, value: unknown, unit?: string) => Promise<void>
+  applyTaskState: (state: TaskStateDto) => void
 }
 
 function stateToSummary(state: TaskStateDto): TaskSummary {
@@ -157,7 +162,54 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     }
   },
 
-  clearActiveTask: () => set({ activeTask: null, activeTaskState: null }),
+  clearActiveTask: () => {
+    useRightPanelStore.getState().reset()
+    set({ activeTask: null, activeTaskState: null })
+  },
+
+  deleteTask: async (taskId: string) => {
+    const { activeTask, recentTasks } = get()
+    const task =
+      activeTask?.id === taskId
+        ? activeTask
+        : recentTasks.find((item) => item.id === taskId) ?? null
+
+    if (!task) {
+      return
+    }
+
+    if (!confirmTaskDeletion(task.name)) {
+      return
+    }
+
+    if (useMockData) {
+      if (activeTask?.id === taskId) {
+        useRightPanelStore.getState().reset()
+      }
+      set((state) => ({
+        activeTask: state.activeTask?.id === taskId ? null : state.activeTask,
+        activeTaskState: state.activeTask?.id === taskId ? null : state.activeTaskState,
+        recentTasks: state.recentTasks.filter((item) => item.id !== taskId),
+      }))
+      return
+    }
+
+    set({ loading: true, userError: null })
+    try {
+      const sessionId = get().sessionId ?? getActiveSessionId()
+      await taskApi.delete(taskId, sessionId)
+
+      if (activeTask?.id === taskId) {
+        useRightPanelStore.getState().reset()
+        set({ activeTask: null, activeTaskState: null })
+      }
+
+      await get().loadWorkspace()
+      set({ loading: false, userError: null })
+    } catch (error) {
+      set({ loading: false, userError: toUserFacingError(error) })
+    }
+  },
 
   refreshActiveTask: async () => {
     const activeTask = get().activeTask
@@ -221,21 +273,30 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       return
     }
 
-    set({ loading: true, userError: null })
+    set({ userError: null })
     try {
       const state = await inputApi.submit(
         activeTask.id,
         { parameter, value, unit },
         get().sessionId ?? getActiveSessionId(),
       )
-      set({
-        activeTask: stateToSummary(state),
-        activeTaskState: state,
-        loading: false,
-        userError: null,
+      startTransition(() => {
+        set({
+          activeTask: stateToSummary(state),
+          activeTaskState: state,
+          userError: null,
+        })
       })
     } catch (error) {
-      set({ loading: false, userError: toUserFacingError(error) })
+      set({ userError: toUserFacingError(error) })
     }
+  },
+
+  applyTaskState: (state) => {
+    set({
+      activeTask: stateToSummary(state),
+      activeTaskState: state,
+      userError: null,
+    })
   },
 }))

@@ -19,9 +19,19 @@ interface TimelineStepProps {
   displayValue?: string | null
   hint?: string | null
   isLast?: boolean
+  editable?: boolean
+  onEdit?: () => void
 }
 
-export function TimelineStep({ title, status, displayValue, hint, isLast = false }: TimelineStepProps) {
+export function TimelineStep({
+  title,
+  status,
+  displayValue,
+  hint,
+  isLast = false,
+  editable = false,
+  onEdit,
+}: TimelineStepProps) {
   return (
     <div className={`timeline-step timeline-step--${status}${isLast ? ' timeline-step--last' : ''}`}>
       <div className="timeline-step__track">
@@ -34,6 +44,17 @@ export function TimelineStep({ title, status, displayValue, hint, isLast = false
         <div className="timeline-step__title-row">
           <span className="timeline-step__title">{title}</span>
           {displayValue ? <span className="timeline-step__value">{displayValue}</span> : null}
+          {editable && onEdit ? (
+            <button
+              type="button"
+              className="timeline-step__edit"
+              aria-label={`Edit ${title}`}
+              title={`Edit ${title}`}
+              onClick={onEdit}
+            >
+              ✎
+            </button>
+          ) : null}
         </div>
         {hint ? <p className="timeline-step__hint">{hint}</p> : null}
       </div>

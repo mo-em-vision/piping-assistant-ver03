@@ -1,6 +1,10 @@
 import { useMemo, useState } from 'react'
 
+import { EngineeringMathText, InlineMath, isEngineeringSymbol } from '@/components/math/engineeringMath'
+
 import type { TableOutputBlock } from '@/types/backend/outputs'
+
+import '@/components/math/engineeringMath.css'
 
 interface TableOutputProps {
   block: TableOutputBlock
@@ -47,8 +51,16 @@ export function TableOutput({ block }: TableOutputProps) {
     setSortDirection('asc')
   }
 
+  const renderCell = (columnKey: string, value: unknown) => {
+    const text = String(value ?? '')
+    if (columnKey === 'symbol' && isEngineeringSymbol(text)) {
+      return <InlineMath expression={text} />
+    }
+    return <EngineeringMathText text={text} />
+  }
+
   return (
-    <article className="output-block">
+    <article className={`output-block${block.compact ? ' output-block--compact-table' : ''}`}>
       {block.title ? <h4 className="output-block__title">{block.title}</h4> : null}
       {block.searchable ? (
         <div className="output-table__toolbar">
@@ -83,7 +95,7 @@ export function TableOutput({ block }: TableOutputProps) {
           {rows.map((row, index) => (
             <tr key={`${block.id}-row-${index}`}>
               {block.columns.map((column) => (
-                <td key={column.key}>{String(row[column.key] ?? '')}</td>
+                <td key={column.key}>{renderCell(column.key, row[column.key])}</td>
               ))}
             </tr>
           ))}
