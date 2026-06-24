@@ -11,58 +11,6 @@
   padding: 1rem 1.25rem;
 }
 
-.center-panel__header {
-  flex-shrink: 0;
-  padding: 1rem 1.25rem;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.center-panel__header--task {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.center-panel__eyebrow {
-  margin: 0 0 0.25rem;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #64748b;
-}
-
-.center-panel__title {
-  margin: 0 0 0.35rem;
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.center-panel__subtitle {
-  margin: 0;
-  font-size: 0.875rem;
-  color: #64748b;
-  line-height: 1.45;
-}
-
-.center-panel__close {
-  flex-shrink: 0;
-  padding: 0.4rem 0.75rem;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #475569;
-  font-size: 0.8rem;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.center-panel__close:hover {
-  background: #f8fafc;
-}
-
 .center-panel__placeholder {
   flex: 1;
   display: flex;
@@ -133,10 +81,6 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #64748b;
-}
-
-.center-panel__status-row {
-  margin-top: 0.5rem;
 }
 
 .workspace-section--timeline {

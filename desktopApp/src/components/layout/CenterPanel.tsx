@@ -3,7 +3,6 @@ import { useMemo } from 'react'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { ErrorBanner } from '@/components/errors/ErrorBanner'
 import { TaskErrorList } from '@/components/errors/TaskErrorList'
-import { StatusIndicator } from '@/components/engineering/StatusIndicator'
 import {
   buildWorkflowHistory,
   getCurrentEditableParameter,
@@ -22,7 +21,6 @@ export function CenterPanel() {
   const loading = useTaskStore((state) => state.loading)
   const userError = useTaskStore((state) => state.userError)
   const refreshActiveTask = useTaskStore((state) => state.refreshActiveTask)
-  const clearActiveTask = useTaskStore((state) => state.clearActiveTask)
   const viewModel = useActiveTaskViewModel()
 
   const historyItems = useMemo(() => {
@@ -52,22 +50,6 @@ export function CenterPanel() {
 
   return (
     <main className="center-panel center-panel--task">
-      <header className="center-panel__header center-panel__header--task">
-        <div>
-          <p className="center-panel__eyebrow">{activeTask.discipline}</p>
-          <h2 className="center-panel__title">{activeTask.name}</h2>
-          <p className="center-panel__subtitle">{activeTask.description}</p>
-          {viewModel ? (
-            <div className="center-panel__status-row">
-              <StatusIndicator label={viewModel.statusLabel} variant={viewModel.statusVariant} />
-            </div>
-          ) : null}
-        </div>
-        <button type="button" className="center-panel__close" onClick={clearActiveTask} disabled={loading}>
-          Close task
-        </button>
-      </header>
-
       {activeTaskState?.errors?.length ? (
         <div className="center-panel__errors">
           <TaskErrorList
