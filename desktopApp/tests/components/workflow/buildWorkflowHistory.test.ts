@@ -86,4 +86,34 @@ describe('getCurrentEditableParameter', () => {
 
     expect(parameter?.name).toBe('design_temperature')
   })
+
+  it('prefers submittable corrosion allowance when report is the active timeline step', () => {
+    const parameter = getCurrentEditableParameter({
+      ...mockTaskState,
+      progress: {
+        ...mockTaskState.progress,
+        current_step_id: 'report',
+        submittable_parameters: ['corrosion_allowance'],
+      },
+      parameters: [
+        {
+          name: 'corrosion_allowance',
+          label: 'Corrosion allowance',
+          type: 'number',
+          required: true,
+          units: ['mm'],
+          default_unit: 'mm',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          submittable: true,
+        },
+      ],
+    })
+
+    expect(parameter?.name).toBe('corrosion_allowance')
+  })
 })

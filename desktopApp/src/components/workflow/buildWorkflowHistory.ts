@@ -108,9 +108,24 @@ function parameterIsSubmittable(
   return true
 }
 
+const NON_INPUT_ACTIVE_STEPS = new Set(['report', 'thickness'])
+
 function firstEditableParameter(state: TaskStateDto) {
+  const submittableIds = state.progress.submittable_parameters ?? []
+  if (submittableIds.length) {
+    const fromSubmittable = state.parameters.find(
+      (parameter) =>
+        submittableIds.includes(parameter.name) &&
+        parameterIsSubmittable(parameter, state) &&
+        (parameter.status === 'pending' || parameter.status === 'confirmation_required'),
+    )
+    if (fromSubmittable) {
+      return fromSubmittable
+    }
+  }
+
   const activeStepId = state.progress.current_step_id
-  if (activeStepId) {
+  if (activeStepId && !NON_INPUT_ACTIVE_STEPS.has(activeStepId)) {
     const fromActiveStep = state.parameters.find(
       (parameter) =>
         parameter.name === activeStepId &&

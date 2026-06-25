@@ -37,6 +37,8 @@ export function parameterNextStepPrompt(parameter: ParameterDefinitionDto): stri
       return 'Enter the nominal pipe size.'
     case 'outside_diameter':
       return 'Enter the outside diameter of the pipe.'
+    case 'corrosion_allowance':
+      return 'Enter the corrosion allowance to complete the minimum required thickness calculation (t_m = t + c).'
     default:
       if (parameter.type === 'material') {
         return PIPE_MATERIAL_PROMPT

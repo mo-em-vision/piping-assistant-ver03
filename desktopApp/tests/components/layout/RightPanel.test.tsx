@@ -66,4 +66,31 @@ describe('RightPanel tabs', () => {
     expect(screen.getByRole('heading', { name: 'Engineering report' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Generate report' })).toBeInTheDocument()
   })
+
+  it('shows Calculations section when node summaries are present', () => {
+    useTaskStore.setState({
+      activeTaskState: {
+        ...mockTaskState,
+        node_calculations: [
+          {
+            node_id: 'B313-304.1.2',
+            paragraph: '304.1.2',
+            title: 'Straight Pipe Under Internal Pressure',
+            primary_result: {
+              symbol: 't',
+              label: 'Required wall thickness',
+              value: '0.084',
+              unit: 'mm',
+            },
+            inputs: [{ symbol: 'P', name: 'Design pressure', value: '8.0', unit: 'bar' }],
+          },
+        ],
+      },
+    })
+
+    render(<RightPanel />)
+
+    expect(screen.getByText('Calculations')).toBeInTheDocument()
+    expect(screen.getByText(/t = 0\.084 mm/)).toBeInTheDocument()
+  })
 })

@@ -16,6 +16,7 @@ import { getActiveSessionId } from '@/store/projectStore'
 import { toUserFacingError } from '@/types/backend/errors'
 import type { ParameterEditImpactDto } from '@/types/backend/api'
 import { StatusIndicator } from '@/components/engineering/StatusIndicator'
+import { NodeCalculationGroup } from '@/components/engineering/NodeCalculationGroup'
 import { TaskTimeline } from '@/components/engineering/TaskTimeline'
 
 import { PanelSection } from './PanelSection'
@@ -23,6 +24,7 @@ import './SidePanel.css'
 
 function TaskContextTab() {
   const activeTask = useTaskStore((state) => state.activeTask)
+  const activeTaskState = useTaskStore((state) => state.activeTaskState)
   const sessionId = useTaskStore((state) => state.sessionId)
   const applyTaskState = useTaskStore((state) => state.applyTaskState)
   const viewModel = useActiveTaskViewModel()
@@ -112,6 +114,14 @@ function TaskContextTab() {
           <p className="side-panel__hint">Task progress will load from the backend.</p>
         )}
       </PanelSection>
+
+      {activeTaskState?.node_calculations?.length ? (
+        <PanelSection title="Calculations">
+          {activeTaskState.node_calculations.map((item) => (
+            <NodeCalculationGroup key={item.node_id} summary={item} />
+          ))}
+        </PanelSection>
+      ) : null}
 
       {viewModel?.warnings.length ? (
         <PanelSection title="Warnings">

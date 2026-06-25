@@ -9,6 +9,7 @@ import { getActiveSessionId } from '@/store/projectStore'
 import { useRightPanelStore } from '@/store/rightPanelStore'
 import { toUserFacingError } from '@/types/backend/errors'
 import { confirmTaskDeletion } from '@/utils/confirmTaskDeletion'
+import { mergeDisplayOutputs } from '@/utils/mergeDisplayOutputs'
 import type { UserFacingError } from '@/types/frontend/userError'
 import type { TaskStateDto, TaskSummaryDto } from '@/types/backend/api'
 import type { TaskSummary } from '@/types/frontend/workspace'
@@ -290,12 +291,14 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         get().sessionId ?? getActiveSessionId(),
       )
 
-      const previousDisplayOutputs = get().activeTaskState?.display_outputs
+      const previousDisplayOutputs = get().activeTaskState?.display_outputs ?? []
+      const mergedDisplayOutputs = mergeDisplayOutputs(previousDisplayOutputs, state.display_outputs)
+
       set({
         activeTask: stateToSummary(state),
         activeTaskState: {
           ...state,
-          display_outputs: previousDisplayOutputs ?? state.display_outputs,
+          display_outputs: mergedDisplayOutputs,
         },
         userError: null,
       })
@@ -303,7 +306,10 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       startTransition(() => {
         set({
           activeTask: stateToSummary(state),
-          activeTaskState: state,
+          activeTaskState: {
+            ...state,
+            display_outputs: mergedDisplayOutputs,
+          },
         })
       })
     } catch (error) {

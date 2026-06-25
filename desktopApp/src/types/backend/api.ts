@@ -107,6 +107,26 @@ export interface TableSourceDto {
   hover_excerpt: string
 }
 
+export interface NodeCalculationInputDto {
+  symbol: string
+  name: string
+  value: string
+  unit: string
+}
+
+export interface NodeCalculationSummaryDto {
+  node_id: string
+  paragraph?: string | null
+  title: string
+  primary_result: {
+    symbol: string
+    label: string
+    value: string
+    unit: string
+  }
+  inputs: NodeCalculationInputDto[]
+}
+
 export interface TaskStateDto {
   task_id: string
   name: string
@@ -130,6 +150,7 @@ export interface TaskStateDto {
   outputs: Record<string, unknown>
   warnings: string[]
   parameters: ParameterDefinitionDto[]
+  node_calculations?: NodeCalculationSummaryDto[]
   display_outputs: DisplayOutputBlock[]
   active_node_context?: ActiveNodeContextDto | null
   options: {
