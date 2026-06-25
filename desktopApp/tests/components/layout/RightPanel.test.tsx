@@ -67,10 +67,11 @@ describe('RightPanel tabs', () => {
     expect(screen.getByRole('button', { name: 'Generate report' })).toBeInTheDocument()
   })
 
-  it('shows Calculations section when node summaries are present', () => {
+  it('does not show Calculations or Warnings sections in the task tab', () => {
     useTaskStore.setState({
       activeTaskState: {
         ...mockTaskState,
+        warnings: ['Thin-wall equation applicable when t < D/6'],
         node_calculations: [
           {
             node_id: 'B313-304.1.2',
@@ -90,7 +91,8 @@ describe('RightPanel tabs', () => {
 
     render(<RightPanel />)
 
-    expect(screen.getByText('Calculations')).toBeInTheDocument()
-    expect(screen.getByText(/t = 0\.084 mm/)).toBeInTheDocument()
+    expect(screen.queryByText('Calculations')).not.toBeInTheDocument()
+    expect(screen.queryByText('Warnings')).not.toBeInTheDocument()
+    expect(screen.queryByText(/t = 0\.084 mm/)).not.toBeInTheDocument()
   })
 })

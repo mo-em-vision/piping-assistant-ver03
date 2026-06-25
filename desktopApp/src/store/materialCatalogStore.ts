@@ -1,0 +1,46 @@
+import { create } from 'zustand'
+
+import { materialApi } from '@/services/api/materialApi'
+
+const useMockData = import.meta.env.VITE_MOCK_DATA === 'true'
+
+interface MaterialCatalogState {
+  ready: boolean
+  warming: boolean
+  error: string | null
+  warmCatalog: () => Promise<void>
+}
+
+export const useMaterialCatalogStore = create<MaterialCatalogState>((set, get) => ({
+  ready: useMockData,
+  warming: false,
+  error: null,
+
+  warmCatalog: async () => {
+    if (useMockData || get().ready) {
+      set({ ready: true, warming: false, error: null })
+      return
+    }
+
+    if (get().warming) {
+      return
+    }
+
+    set({ warming: true, error: null })
+    try {
+      const response = await materialApi.warm()
+      if (response.ready) {
+        set({ ready: true, warming: false, error: null })
+        return
+      }
+
+      const message =
+        response.reason === 'catalog_missing'
+          ? 'Material catalog is not built. Run scripts/build_material_catalog_db.py.'
+          : 'Material catalog is not available.'
+      set({ ready: false, warming: false, error: message })
+    } catch {
+      set({ ready: true, warming: false, error: null })
+    }
+  },
+}))

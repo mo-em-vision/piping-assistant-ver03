@@ -407,16 +407,18 @@ def build_wall_thickness_substituted_equation(
     result_value: float,
     result_unit: str,
     variables_si: dict[str, float],
-) -> tuple[str, str, dict[str, str]]:
-    """Return plain display, LaTeX, and leading result for evaluated t = PD / 2(...)."""
+) -> tuple[str, str]:
+    """Return plain display and LaTeX for evaluated t = PD / 2(...) = result."""
     rhs = build_wall_thickness_substituted_rhs(variables_si=variables_si)
     result_text = _format_result_thickness(result_value)
     unit = result_unit.strip() or "mm"
     numerator, denominator = rhs.split(" / ", 1)
-    display = f"{result_text} {unit}  t = {rhs}"
-    latex = f"t = \\frac{{{numerator.strip()}}}{{{denominator.strip()}}}"
-    leading_result = {"value": result_text, "unit": unit}
-    return display, latex, leading_result
+    display = f"t = {rhs} = {result_text} {unit}"
+    latex = (
+        f"t = \\frac{{{numerator.strip()}}}{{{denominator.strip()}}}"
+        f" = {result_text}\\ \\mathrm{{{unit}}}"
+    )
+    return display, latex
 
 
 def build_minimum_thickness_equation(

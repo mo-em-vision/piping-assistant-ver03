@@ -17,7 +17,7 @@ interface ReportStoreState {
   generating: boolean
   userError: UserFacingError | null
   loadReport: (taskId: string) => Promise<void>
-  generateReport: (taskId: string, format?: string, withAi?: boolean) => Promise<void>
+  generateReport: (taskId: string, format?: string) => Promise<void>
   loadPreview: (taskId: string, format?: 'html' | 'markdown') => Promise<void>
   downloadReport: (taskId: string, format: string) => Promise<void>
   clearReport: () => void
@@ -46,7 +46,7 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
     }
   },
 
-  generateReport: async (taskId: string, format = 'html', withAi = false) => {
+  generateReport: async (taskId: string, format = 'html') => {
     if (useMockData) {
       set({
         summary: {
@@ -57,11 +57,10 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
           files: {
             html: { available: true, filename: `${taskId}.html`, updated_at: new Date().toISOString() },
             markdown: { available: true, filename: `${taskId}.md`, updated_at: new Date().toISOString() },
-            pdf: { available: false, filename: null, updated_at: null },
+            pdf: { available: true, filename: `${taskId}.pdf`, updated_at: new Date().toISOString() },
             json: { available: true, filename: `${taskId}.json`, updated_at: new Date().toISOString() },
           },
         },
-        preview: mockReportPreview,
         userError: null,
       })
       return
@@ -71,11 +70,10 @@ export const useReportStore = create<ReportStoreState>((set, get) => ({
     try {
       const summary = await reportApi.generate(
         taskId,
-        { format, with_ai: withAi },
+        { format, with_ai: true },
         getActiveSessionId(),
       )
       set({ summary, generating: false, userError: null })
-      await get().loadPreview(taskId, format === 'markdown' || format === 'md' ? 'markdown' : 'html')
     } catch (error) {
       set({ generating: false, userError: toUserFacingError(error) })
     }

@@ -9,6 +9,13 @@ interface ReportPanelProps {
   taskId: string
 }
 
+const EXPORT_FORMATS = [
+  { id: 'html', label: 'HTML' },
+  { id: 'pdf', label: 'PDF' },
+  { id: 'markdown', label: 'Markdown' },
+  { id: 'json', label: 'JSON' },
+] as const
+
 function statusClass(status: string): string {
   const normalized = status.toUpperCase()
   if (normalized === 'PASS' || normalized === 'COMPLETED') {
@@ -25,14 +32,11 @@ function statusClass(status: string): string {
 
 export function ReportPanel({ taskId }: ReportPanelProps) {
   const summary = useReportStore((state) => state.summary)
-  const preview = useReportStore((state) => state.preview)
-  const previewFormat = useReportStore((state) => state.previewFormat)
   const loading = useReportStore((state) => state.loading)
   const generating = useReportStore((state) => state.generating)
   const userError = useReportStore((state) => state.userError)
   const loadReport = useReportStore((state) => state.loadReport)
   const generateReport = useReportStore((state) => state.generateReport)
-  const loadPreview = useReportStore((state) => state.loadPreview)
   const downloadReport = useReportStore((state) => state.downloadReport)
   const clearReport = useReportStore((state) => state.clearReport)
 
@@ -44,12 +48,7 @@ export function ReportPanel({ taskId }: ReportPanelProps) {
   }, [clearReport, loadReport, taskId])
 
   const busy = loading || generating
-  const availableFormats = [
-    { id: 'html', label: 'HTML', available: summary?.files?.html?.available },
-    { id: 'markdown', label: 'Markdown', available: summary?.files?.markdown?.available },
-    { id: 'pdf', label: 'PDF', available: summary?.files?.pdf?.available },
-    { id: 'json', label: 'JSON', available: summary?.files?.json?.available },
-  ]
+  const generated = summary?.generated ?? false
 
   return (
     <section className="report-panel">
@@ -66,13 +65,13 @@ export function ReportPanel({ taskId }: ReportPanelProps) {
         <>
           <div className="report-panel__status">
             <span className={statusClass(summary.status)}>{summary.status}</span>
-            {summary.generated ? (
+            {generated ? (
               <span className="report-panel__badge report-panel__badge--neutral">Generated</span>
             ) : (
               <span className="report-panel__badge report-panel__badge--neutral">Not generated</span>
             )}
           </div>
-          {summary.generated && summary.conclusion ? (
+          {generated && summary.conclusion ? (
             <p className="report-panel__meta">{summary.conclusion}</p>
           ) : null}
         </>
@@ -80,67 +79,37 @@ export function ReportPanel({ taskId }: ReportPanelProps) {
         <p className="report-panel__meta">Loading report status…</p>
       )}
 
-      <div className="report-panel__actions">
-        <button
-          type="button"
-          className="report-panel__button report-panel__button--primary"
-          disabled={busy}
-          onClick={() => void generateReport(taskId, 'html')}
-        >
-          {generating ? 'Generating…' : 'Generate report'}
-        </button>
-        <button
-          type="button"
-          className="report-panel__button"
-          disabled={busy || !summary?.generated}
-          onClick={() => void loadPreview(taskId, 'html')}
-        >
-          Preview HTML
-        </button>
-        <button
-          type="button"
-          className="report-panel__button"
-          disabled={busy || !summary?.generated}
-          onClick={() => void loadPreview(taskId, 'markdown')}
-        >
-          Preview Markdown
-        </button>
-      </div>
+      <button
+        type="button"
+        className="report-panel__button report-panel__button--primary report-panel__button--full"
+        disabled={busy}
+        onClick={() => void generateReport(taskId)}
+      >
+        {generating ? 'Generating…' : 'Generate report'}
+      </button>
 
-      {summary?.generated ? (
-        <ul className="report-panel__files">
-          {availableFormats
-            .filter((item) => item.available)
-            .map((item) => (
-              <li key={item.id}>
-                {item.label}{' '}
-                <button
-                  type="button"
-                  className="report-panel__button"
-                  disabled={busy}
-                  onClick={() => void downloadReport(taskId, item.id)}
-                >
-                  Export
-                </button>
-              </li>
-            ))}
-        </ul>
-      ) : null}
+      <div className="report-panel__export">
+        <p className="report-panel__export-label">Export</p>
+        <div className="report-panel__export-options">
+          {EXPORT_FORMATS.map((format) => {
+            const fileKey = format.id === 'markdown' ? 'markdown' : format.id
+            const available = summary?.files?.[fileKey]?.available ?? false
+            const disabled = busy || !generated || !available
 
-      {preview ? (
-        <div className="report-panel__preview">
-          {previewFormat === 'html' ? (
-            <iframe
-              className="report-panel__iframe"
-              title="Engineering report preview"
-              sandbox="allow-same-origin"
-              srcDoc={preview.content}
-            />
-          ) : (
-            <pre className="report-panel__markdown">{preview.content}</pre>
-          )}
+            return (
+              <button
+                key={format.id}
+                type="button"
+                className="report-panel__export-button"
+                disabled={disabled}
+                onClick={() => void downloadReport(taskId, format.id)}
+              >
+                {format.label}
+              </button>
+            )
+          })}
         </div>
-      ) : null}
+      </div>
     </section>
   )
 }

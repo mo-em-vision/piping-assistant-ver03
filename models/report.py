@@ -7,6 +7,17 @@ from typing import Any
 
 
 @dataclass(frozen=True)
+class ReportDisplaySection:
+    """Human-readable report section derived from UI display blocks."""
+
+    section_id: str
+    title: str
+    body_markdown: str
+    needs_explanation: bool = False
+    equation_latex: str | None = None
+
+
+@dataclass(frozen=True)
 class ReportSection:
     node: str
     paragraph: str | None = None
@@ -87,6 +98,7 @@ class ReportData:
     status: str = "INCOMPLETE"
     version_info: ReportVersionInfo | None = None
     user_request: str = ""
+    purpose: str = ""
     standards: list[str] = field(default_factory=list)
     input_entries: list[ReportInputEntry] = field(default_factory=list)
     traversal: list[ReportTraversalStep] = field(default_factory=list)
@@ -97,6 +109,9 @@ class ReportData:
     conclusion: str = ""
     missing_inputs: list[str] = field(default_factory=list)
     formula_display: str | None = None
+    display_sections: list[ReportDisplaySection] = field(default_factory=list)
+    section_explanations: dict[str, str] = field(default_factory=dict)
+    template_name: str = "generic_task_report.md"
 
 
 @dataclass(frozen=True)

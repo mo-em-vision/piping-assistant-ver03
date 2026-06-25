@@ -41,7 +41,11 @@ class EngineeringValidator:
             action = str(item.get("action", "warning"))
             if condition:
                 constraints.append(condition)
-            if action == "warning" and rule_id not in overrides:
+            if (
+                action == "warning"
+                and rule_id not in overrides
+                and rule_id != "thin_wall_applicability"
+            ):
                 warnings.append(
                     ValidationFinding(
                         rule=rule_id,

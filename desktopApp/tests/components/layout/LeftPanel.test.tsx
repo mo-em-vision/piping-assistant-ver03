@@ -31,10 +31,11 @@ describe('LeftPanel', () => {
     })
   })
 
-  it('shows create new project when no projects exist', () => {
+  it('shows new project action when no projects exist', () => {
     render(<LeftPanel />)
 
     expect(screen.getByRole('button', { name: 'Create new project' })).toBeInTheDocument()
+    expect(screen.getByText('No projects yet.')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Create new task' })).not.toBeInTheDocument()
   })
 
@@ -81,11 +82,11 @@ describe('LeftPanel', () => {
 
     render(<LeftPanel />)
 
-    expect(screen.getByText('Refinery Expansion')).toBeInTheDocument()
+    expect(screen.getByText(/Refinery Expansion/i)).toBeInTheDocument()
     expect(screen.queryByText('Default')).not.toBeInTheDocument()
   })
 
-  it('calls deleteTask when recycling bin is clicked', async () => {
+  it('calls deleteTask when recycling bin is clicked on a recent task', async () => {
     const user = userEvent.setup()
     const deleteTask = vi.fn().mockResolvedValue(undefined)
     useProjectStore.setState({
@@ -103,5 +104,40 @@ describe('LeftPanel', () => {
     await waitFor(() => {
       expect(deleteTask).toHaveBeenCalledWith('recent_pipe_001', 'proj_refinery')
     })
+  })
+
+  it('calls deleteTask when recycling bin is clicked on a project task', async () => {
+    const user = userEvent.setup()
+    const deleteTask = vi.fn().mockResolvedValue(undefined)
+    useProjectStore.setState({
+      projects: mockProjects,
+      activeProjectId: mockProjects[0].id,
+    })
+    useTaskStore.setState({
+      projectTasks: {
+        [mockProjects[0].id]: mockRecentTasks.slice(0, 1),
+      },
+      deleteTask,
+    })
+
+    render(<LeftPanel />)
+
+    await user.click(screen.getByRole('button', { name: /delete pipe thickness — line 200/i }))
+    await waitFor(() => {
+      expect(deleteTask).toHaveBeenCalledWith('recent_pipe_001', 'proj_refinery')
+    })
+  })
+
+  it('does not show a separate Tasks section', () => {
+    useProjectStore.setState({
+      projects: mockProjects,
+      activeProjectId: mockProjects[0].id,
+    })
+
+    render(<LeftPanel />)
+
+    expect(screen.getByRole('button', { name: 'Create new task' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Tasks' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Create new task', { selector: '.create-task-button' })).not.toBeInTheDocument()
   })
 })

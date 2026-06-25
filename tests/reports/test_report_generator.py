@@ -50,9 +50,9 @@ def test_render_markdown_contains_sections() -> None:
     report = build_report_from_task(task, _reader())
     md = render_markdown(report)
 
-    assert "Executive Summary" in md
+    assert "Purpose" in md
     assert "B313-304.1.2" in md or "304.1.2" in md
-    assert "Dependency Graph Traversal" in md
+    assert "Technical Appendix" in md
 
 
 def test_generator_writes_outputs(tmp_path) -> None:

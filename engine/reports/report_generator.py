@@ -6,7 +6,7 @@ from pathlib import Path
 
 from engine.reference.standards_reader import StandardsReader
 from engine.reports.formatters import render_html, render_json, render_markdown, write_pdf
-from engine.reports.presentation import apply_presentation
+from engine.reports.presentation import apply_presentation, enrich_report_with_ai
 from engine.reports.report_data import build_report_for_task_id
 from engine.state.state_manager import TaskStateManager
 from models.report import ReportData, ReportStorage
@@ -43,9 +43,13 @@ class ReportGenerator:
         output_dir.mkdir(parents=True, exist_ok=True)
         base = report.task_id or report.report_id
 
-        presentation = apply_presentation(report, use_ai=use_ai)
+        if use_ai:
+            report = enrich_report_with_ai(report, use_ai=True)
+
         markdown = render_markdown(report)
-        html = render_html(report, presentation=presentation)
+        presentation = apply_presentation(report, use_ai=use_ai, base_markdown=markdown)
+        final_markdown = presentation or markdown
+        html = render_html(report, presentation=final_markdown)
         json_text = render_json(report)
 
         md_path = output_dir / f"{base}.md"
@@ -53,7 +57,7 @@ class ReportGenerator:
         json_path = output_dir / f"{base}.json"
         pdf_path = output_dir / f"{base}.pdf"
 
-        md_path.write_text(markdown, encoding="utf-8")
+        md_path.write_text(final_markdown, encoding="utf-8")
         html_path.write_text(html, encoding="utf-8")
         json_path.write_text(json_text, encoding="utf-8")
 

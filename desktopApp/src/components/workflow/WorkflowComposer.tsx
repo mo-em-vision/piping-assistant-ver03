@@ -110,6 +110,7 @@ function renderInlineComposerInput({
 
   return (
     <ComposerInlineInput
+      key={parameter.name}
       value={textValue}
       onChange={(next) => setValue(next)}
       placeholder="Value…"
@@ -123,6 +124,7 @@ function renderInlineComposerInput({
       unit={showUnits ? unit : undefined}
       onUnitChange={showUnits ? setUnit : undefined}
       unitAriaLabel={showUnits ? `${parameter.label} unit` : undefined}
+      focusKey={parameter.name}
     />
   )
 }
@@ -277,7 +279,7 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
             No
           </button>
         </div>
-      ) : inlineComposerRow ? null : !parameter ? (
+      ) : inlineComposerRow ? null : !parameter && !nextStepPrompt ? (
         <ComposerInput disabled canSubmit={false} placeholder={composerPlaceholder(parameter)} onSubmit={() => undefined}>
           <textarea
             className="composer-input__field"

@@ -1,4 +1,4 @@
-# Engineering Calculation Report
+# Pipe Wall Thickness Design Report
 
 **Overall status:** {{status}}  
 **Prepared:** {{created_date}}
@@ -50,6 +50,8 @@
 ---
 
 ## Technical Appendix
+
+_The following records support audit and traceability. They are provided for verification and are not required for day-to-day engineering review._
 
 ### Workflow Traversal Record
 

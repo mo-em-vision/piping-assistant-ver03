@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { applyOptimisticParameterSubmit } from '@/components/workflow/optimisticWorkflowTransition'
 import {
   buildWorkflowHistory,
   getCurrentEditableParameter,
@@ -112,5 +113,77 @@ describe('getCurrentEditableParameter', () => {
     })
 
     expect(parameter?.name).toBe('corrosion_allowance')
+  })
+
+  it('returns a material stub during optimistic handoff before backend refresh', () => {
+    const state = applyOptimisticParameterSubmit(
+      {
+        task_id: 'test-task',
+        name: 'Pipe Thickness Calculation',
+        workflow_id: 'pipe_wall_thickness_design',
+        discipline: 'Piping',
+        description: 'test',
+        status: 'awaiting_input',
+        active_nodes: [],
+        progress: {
+          timeline: [
+            {
+              id: 'outside_diameter',
+              title: 'Outside Diameter',
+              status: 'active',
+              value: null,
+              unit: null,
+            },
+            {
+              id: 'material',
+              title: 'Material',
+              status: 'pending',
+              value: null,
+              unit: null,
+            },
+          ],
+          steps: [],
+          completed_count: 0,
+          total_count: 2,
+          current_step_id: 'outside_diameter',
+          missing_inputs: ['outside_diameter', 'material'],
+          missing_assumptions: [],
+          submittable_parameters: ['outside_diameter'],
+          step_progress: [],
+        },
+        inputs: {},
+        outputs: {},
+        warnings: [],
+        parameters: [
+          {
+            name: 'outside_diameter',
+            label: 'Outside Diameter',
+            type: 'number',
+            required: true,
+            units: ['in'],
+            default_unit: 'in',
+            default_value: null,
+            value: null,
+            options: null,
+            validation: null,
+            status: 'pending',
+            requires_confirmation: false,
+          },
+        ],
+        display_outputs: [],
+        active_node_context: null,
+        options: { available_workflows: [] },
+        errors: [],
+      },
+      'outside_diameter',
+      4.5,
+      'in',
+    )
+
+    const parameter = getCurrentEditableParameter(state)
+
+    expect(parameter?.name).toBe('material')
+    expect(parameter?.type).toBe('material')
+    expect(parameter?.status).toBe('pending')
   })
 })

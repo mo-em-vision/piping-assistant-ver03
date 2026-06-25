@@ -85,8 +85,8 @@
 }
 
 .workflow-panel__next-step-inline .composer-inline-row {
-  flex: 1;
-  min-width: 0;
+  flex: 0 0 auto;
+  flex-shrink: 0;
 }
 
 .material-search-input--inline {

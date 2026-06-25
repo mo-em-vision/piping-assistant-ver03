@@ -181,3 +181,9 @@
   font-size: 0.72rem;
   color: #71717a;
 }
+
+.material-search-input__status {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  color: #71717a;
+}

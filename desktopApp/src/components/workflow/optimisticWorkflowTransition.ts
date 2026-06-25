@@ -1,15 +1,15 @@
 import type { TaskStateDto } from '@/types/backend/api'
-/** Matches backend `PIPE_WALL_INPUT_STEP_ORDER` for optimistic composer transitions. */
+
+/** Matches backend phased navigation order in engine/graph/navigation_phases.py */
 const PIPE_WALL_STEP_ORDER = [
   'pressure_loading',
-  'material',
   'design_pressure',
-  'design_temperature',
   'nominal_pipe_size',
   'outside_diameter',
+  'material',
+  'design_temperature',
   'external_design_pressure',
   'joint_category',
-  'allowable_stress',
   'weld_joint_efficiency',
   'weld_strength_reduction',
   'temperature_coefficient',
@@ -94,9 +94,15 @@ export function applyOptimisticParameterSubmit(
       ? candidateNextStepId
       : null
 
-  const parameters = state.parameters.map((item) =>
-    item.name === parameter ? { ...item, value, status: 'confirmed' as const } : item,
-  )
+  const parameters = state.parameters.map((item) => {
+    if (item.name === parameter) {
+      return { ...item, value, status: 'confirmed' as const }
+    }
+    if (nextStepId && item.name === nextStepId && item.status !== 'confirmed') {
+      return { ...item, status: 'pending' as const, submittable: true }
+    }
+    return item
+  })
 
   const timeline = advanceTimeline(
     state.progress.timeline,
@@ -125,6 +131,7 @@ export function applyOptimisticParameterSubmit(
       steps: timeline,
       current_step_id: nextStepId ?? state.progress.current_step_id,
       missing_inputs: state.progress.missing_inputs.filter((item) => item !== parameter),
+      submittable_parameters: nextStepId ? [nextStepId] : state.progress.submittable_parameters,
     },
   }
 }

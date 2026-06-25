@@ -70,6 +70,15 @@ CREATE INDEX IF NOT EXISTS idx_schedule_entries_pipe
 
 
 @dataclass(frozen=True)
+class PipeScheduleEntry:
+    """One schedule row for a nominal pipe size."""
+
+    schedule: str
+    wall_thickness_in: float
+    wall_thickness_mm: float
+
+
+@dataclass(frozen=True)
 class PipeDimensionRow:
     """Resolved pipe dimensions from a registered dimension table."""
 
@@ -216,6 +225,74 @@ class PipeDimensionsDatabase:
             connection.commit()
 
         return table_id
+
+    def list_schedules_for_nps(
+        self,
+        table_id: str,
+        nominal_pipe_size: str,
+    ) -> list[PipeScheduleEntry]:
+        nps_key = self._resolve_nps(table_id, nominal_pipe_size)
+        with self.connect() as connection:
+            pipe_row = connection.execute(
+                """
+                SELECT id
+                FROM pipe_entries
+                WHERE table_id = ? AND nps = ?
+                """,
+                (table_id, nps_key),
+            ).fetchone()
+            if pipe_row is None:
+                raise ValueError(f"Nominal pipe size not found: {nominal_pipe_size}")
+
+            rows = connection.execute(
+                """
+                SELECT schedule, wall_thickness_in, wall_thickness_mm
+                FROM schedule_entries
+                WHERE pipe_entry_id = ?
+                ORDER BY wall_thickness_in
+                """,
+                (int(pipe_row["id"]),),
+            ).fetchall()
+
+        entries: list[PipeScheduleEntry] = []
+        for row in rows:
+            wall_in = float(row["wall_thickness_in"])
+            wall_mm = (
+                float(row["wall_thickness_mm"])
+                if row["wall_thickness_mm"] is not None
+                else wall_in * INCH_TO_MM
+            )
+            entries.append(
+                PipeScheduleEntry(
+                    schedule=str(row["schedule"]),
+                    wall_thickness_in=wall_in,
+                    wall_thickness_mm=wall_mm,
+                )
+            )
+        return entries
+
+    def find_nps_by_outside_diameter_mm(
+        self,
+        table_id: str,
+        outside_diameter_mm: float,
+        *,
+        tolerance_mm: float = 0.05,
+    ) -> str | None:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT nps, outside_diameter_mm
+                FROM pipe_entries
+                WHERE table_id = ?
+                """,
+                (table_id,),
+            ).fetchall()
+        target = float(outside_diameter_mm)
+        for row in rows:
+            od_mm = float(row["outside_diameter_mm"])
+            if abs(od_mm - target) <= tolerance_mm:
+                return str(row["nps"])
+        return None
 
     def list_nps_sizes(self, table_id: str) -> list[str]:
         with self.connect() as connection:

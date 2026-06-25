@@ -192,20 +192,20 @@
 .workflow-panel__next-step-inline {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap;
-  gap: 0.65rem;
+  flex-wrap: wrap;
+  gap: 0.45rem 0.65rem;
   width: 100%;
   min-width: 0;
 }
 
 .workflow-panel__next-step-inline .workflow-panel__next-step-text {
-  flex-shrink: 0;
-  white-space: nowrap;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .workflow-panel__next-step-inline .composer-inline-row {
-  flex: 1;
-  min-width: 0;
+  flex: 0 0 auto;
+  flex-shrink: 0;
   width: auto;
 }
 

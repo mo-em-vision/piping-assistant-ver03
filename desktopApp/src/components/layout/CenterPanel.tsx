@@ -97,7 +97,7 @@ export function CenterPanel() {
         <WorkflowComposer
           parameter={currentParameter}
           nextStepPrompt={nextStepPrompt}
-          disabled={loading || !viewModel}
+          disabled={!viewModel || (loading && !activeTaskState)}
         />
       </div>
     </main>

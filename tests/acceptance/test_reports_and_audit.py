@@ -24,10 +24,10 @@ class TestReportAcceptance:
         markdown = render_markdown(report)
 
         for section in (
+            "Purpose",
             "Executive Summary",
-            "Input Data",
-            "Dependency Graph Traversal",
-            "Calculation Details",
+            "Design Basis and Input Conditions",
+            "Engineering Analysis",
             "Results",
         ):
             assert section in markdown
@@ -84,7 +84,7 @@ class TestReportFormatsAcceptance:
         assert Path(storage.markdown_path).exists()
         assert Path(storage.html_path).exists()
         html = Path(storage.html_path).read_text(encoding="utf-8")
-        assert "Engineering Calculation Report" in html or "Executive Summary" in html
+        assert "Pipe Wall Thickness" in html or "Purpose" in html
 
 
 class TestAuditRequirementsAcceptance:

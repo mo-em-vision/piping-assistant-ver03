@@ -5,7 +5,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from api.output_blocks import build_display_outputs
+from engine.reports.number_format import format_report_number
 from engine.reference.standards_reader import StandardsReader
+from engine.reports.block_renderer import blocks_to_display_sections, human_input_label
+from engine.reports.template_registry import PIPE_WALL_THICKNESS_WORKFLOW, resolve_template_name
 from engine.state.state_manager import TaskStateManager
 from models.report import (
     ReportData,
@@ -20,7 +24,6 @@ from models.report import (
 )
 from models.task import Task, TaskStatus
 
-PIPE_WALL_THICKNESS_WORKFLOW = "pipe_wall_thickness_design"
 ROOT_SLUG = "pipe_wall_thickness_design"
 WALL_THICKNESS_NODE = "B313-304.1.2"
 
@@ -70,6 +73,8 @@ def _build_pipe_wall_thickness_report(
     traversal = _flatten_traversal(reader, ROOT_SLUG)
     input_entries = [_input_entry(key, task.inputs[key]) for key in task.inputs]
     formula_display = _load_formula_display(reader, WALL_THICKNESS_NODE)
+    display_blocks = build_display_outputs(task, reader=reader, standards_root=reader.standards_root)
+    display_sections = blocks_to_display_sections(display_blocks)
 
     section = ReportSection(
         node=node.node_id,
@@ -90,7 +95,7 @@ def _build_pipe_wall_thickness_report(
     )
 
     if task.outputs.get("_execution_trace"):
-        traversal = _traversal_from_trace(task.outputs["_execution_trace"])
+        traversal = _traversal_from_trace(task.outputs["_execution_trace"], reader)
 
     thin_wall = node.metadata.get("conditions", [])
     decisions: list[ReportDecision] = []
@@ -114,7 +119,7 @@ def _build_pipe_wall_thickness_report(
 
     now = datetime.now(timezone.utc).isoformat()
     version = ReportVersionInfo(
-        report_version="1.0",
+        report_version="2.0",
         graph_version=PIPE_WALL_THICKNESS_WORKFLOW,
         node_versions={
             root.node_id: str(root.metadata.get("version", "1.0")),
@@ -124,6 +129,10 @@ def _build_pipe_wall_thickness_report(
         task_id=task.task_id,
     )
 
+    request_text = user_request or "Pipe wall thickness design / verification"
+    purpose = _pipe_wall_purpose(request_text)
+    conclusion = _pipe_wall_conclusion(status, missing, task.outputs)
+
     return ReportData(
         report_id=f"{task.task_id}-report",
         title="Pipe Wall Thickness Design Report",
@@ -132,7 +141,8 @@ def _build_pipe_wall_thickness_report(
         workflow=PIPE_WALL_THICKNESS_WORKFLOW,
         status=status,
         version_info=version,
-        user_request=user_request or "Pipe wall thickness design / verification",
+        user_request=request_text,
+        purpose=purpose,
         standards=["ASME B31.3"],
         input_entries=input_entries,
         traversal=traversal,
@@ -144,7 +154,9 @@ def _build_pipe_wall_thickness_report(
         overrides=_report_overrides(task),
         missing_inputs=missing,
         formula_display=formula_display,
-        conclusion=_conclusion(status, missing, task.outputs),
+        display_sections=display_sections,
+        template_name=resolve_template_name(PIPE_WALL_THICKNESS_WORKFLOW),
+        conclusion=conclusion,
     )
 
 
@@ -154,46 +166,157 @@ def _build_generic_report(
     *,
     user_request: str,
 ) -> ReportData:
+    workflow = str(task.outputs.get("workflow") or "")
+    display_blocks = build_display_outputs(task, reader=reader, standards_root=reader.standards_root)
+    display_sections = blocks_to_display_sections(display_blocks)
     now = datetime.now(timezone.utc).isoformat()
+    request_text = user_request or "Engineering calculation task"
     return ReportData(
         report_id=f"{task.task_id}-report",
-        title=f"Engineering Task Report — {task.task_id}",
-        graph_version="unknown",
+        title="Engineering Task Report",
+        graph_version=workflow or "unknown",
         task_id=task.task_id,
+        workflow=workflow,
         status=task.status.value.upper(),
         version_info=ReportVersionInfo(
             created_date=now,
             task_id=task.task_id,
         ),
-        user_request=user_request,
+        user_request=request_text,
+        purpose=_generic_purpose(request_text, workflow),
         report_warnings=_report_warnings(task),
         overrides=_report_overrides(task),
-        conclusion="Generic report shell — workflow-specific builder not available.",
+        display_sections=display_sections,
+        template_name=resolve_template_name(workflow),
+        conclusion=_generic_conclusion(task),
     )
+
+
+def _pipe_wall_purpose(user_request: str) -> str:
+    return (
+        "This report documents the pressure design evaluation for straight pipe under internal "
+        "pressure in accordance with ASME B31.3 §304.1.2. It presents the design basis, governing "
+        "equation, substituted calculation, applicability checks, and minimum required wall thickness "
+        f"for the stated design intent: {user_request}."
+    )
+
+
+def _generic_purpose(user_request: str, workflow: str) -> str:
+    workflow_label = workflow.replace("_", " ") if workflow else "engineering"
+    return (
+        f"This report summarizes the {workflow_label} task performed for: {user_request}. "
+        "It records the design basis, engineering analysis, results, and any warnings relevant "
+        "to engineering review."
+    )
+
+
+def _pipe_wall_conclusion(status: str, missing: list[str], outputs: dict[str, Any]) -> str:
+    if missing:
+        return (
+            "The wall thickness design cannot be finalized. Required design inputs are still "
+            f"missing: {', '.join(human_input_label(key) for key in missing)}. "
+            "Provide the remaining values and re-run the calculation before issuing this report "
+            "for engineering sign-off."
+        )
+    if status == "INVALIDATED":
+        return (
+            "The calculation has been invalidated due to input changes or validation failures. "
+            "Review the warnings and technical appendix, then re-execute the workflow before "
+            "relying on the results."
+        )
+    t_m = outputs.get("t_m") or outputs.get("minimum_required_thickness")
+    required = outputs.get("required_thickness") or outputs.get("t")
+    if t_m is not None:
+        unit = str(outputs.get("t_m_unit") or outputs.get("minimum_required_thickness_unit") or "mm")
+        thickness = format_report_number(t_m)
+        return (
+            f"The minimum required pipe wall thickness is {thickness} {unit}. The selected pipe schedule "
+            "must provide a nominal wall thickness not less than this value per ASME B31.3 §304.1.1(a). "
+            "Refer to the engineering analysis section for the governing equation, substituted "
+            "calculation, and schedule recommendation."
+        )
+    if required is not None:
+        unit = str(outputs.get("required_thickness_unit") or outputs.get("t_unit") or "mm")
+        thickness = format_report_number(required)
+        return (
+            f"The required wall thickness t is {thickness} {unit} per ASME B31.3 §304.1.2. "
+            "Minimum required thickness including corrosion allowance should be confirmed before "
+            "final pipe selection."
+        )
+    return (
+        "Design inputs have been recorded. Complete the calculation workflow to obtain required "
+        "thickness and minimum required thickness values for final engineering review."
+    )
+
+
+def _generic_conclusion(task: Task) -> str:
+    if task.status == TaskStatus.COMPLETED:
+        return "The engineering task completed successfully. Review the results and warnings above."
+    if task.status == TaskStatus.INVALIDATED:
+        return "The task was invalidated. Review warnings and re-run the workflow before sign-off."
+    if task.status == TaskStatus.AWAITING_INPUT:
+        return "The task is awaiting additional engineering inputs before results can be finalized."
+    return "The task is in progress. This report reflects the current recorded state."
 
 
 def _execution_outputs(task: Task) -> dict[str, Any]:
     outputs: dict[str, Any] = {}
-    for key in ("required_thickness", "t", "allowable_stress", "S"):
+    for key in (
+        "required_thickness",
+        "t",
+        "minimum_required_thickness",
+        "t_m",
+        "allowable_stress",
+        "S",
+    ):
         if key in task.outputs:
             outputs[key] = task.outputs[key]
     return outputs
 
 
-def _traversal_from_trace(trace: Any) -> list[ReportTraversalStep]:
+def _traversal_from_trace(
+    trace: Any,
+    reader: StandardsReader | None = None,
+) -> list[ReportTraversalStep]:
     if not isinstance(trace, list):
         return []
     steps: list[ReportTraversalStep] = []
     for entry in trace:
         if not isinstance(entry, dict):
             continue
-        steps.append(
-            ReportTraversalStep(
-                node_id=str(entry.get("node_id", "")),
-                title=str(entry.get("status", "")),
-            )
-        )
+        node_id = str(entry.get("node_id", ""))
+        title = _human_traversal_title(node_id, entry.get("status"), reader)
+        steps.append(ReportTraversalStep(node_id=node_id, title=title))
     return steps
+
+
+def _human_traversal_title(
+    node_id: str,
+    status: Any,
+    reader: StandardsReader | None,
+) -> str:
+    if reader and node_id:
+        try:
+            node = reader.load(node_id)
+            paragraph = str(node.metadata.get("paragraph", "")).strip()
+            node_title = str(node.metadata.get("title", "")).strip()
+            if node_title and paragraph:
+                return f"{node_title} (§{paragraph})"
+            if node_title:
+                return node_title
+            if paragraph:
+                return f"§{paragraph}"
+        except FileNotFoundError:
+            pass
+
+    status_text = str(status or "").strip()
+    if "COMPLETED" in status_text.upper():
+        return "Completed"
+    if "SKIPPED" in status_text.upper():
+        return "Skipped"
+    if status_text:
+        return status_text.replace("NodeExecutionStatus.", "").replace("_", " ").title()
+    return "Executed"
 
 
 def _derive_status(task: Task, missing: list[str]) -> str:
@@ -324,14 +447,3 @@ def _extract_paragraph_excerpt(body: str, limit: int = 400) -> str:
         if stripped and not stripped.startswith("#") and not stripped.startswith(">"):
             return stripped[:limit]
     return body[:limit].strip()
-
-
-def _conclusion(status: str, missing: list[str], outputs: dict[str, Any]) -> str:
-    if missing:
-        return (
-            f"Report is incomplete. Missing inputs: {', '.join(missing)}. "
-            "Calculations cannot be finalized until all required values are provided."
-        )
-    if outputs.get("required_thickness") or outputs.get("t"):
-        return "Required thickness has been recorded in the execution outputs."
-    return "Task data collected; full calculation trace pending engine execution."

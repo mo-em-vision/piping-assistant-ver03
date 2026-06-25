@@ -1,4 +1,4 @@
-import { type KeyboardEvent } from 'react'
+import { useEffect, useRef, type KeyboardEvent } from 'react'
 
 import { UnitPillGroup } from '@/components/inputs/UnitPillGroup'
 
@@ -19,6 +19,7 @@ interface ComposerInlineInputProps {
   unitAriaLabel?: string
   variant?: 'text' | 'numeric'
   onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void
+  focusKey?: string
 }
 
 function ArrowUpIcon() {
@@ -47,9 +48,28 @@ export function ComposerInlineInput({
   unitAriaLabel,
   variant = 'text',
   onKeyDown,
+  focusKey,
 }: ComposerInlineInputProps) {
   const busy = Boolean(disabled || submitting)
   const showUnits = Boolean(units && units.length > 0 && unit && onUnitChange)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const initialValueRef = useRef(value)
+
+  useEffect(() => {
+    if (busy) {
+      return
+    }
+
+    const input = inputRef.current
+    if (!input) {
+      return
+    }
+
+    input.focus({ preventScroll: true })
+    if (initialValueRef.current) {
+      input.select()
+    }
+  }, [busy, focusKey])
 
   return (
     <form
@@ -62,6 +82,7 @@ export function ComposerInlineInput({
       }}
     >
       <input
+        ref={inputRef}
         className="composer-inline-row__value"
         type="text"
         inputMode={inputMode}

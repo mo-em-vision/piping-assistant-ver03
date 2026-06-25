@@ -90,7 +90,7 @@ class TestReportGeneratorStrategy:
 
         assert report.traversal
         assert report.traceability
-        assert "Dependency Graph Traversal" in markdown
+        assert "Workflow Traversal Record" in markdown
 
 
 class TestAiInteractionStrategy:

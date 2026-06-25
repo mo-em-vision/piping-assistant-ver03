@@ -30,30 +30,11 @@ function renderInputTableCell(columnKey: string, value: string) {
 }
 
 export function EquationOutput({ block }: EquationOutputProps) {
-  const isEvaluatedEquation = block.id === 'path-calculation-substituted-equation'
-
   return (
-    <article
-      className={
-        isEvaluatedEquation
-          ? 'output-block output-equation output-equation--evaluated'
-          : 'output-block output-equation'
-      }
-    >
+    <article className="output-block output-equation">
       {block.title ? <h4 className="output-block__title">{block.title}</h4> : null}
       <div className="output-equation__math-row">
-        {block.leading_result ? (
-          <span className="output-equation__leading-result">
-            = {block.leading_result.value}
-            {block.leading_result.unit ? ` ${block.leading_result.unit}` : ''}
-          </span>
-        ) : null}
-        <DisplayMath
-          expression={block.content}
-          className={
-            isEvaluatedEquation ? 'output-equation__math output-equation__math--evaluated' : 'output-equation__math'
-          }
-        />
+        <DisplayMath expression={block.content} className="output-equation__math" />
       </div>
       {block.input_table ? (
         <div className="output-equation__input-table">

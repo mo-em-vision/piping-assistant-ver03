@@ -2,11 +2,6 @@
   display: flex;
   align-items: stretch;
   gap: 0.15rem;
-  border-radius: 6px;
-}
-
-.recent-task-row--active {
-  background: #eff6ff;
 }
 
 .recent-task-row__select {
@@ -16,18 +11,17 @@
   min-width: 0;
   padding: 0.45rem 0.5rem;
   border: none;
-  border-radius: 6px;
   background: transparent;
   text-align: left;
   cursor: pointer;
 }
 
-.recent-task-row__select:hover {
-  background: #f1f5f9;
+.recent-task-row__select:hover .recent-task-row__name {
+  color: #475569;
 }
 
-.recent-task-row--active .recent-task-row__select:hover {
-  background: #dbeafe;
+.recent-task-row--active .recent-task-row__name {
+  color: #475569;
 }
 
 .recent-task-row__name {

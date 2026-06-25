@@ -1,21 +1,24 @@
 {
   "workflow": "pipe_wall_thickness_design",
   "required_sections": [
+    "Purpose",
     "Executive Summary",
-    "Input Data",
-    "Dependency Graph Traversal",
-    "Calculation Details",
-    "Limitations and Constraints",
-    "Conclusions"
+    "Design Basis and Input Conditions",
+    "Engineering Analysis",
+    "Warnings",
+    "Conclusions",
+    "Technical Appendix"
   ],
   "required_nodes": [
     "B313-304.1.2"
   ],
   "required_report_fields": [
     "status",
+    "purpose",
     "traversal",
     "sections",
     "traceability",
-    "formula_display"
+    "formula_display",
+    "display_sections"
   ]
 }

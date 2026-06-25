@@ -66,6 +66,7 @@ def build_display_outputs(
         planning = {}
 
     resolved_reader = reader or _reader_for(standards_root)
+    resolved_standards_root = standards_root or resolved_reader.standards_root
     trace = task.outputs.get("_execution_trace")
     has_trace = isinstance(trace, list) and bool(trace)
 
@@ -76,6 +77,7 @@ def build_display_outputs(
             resolved_reader,
             trace if has_trace else None,
             has_trace=has_trace,
+            standards_root=resolved_standards_root,
         )
 
     blocks.extend(_activated_definition_blocks(task, planning, resolved_reader))
@@ -215,6 +217,7 @@ def _build_pipe_wall_display_outputs(
     trace: list[Any] | None,
     *,
     has_trace: bool,
+    standards_root: Path,
 ) -> list[dict[str, Any]]:
     blocks: list[dict[str, Any]] = []
 
@@ -223,15 +226,18 @@ def _build_pipe_wall_display_outputs(
         substituted = _substituted_calculation_equation_block(trace)
         if substituted:
             blocks.append(substituted)
-        summary = _required_thickness_summary_block(task)
-        if summary:
-            blocks.append(summary)
+        applicability = _thin_wall_applicability_block(task, trace)
+        if applicability:
+            blocks.append(applicability)
         minimum_equation = _minimum_thickness_equation_block(task)
         if minimum_equation:
             blocks.append(minimum_equation)
         conclusion = _minimum_thickness_conclusion_block(task)
         if conclusion:
             blocks.append(conclusion)
+        schedule = _pipe_schedule_recommendation_block(task, standards_root)
+        if schedule:
+            blocks.append(schedule)
         return _dedupe_blocks_by_id(blocks)
 
     blocks.extend(_activated_definition_blocks(task, planning, reader))
@@ -343,6 +349,40 @@ def _minimum_thickness_conclusion_block(task: Task) -> dict[str, Any] | None:
     }
 
 
+def _pipe_schedule_recommendation_block(
+    task: Task,
+    standards_root: Path,
+) -> dict[str, Any] | None:
+    if not _pipe_wall_tm_complete(task):
+        return None
+
+    from engine.executor.pipe_schedule_recommendation import (
+        format_schedule_recommendation_text,
+        recommend_pipe_schedule_for_task,
+    )
+
+    recommendation = recommend_pipe_schedule_for_task(task, standards_root)
+    if recommendation is None:
+        return None
+
+    return {
+        "id": "pipe-schedule-recommendation",
+        "type": "text",
+        "title": None,
+        "content": format_schedule_recommendation_text(recommendation),
+        "variant": "body",
+        "pipe_schedule_recommendation": {
+            "nps": recommendation.nps,
+            "schedule": recommendation.schedule,
+            "wall_thickness_mm": recommendation.wall_thickness_mm,
+            "minimum_required_thickness_mm": recommendation.minimum_required_thickness_mm,
+            "standard": recommendation.standard_display,
+            "standard_slug": recommendation.standard_slug,
+            "table_id": recommendation.table_id,
+        },
+    }
+
+
 def _corrosion_allowance_mm(task: Task) -> float | None:
     from engine.executor.unit_manager import prepare_engineering_input
     from models.input import InputStatus
@@ -357,6 +397,33 @@ def _corrosion_allowance_mm(task: Task) -> float | None:
 
 def _pipe_wall_calculation_complete(task: Task, *, has_trace: bool) -> bool:
     return _pipe_wall_t_calculated(task, has_trace=has_trace)
+
+
+def _thin_wall_applicability_block(task: Task, trace: list[Any]) -> dict[str, Any] | None:
+    """Show §304.1.2 thin-wall criterion result after thickness is calculated."""
+    if trace is None:
+        return None
+    thin_wall = task.outputs.get("thin_wall")
+    if thin_wall is None:
+        return None
+    if not _pipe_wall_t_calculated(task, has_trace=True):
+        return None
+
+    if bool(thin_wall):
+        content = "ASME B31.3 paragraph §304.1.2 condition (t < D/6) is valid."
+    else:
+        content = (
+            "ASME B31.3 paragraph §304.1.2 condition (t < D/6) is NOT valid. "
+            "continuing with thick wall condition (t > D/6)"
+        )
+
+    return {
+        "id": "thin-wall-applicability-check",
+        "type": "text",
+        "title": None,
+        "content": content,
+        "variant": "body",
+    }
 
 
 def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] | None:
@@ -386,7 +453,7 @@ def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] 
         return None
 
     result_unit = str(final.get("unit") or "mm")
-    display, latex, leading_result = build_wall_thickness_substituted_equation(
+    display, latex = build_wall_thickness_substituted_equation(
         result_value=float(final["value"]),
         result_unit=result_unit,
         variables_si=variables,
@@ -398,7 +465,6 @@ def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] 
         "title": None,
         "content": latex,
         "display": display,
-        "leading_result": leading_result,
     }
 
 

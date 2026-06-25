@@ -1,13 +1,15 @@
-# Report Explanation
+# Report Section Explanation
 
-Explain a completed engineering report section in plain language.
+Explain one engineering report section in plain language for a practicing engineer.
 
 Return JSON:
 
 ```json
 {
-  "explanation": "Readable explanation preserving all numeric values exactly as provided."
+  "explanation": "Two to four sentences explaining the engineering significance of this section. Preserve every numeric value, unit, and code reference exactly as provided."
 }
 ```
 
-Never paraphrase numbers, formulas, or PASS/FAIL results.
+Focus on *why* the check or equation matters and what the engineer should verify. Do not repeat the full table or equation unless needed for context.
+
+Never change numbers, formulas, PASS/FAIL results, or warning text.

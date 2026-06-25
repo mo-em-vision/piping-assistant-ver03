@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 
-import { materialApi } from '@/services/api/materialApi'
 import { searchMockMaterials } from '@/mock/materials.mock'
+import { materialApi } from '@/services/api/materialApi'
+import { useMaterialCatalogStore } from '@/store/materialCatalogStore'
 
 import type { MaterialOptionDto } from '@/types/backend/materials'
 
@@ -36,34 +37,17 @@ export function MaterialSearchInput({
   const [suggestions, setSuggestions] = useState<MaterialOptionDto[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(-1)
-  const [catalogReady, setCatalogReady] = useState(useMockData)
+  const catalogReady = useMaterialCatalogStore((state) => state.ready)
+  const catalogWarming = useMaterialCatalogStore((state) => state.warming)
+  const catalogError = useMaterialCatalogStore((state) => state.error)
+  const warmCatalog = useMaterialCatalogStore((state) => state.warmCatalog)
 
   const query = value.trim()
   const showSuggestions = query.length >= MIN_QUERY_LENGTH && suggestions.length > 0
 
   useEffect(() => {
-    if (useMockData) {
-      return
-    }
-
-    let cancelled = false
-    void materialApi
-      .warm()
-      .then((response) => {
-        if (!cancelled) {
-          setCatalogReady(response.ready)
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCatalogReady(true)
-        }
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [])
+    void warmCatalog()
+  }, [warmCatalog])
 
   useEffect(() => {
     setHighlightIndex(-1)
@@ -75,7 +59,8 @@ export function MaterialSearchInput({
       return
     }
 
-    if (!catalogReady) {
+    if (catalogError) {
+      setSuggestions([])
       return
     }
 
@@ -111,7 +96,7 @@ export function MaterialSearchInput({
       controller.abort()
       window.clearTimeout(timer)
     }
-  }, [catalogReady, query])
+  }, [catalogError, query])
 
   const canSubmit = useMemo(() => value.trim().length > 0, [value])
 
@@ -142,9 +127,41 @@ export function MaterialSearchInput({
     }
   }
 
+  const statusHint = catalogError
+    ? catalogError
+    : catalogWarming && !catalogReady
+      ? 'Loading material catalog…'
+      : null
+
+  const suggestionsList = showSuggestions ? (
+    <div className="composer-suggestions" role="listbox" aria-label="Material suggestions">
+      {suggestions.map((option, index) => (
+        <button
+          key={`${option.standard}-${option.value}`}
+          type="button"
+          role="option"
+          aria-label={option.value}
+          aria-selected={highlightIndex === index}
+          className={`composer-suggestions__item${
+            highlightIndex === index ? ' composer-suggestions__item--highlighted' : ''
+          }`}
+          disabled={disabled || submitting}
+          onMouseEnter={() => setHighlightIndex(index)}
+          onClick={() => chooseSuggestion(option)}
+        >
+          <span className="composer-suggestions__value">{option.value}</span>
+          <span className="composer-suggestions__meta">
+            {option.label} · {option.specification}
+          </span>
+        </button>
+      ))}
+    </div>
+  ) : null
+
   if (inline) {
     return (
       <div className="material-search-input material-search-input--inline">
+        {statusHint ? <p className="material-search-input__status">{statusHint}</p> : null}
         <ComposerInlineInput
           value={value}
           onChange={onChange}
@@ -157,61 +174,15 @@ export function MaterialSearchInput({
           variant="text"
           onKeyDown={handleKeyDown}
         />
-        {showSuggestions ? (
-          <div className="composer-suggestions" role="listbox" aria-label="Material suggestions">
-            {suggestions.map((option, index) => (
-              <button
-                key={`${option.standard}-${option.value}`}
-                type="button"
-                role="option"
-                aria-label={option.value}
-                aria-selected={highlightIndex === index}
-                className={`composer-suggestions__item${
-                  highlightIndex === index ? ' composer-suggestions__item--highlighted' : ''
-                }`}
-                disabled={disabled || submitting}
-                onMouseEnter={() => setHighlightIndex(index)}
-                onClick={() => chooseSuggestion(option)}
-              >
-                <span className="composer-suggestions__value">{option.value}</span>
-                <span className="composer-suggestions__meta">
-                  {option.label} · {option.specification}
-                </span>
-              </button>
-            ))}
-          </div>
-        ) : null}
+        {suggestionsList}
       </div>
     )
   }
 
   return (
     <div className="material-search-input">
-      {showSuggestions ? (
-        <div className="composer-suggestions" role="listbox" aria-label="Material suggestions">
-          {suggestions.map((option, index) => (
-            <button
-              key={`${option.standard}-${option.value}`}
-              type="button"
-              role="option"
-              aria-label={option.value}
-              aria-selected={highlightIndex === index}
-              className={`composer-suggestions__item${
-                highlightIndex === index ? ' composer-suggestions__item--highlighted' : ''
-              }`}
-              disabled={disabled || submitting}
-              onMouseEnter={() => setHighlightIndex(index)}
-              onClick={() => chooseSuggestion(option)}
-            >
-              <span className="composer-suggestions__value">{option.value}</span>
-              <span className="composer-suggestions__meta">
-                {option.label} · {option.specification}
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-
+      {statusHint ? <p className="material-search-input__status">{statusHint}</p> : null}
+      {suggestionsList}
       <ComposerInlineInput
         value={value}
         onChange={onChange}

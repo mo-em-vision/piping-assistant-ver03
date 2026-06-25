@@ -10,7 +10,7 @@ from typing import Any
 import yaml
 
 from engine.reference.pack_pipe_dimensions_db import resolve_pack_pipe_dimensions_db
-from engine.reference.pipe_dimensions_db import INCH_TO_MM, PipeDimensionsDatabase
+from engine.reference.pipe_dimensions_db import INCH_TO_MM, PipeDimensionsDatabase, PipeScheduleEntry
 from engine.reference.pipe_dimensions_registry import (
     load_pipe_dimensions_registry,
     resolve_pipe_dimension_source,
@@ -88,6 +88,28 @@ class PipeDimensionLookup:
     def standard_slug(self) -> str:
         return self._standard
 
+    def list_schedules_for_nps(self, nominal_pipe_size: str) -> list[PipeScheduleEntry]:
+        if self._database is not None:
+            return self._database.list_schedules_for_nps(self._table_id, nominal_pipe_size)
+        return self._list_schedules_for_nps_yaml(nominal_pipe_size)
+
+    def find_nps_by_outside_diameter_mm(
+        self,
+        outside_diameter_mm: float,
+        *,
+        tolerance_mm: float = 0.05,
+    ) -> str | None:
+        if self._database is not None:
+            return self._database.find_nps_by_outside_diameter_mm(
+                self._table_id,
+                outside_diameter_mm,
+                tolerance_mm=tolerance_mm,
+            )
+        return self._find_nps_by_outside_diameter_mm_yaml(
+            outside_diameter_mm,
+            tolerance_mm=tolerance_mm,
+        )
+
     def lookup(
         self,
         nominal_pipe_size: str,
@@ -120,6 +142,44 @@ class PipeDimensionLookup:
         if self._database is not None:
             return self._database.list_nps_sizes(self._table_id)
         return self._list_nps_sizes_yaml()
+
+    def _list_schedules_for_nps_yaml(self, nominal_pipe_size: str) -> list[PipeScheduleEntry]:
+        table = self._yaml_table or {}
+        nps_key = self._resolve_nps_yaml(table, nominal_pipe_size)
+        pipes = table.get("pipes", {}) or {}
+        pipe_row = pipes[nps_key]
+        schedules = pipe_row.get("schedules", {}) or {}
+        entries: list[PipeScheduleEntry] = []
+        for schedule_key, schedule_row in schedules.items():
+            if not isinstance(schedule_row, dict):
+                continue
+            wall_in = float(schedule_row["wall_thickness_in"])
+            wall_mm = float(schedule_row.get("wall_thickness_mm", wall_in * INCH_TO_MM))
+            entries.append(
+                PipeScheduleEntry(
+                    schedule=str(schedule_key),
+                    wall_thickness_in=wall_in,
+                    wall_thickness_mm=wall_mm,
+                )
+            )
+        return sorted(entries, key=lambda entry: entry.wall_thickness_in)
+
+    def _find_nps_by_outside_diameter_mm_yaml(
+        self,
+        outside_diameter_mm: float,
+        *,
+        tolerance_mm: float = 0.05,
+    ) -> str | None:
+        pipes = (self._yaml_table or {}).get("pipes", {}) or {}
+        target = float(outside_diameter_mm)
+        for nps_key, pipe_row in pipes.items():
+            if not isinstance(pipe_row, dict):
+                continue
+            od_in = float(pipe_row["outside_diameter_in"])
+            od_mm = float(pipe_row.get("outside_diameter_mm", od_in * INCH_TO_MM))
+            if abs(od_mm - target) <= tolerance_mm:
+                return str(nps_key)
+        return None
 
     def _lookup_yaml(
         self,

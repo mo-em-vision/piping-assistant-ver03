@@ -52,7 +52,7 @@ def test_generate_and_preview_report(temp_service: DesktopApiService, standards_
     assert generated["files"]["html"]["available"] is True
 
     preview = temp_service.preview_task_report(task_id, preview_format="html", session_id=session_id)
-    assert "Executive Summary" in preview["content"] or generated["title"] in preview["content"]
+    assert "Purpose" in preview["content"] or generated["title"] in preview["content"]
 
     file_path, content_type = temp_service.download_task_report(
         task_id,

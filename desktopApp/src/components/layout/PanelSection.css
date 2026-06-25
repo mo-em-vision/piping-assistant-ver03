@@ -19,6 +19,33 @@
   color: #64748b;
 }
 
+.panel-section--projects .panel-section__title {
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.panel-section__header-link {
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.panel-section__header-link:hover:not(:disabled) {
+  color: #334155;
+}
+
+.panel-section__header-link:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .panel-section__body {
   display: flex;
   flex-direction: column;
@@ -104,17 +131,18 @@
   padding: 0.6rem 0.75rem;
   border: 1px dashed #cbd5e1;
   border-radius: 8px;
-  background: #ffffff;
+  background: transparent;
   color: #334155;
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 
 .create-task-button:hover {
-  background: #f8fafc;
   border-color: #94a3b8;
+}
+
+.create-task-button--nested {
+  margin-top: 0.35rem;
 }

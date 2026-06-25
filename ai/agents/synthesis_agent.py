@@ -15,23 +15,34 @@ from ai.prompts_loader import load_prompt
 
 
 class SynthesisAgent(BaseAgent):
-    prompt_file = "synthesis_agent.md"
+    prompt_file = "engineering_report_enhancement.md"
 
     def synthesize(self, report: ReportData) -> SynthesisResult:
+        from engine.reports.formatters import render_markdown
+
+        base = render_markdown(report)
+        return self.enhance_engineering_report(report, base)
+
+    def enhance_engineering_report(self, report: ReportData, base_markdown: str) -> SynthesisResult:
         if self._client is None:
             return SynthesisResult(
-                presentation=self._fallback_presentation(report),
+                presentation=base_markdown,
                 action=AgentAction.SYNTHESIZE_REPORT,
             )
 
         payload = self.complete_json(
             (
-                "Structured report data (do not modify any values):\n"
+                "Engineering report draft (preserve every numeric value, unit, equation, "
+                "warning, and PASS/FAIL status exactly):\n\n"
+                f"{base_markdown}\n\n"
+                "Structured reference data (do not modify values):\n"
                 f"{json.dumps(asdict(report), indent=2, default=str)}"
             ),
-            extra_system="Reproduce every numeric value and PASS/FAIL status exactly as given.",
+            extra_system=load_prompt("engineering_report_enhancement.md"),
         )
-        presentation = str(payload.get("presentation", ""))
+        presentation = str(payload.get("presentation", "")).strip()
+        if not presentation:
+            presentation = base_markdown
         self._assert_values_preserved(report, presentation)
         return SynthesisResult(
             presentation=presentation,
@@ -73,6 +84,8 @@ class SynthesisAgent(BaseAgent):
                     )
 
     def explain_section(self, section_payload: dict[str, Any]) -> str:
+        if self._client is None:
+            return ""
         payload = self.complete_json(
             f"Report section:\n{json.dumps(section_payload, indent=2, default=str)}",
             extra_system=load_prompt("report_explanation.md"),

@@ -463,7 +463,7 @@ def test_allowable_stress_not_emitted_as_standalone_result_block(standards_reade
 def test_build_substituted_formula_display_replaces_symbols() -> None:
     from api.equation_inputs_display import build_wall_thickness_substituted_equation
 
-    display, latex, leading = build_wall_thickness_substituted_equation(
+    display, latex = build_wall_thickness_substituted_equation(
         result_value=2.252389391087652,
         result_unit="mm",
         variables_si={
@@ -476,8 +476,8 @@ def test_build_substituted_formula_display_replaces_symbols() -> None:
         },
     )
 
-    assert display.startswith("2.252 mm  t = ")
-    assert leading == {"value": "2.252", "unit": "mm"}
+    assert display.startswith("t = ")
+    assert display.endswith("= 2.252 mm")
     assert "PD" not in display
     assert "SEW" not in display
     assert "PY" not in display
@@ -485,6 +485,7 @@ def test_build_substituted_formula_display_replaces_symbols() -> None:
     assert "e+" not in display
     assert "e+" not in latex
     assert "\\frac" in latex
+    assert "= 2.252\\ \\mathrm{mm}" in latex
 
 
 def test_build_minimum_thickness_equation_pending_and_complete() -> None:

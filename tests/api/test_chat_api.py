@@ -56,12 +56,16 @@ def test_send_chat_message_returns_assistant_reply(temp_config: CLIConfig) -> No
 
 
 def test_desktop_service_chat_endpoints(temp_config: CLIConfig) -> None:
+    from tests.api.conftest import api_session_id
+
     service = DesktopApiService(config=temp_config, session_id="chat-service-test")
-    listed = service.list_chat_messages()
+    session_id = api_session_id(service, "Chat Test Project")
+    listed = service.list_chat_messages(session_id)
     assert listed["messages"] == []
 
     sent = service.post_chat_message(
         "Calculate pipe wall thickness for refinery piping",
+        session_id=session_id,
     )
     assert sent["assistant_message"]["content"]
-    assert service.list_chat_messages()["messages"]
+    assert service.list_chat_messages(session_id)["messages"]

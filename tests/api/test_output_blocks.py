@@ -53,6 +53,7 @@ def test_completed_workflow_outputs_include_results_and_equation(
     assert "path-preview-equation-B313-304.1.2" in ids
     assert "path-calculation-substituted-equation" in ids
     assert "result" not in types
+    assert "thin-wall-applicability-check" in ids
     assert "table" not in types
     assert "graph" not in types
     assert "reference" not in types
@@ -65,19 +66,67 @@ def test_completed_workflow_outputs_include_results_and_equation(
     substituted = next(
         block for block in blocks if block["id"] == "path-calculation-substituted-equation"
     )
-    assert substituted.get("leading_result") == {"value": "2.252", "unit": "mm"}
-    assert substituted["display"].startswith("2.252 mm  t = ")
+    assert "leading_result" not in substituted
+    assert substituted["display"].startswith("t = ")
+    assert substituted["display"].endswith("= 2.252 mm")
     assert "input_table" not in substituted
     assert "SEW" not in substituted["display"]
+    assert "= 2.252\\ \\mathrm{mm}" in substituted["content"]
+
+    applicability = next(
+        block for block in blocks if block["id"] == "thin-wall-applicability-check"
+    )
+    assert applicability["type"] == "text"
+    assert applicability["variant"] == "body"
+    assert applicability["content"] == "ASME B31.3 paragraph §304.1.2 condition (t < D/6) is valid."
 
     minimum = next(block for block in blocks if block["id"] == "minimum-thickness-equation")
     assert minimum["display"] == "t_m = 2.252 + 0.500 = 2.752 mm"
 
-    summary = next(block for block in blocks if block["id"] == "required-thickness-summary")
-    assert summary["content"] == "Required wall thickness: 2.252 mm."
+    assert "required-thickness-summary" not in ids
 
     conclusion = next(block for block in blocks if block["id"] == "minimum-thickness-conclusion")
     assert "Minimum required pipe wall thickness is 2.752 mm." in conclusion["content"]
+
+
+def test_completed_workflow_with_nps_includes_schedule_recommendation(
+    standards_reader,
+    state_manager,
+) -> None:
+    from models.input import EngineeringInput, InputSource, InputStatus
+    from tests.acceptance.helpers import run_completed_workflow
+
+    task_id = "pipe-wall-thickness-desi-test13"
+    run_completed_workflow(state_manager, standards_reader, task_id)
+    task = state_manager.get_task(task_id)
+    task.inputs["d_input_mode"] = EngineeringInput(
+        input_id="d_input_mode",
+        value="nps_lookup",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+    task.inputs["nominal_pipe_size"] = EngineeringInput(
+        input_id="nominal_pipe_size",
+        value="2",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+    task.outputs["outside_diameter_lookup"] = {
+        "nps": "2",
+        "outside_diameter_mm": 60.325,
+        "standard": "asme_b36.10",
+        "table_id": "welded_seamless_pipe_dimensions",
+    }
+    state_manager.replace_task(task_id, task)
+
+    blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
+    schedule = next(block for block in blocks if block["id"] == "pipe-schedule-recommendation")
+    assert schedule["type"] == "text"
+    assert "Schedule 10" in schedule["content"]
+    assert "ASME B36.10M" in schedule["content"]
+    assert schedule["pipe_schedule_recommendation"]["schedule"] == "10"
 
 
 def test_task_state_includes_display_outputs(
@@ -162,7 +211,8 @@ def test_post_calculation_outputs_before_corrosion_allowance(standards_reader, s
     assert "path-preview-equation-B313-304.1.2" in ids
     assert "path-calculation-substituted-equation" in ids
     assert "minimum-thickness-equation" in ids
-    assert "required-thickness-summary" in ids
+    assert "thin-wall-applicability-check" in ids
+    assert "required-thickness-summary" not in ids
     assert "minimum-thickness-conclusion" not in ids
     assert not any(block_id.startswith("node-activation-") for block_id in ids)
 
@@ -189,3 +239,23 @@ def test_execution_trace_keeps_definition_node_outputs(standards_reader) -> None
 
     assert any(block_id.startswith("node-activation-equation-B313-304.1.1") for block_id in ids)
     assert "equation-B313-304.1.2" not in ids
+
+
+def test_thin_wall_applicability_block_when_check_fails(state_manager) -> None:
+    task = state_manager.create_task("thin-wall-fail-display", status=TaskStatus.COMPLETED)
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "t": 5.0,
+        "thin_wall": False,
+        "_execution_trace": [{"node_id": "B313-304.1.2", "trace": {"calculation": {"final_result": {"value": 5.0}}}}],
+    }
+    state_manager.replace_task(task.task_id, task)
+
+    blocks = build_display_outputs(task)
+    applicability = next(
+        block for block in blocks if block["id"] == "thin-wall-applicability-check"
+    )
+    assert applicability["content"] == (
+        "ASME B31.3 paragraph §304.1.2 condition (t < D/6) is NOT valid. "
+        "continuing with thick wall condition (t > D/6)"
+    )

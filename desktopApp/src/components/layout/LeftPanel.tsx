@@ -34,14 +34,15 @@ export function LeftPanel() {
   const loadMessages = useChatStore((state) => state.loadMessages)
   const toggleLeftCollapsed = useUiStore((state) => state.toggleLeftCollapsed)
 
-  const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(() => new Set())
+  const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(() => {
+    const initialActiveId = useProjectStore.getState().activeProjectId
+    return initialActiveId ? new Set([initialActiveId]) : new Set()
+  })
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
   const [createTaskOpen, setCreateTaskOpen] = useState(false)
 
   const busy = loading || projectLoading
-  const hasProjects = projects.length > 0
   const visibleProjects = projects.filter((project) => project.id !== 'default')
-  const canCreateTask = hasProjects && Boolean(activeProjectId)
 
   const handleProjectSelect = (projectId: string) => {
     setExpandedProjectIds((current) => new Set(current).add(projectId))
@@ -54,6 +55,10 @@ export function LeftPanel() {
 
   const handleCreateProject = (name: string) => {
     void createProject(name).then(() => {
+      const newProjectId = useProjectStore.getState().activeProjectId
+      if (newProjectId) {
+        setExpandedProjectIds((current) => new Set(current).add(newProjectId))
+      }
       setCreateProjectOpen(false)
       clearActiveTask()
       void loadWorkspace()
@@ -113,21 +118,28 @@ export function LeftPanel() {
           />
         ) : null}
 
-        <PanelSection title="Projects">
-          {visibleProjects.length === 0 ? (
+        <PanelSection
+          title="Projects"
+          className="panel-section--projects"
+          action={
             <button
               type="button"
-              className="list-button list-button--cta"
+              className="panel-section__header-link"
               disabled={busy}
               onClick={() => setCreateProjectOpen(true)}
+              aria-label="Create new project"
             >
-              <span className="list-button__name">Create new project</span>
+              Create new project
             </button>
+          }
+        >
+          {visibleProjects.length === 0 ? (
+            <p className="side-panel__hint">No projects yet.</p>
           ) : (
             <div className="left-panel__projects">
               {visibleProjects.map((project) => {
                 const isActive = activeProjectId === project.id
-                const expanded = expandedProjectIds.has(project.id) || isActive
+                const expanded = expandedProjectIds.has(project.id)
                 return (
                   <ProjectGroup
                     key={project.id}
@@ -141,33 +153,22 @@ export function LeftPanel() {
                     onSelectTask={(taskId, projectId) => {
                       void selectTask(taskId, projectId)
                     }}
+                    onDeleteTask={(taskId, projectId) => {
+                      void deleteTask(taskId, projectId)
+                    }}
+                    onCreateTask={
+                      isActive
+                        ? () => {
+                            setCreateTaskOpen(true)
+                          }
+                        : undefined
+                    }
                   />
                 )
               })}
-              <button
-                type="button"
-                className="list-button list-button--cta"
-                disabled={busy}
-                onClick={() => setCreateProjectOpen(true)}
-              >
-                <span className="list-button__name">Create new project</span>
-              </button>
             </div>
           )}
         </PanelSection>
-
-        {visibleProjects.length > 0 ? (
-          <PanelSection title="Tasks">
-            <button
-              type="button"
-              className="create-task-button"
-              disabled={busy || !canCreateTask}
-              onClick={() => setCreateTaskOpen(true)}
-            >
-              Create new task
-            </button>
-          </PanelSection>
-        ) : null}
 
         <PanelSection title="Recent tasks">
           {recentTasks.length === 0 ? (

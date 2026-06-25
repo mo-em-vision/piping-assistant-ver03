@@ -117,6 +117,7 @@ describe('WorkflowComposer', () => {
     expect(screen.getByRole('group', { name: 'Nominal Pipe Size unit' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'NPS' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'DN' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByPlaceholderText('Value…')).toHaveFocus()
   })
 
   it('does not show the confirmation hint when no default value is available', () => {
@@ -195,5 +196,35 @@ describe('WorkflowComposer', () => {
 
     expect(screen.queryByText(/Confirm or change the proposed default value/i)).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Value…' })).toHaveValue('1')
+  })
+
+  it('renders an enabled material search input for the material step', () => {
+    render(
+      <WorkflowComposer
+        parameter={{
+          name: 'material',
+          label: 'Material',
+          type: 'material',
+          required: true,
+          units: [],
+          default_unit: 'dimensionless',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          submittable: true,
+        }}
+        nextStepPrompt="Select the pipe material. (start typing to see the available options)"
+        disabled={false}
+      />,
+    )
+
+    expect(
+      screen.getByText(/Select the pipe material\. \(start typing to see the available options\)/),
+    ).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Search…')).toBeEnabled()
+    expect(screen.queryByPlaceholderText('Waiting for the next workflow step…')).not.toBeInTheDocument()
   })
 })

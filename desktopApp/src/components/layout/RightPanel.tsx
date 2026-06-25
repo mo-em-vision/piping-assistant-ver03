@@ -16,7 +16,6 @@ import { getActiveSessionId } from '@/store/projectStore'
 import { toUserFacingError } from '@/types/backend/errors'
 import type { ParameterEditImpactDto } from '@/types/backend/api'
 import { StatusIndicator } from '@/components/engineering/StatusIndicator'
-import { NodeCalculationGroup } from '@/components/engineering/NodeCalculationGroup'
 import { TaskTimeline } from '@/components/engineering/TaskTimeline'
 
 import { PanelSection } from './PanelSection'
@@ -114,24 +113,6 @@ function TaskContextTab() {
           <p className="side-panel__hint">Task progress will load from the backend.</p>
         )}
       </PanelSection>
-
-      {activeTaskState?.node_calculations?.length ? (
-        <PanelSection title="Calculations">
-          {activeTaskState.node_calculations.map((item) => (
-            <NodeCalculationGroup key={item.node_id} summary={item} />
-          ))}
-        </PanelSection>
-      ) : null}
-
-      {viewModel?.warnings.length ? (
-        <PanelSection title="Warnings">
-          <ul className="warning-list">
-            {viewModel.warnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
-        </PanelSection>
-      ) : null}
 
       {viewModel && isReportSectionVisible(viewModel.timeline) ? (
         <PanelSection title="Engineering report">
