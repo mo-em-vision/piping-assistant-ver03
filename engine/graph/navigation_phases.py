@@ -25,7 +25,8 @@ _PHASE4_ORDER = (
     "weld_strength_reduction",
     "temperature_coefficient",
 )
-_PHASE5_ORDER = ("corrosion_allowance",)
+_PHASE5_ORDER: tuple[str, ...] = ()
+_PHASE_DEFINITION_EQUATION_ORDER = ("corrosion_allowance",)
 
 
 @dataclass
@@ -159,4 +160,6 @@ def allowed_fields_for_phase(phase: NavigationPhase) -> frozenset[str]:
         return frozenset(_PHASE4_ORDER)
     if phase == NavigationPhase.EXECUTION_ASSUMPTIONS:
         return frozenset(_PHASE5_ORDER)
+    if phase == NavigationPhase.DEFINITION_EQUATION_COMPLETION:
+        return frozenset(_PHASE_DEFINITION_EQUATION_ORDER)
     return frozenset()

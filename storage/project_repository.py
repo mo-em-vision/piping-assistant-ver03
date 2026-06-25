@@ -262,3 +262,25 @@ class ProjectRepository:
             )
             connection.commit()
         self.touch_project(project_id)
+
+    def list_recent_tasks(self, *, limit: int = 50) -> list[dict[str, Any]]:
+        with self._db.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    pt.project_id,
+                    pt.task_id,
+                    pt.status,
+                    pt.workflow_id,
+                    pt.task_json,
+                    pt.updated_at,
+                    p.name AS project_name
+                FROM project_tasks pt
+                JOIN projects p ON p.id = pt.project_id
+                WHERE pt.status NOT IN ('completed', 'invalidated')
+                ORDER BY pt.updated_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]

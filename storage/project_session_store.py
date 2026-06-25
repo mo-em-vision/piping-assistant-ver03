@@ -36,8 +36,9 @@ class ProjectSessionStore:
         self.database = database
         self.sessions_dir = sessions_dir
         self.repository = ProjectRepository(database)
-        self.session_id = session_id or "default"
-        self.repository.ensure_project(self.session_id)
+        if not session_id:
+            raise ValueError("session_id is required")
+        self.session_id = session_id
         self.session_path = sessions_dir / self.session_id
         self.session_path.mkdir(parents=True, exist_ok=True)
         (self.session_path / "reports").mkdir(exist_ok=True)

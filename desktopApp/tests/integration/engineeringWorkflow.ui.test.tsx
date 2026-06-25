@@ -38,10 +38,11 @@ describe('engineering workflow UI (mock mode)', () => {
     render(<App />)
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: '+ New engineering task' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Create new task' })).toBeEnabled()
     })
 
-    await user.click(screen.getByRole('button', { name: '+ New engineering task' }))
+    await user.click(screen.getByRole('button', { name: 'Create new task' }))
+    await user.click(screen.getByRole('button', { name: /pipe thickness calculation/i }))
 
     expect(screen.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeInTheDocument()
 

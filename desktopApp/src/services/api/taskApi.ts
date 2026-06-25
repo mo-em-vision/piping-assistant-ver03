@@ -2,12 +2,12 @@ import { backendClient } from './backendClient'
 import { requestManager } from './requestManager'
 import { parseTaskList, parseTaskState, parseWorkflows } from './responseParser'
 
-import type { TaskListResponse, TaskStateDto, WorkflowDto } from '@/types/backend/api'
+import type { RecentTasksResponse, TaskListResponse, TaskStateDto, WorkflowDto } from '@/types/backend/api'
 
 export const taskApi = {
-  list(sessionId?: string) {
-    const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''
-    return requestManager.run(`tasks:list:${sessionId ?? 'default'}`, () =>
+  list(sessionId: string) {
+    const query = `?session_id=${encodeURIComponent(sessionId)}`
+    return requestManager.run(`tasks:list:${sessionId}`, () =>
       backendClient.get<TaskListResponse>(`/api/v1/tasks${query}`).then(parseTaskList),
     )
   },
@@ -45,6 +45,12 @@ export const taskApi = {
   listWorkflows() {
     return requestManager.run('workflows:list', () =>
       backendClient.get<{ workflows: WorkflowDto[] }>('/api/v1/workflows').then(parseWorkflows),
+    )
+  },
+
+  listRecentGlobal() {
+    return requestManager.run('tasks:recent-global', () =>
+      backendClient.get<RecentTasksResponse>('/api/v1/recent-tasks'),
     )
   },
 }

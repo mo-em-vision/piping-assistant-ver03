@@ -8,6 +8,9 @@ from typing import Any
 from engine.events.event_logger import EventLogger
 from engine.executor.node_runner import NodeRunner
 from engine.graph.graph_engine import GraphEngine
+from engine.graph.definition_equations import (
+    pending_definition_equation_inputs,
+)
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from engine.validation.validation_engine import ValidationEngine
@@ -84,7 +87,10 @@ class Executor:
         for warning in plan_validation.warnings:
             state.add_warning(plan.task_id, warning.message)
 
-        state.store_output(plan.task_id, "workflow", plan.root)
+        task = state.get_task(plan.task_id)
+        if not task.outputs.get("workflow"):
+            state.store_output(plan.task_id, "workflow", plan.root)
+        state.store_output(plan.task_id, "graph_root", plan.root)
         if plan.graph_version:
             state.store_output(
                 plan.task_id,
@@ -191,7 +197,19 @@ class Executor:
         state.store_output(plan.task_id, "_validation_trace", validation_trace)
 
         if overall_status == ExecutionStatus.COMPLETED:
-            state.update_task_status(plan.task_id, TaskStatus.COMPLETED)
+            task = state.get_task(plan.task_id)
+            pending_definition = pending_definition_equation_inputs(
+                task,
+                self._reader,
+                plan.execution_order,
+            )
+            if pending_definition:
+                overall_status = ExecutionStatus.AWAITING_INPUT
+                state.update_task_status(plan.task_id, TaskStatus.AWAITING_INPUT)
+            else:
+                state.update_task_status(plan.task_id, TaskStatus.COMPLETED)
+        elif overall_status == ExecutionStatus.AWAITING_INPUT:
+            state.update_task_status(plan.task_id, TaskStatus.AWAITING_INPUT)
 
         return ExecutionResult(
             plan=plan,

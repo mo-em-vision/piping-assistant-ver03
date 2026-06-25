@@ -24,9 +24,12 @@ export function useWorkspaceBootstrap(backendStatus: BackendStatusPayload) {
     void checkApiConnection().then((ok) => {
       if (ok) {
         void materialApi.warm().catch(() => undefined)
-        void loadProjects().then(() => {
-          void loadWorkspace()
-          void loadMessages()
+        void loadProjects().then((activeProjectId) => {
+          void useTaskStore.getState().loadRecentTasksGlobal()
+          if (activeProjectId) {
+            void loadWorkspace()
+            void loadMessages()
+          }
         })
       }
     })
@@ -39,9 +42,12 @@ export function useWorkspaceBootstrap(backendStatus: BackendStatusPayload) {
     reload: () => {
       void checkApiConnection().then((ok) => {
         if (ok) {
-          void loadProjects().then(() => {
-            void loadWorkspace()
-            void loadMessages()
+          void loadProjects().then((activeProjectId) => {
+            void useTaskStore.getState().loadRecentTasksGlobal()
+            if (activeProjectId) {
+              void loadWorkspace()
+              void loadMessages()
+            }
           })
         }
       })

@@ -69,6 +69,9 @@ def build_display_outputs(
     trace = task.outputs.get("_execution_trace")
     has_trace = isinstance(trace, list) and bool(trace)
 
+    # Keep definition-node content visible for the full workflow history.
+    blocks.extend(_activated_definition_blocks(task, planning, resolved_reader))
+
     if _pipe_wall_calculation_complete(task, has_trace=has_trace):
         blocks.extend(
             _path_calculation_preview_blocks(
@@ -81,10 +84,7 @@ def build_display_outputs(
         substituted = _substituted_calculation_equation_block(trace)
         if substituted:
             blocks.append(substituted)
-        return blocks
-
-    if not has_trace:
-        blocks.extend(_activated_definition_blocks(task, planning, resolved_reader))
+        return _dedupe_blocks_by_id(blocks)
 
     for warning in task.warnings:
         blocks.append(_warning_block(warning))
@@ -100,7 +100,20 @@ def build_display_outputs(
     if status_block:
         blocks.append(status_block)
 
-    return blocks
+    return _dedupe_blocks_by_id(blocks)
+
+
+def _dedupe_blocks_by_id(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: set[str] = set()
+    deduped: list[dict[str, Any]] = []
+    for block in blocks:
+        block_id = str(block.get("id") or "")
+        if block_id and block_id in seen:
+            continue
+        if block_id:
+            seen.add(block_id)
+        deduped.append(block)
+    return deduped
 
 
 def _reader_for(standards_root: Path | None) -> StandardsReader:
@@ -206,7 +219,10 @@ def _resolve_calculation_node_id(
 def _pipe_wall_calculation_complete(task: Task, *, has_trace: bool) -> bool:
     if not is_pipe_wall_thickness_task(task) or not has_trace:
         return False
-    return task.outputs.get("required_thickness") is not None or task.outputs.get("t") is not None
+    return (
+        task.outputs.get("minimum_required_thickness") is not None
+        or task.outputs.get("t_m") is not None
+    )
 
 
 def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] | None:

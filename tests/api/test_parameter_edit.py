@@ -94,6 +94,7 @@ def test_desktop_service_preview_parameter_edit(tmp_path, project_root) -> None:
     from config.loader import CLIConfig
 
     from api.desktop_service import DesktopApiService
+    from tests.api.conftest import api_session_id
 
     config = CLIConfig(
         report_format="html",
@@ -106,11 +107,12 @@ def test_desktop_service_preview_parameter_edit(tmp_path, project_root) -> None:
         openai_base_url=None,
     )
     service = DesktopApiService(config=config, session_id="default")
+    session_id = api_session_id(service)
     manager = TaskStateManager()
     task_id = _sample_task(manager)
-    service._save_manager(manager, "default")
+    service._save_manager(manager, session_id)
 
-    impact = service.preview_parameter_edit(task_id, "design_pressure")
+    impact = service.preview_parameter_edit(task_id, "design_pressure", session_id)
 
     assert impact["parameter"] == "design_pressure"
     assert impact["affects_design"] is True

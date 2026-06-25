@@ -1,4 +1,4 @@
-"""Tests for automatic workflow execution after desktop input submission."""
+"""API tests for post-calculation definition equation completion."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import pytest
 from api.desktop_service import DesktopApiService
 from config.loader import CLIConfig
 from engine.reference.pack_tables_db import resolve_pack_tables_db
+from tests.api.conftest import api_session_id
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -32,10 +33,15 @@ def _service(tmp_path: Path, project_root: Path) -> DesktopApiService:
     return DesktopApiService(config=config, session_id="default")
 
 
-def _submit_while_requested(service: DesktopApiService, task_id: str, submissions: list[tuple]) -> dict:
-    state: dict = service.get_task(task_id)
+def _submit_while_requested(
+    service: DesktopApiService,
+    task_id: str,
+    session_id: str,
+    submissions: list[tuple],
+) -> dict:
+    state: dict = service.get_task(task_id, session_id)
     for parameter, value, unit in submissions:
-        state = service.get_task(task_id)
+        state = service.get_task(task_id, session_id)
         pending = {
             item["name"]
             for item in state.get("parameters", [])
@@ -48,6 +54,7 @@ def _submit_while_requested(service: DesktopApiService, task_id: str, submission
             parameter=parameter,
             value=value,
             unit=unit,
+            session_id=session_id,
         )
     return state
 
@@ -61,12 +68,14 @@ def test_submit_input_runs_wall_thickness_calculation(
     project_root: Path,
 ) -> None:
     service = _service(tmp_path, project_root)
-    created = service.create_task("pipe_wall_thickness_design")
+    session_id = api_session_id(service)
+    created = service.create_task("pipe_wall_thickness_design", session_id)
     task_id = created["task_id"]
 
     state = _submit_while_requested(
         service,
         task_id,
+        session_id,
         [
             ("pressure_loading", "internal_pressure", None),
             ("material", "SA-106B", None),
@@ -77,11 +86,27 @@ def test_submit_input_runs_wall_thickness_calculation(
             ("weld_joint_efficiency", 1.0, None),
             ("weld_strength_reduction", 1.0, None),
             ("temperature_coefficient", 0.4, None),
-            ("corrosion_allowance", 0.0, "mm"),
         ],
     )
 
-    assert state["status"] == "completed"
+    planning = state["outputs"]["planning_summary"]
+    assert state["status"] == "awaiting_input"
+    assert planning["current_phase"] == "definition_equation_completion"
+    assert "corrosion_allowance" in state["progress"]["submittable_parameters"]
+    assert "corrosion_allowance" in {item["name"] for item in state["parameters"]}
     assert state["outputs"].get("required_thickness") is not None
+    assert state["outputs"].get("minimum_required_thickness") is None
+
+    state = service.submit_input(
+        task_id,
+        parameter="corrosion_allowance",
+        value=0.0,
+        unit="mm",
+        session_id=session_id,
+    )
+
+    assert state["status"] == "completed"
+    assert state["outputs"].get("minimum_required_thickness") is not None
+    assert state["outputs"].get("t_m") is not None
     report_step = next(step for step in state["progress"]["timeline"] if step["id"] == "report")
     assert report_step["status"] == "done"

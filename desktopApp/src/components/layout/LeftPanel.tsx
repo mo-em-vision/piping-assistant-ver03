@@ -1,53 +1,17 @@
-import { useEffect, useState, type MouseEvent } from 'react'
+import { useState } from 'react'
 
 import { useChatStore } from '@/store/chatStore'
 import { ErrorBanner } from '@/components/errors/ErrorBanner'
-import { TaskContextMenu } from '@/components/tasks/TaskContextMenu'
+import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog'
+import { ProjectGroup } from '@/components/projects/ProjectGroup'
+import { CreateTaskDialog } from '@/components/tasks/CreateTaskDialog'
+import { RecentTaskRow } from '@/components/tasks/RecentTaskRow'
 import { useProjectStore } from '@/store/projectStore'
 import { useTaskStore } from '@/store/taskStore'
 import { useUiStore } from '@/store/uiStore'
-import type { TaskSummary } from '@/types/frontend/workspace'
 
 import { PanelSection } from './PanelSection'
 import './SidePanel.css'
-
-const STRAIGHT_PIPE_TASK_CONFIRMATION =
-  'Is the pipe wall thickness you would like to calculate for a straight section of pipe? Non-straight sections (fittings, bends) are not yet supported.'
-
-function TaskListItem({
-  task,
-  isActive,
-  onSelect,
-  onContextMenu,
-  disabled,
-}: {
-  task: TaskSummary
-  isActive: boolean
-  onSelect: () => void
-  onContextMenu?: (task: TaskSummary, event: MouseEvent) => void
-  disabled?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      className={`list-button${isActive ? ' list-button--active' : ''}`}
-      onClick={onSelect}
-      disabled={disabled}
-      onContextMenu={
-        onContextMenu
-          ? (event) => {
-              event.preventDefault()
-              onContextMenu(task, event)
-            }
-          : undefined
-      }
-    >
-      <span className="list-button__name">{task.name}</span>
-      <span className="list-button__meta">{task.description}</span>
-      {task.status ? <span className="list-button__badge">{task.status.replace('_', ' ')}</span> : null}
-    </button>
-  )
-}
 
 export function LeftPanel() {
   const activeTask = useTaskStore((state) => state.activeTask)
@@ -60,11 +24,7 @@ export function LeftPanel() {
   const deleteTask = useTaskStore((state) => state.deleteTask)
   const clearActiveTask = useTaskStore((state) => state.clearActiveTask)
   const loadWorkspace = useTaskStore((state) => state.loadWorkspace)
-  const [contextMenu, setContextMenu] = useState<{
-    task: TaskSummary
-    x: number
-    y: number
-  } | null>(null)
+
   const projects = useProjectStore((state) => state.projects)
   const activeProjectId = useProjectStore((state) => state.activeProjectId)
   const projectLoading = useProjectStore((state) => state.loading)
@@ -74,20 +34,17 @@ export function LeftPanel() {
   const loadMessages = useChatStore((state) => state.loadMessages)
   const toggleLeftCollapsed = useUiStore((state) => state.toggleLeftCollapsed)
 
-  const defaultWorkflow = availableTasks[0]
-  const busy = loading || projectLoading
+  const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(() => new Set())
+  const [createProjectOpen, setCreateProjectOpen] = useState(false)
+  const [createTaskOpen, setCreateTaskOpen] = useState(false)
 
-  const handleCreateWorkflow = (workflowId: string) => {
-    if (workflowId === 'pipe_wall_thickness_design') {
-      const confirmed = window.confirm(STRAIGHT_PIPE_TASK_CONFIRMATION)
-      if (!confirmed) {
-        return
-      }
-    }
-    void createTask(workflowId)
-  }
+  const busy = loading || projectLoading
+  const hasProjects = projects.length > 0
+  const visibleProjects = projects.filter((project) => project.id !== 'default')
+  const canCreateTask = hasProjects && Boolean(activeProjectId)
 
   const handleProjectSelect = (projectId: string) => {
+    setExpandedProjectIds((current) => new Set(current).add(projectId))
     void selectProject(projectId).then(() => {
       clearActiveTask()
       void loadWorkspace()
@@ -95,40 +52,31 @@ export function LeftPanel() {
     })
   }
 
-  const handleCreateProject = () => {
-    const name = window.prompt('Project name')
-    if (!name?.trim()) {
-      return
-    }
-    void createProject(name.trim()).then(() => {
+  const handleCreateProject = (name: string) => {
+    void createProject(name).then(() => {
+      setCreateProjectOpen(false)
       clearActiveTask()
       void loadWorkspace()
       void loadMessages()
     })
   }
 
-  const openTaskContextMenu = (task: TaskSummary, x: number, y: number) => {
-    setContextMenu({ task, x, y })
+  const handleToggleProject = (projectId: string) => {
+    setExpandedProjectIds((current) => {
+      const next = new Set(current)
+      if (next.has(projectId)) {
+        next.delete(projectId)
+      } else {
+        next.add(projectId)
+      }
+      return next
+    })
   }
 
-  const handleDeleteTask = (task: TaskSummary) => {
-    void deleteTask(task.id)
+  const handleCreateTask = (workflowId: string) => {
+    setCreateTaskOpen(false)
+    void createTask(workflowId)
   }
-
-  useEffect(() => {
-    if (!contextMenu) {
-      return
-    }
-
-    const closeMenu = () => {
-      setContextMenu(null)
-    }
-
-    window.addEventListener('resize', closeMenu)
-    return () => {
-      window.removeEventListener('resize', closeMenu)
-    }
-  }, [contextMenu])
 
   return (
     <aside className="side-panel side-panel--left">
@@ -165,97 +113,100 @@ export function LeftPanel() {
           />
         ) : null}
 
-        <PanelSection
-          title="Projects"
-          action={
-            <button type="button" className="panel-section__action" onClick={handleCreateProject} disabled={busy}>
-              + New
+        <PanelSection title="Projects">
+          {visibleProjects.length === 0 ? (
+            <button
+              type="button"
+              className="list-button list-button--cta"
+              disabled={busy}
+              onClick={() => setCreateProjectOpen(true)}
+            >
+              <span className="list-button__name">Create new project</span>
             </button>
-          }
-        >
-          {projects.length === 0 ? (
-            <p className="side-panel__hint">No projects yet. Create one to persist tasks and chat.</p>
           ) : (
-            projects.map((project) => (
+            <div className="left-panel__projects">
+              {visibleProjects.map((project) => {
+                const isActive = activeProjectId === project.id
+                const expanded = expandedProjectIds.has(project.id) || isActive
+                return (
+                  <ProjectGroup
+                    key={project.id}
+                    project={project}
+                    isActive={isActive}
+                    activeTaskId={activeTask?.id ?? null}
+                    expanded={expanded}
+                    disabled={busy}
+                    onToggle={() => handleToggleProject(project.id)}
+                    onSelectProject={() => handleProjectSelect(project.id)}
+                    onSelectTask={(taskId, projectId) => {
+                      void selectTask(taskId, projectId)
+                    }}
+                  />
+                )
+              })}
               <button
-                key={project.id}
                 type="button"
-                className={`list-button${activeProjectId === project.id ? ' list-button--active' : ''}`}
+                className="list-button list-button--cta"
                 disabled={busy}
-                onClick={() => handleProjectSelect(project.id)}
+                onClick={() => setCreateProjectOpen(true)}
               >
-                <span className="list-button__name">{project.name}</span>
-                <span className="list-button__meta">
-                  {project.taskCount} tasks
-                  {project.updatedAt ? ` · updated ${project.updatedAt.slice(0, 10)}` : ''}
-                </span>
+                <span className="list-button__name">Create new project</span>
               </button>
-            ))
+            </div>
           )}
         </PanelSection>
 
-        <PanelSection title="Create task">
-          <button
-            type="button"
-            className="create-task-button"
-            disabled={busy || !defaultWorkflow}
-            onClick={() => {
-              if (defaultWorkflow) {
-                handleCreateWorkflow(defaultWorkflow.id)
-              }
-            }}
-          >
-            + New engineering task
-          </button>
-        </PanelSection>
-
-        <PanelSection title="Available tasks">
-          {availableTasks.map((task) => (
-            <TaskListItem
-              key={task.id}
-              task={task}
-              isActive={activeTask?.id === task.id}
-              disabled={busy}
-              onSelect={() => {
-                handleCreateWorkflow(task.id)
-              }}
-            />
-          ))}
-        </PanelSection>
+        {visibleProjects.length > 0 ? (
+          <PanelSection title="Tasks">
+            <button
+              type="button"
+              className="create-task-button"
+              disabled={busy || !canCreateTask}
+              onClick={() => setCreateTaskOpen(true)}
+            >
+              Create new task
+            </button>
+          </PanelSection>
+        ) : null}
 
         <PanelSection title="Recent tasks">
           {recentTasks.length === 0 ? (
-            <p className="side-panel__hint">No recent tasks in this project.</p>
+            <p className="side-panel__hint">No recent tasks yet.</p>
           ) : (
-            recentTasks.map((task) => (
-              <TaskListItem
-                key={task.id}
-                task={task}
-                isActive={activeTask?.id === task.id}
-                disabled={busy}
-                onSelect={() => {
-                  void selectTask(task.id)
-                }}
-                onContextMenu={(selectedTask, event) => {
-                  openTaskContextMenu(selectedTask, event.clientX, event.clientY)
-                }}
-              />
-            ))
+            <div className="left-panel__recent-tasks">
+              {recentTasks.map((task) => (
+                <RecentTaskRow
+                  key={`${task.projectId ?? 'task'}-${task.id}`}
+                  task={task}
+                  isActive={activeTask?.id === task.id}
+                  disabled={busy}
+                  onSelect={() => {
+                    void selectTask(task.id, task.projectId)
+                  }}
+                  onDelete={() => {
+                    void deleteTask(task.id, task.projectId)
+                  }}
+                />
+              ))}
+            </div>
           )}
         </PanelSection>
       </div>
 
-      {contextMenu ? (
-        <TaskContextMenu
-          task={contextMenu.task}
-          x={contextMenu.x}
-          y={contextMenu.y}
-          onDelete={handleDeleteTask}
-          onClose={() => {
-            setContextMenu(null)
-          }}
-        />
-      ) : null}
+      <CreateProjectDialog
+        open={createProjectOpen}
+        busy={busy}
+        onConfirm={handleCreateProject}
+        onCancel={() => setCreateProjectOpen(false)}
+      />
+
+      <CreateTaskDialog
+        open={createTaskOpen}
+        tasks={availableTasks}
+        busy={busy}
+        onSelect={handleCreateTask}
+        onCancel={() => setCreateTaskOpen(false)}
+      />
     </aside>
   )
 }

@@ -16,6 +16,7 @@ PIPE_WALL_NAVIGATION_PHASES: tuple[str, ...] = (
     "parameter_gathering",
     "coefficient_resolution",
     "execution_assumptions",
+    "definition_equation_completion",
     "ready",
 )
 

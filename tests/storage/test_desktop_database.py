@@ -27,6 +27,8 @@ def test_project_repository_create_and_list(tmp_path: Path) -> None:
 def test_project_session_store_persists_tasks(tmp_path: Path) -> None:
     sessions_dir = tmp_path / "sessions"
     database = DesktopDatabase(tmp_path / "desktop.db")
+    repository = ProjectRepository(database)
+    repository.ensure_project("project-a")
     store = ProjectSessionStore(database, sessions_dir, session_id="project-a")
 
     manager = TaskStateManager()

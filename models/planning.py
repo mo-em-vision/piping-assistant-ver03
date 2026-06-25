@@ -16,6 +16,7 @@ class NavigationPhase(str, Enum):
     PARAMETER_GATHERING = "parameter_gathering"
     COEFFICIENT_RESOLUTION = "coefficient_resolution"
     EXECUTION_ASSUMPTIONS = "execution_assumptions"
+    DEFINITION_EQUATION_COMPLETION = "definition_equation_completion"
     READY = "ready"
 
 

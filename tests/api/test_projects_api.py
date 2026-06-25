@@ -28,6 +28,7 @@ def temp_service(tmp_path: Path) -> DesktopApiService:
 
 
 def test_create_and_list_projects(temp_service: DesktopApiService) -> None:
+    assert temp_service.list_projects() == []
     created = temp_service.create_project("Offshore Platform B")
     projects = temp_service.list_projects()
 

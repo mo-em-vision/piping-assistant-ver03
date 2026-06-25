@@ -8,6 +8,11 @@ from typing import Any
 from config.loader import CLIConfig
 from engine.executor.coefficient_lookup import apply_coefficient_lookups
 from engine.executor.executor import execute_workflow
+from engine.graph.definition_equations import (
+    has_execution_trace,
+    pending_definition_equation_inputs,
+    try_complete_definition_equations,
+)
 from engine.graph.graph_engine import normalize_root_id
 from engine.graph.navigation_phases import build_phased_navigation
 from engine.planner.planner import _INPUT_QUESTIONS
@@ -205,6 +210,15 @@ def refresh_task_planning(
     }
     task.active_nodes = active_nodes
 
+    _apply_post_execution_definition_planning(
+        task,
+        reader,
+        execution_order=preview.execution_order,
+        graph=graph,
+        root_slug=root_slug,
+        plan=preview,
+    )
+
     planning_summary = task.outputs.get("planning_summary")
     if isinstance(planning_summary, dict) and "material" in submittable_parameter_ids(
         task, planning_summary
@@ -220,6 +234,9 @@ def task_ready_for_execution(task: Task) -> bool:
 
     planning = task.outputs.get("planning_summary") or {}
     if not isinstance(planning, dict):
+        return False
+
+    if planning.get("current_phase") == NavigationPhase.DEFINITION_EQUATION_COMPLETION.value:
         return False
 
     if planning.get("current_phase") == NavigationPhase.READY.value:
@@ -249,9 +266,60 @@ def maybe_execute_ready_workflow(
     )
     execute_workflow(task_id, root_slug, state=manager, reader=reader)
     task = manager.get_task(task_id)
+    graph = GraphTools(reader)
+    preview = graph.preview_plan(
+        task_id=task_id,
+        root_id=root_slug,
+        inputs=dict(task.inputs),
+    )
+    try_complete_definition_equations(task, reader, preview.execution_order)
+    manager.replace_task(task_id, task)
     refresh_task_planning(task, reader, propose_defaults=False)
     manager.replace_task(task_id, task)
-    return task
+    return manager.get_task(task_id)
+
+
+def _apply_post_execution_definition_planning(
+    task: Task,
+    reader: StandardsReader,
+    *,
+    execution_order: tuple[str, ...] | list[str],
+    graph: GraphTools,
+    root_slug: str,
+    plan: Any,
+) -> None:
+    if not has_execution_trace(task):
+        return
+
+    pending = pending_definition_equation_inputs(task, reader, execution_order)
+    if not pending:
+        if task.outputs.get("t") is not None or task.outputs.get("required_thickness") is not None:
+            try_complete_definition_equations(task, reader, execution_order)
+            pending = pending_definition_equation_inputs(task, reader, execution_order)
+        if not pending:
+            return
+
+    proposed = graph.resolve_and_propose_path_inputs(
+        root_slug,
+        existing_inputs=dict(task.inputs),
+        plan=plan,
+    )
+    for input_id in pending:
+        if input_id in proposed and input_id not in task.inputs:
+            task.inputs[input_id] = proposed[input_id]
+
+    planning = task.outputs.get("planning_summary")
+    if not isinstance(planning, dict):
+        return
+
+    phase_key = NavigationPhase.DEFINITION_EQUATION_COMPLETION.value
+    planning["current_phase"] = phase_key
+    planning["action"] = AgentAction.REQUEST_INPUT.value
+    planning["missing_execution_assumptions"] = list(pending)
+    phase_missing = dict(planning.get("phase_missing") or {})
+    phase_missing[phase_key] = list(pending)
+    planning["phase_missing"] = phase_missing
+    task.status = TaskStatus.AWAITING_INPUT
 
 
 def _apply_proposed_path_inputs(

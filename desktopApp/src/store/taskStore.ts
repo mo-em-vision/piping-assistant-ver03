@@ -5,7 +5,7 @@ import { applyOptimisticParameterSubmit } from '@/components/workflow/optimistic
 import { inputApi } from '@/services/api/inputApi'
 import { taskApi } from '@/services/api/taskApi'
 import { toNavTaskSummary, workflowToSummary } from '@/services/api/responseParser'
-import { getActiveSessionId } from '@/store/projectStore'
+import { getActiveSessionId, useProjectStore } from '@/store/projectStore'
 import { useRightPanelStore } from '@/store/rightPanelStore'
 import { toUserFacingError } from '@/types/backend/errors'
 import { confirmTaskDeletion } from '@/utils/confirmTaskDeletion'
@@ -30,11 +30,14 @@ interface TaskStoreState {
   activeTaskState: TaskStateDto | null
   availableTasks: TaskSummary[]
   recentTasks: TaskSummary[]
+  projectTasks: Record<string, TaskSummary[]>
   loadWorkspace: () => Promise<void>
-  selectTask: (taskId: string) => Promise<void>
+  loadProjectTasks: (projectId: string) => Promise<void>
+  loadRecentTasksGlobal: () => Promise<void>
+  selectTask: (taskId: string, projectId?: string) => Promise<void>
   createTask: (workflowId: string) => Promise<void>
   clearActiveTask: () => void
-  deleteTask: (taskId: string) => Promise<void>
+  deleteTask: (taskId: string, projectId?: string) => Promise<void>
   refreshActiveTask: () => Promise<void>
   submitParameter: (parameter: string, value: unknown, unit?: string) => Promise<void>
   applyTaskState: (state: TaskStateDto) => void
@@ -54,6 +57,15 @@ function workflowToNav(workflow: TaskSummaryDto): TaskSummary {
   return toNavTaskSummary(workflow)
 }
 
+async function ensureProjectForTask(projectId?: string): Promise<string | undefined> {
+  const activeProjectId = getActiveSessionId()
+  if (!projectId || projectId === activeProjectId) {
+    return activeProjectId
+  }
+  await useProjectStore.getState().selectProject(projectId)
+  return projectId
+}
+
 export const useTaskStore = create<TaskStoreState>((set, get) => ({
   sessionId: null,
   loading: false,
@@ -62,6 +74,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   activeTaskState: null,
   availableTasks: useMockData ? mockAvailableTasks : [],
   recentTasks: useMockData ? mockRecentTasks : [],
+  projectTasks: {},
 
   loadWorkspace: async () => {
     if (useMockData) {
@@ -69,18 +82,32 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     }
 
     const sessionId = getActiveSessionId()
+    if (!sessionId) {
+      set({ sessionId: null, loading: false, userError: null })
+      await get().loadRecentTasksGlobal()
+      try {
+        const workflows = await taskApi.listWorkflows()
+        const availableTasks = workflows
+          .filter((workflow) => workflow.available)
+          .map((workflow) => workflowToNav(workflowToSummary(workflow)))
+        set({ availableTasks })
+      } catch (error) {
+        set({ userError: toUserFacingError(error) })
+      }
+      return
+    }
+
     set({ loading: true, userError: null })
     try {
       const [workflows, taskList] = await Promise.all([
         taskApi.listWorkflows(),
         taskApi.list(sessionId),
       ])
+      await get().loadRecentTasksGlobal()
 
       const availableTasks = workflows
         .filter((workflow) => workflow.available)
         .map((workflow) => workflowToNav(workflowToSummary(workflow)))
-
-      const recentTasks = taskList.recent_tasks.map((task) => toNavTaskSummary(task))
 
       let activeTask: TaskSummary | null = null
       let activeTaskState: TaskStateDto | null = null
@@ -90,15 +117,18 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         activeTask = stateToSummary(activeTaskState)
       }
 
-      set({
+      set((state) => ({
         sessionId: taskList.session_id,
         availableTasks,
-        recentTasks,
         activeTask,
         activeTaskState,
+        projectTasks: {
+          ...state.projectTasks,
+          [sessionId]: taskList.tasks.map((task) => toNavTaskSummary(task)),
+        },
         loading: false,
         userError: null,
-      })
+      }))
     } catch (error) {
       set({
         loading: false,
@@ -107,11 +137,56 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     }
   },
 
-  selectTask: async (taskId: string) => {
+  loadProjectTasks: async (projectId: string) => {
+    if (useMockData) {
+      if (projectId === 'proj_refinery') {
+        set((state) => ({
+          projectTasks: {
+            ...state.projectTasks,
+            [projectId]: mockRecentTasks.slice(0, 1),
+          },
+        }))
+      }
+      return
+    }
+
+    try {
+      const taskList = await taskApi.list(projectId)
+      set((state) => ({
+        projectTasks: {
+          ...state.projectTasks,
+          [projectId]: taskList.tasks.map((task) => toNavTaskSummary(task)),
+        },
+      }))
+    } catch (error) {
+      set({ userError: toUserFacingError(error) })
+    }
+  },
+
+  loadRecentTasksGlobal: async () => {
+    if (useMockData) {
+      set({ recentTasks: mockRecentTasks })
+      return
+    }
+
+    try {
+      const response = await taskApi.listRecentGlobal()
+      set({
+        recentTasks: response.recent_tasks.map((task) => toNavTaskSummary(task)),
+      })
+    } catch (error) {
+      set({ userError: toUserFacingError(error) })
+    }
+  },
+
+  selectTask: async (taskId: string, projectId?: string) => {
     if (useMockData) {
       const task =
         get().availableTasks.find((item) => item.id === taskId) ??
-        get().recentTasks.find((item) => item.id === taskId)
+        get().recentTasks.find((item) => item.id === taskId) ??
+        Object.values(get().projectTasks)
+          .flat()
+          .find((item) => item.id === taskId)
       if (task) {
         set({
           activeTask: { ...task, status: 'in_progress' },
@@ -123,14 +198,31 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
     set({ loading: true, userError: null })
     try {
-      const sessionId = get().sessionId ?? getActiveSessionId()
+      const sessionId = await ensureProjectForTask(projectId)
+      if (!sessionId) {
+        set({
+          loading: false,
+          userError: {
+            code: 'project_required',
+            title: 'No project selected',
+            whatHappened: 'Select or create a project before opening a task.',
+            possibleReason: 'Tasks belong to a project.',
+            nextAction: 'Create or select a project in the left panel.',
+            retryable: false,
+          },
+        })
+        return
+      }
+
       const state = await taskApi.activate(taskId, sessionId)
       set({
+        sessionId,
         activeTask: stateToSummary(state),
         activeTaskState: state,
         loading: false,
         userError: null,
       })
+      await get().loadWorkspace()
     } catch (error) {
       set({ loading: false, userError: toUserFacingError(error) })
     }
@@ -148,9 +240,23 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       return
     }
 
+    const sessionId = get().sessionId ?? getActiveSessionId()
+    if (!sessionId) {
+      set({
+        userError: {
+          code: 'project_required',
+          title: 'No project selected',
+          whatHappened: 'Create or select a project before starting a task.',
+          possibleReason: 'Tasks must be created inside a project.',
+          nextAction: 'Use Create new project in the left panel.',
+          retryable: false,
+        },
+      })
+      return
+    }
+
     set({ loading: true, userError: null })
     try {
-      const sessionId = get().sessionId ?? getActiveSessionId()
       const state = await taskApi.create(workflowId, sessionId)
       set({
         activeTask: stateToSummary(state),
@@ -159,6 +265,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         userError: null,
       })
       await get().loadWorkspace()
+      await get().loadProjectTasks(sessionId)
     } catch (error) {
       set({ loading: false, userError: toUserFacingError(error) })
     }
@@ -169,12 +276,15 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     set({ activeTask: null, activeTaskState: null })
   },
 
-  deleteTask: async (taskId: string) => {
-    const { activeTask, recentTasks } = get()
+  deleteTask: async (taskId: string, projectId?: string) => {
+    const { activeTask, recentTasks, projectTasks } = get()
+    const projectTaskLists = Object.values(projectTasks).flat()
     const task =
       activeTask?.id === taskId
         ? activeTask
-        : recentTasks.find((item) => item.id === taskId) ?? null
+        : recentTasks.find((item) => item.id === taskId) ??
+          projectTaskLists.find((item) => item.id === taskId) ??
+          null
 
     if (!task) {
       return
@@ -184,6 +294,8 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       return
     }
 
+    const resolvedProjectId = projectId ?? task.projectId ?? get().sessionId ?? getActiveSessionId()
+
     if (useMockData) {
       if (activeTask?.id === taskId) {
         useRightPanelStore.getState().reset()
@@ -192,14 +304,23 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         activeTask: state.activeTask?.id === taskId ? null : state.activeTask,
         activeTaskState: state.activeTask?.id === taskId ? null : state.activeTaskState,
         recentTasks: state.recentTasks.filter((item) => item.id !== taskId),
+        projectTasks: Object.fromEntries(
+          Object.entries(state.projectTasks).map(([id, tasks]) => [
+            id,
+            tasks.filter((item) => item.id !== taskId),
+          ]),
+        ),
       }))
+      return
+    }
+
+    if (!resolvedProjectId) {
       return
     }
 
     set({ loading: true, userError: null })
     try {
-      const sessionId = get().sessionId ?? getActiveSessionId()
-      await taskApi.delete(taskId, sessionId)
+      await taskApi.delete(taskId, resolvedProjectId)
 
       if (activeTask?.id === taskId) {
         useRightPanelStore.getState().reset()
@@ -207,6 +328,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       }
 
       await get().loadWorkspace()
+      await get().loadProjectTasks(resolvedProjectId)
       set({ loading: false, userError: null })
     } catch (error) {
       set({ loading: false, userError: toUserFacingError(error) })

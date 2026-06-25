@@ -55,5 +55,7 @@ export function toNavTaskSummary(dto: TaskSummaryDto) {
     description: dto.description,
     discipline: dto.discipline,
     status: mapBackendStatus(dto.status),
+    projectId: dto.project_id,
+    projectName: dto.project_name,
   }
 }

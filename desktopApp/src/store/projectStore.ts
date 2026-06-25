@@ -36,11 +36,14 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
 
     set({ loading: true, userError: null })
     try {
-      const projects = (await projectApi.list()).map(projectToSummary)
+      const projects = (await projectApi.list())
+        .map(projectToSummary)
+        .filter((project) => project.id !== 'default')
       const stored = readActiveProjectId()
-      const fallback = projects[0]?.id ?? 'default'
       const activeProjectId =
-        stored && projects.some((project) => project.id === stored) ? stored : fallback
+        stored && projects.some((project) => project.id === stored)
+          ? stored
+          : projects[0]?.id ?? null
 
       if (activeProjectId) {
         writeActiveProjectId(activeProjectId)

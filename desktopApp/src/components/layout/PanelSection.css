@@ -69,6 +69,16 @@
   border-color: #bfdbfe;
 }
 
+.list-button--cta {
+  border-style: dashed;
+  border-color: #cbd5e1;
+  background: #ffffff;
+}
+
+.list-button--cta:hover {
+  border-color: #94a3b8;
+}
+
 .list-button__name {
   font-size: 0.875rem;
   font-weight: 500;

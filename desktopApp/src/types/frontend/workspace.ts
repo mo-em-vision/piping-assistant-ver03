@@ -6,6 +6,8 @@ export interface TaskSummary {
   description: string
   discipline: string
   status?: TaskStatus
+  projectId?: string
+  projectName?: string
 }
 
 export interface ProjectSummary {

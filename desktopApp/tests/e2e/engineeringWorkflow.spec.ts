@@ -4,7 +4,8 @@ test.describe('engineering workflow (mock mode)', () => {
   test('create task, submit input, and hide report until workflow completes', async ({ page }) => {
     await page.goto('/')
 
-    await page.getByRole('button', { name: '+ New engineering task' }).click()
+    await page.getByRole('button', { name: 'Create new task' }).click()
+    await page.getByRole('button', { name: /pipe thickness calculation/i }).click()
 
     await expect(page.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeVisible()
     await expect(page.getByPlaceholder(/enter nominal pipe size/i)).toBeVisible()

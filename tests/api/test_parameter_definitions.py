@@ -137,3 +137,53 @@ def test_submit_task_input_rejects_unknown_parameter() -> None:
         assert "not currently requested" in str(exc)
     else:
         raise AssertionError("Expected ValueError for unknown parameter")
+
+
+def test_build_parameter_definitions_includes_corrosion_after_calc_with_graph_root_workflow() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-test11", status=TaskStatus.AWAITING_INPUT)
+    task.inputs["pressure_loading"] = EngineeringInput(
+        input_id="pressure_loading",
+        value="internal_pressure",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+    task.inputs["material"] = EngineeringInput(
+        input_id="material",
+        value="SA-106B",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+    task.inputs["design_pressure"] = EngineeringInput(
+        input_id="design_pressure",
+        value=8.0,
+        unit="bar",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+    task.outputs = {
+        "workflow": "B313-PIPE-WALL-THICKNESS-DESIGN",
+        "graph_root": "B313-PIPE-WALL-THICKNESS-DESIGN",
+        "required_thickness": 0.084,
+        "t": 0.084,
+        "planning_summary": {
+            "current_phase": "definition_equation_completion",
+            "missing_inputs": [],
+            "missing_assumptions": [],
+            "missing_execution_assumptions": ["corrosion_allowance"],
+            "phase_missing": {"definition_equation_completion": ["corrosion_allowance"]},
+        },
+        "_execution_trace": [{"node_id": "B313-304.1.2", "trace": {"calculation": {"steps": []}}}],
+    }
+    manager.replace_task(task.task_id, task)
+
+    parameters = build_parameter_definitions(manager.get_task(task.task_id))
+    names = [item["name"] for item in parameters]
+
+    assert "corrosion_allowance" in names
+    corrosion = next(item for item in parameters if item["name"] == "corrosion_allowance")
+    assert corrosion["status"] == "pending"
+    assert corrosion["submittable"] is True
+    assert len(names) > 1

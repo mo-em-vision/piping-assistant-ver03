@@ -167,6 +167,16 @@
   line-height: 1.4;
 }
 
+.left-panel__projects {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.left-panel__recent-tasks {
+  display: grid;
+  gap: 0.15rem;
+}
+
 .side-panel__error {
   margin: 0 0 0.75rem;
   padding: 0.5rem 0.65rem;

@@ -48,7 +48,8 @@ def test_completed_workflow_outputs_include_results_and_equation(
     types = [block["type"] for block in blocks]
     ids = [block["id"] for block in blocks]
 
-    assert types.count("equation") == 2
+    assert any(block_id.startswith("node-activation-") for block_id in ids)
+    assert types.count("equation") >= 3
     assert "path-preview-equation-B313-304.1.2" in ids
     assert "path-calculation-substituted-equation" in ids
     assert "result" not in types
@@ -136,3 +137,22 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
     assert nomenclature_reference is not None
     assert nomenclature_reference["node_id"] == "B313-304.1.1"
     assert nomenclature_reference["label"] == "§304.1.1(b)"
+
+
+def test_execution_trace_keeps_definition_node_outputs(standards_reader) -> None:
+    from tests.acceptance.helpers import run_completed_workflow
+
+    manager = TaskStateManager()
+    task_id = "pipe-wall-thickness-desi-test11"
+    run_completed_workflow(manager, standards_reader, task_id)
+    task = manager.get_task(task_id)
+    task.outputs.pop("required_thickness", None)
+    task.outputs.pop("t", None)
+    task.outputs.pop("minimum_required_thickness", None)
+    task.outputs.pop("t_m", None)
+
+    blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
+    ids = [block["id"] for block in blocks]
+
+    assert any(block_id.startswith("node-activation-equation-B313-304.1.1") for block_id in ids)
+    assert "equation-B313-304.1.2" in ids

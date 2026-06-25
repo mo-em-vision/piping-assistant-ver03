@@ -1,0 +1,112 @@
+.project-group {
+  border: 1px solid transparent;
+  border-radius: 6px;
+}
+
+.project-group--active {
+  border-color: #e2e8f0;
+  background: #ffffff;
+}
+
+.project-group__header {
+  display: flex;
+  align-items: stretch;
+  gap: 0.15rem;
+}
+
+.project-group__chevron {
+  flex-shrink: 0;
+  width: 1.5rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #64748b;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.project-group__chevron:hover {
+  background: #f1f5f9;
+}
+
+.project-group__title {
+  flex: 1;
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  padding: 0.45rem 0.5rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-group__title:hover {
+  background: #f1f5f9;
+}
+
+.project-group__title--active {
+  background: #eff6ff;
+}
+
+.project-group__name {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-group__meta {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.project-group__tasks {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.15rem 0 0.35rem 1.65rem;
+}
+
+.project-group__task {
+  display: grid;
+  gap: 0.1rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.project-group__task:hover {
+  background: #f1f5f9;
+}
+
+.project-group__task--active {
+  background: #eff6ff;
+}
+
+.project-group__task-name {
+  font-size: 0.78rem;
+  color: #1e293b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-group__task-status {
+  font-size: 0.68rem;
+  color: #94a3b8;
+  text-transform: capitalize;
+}
+
+.project-group__hint {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.72rem;
+  color: #94a3b8;
+}

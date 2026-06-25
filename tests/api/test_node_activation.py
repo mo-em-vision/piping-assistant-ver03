@@ -18,6 +18,7 @@ from config.loader import CLIConfig
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from models.task import TaskStatus
+from tests.api.conftest import api_session_id
 
 
 @pytest.fixture
@@ -89,7 +90,8 @@ def test_create_task_returns_node_activation_outputs(
         openai_base_url=None,
     )
     service = DesktopApiService(config=config, session_id="default")
-    state = service.create_task("pipe_wall_thickness_design")
+    session_id = api_session_id(service)
+    state = service.create_task("pipe_wall_thickness_design", session_id)
 
     assert state["active_nodes"] == ["B313-304.1.1"]
     assert state["parameters"][0]["name"] == "pressure_loading"
@@ -112,7 +114,8 @@ def test_submit_input_advances_to_pressure_loading(
         openai_base_url=None,
     )
     service = DesktopApiService(config=config, session_id="default")
-    state = service.create_task("pipe_wall_thickness_design")
+    session_id = api_session_id(service)
+    state = service.create_task("pipe_wall_thickness_design", session_id)
     task_id = state["task_id"]
 
     state = service.submit_input(
@@ -120,6 +123,7 @@ def test_submit_input_advances_to_pressure_loading(
         parameter="pressure_loading",
         value="internal_pressure",
         unit=None,
+        session_id=session_id,
     )
 
     assert state["parameters"][0]["status"] == "confirmed"

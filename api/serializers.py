@@ -8,6 +8,7 @@ from typing import Any
 from api.error_catalog import enrich_api_error_payload
 from api.equation_inputs_display import format_thickness_result_display
 from api.json_encoding import dumps as json_dumps, json_safe
+from api.node_calculation_summaries import build_node_calculation_summaries
 from api.node_context import active_node_context_for_task
 from api.output_blocks import build_display_outputs
 from api.parameter_definitions import build_parameter_definitions
@@ -20,6 +21,10 @@ from api.workflow_timeline import (
     submittable_parameter_ids,
 )
 from api.parameter_edit import active_edit_parameter, is_timeline_parameter_editable
+from engine.graph.definition_equations import (
+    has_execution_trace,
+    pending_definition_equation_inputs,
+)
 from engine.reference.material_catalog_db import material_display_name
 from engine.reference.material_resolver import canonical_material_id
 from engine.reference.standards_reader import StandardsReader
@@ -196,12 +201,30 @@ def _build_pipe_wall_timeline(
     planning: dict[str, Any],
     *,
     standards_root: Path | None = None,
+    reader: StandardsReader | None = None,
 ) -> list[dict[str, Any]]:
     phase_missing = planning.get("phase_missing") or {}
     phase_questions = planning.get("phase_questions") or {}
     current_phase = str(planning.get("current_phase") or "")
 
     all_missing = collect_all_missing(planning)
+    definition_pending = current_phase == "definition_equation_completion" or bool(
+        phase_missing.get("definition_equation_completion")
+    )
+    if not definition_pending and reader is not None:
+        graph = task.outputs.get("graph_root") or task.outputs.get("selected_root") or task.outputs.get("workflow")
+        if graph and has_execution_trace(task):
+            from engine.graph.graph_engine import GraphEngine, normalize_root_id
+
+            preview = GraphEngine().build_plan(
+                task_id=task.task_id,
+                root_id=normalize_root_id(str(graph)),
+                inputs=dict(task.inputs),
+                reader=reader,
+            )
+            definition_pending = bool(
+                pending_definition_equation_inputs(task, reader, preview.execution_order)
+            )
 
     revealed_inputs = revealed_pipe_wall_input_ids(task, planning)
     ordered_steps: list[tuple[str, str]] = [
@@ -244,12 +267,16 @@ def _build_pipe_wall_timeline(
             if report_done:
                 status = "done"
                 hint = None
-            elif thickness_done:
+            elif thickness_done and not definition_pending:
                 status = "active"
                 hint = "Generate the engineering report"
             else:
                 status = "pending"
-                hint = "Available after calculation completes"
+                hint = (
+                    "Available after minimum required thickness is calculated"
+                    if definition_pending
+                    else "Available after calculation completes"
+                )
             display_value = None
         else:
             if editing_parameter and step_id == editing_parameter:
@@ -319,9 +346,15 @@ def _build_progress_steps(
     planning: dict[str, Any],
     *,
     standards_root: Path | None = None,
+    reader: StandardsReader | None = None,
 ) -> list[dict[str, Any]]:
     if is_pipe_wall_thickness_task(task):
-        return _build_pipe_wall_timeline(task, planning, standards_root=standards_root)
+        return _build_pipe_wall_timeline(
+            task,
+            planning,
+            standards_root=standards_root,
+            reader=reader,
+        )
 
     steps: list[dict[str, Any]] = []
     missing_inputs = set(planning.get("missing_inputs") or [])
@@ -393,7 +426,12 @@ def task_state(
     resolved_standards_root = standards_root or (Path(__file__).resolve().parent.parent / "standards")
     resolved_reader = reader or StandardsReader(resolved_standards_root, standard="asme_b31.3")
 
-    timeline = _build_progress_steps(task, planning, standards_root=resolved_standards_root)
+    timeline = _build_progress_steps(
+        task,
+        planning,
+        standards_root=resolved_standards_root,
+        reader=resolved_reader,
+    )
     step_progress = [
         {
             "step_id": step.step_id,
@@ -404,7 +442,12 @@ def task_state(
     ]
 
     completed = sum(1 for step in timeline if step["status"] == "done")
-    active = next((step for step in timeline if step["status"] == "active"), None)
+    active = next(
+        (step for step in timeline if step["status"] == "active" and step["id"] not in {"report", "thickness"}),
+        None,
+    )
+    if active is None:
+        active = next((step for step in timeline if step["status"] == "active"), None)
 
     active_node_context = active_node_context_for_task(task, resolved_reader)
 
@@ -431,6 +474,7 @@ def task_state(
         "outputs": json_safe(dict(task.outputs)),
         "warnings": list(task.warnings),
         "parameters": build_parameter_definitions(task),
+        "node_calculations": build_node_calculation_summaries(task, resolved_reader),
         "display_outputs": build_display_outputs(
             task,
             standards_root=resolved_standards_root,

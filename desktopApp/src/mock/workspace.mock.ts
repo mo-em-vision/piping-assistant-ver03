@@ -41,6 +41,8 @@ export const mockRecentTasks: TaskSummary[] = [
     description: '8 bar design pressure, SA-106B',
     discipline: 'Piping',
     status: 'in_progress',
+    projectId: 'proj_refinery',
+    projectName: 'Refinery Expansion',
   },
   {
     id: 'recent_material_002',
@@ -48,6 +50,8 @@ export const mockRecentTasks: TaskSummary[] = [
     description: 'TP316L for corrosive service',
     discipline: 'Materials',
     status: 'completed',
+    projectId: 'proj_offshore',
+    projectName: 'Offshore Platform B',
   },
 ]
 

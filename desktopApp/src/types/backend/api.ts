@@ -9,6 +9,8 @@ export type TaskSummaryDto = {
   discipline: string
   workflow_id: string
   status: string
+  project_id?: string
+  project_name?: string
 }
 
 export interface ApiRecoveryInfo {
@@ -163,6 +165,10 @@ export interface TaskListResponse {
   session_id: string
   active_task_id: string | null
   tasks: TaskSummaryDto[]
+  recent_tasks: TaskSummaryDto[]
+}
+
+export interface RecentTasksResponse {
   recent_tasks: TaskSummaryDto[]
 }
 

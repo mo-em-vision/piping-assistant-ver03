@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from api.desktop_service import DesktopApiService
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 
@@ -23,3 +24,7 @@ def standards_reader(project_root: Path) -> StandardsReader:
 @pytest.fixture
 def state_manager() -> TaskStateManager:
     return TaskStateManager()
+
+
+def api_session_id(service: DesktopApiService, name: str = "API Test Project") -> str:
+    return service.create_project(name)["id"]

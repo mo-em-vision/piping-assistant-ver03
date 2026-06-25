@@ -17,7 +17,7 @@ from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import Task
 
 from api.parameter_edit import active_edit_parameter, clear_edit_session
-from api.workflow_timeline import revealed_pipe_wall_input_ids, submittable_parameter_ids
+from api.workflow_timeline import is_pipe_wall_thickness_task, revealed_pipe_wall_input_ids, submittable_parameter_ids
 
 _PARAMETER_SPECS: dict[str, dict[str, Any]] = {
     "material": {
@@ -214,7 +214,7 @@ def build_parameter_definitions(task: Task) -> list[dict[str, Any]]:
 
 
 def _requested_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]:
-    if _task_workflow_id(task) == PIPE_WALL_THICKNESS_DESIGN:
+    if is_pipe_wall_thickness_task(task):
         requested = revealed_pipe_wall_input_ids(task, planning)
         editing = active_edit_parameter(task)
         if editing and editing not in requested:

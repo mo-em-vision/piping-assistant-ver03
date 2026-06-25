@@ -116,6 +116,10 @@ class ApiHandler(BaseHTTPRequestHandler):
                 _json_response(self, 200, self.service.list_tasks(session_id))
                 return
 
+            if path == "/api/v1/recent-tasks":
+                _json_response(self, 200, self.service.list_recent_tasks_global())
+                return
+
             if path == "/api/v1/chat/messages":
                 session_id = query.get("session_id", [None])[0]
                 _json_response(self, 200, self.service.list_chat_messages(session_id))

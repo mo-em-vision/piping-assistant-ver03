@@ -9,6 +9,7 @@ import pytest
 from api.desktop_service import DesktopApiService
 from config.loader import CLIConfig
 from tests.acceptance.helpers import run_completed_workflow
+from tests.api.conftest import api_session_id
 
 
 @pytest.fixture
@@ -29,32 +30,34 @@ def temp_service(tmp_path: Path) -> DesktopApiService:
 
 
 def test_get_task_report_status(temp_service: DesktopApiService, standards_reader, state_manager) -> None:
+    session_id = api_session_id(temp_service)
     task_id = "pipe-wall-thickness-desi-report01"
     run_completed_workflow(state_manager, standards_reader, task_id)
-    temp_service._save_manager(state_manager, "default")
+    temp_service._save_manager(state_manager, session_id)
 
-    status = temp_service.get_task_report(task_id, "default")
+    status = temp_service.get_task_report(task_id, session_id)
     assert status["task_id"] == task_id
     assert status["title"]
     assert "files" in status
 
 
 def test_generate_and_preview_report(temp_service: DesktopApiService, standards_reader, state_manager) -> None:
+    session_id = api_session_id(temp_service)
     task_id = "pipe-wall-thickness-desi-report02"
     run_completed_workflow(state_manager, standards_reader, task_id)
-    temp_service._save_manager(state_manager, "default")
+    temp_service._save_manager(state_manager, session_id)
 
-    generated = temp_service.generate_task_report(task_id, report_format="html", session_id="default")
+    generated = temp_service.generate_task_report(task_id, report_format="html", session_id=session_id)
     assert generated["generation_status"] == "ready"
     assert generated["files"]["html"]["available"] is True
 
-    preview = temp_service.preview_task_report(task_id, preview_format="html", session_id="default")
+    preview = temp_service.preview_task_report(task_id, preview_format="html", session_id=session_id)
     assert "Executive Summary" in preview["content"] or generated["title"] in preview["content"]
 
     file_path, content_type = temp_service.download_task_report(
         task_id,
         download_format="html",
-        session_id="default",
+        session_id=session_id,
     )
     assert file_path.exists()
     assert "html" in content_type

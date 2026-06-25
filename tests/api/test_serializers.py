@@ -202,6 +202,43 @@ def test_task_state_report_step_active_after_thickness_complete() -> None:
     assert report_step["hint"] == "Generate the engineering report"
 
 
+def test_task_state_report_pending_during_definition_equation_completion() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-test12", status=TaskStatus.AWAITING_INPUT)
+    task.inputs["pressure_loading"] = EngineeringInput(
+        input_id="pressure_loading",
+        value="internal_pressure",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "required_thickness": 0.084,
+        "t": 0.084,
+        "planning_summary": {
+            "missing_inputs": [],
+            "missing_assumptions": [],
+            "missing_execution_assumptions": ["corrosion_allowance"],
+            "current_phase": "definition_equation_completion",
+            "phase_missing": {"definition_equation_completion": ["corrosion_allowance"]},
+        },
+        "_execution_trace": [{"node_id": "B313-304.1.2", "trace": {"calculation": {"steps": []}}}],
+    }
+    manager.replace_task(task.task_id, task)
+
+    state = task_state(task, manager)
+    report_step = next(step for step in state["progress"]["timeline"] if step["id"] == "report")
+    corrosion_step = next(
+        step for step in state["progress"]["timeline"] if step["id"] == "corrosion_allowance"
+    )
+
+    assert report_step["status"] == "pending"
+    assert corrosion_step["status"] == "active"
+    assert state["progress"]["current_step_id"] == "corrosion_allowance"
+    assert "corrosion_allowance" in state["progress"]["submittable_parameters"]
+
+
 def test_thickness_timeline_display_is_rounded_with_units() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test10", status=TaskStatus.COMPLETED)

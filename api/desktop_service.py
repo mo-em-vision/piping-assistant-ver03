@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from cli.session_store import new_task_id
+from cli.session_store import new_task_id, _task_from_dict
 from config.loader import CLIConfig
 from engine.reference.standards_reader import StandardsReader
 from engine.router import Router
@@ -32,6 +33,12 @@ from api.workflow_bootstrap import (
     refresh_task_planning,
     standards_reader_for_config,
 )
+from engine.graph.definition_equations import (
+    has_execution_trace,
+    try_complete_definition_equations,
+)
+from api.workflow_timeline import is_pipe_wall_thickness_task
+from engine.planner.tools import GraphTools
 from api.material_catalog import search_astm_materials, warm_astm_material_catalog
 from api.parameter_edit import (
     assess_parameter_edit,
@@ -82,6 +89,35 @@ class DesktopApiService:
             reader=self._reader(),
         )
 
+    def _maybe_refresh_stale_pipe_wall_task(self, task, manager):
+        if not is_pipe_wall_thickness_task(task):
+            return task
+        if not has_execution_trace(task):
+            return task
+
+        workflow = str(task.outputs.get("workflow") or "")
+        if workflow == "B313-PIPE-WALL-THICKNESS-DESIGN":
+            selected = str(task.outputs.get("selected_root") or "")
+            if selected and selected != workflow:
+                task.outputs["workflow"] = selected
+
+        has_t = task.outputs.get("t") is not None or task.outputs.get("required_thickness") is not None
+        missing_tm = (
+            task.outputs.get("t_m") is None
+            and task.outputs.get("minimum_required_thickness") is None
+        )
+        planning = task.outputs.get("planning_summary") or {}
+        phase = planning.get("current_phase") if isinstance(planning, dict) else None
+
+        needs_refresh = has_t and missing_tm and (
+            task.status != TaskStatus.COMPLETED
+            or phase != "definition_equation_completion"
+        )
+        if needs_refresh:
+            refresh_task_planning(task, self._reader())
+            manager.replace_task(task.task_id, task)
+        return task
+
     @classmethod
     def from_project_root(cls, project_root: Path | None = None) -> DesktopApiService:
         root = project_root or Path(__file__).resolve().parent.parent
@@ -92,7 +128,6 @@ class DesktopApiService:
 
     def _ensure_storage(self) -> None:
         migrate_legacy_sessions(self._database(), self.config.sessions_dir)
-        ProjectRepository(self._database()).ensure_project(self.session_id)
 
     def _database(self):
         return get_database_for_config(self.config.sessions_dir)
@@ -111,13 +146,7 @@ class DesktopApiService:
 
     def list_projects(self) -> list[dict[str, Any]]:
         self._ensure_storage()
-        repository = ProjectRepository(self._database())
-        repository.ensure_project(self.session_id)
-        projects = list_project_summaries(self._database())
-        if not projects:
-            repository.ensure_project(self.session_id, name="Default Project")
-            projects = list_project_summaries(self._database())
-        return projects
+        return list_project_summaries(self._database())
 
     def get_project(self, project_id: str) -> dict[str, Any]:
         self._ensure_storage()
@@ -173,6 +202,18 @@ class DesktopApiService:
             "recent_tasks": recent,
         }
 
+    def list_recent_tasks_global(self) -> dict[str, Any]:
+        self._ensure_storage()
+        rows = ProjectRepository(self._database()).list_recent_tasks()
+        recent_tasks: list[dict[str, Any]] = []
+        for row in rows:
+            task = _task_from_dict(json.loads(row["task_json"]))
+            summary = task_summary(task)
+            summary["project_id"] = row["project_id"]
+            summary["project_name"] = row["project_name"]
+            recent_tasks.append(summary)
+        return {"recent_tasks": recent_tasks}
+
     def get_task(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
         store = self._store_for(session_id)
         manager = store.load_state_manager()
@@ -180,6 +221,8 @@ class DesktopApiService:
             task = manager.get_task(task_id)
         except TaskNotFoundError as exc:
             raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+        task = self._maybe_refresh_stale_pipe_wall_task(task, manager)
+        self._save_manager(manager, session_id)
         return self._task_state(task, manager)
 
     def create_task(self, workflow_id: str, session_id: str | None = None) -> dict[str, Any]:
@@ -208,6 +251,7 @@ class DesktopApiService:
             task = manager.set_active_task(task_id)
         except TaskNotFoundError as exc:
             raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+        task = self._maybe_refresh_stale_pipe_wall_task(task, manager)
         self._save_manager(manager, session_id)
         return self._task_state(task, manager)
 
@@ -267,6 +311,22 @@ class DesktopApiService:
         )
         manager.replace_task(task_id, task)
         task = maybe_execute_ready_workflow(task_id, manager, self._reader())
+
+        reader = self._reader()
+        if has_execution_trace(task):
+            graph = GraphTools(reader)
+            root_slug = str(task.outputs.get("selected_root") or task.outputs.get("workflow") or "")
+            preview = graph.preview_plan(
+                task_id=task_id,
+                root_id=root_slug,
+                inputs=dict(task.inputs),
+            )
+            try_complete_definition_equations(task, reader, preview.execution_order)
+            manager.replace_task(task_id, task)
+
+        refresh_task_planning(task, reader, propose_defaults=False)
+        manager.replace_task(task_id, task)
+        task = manager.get_task(task_id)
 
         self._save_manager(manager, session_id)
         return self._task_state(task, manager)
@@ -452,8 +512,16 @@ class DesktopApiService:
             raise ApiError("table_not_found", f"Table not found: {table_id}", status=404) from exc
 
     def _store_for(self, session_id: str | None) -> ProjectSessionStore:
-        resolved = session_id or self.session_id
-        return ProjectSessionStore(self._database(), self.config.sessions_dir, session_id=resolved)
+        if not session_id:
+            raise ApiError(
+                "project_required",
+                "session_id is required",
+                status=400,
+            )
+        project = ProjectRepository(self._database()).get_project(session_id)
+        if project is None:
+            raise ApiError("project_not_found", f"Project not found: {session_id}", status=404)
+        return ProjectSessionStore(self._database(), self.config.sessions_dir, session_id=session_id)
 
 
 def _session_updated_at(store: ProjectSessionStore) -> str:
