@@ -96,10 +96,16 @@ describe('taskStore API integration', () => {
             { status: 200, headers: { 'Content-Type': 'application/json' } },
           )
         }
+        if (url.includes('/api/v1/recent-tasks')) {
+          return new Response(JSON.stringify({ recent_tasks: [] }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          })
+        }
         if (url.includes('/api/v1/tasks') && !url.includes('/api/v1/tasks/')) {
           return new Response(
             JSON.stringify({
-              session_id: 'default',
+              session_id: 'test-project',
               active_task_id: taskState.task_id,
               tasks: [],
               recent_tasks: [],
@@ -120,7 +126,9 @@ describe('taskStore API integration', () => {
       }),
     )
 
+    const { useProjectStore } = await import('@/store/projectStore')
     const { useTaskStore } = await import('@/store/taskStore')
+    useProjectStore.setState({ activeProjectId: 'test-project' })
     await useTaskStore.getState().loadWorkspace()
 
     const state = useTaskStore.getState()
@@ -195,8 +203,12 @@ describe('engineering workflow integration', () => {
           })
         }
 
-        if (method === 'POST' && url.endsWith('/api/v1/tasks')) {
+        if (method === 'POST' && /\/api\/v1\/tasks(\?|$)/.test(url) && !url.includes('/activate') && !url.includes('/inputs')) {
           return jsonResponse(currentTask, 201)
+        }
+
+        if (url.includes('/api/v1/recent-tasks')) {
+          return jsonResponse({ recent_tasks: [] })
         }
 
         if (url.match(/\/api\/v1\/tasks(\?|$)/) && method === 'GET') {
@@ -269,9 +281,11 @@ describe('engineering workflow integration', () => {
       }),
     )
 
+    const { useProjectStore } = await import('@/store/projectStore')
     const { useTaskStore } = await import('@/store/taskStore')
     const { useReportStore } = await import('@/store/reportStore')
 
+    useProjectStore.setState({ activeProjectId: 'default' })
     await useTaskStore.getState().createTask('pipe_wall_thickness_design')
     expect(useTaskStore.getState().activeTask?.name).toBe('Pipe Thickness Calculation')
 

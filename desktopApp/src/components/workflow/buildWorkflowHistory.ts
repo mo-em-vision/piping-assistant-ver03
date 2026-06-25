@@ -2,96 +2,21 @@ import type { TaskStateDto } from '@/types/backend/api'
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
 import type { TimelineStepViewModel } from '@/types/frontend/taskState'
 
-import {
-  completedStepStatement,
-  FORMULA_INPUT_STEP_IDS,
-  isHiddenWorkflowStep,
-} from './workflowReport'
-
-export type WorkflowHistoryItem =
-  | {
-      id: string
-      kind: 'report-statement'
-      body: string
-    }
-  | {
-      id: string
-      kind: 'node-content'
-      block: DisplayOutputBlock
-    }
-  | {
-      id: string
-      kind: 'output'
-      block: DisplayOutputBlock
-    }
-
-function visibleTimelineSteps(timeline: TimelineStepViewModel[]): TimelineStepViewModel[] {
-  const pendingIndex = timeline.findIndex((step) => step.status === 'pending')
-  const visible =
-    pendingIndex === -1
-      ? timeline
-      : timeline.slice(0, pendingIndex + 1).filter((step) => step.status !== 'pending')
-  return visible.filter((step) => !isHiddenWorkflowStep(step.id))
-}
-
-function isHistoryOutputBlock(block: DisplayOutputBlock): boolean {
-  if (block.id.startsWith('node-activation-')) {
-    return false
-  }
-  if (block.id === 'planning-status') {
-    return false
-  }
-  if (block.id.startsWith('path-preview-reference-')) {
-    return false
-  }
-  return true
+export type WorkflowHistoryItem = {
+  id: string
+  kind: 'output'
+  block: DisplayOutputBlock
 }
 
 export function buildWorkflowHistory(
-  timeline: TimelineStepViewModel[],
+  _timeline: TimelineStepViewModel[],
   displayOutputs: DisplayOutputBlock[],
 ): WorkflowHistoryItem[] {
-  const items: WorkflowHistoryItem[] = []
-
-  const activationBlocks = displayOutputs.filter(
-    (block) =>
-      block.id.startsWith('node-activation-') && !block.id.startsWith('node-activation-reference-'),
-  )
-  const otherBlocks = displayOutputs.filter(isHistoryOutputBlock)
-
-  for (const block of activationBlocks) {
-    items.push({
-      id: `node-content-${block.id}`,
-      kind: 'node-content',
-      block,
-    })
-  }
-
-  for (const block of otherBlocks) {
-    items.push({
-      id: `output-${block.id}`,
-      kind: 'output',
-      block,
-    })
-  }
-
-  const steps = visibleTimelineSteps(timeline)
-
-  for (const step of steps) {
-    if (step.status !== 'done' || FORMULA_INPUT_STEP_IDS.has(step.id)) {
-      continue
-    }
-    const statement = completedStepStatement(step)
-    if (statement) {
-      items.push({
-        id: `statement-${step.id}`,
-        kind: 'report-statement',
-        body: statement,
-      })
-    }
-  }
-
-  return items
+  return displayOutputs.map((block) => ({
+    id: `output-${block.id}`,
+    kind: 'output',
+    block,
+  }))
 }
 
 function parameterIsSubmittable(

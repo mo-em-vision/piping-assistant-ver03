@@ -189,7 +189,11 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
           .find((item) => item.id === taskId)
       if (task) {
         set({
-          activeTask: { ...task, status: 'in_progress' },
+          activeTask: {
+            ...stateToSummary(mockTaskState),
+            id: task.id,
+            projectId: projectId ?? task.projectId,
+          },
           activeTaskState: mockTaskState,
         })
       }
@@ -233,7 +237,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       const task = get().availableTasks.find((item) => item.id === workflowId)
       if (task) {
         set({
-          activeTask: { ...task, status: 'in_progress' },
+          activeTask: stateToSummary(mockTaskState),
           activeTaskState: mockTaskState,
         })
       }

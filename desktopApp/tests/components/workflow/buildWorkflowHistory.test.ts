@@ -14,12 +14,9 @@ describe('buildWorkflowHistory', () => {
 
     const items = buildWorkflowHistory(viewModel!.timeline, mockTaskState.display_outputs)
 
-    expect(items.some((item) => item.kind === 'report-statement' && item.body === 'Design material: ASTM A106 Grade B.')).toBe(
-      false,
-    )
-    expect(items.some((item) => item.kind === 'report-statement' && item.body === 'Design pressure: 8 bar.')).toBe(
-      false,
-    )
+    expect(items.some((item) => item.kind === 'report-statement')).toBe(false)
+    expect(items.some((item) => item.kind === 'node-content')).toBe(false)
+    expect(items.every((item) => item.kind === 'output')).toBe(true)
     expect(
       items.some(
         (item) =>

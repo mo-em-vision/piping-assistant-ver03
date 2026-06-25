@@ -48,8 +48,8 @@ def test_completed_workflow_outputs_include_results_and_equation(
     types = [block["type"] for block in blocks]
     ids = [block["id"] for block in blocks]
 
-    assert any(block_id.startswith("node-activation-") for block_id in ids)
-    assert types.count("equation") >= 3
+    assert not any(block_id.startswith("node-activation-") for block_id in ids)
+    assert types.count("equation") == 3
     assert "path-preview-equation-B313-304.1.2" in ids
     assert "path-calculation-substituted-equation" in ids
     assert "result" not in types
@@ -65,14 +65,19 @@ def test_completed_workflow_outputs_include_results_and_equation(
     substituted = next(
         block for block in blocks if block["id"] == "path-calculation-substituted-equation"
     )
-    assert "leading_result" not in substituted
-    assert substituted["display"].startswith("t = ")
-    assert " = " in substituted["display"]
-    assert substituted["display"].rstrip().endswith("mm")
+    assert substituted.get("leading_result") == {"value": "2.252", "unit": "mm"}
+    assert substituted["display"].startswith("2.252 mm  t = ")
     assert "input_table" not in substituted
     assert "SEW" not in substituted["display"]
-    assert "(1)(1)" in substituted["display"] or "(1.0)(1)" in substituted["display"]
-    assert "e+" not in substituted["content"]
+
+    minimum = next(block for block in blocks if block["id"] == "minimum-thickness-equation")
+    assert minimum["display"] == "t_m = 2.252 + 0.500 = 2.752 mm"
+
+    summary = next(block for block in blocks if block["id"] == "required-thickness-summary")
+    assert summary["content"] == "Required wall thickness: 2.252 mm."
+
+    conclusion = next(block for block in blocks if block["id"] == "minimum-thickness-conclusion")
+    assert "Minimum required pipe wall thickness is 2.752 mm." in conclusion["content"]
 
 
 def test_task_state_includes_display_outputs(
@@ -139,6 +144,33 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
     assert nomenclature_reference["label"] == "§304.1.1(b)"
 
 
+def test_post_calculation_outputs_before_corrosion_allowance(standards_reader, state_manager) -> None:
+    from tests.acceptance.helpers import run_completed_workflow
+
+    task_id = "pipe-wall-thickness-desi-test12"
+    run_completed_workflow(state_manager, standards_reader, task_id)
+    task = state_manager.get_task(task_id)
+    task.inputs.pop("corrosion_allowance", None)
+    task.outputs.pop("minimum_required_thickness", None)
+    task.outputs.pop("t_m", None)
+    task.status = TaskStatus.AWAITING_INPUT
+    state_manager.replace_task(task_id, task)
+
+    blocks = build_display_outputs(task)
+    ids = [block["id"] for block in blocks]
+
+    assert "path-preview-equation-B313-304.1.2" in ids
+    assert "path-calculation-substituted-equation" in ids
+    assert "minimum-thickness-equation" in ids
+    assert "required-thickness-summary" in ids
+    assert "minimum-thickness-conclusion" not in ids
+    assert not any(block_id.startswith("node-activation-") for block_id in ids)
+
+    minimum = next(block for block in blocks if block["id"] == "minimum-thickness-equation")
+    assert minimum["display"].endswith("+ c")
+    assert "2.252" in minimum["display"]
+
+
 def test_execution_trace_keeps_definition_node_outputs(standards_reader) -> None:
     from tests.acceptance.helpers import run_completed_workflow
 
@@ -150,9 +182,10 @@ def test_execution_trace_keeps_definition_node_outputs(standards_reader) -> None
     task.outputs.pop("t", None)
     task.outputs.pop("minimum_required_thickness", None)
     task.outputs.pop("t_m", None)
+    task.outputs.pop("_execution_trace", None)
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     ids = [block["id"] for block in blocks]
 
     assert any(block_id.startswith("node-activation-equation-B313-304.1.1") for block_id in ids)
-    assert "equation-B313-304.1.2" in ids
+    assert "equation-B313-304.1.2" not in ids

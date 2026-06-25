@@ -42,17 +42,25 @@ describe('engineering workflow UI (mock mode)', () => {
     })
 
     await user.click(screen.getByRole('button', { name: 'Create new task' }))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /pipe thickness calculation/i })).toBeInTheDocument()
+    })
     await user.click(screen.getByRole('button', { name: /pipe thickness calculation/i }))
 
-    expect(screen.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeInTheDocument()
+    })
 
-    const npsField = screen.getByPlaceholderText(/enter nominal pipe size/i)
+    const npsField = screen.getByPlaceholderText('Value…')
     await user.clear(npsField)
     await user.type(npsField, '6')
     await user.click(screen.getByRole('button', { name: 'Submit' }))
 
+    const { useTaskStore } = await import('@/store/taskStore')
     await waitFor(() => {
-      expect(screen.getByText('6')).toBeInTheDocument()
+      expect(useTaskStore.getState().activeTaskState?.inputs.nominal_pipe_size?.display_value).toBe(
+        '6 NPS',
+      )
     })
 
     expect(screen.queryByRole('heading', { name: 'Engineering report' })).not.toBeInTheDocument()

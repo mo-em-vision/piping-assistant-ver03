@@ -64,18 +64,15 @@ describe('EquationOutput', () => {
         block={{
           id: 'path-calculation-substituted-equation',
           type: 'equation',
-          content:
-            't = \\frac{(3447378)(254)}{2((193000000)(1)(1) + (3447378)(0.4))} = 2.252\\ \\mathrm{mm}',
-          display:
-            't = (3447378)(254) / 2((193000000)(1)(1) + (3447378)(0.4)) = 2.252 mm',
+          content: 't = \\frac{(3447378)(254)}{2((193000000)(1)(1) + (3447378)(0.4))}',
+          display: '2.252 mm  t = (3447378)(254) / 2((193000000)(1)(1) + (3447378)(0.4))',
+          leading_result: { label: 'Required Thickness', value: '2.252', unit: 'mm' },
         }}
       />,
     )
 
     expect(container.querySelector('.output-equation--evaluated')).toBeTruthy()
-    expect(container.querySelector('.output-equation__math--evaluated .katex')).toBeTruthy()
-    expect(container.textContent).toContain('2.252')
-    expect(container.textContent).toContain('mm')
+    expect(container.textContent).toContain('= 2.252 mm')
     expect(container.querySelector('.output-equation__input-table')).toBeNull()
   })
 

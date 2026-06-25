@@ -4,18 +4,16 @@ test.describe('engineering workflow (mock mode)', () => {
   test('create task, submit input, and hide report until workflow completes', async ({ page }) => {
     await page.goto('/')
 
-    await page.getByRole('button', { name: 'Create new task' }).click()
-    await page.getByRole('button', { name: /pipe thickness calculation/i }).click()
+    await page.getByRole('button', { name: /pipe thickness — line 200/i }).click()
 
     await expect(page.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeVisible()
-    await expect(page.getByPlaceholder(/enter nominal pipe size/i)).toBeVisible()
+    await expect(page.getByPlaceholder('Value…')).toBeVisible()
 
-    const npsField = page.getByPlaceholder(/enter nominal pipe size/i)
+    const npsField = page.getByPlaceholder('Value…')
     await npsField.fill('6')
     await page.getByRole('button', { name: 'Submit' }).click()
 
-    await expect(page.getByText('nominal pipe size', { exact: false })).toBeVisible()
-    await expect(page.getByText('6')).toBeVisible()
+    await expect(page.getByPlaceholder('Waiting for the next workflow step…')).toBeVisible()
 
     await expect(page.getByRole('heading', { name: 'Engineering report' })).toHaveCount(0)
   })

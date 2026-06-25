@@ -50,6 +50,7 @@ export const mockTaskState: TaskStateDto = {
     current_step_id: 'thickness',
     missing_inputs: ['nominal_pipe_size'],
     missing_assumptions: [],
+    submittable_parameters: ['nominal_pipe_size'],
     step_progress: [],
   },
   inputs: {

@@ -407,18 +407,36 @@ def build_wall_thickness_substituted_equation(
     result_value: float,
     result_unit: str,
     variables_si: dict[str, float],
-) -> tuple[str, str]:
-    """Return plain display and LaTeX for t = PD / 2((S)(E)(W) + (P)(Y)) = result."""
+) -> tuple[str, str, dict[str, str]]:
+    """Return plain display, LaTeX, and leading result for evaluated t = PD / 2(...)."""
     rhs = build_wall_thickness_substituted_rhs(variables_si=variables_si)
     result_text = _format_result_thickness(result_value)
     unit = result_unit.strip() or "mm"
     numerator, denominator = rhs.split(" / ", 1)
-    display = f"t = {rhs} = {result_text} {unit}"
-    latex = (
-        f"t = \\frac{{{numerator.strip()}}}{{{denominator.strip()}}} = "
-        f"{result_text}\\ \\mathrm{{{unit}}}"
-    )
-    return display, latex
+    display = f"{result_text} {unit}  t = {rhs}"
+    latex = f"t = \\frac{{{numerator.strip()}}}{{{denominator.strip()}}}"
+    leading_result = {"value": result_text, "unit": unit}
+    return display, latex, leading_result
+
+
+def build_minimum_thickness_equation(
+    *,
+    t_value: float,
+    c_value: float | None = None,
+    t_m_value: float | None = None,
+    unit: str = "mm",
+) -> tuple[str, str]:
+    """Return display and LaTeX for t_m = t + c, optionally with c and t_m evaluated."""
+    t_text = _format_result_thickness(t_value)
+    if c_value is None:
+        text = f"t_m = {t_text} + c"
+        return text, text
+    c_text = _format_result_thickness(c_value)
+    tm_value = t_m_value if t_m_value is not None else t_value + c_value
+    tm_text = _format_result_thickness(tm_value)
+    text = f"t_m = {t_text} + {c_text} = {tm_text} {unit.strip() or 'mm'}"
+    latex = f"t_m = {t_text} + {c_text} = {tm_text}\\ \\mathrm{{{unit.strip() or 'mm'}}}"
+    return text, latex
 
 
 def _substitute_formula_rhs(rhs: str, values: dict[str, float]) -> str:

@@ -69,22 +69,16 @@ def build_display_outputs(
     trace = task.outputs.get("_execution_trace")
     has_trace = isinstance(trace, list) and bool(trace)
 
-    # Keep definition-node content visible for the full workflow history.
-    blocks.extend(_activated_definition_blocks(task, planning, resolved_reader))
-
-    if _pipe_wall_calculation_complete(task, has_trace=has_trace):
-        blocks.extend(
-            _path_calculation_preview_blocks(
-                task,
-                planning,
-                resolved_reader,
-                trace=trace if has_trace else None,
-            )
+    if is_pipe_wall_thickness_task(task):
+        return _build_pipe_wall_display_outputs(
+            task,
+            planning,
+            resolved_reader,
+            trace if has_trace else None,
+            has_trace=has_trace,
         )
-        substituted = _substituted_calculation_equation_block(trace)
-        if substituted:
-            blocks.append(substituted)
-        return _dedupe_blocks_by_id(blocks)
+
+    blocks.extend(_activated_definition_blocks(task, planning, resolved_reader))
 
     for warning in task.warnings:
         blocks.append(_warning_block(warning))
@@ -93,8 +87,6 @@ def build_display_outputs(
 
     if has_trace:
         blocks.extend(_blocks_from_execution_trace(trace, task))
-    elif is_pipe_wall_thickness_task(task):
-        blocks.extend(_path_calculation_preview_blocks(task, planning, resolved_reader))
 
     status_block = _planning_status_block(task, planning)
     if status_block:
@@ -216,13 +208,155 @@ def _resolve_calculation_node_id(
     return None
 
 
-def _pipe_wall_calculation_complete(task: Task, *, has_trace: bool) -> bool:
-    if not is_pipe_wall_thickness_task(task) or not has_trace:
+def _build_pipe_wall_display_outputs(
+    task: Task,
+    planning: dict[str, Any],
+    reader: StandardsReader,
+    trace: list[Any] | None,
+    *,
+    has_trace: bool,
+) -> list[dict[str, Any]]:
+    blocks: list[dict[str, Any]] = []
+
+    if _pipe_wall_t_calculated(task, has_trace=has_trace):
+        blocks.extend(_path_calculation_preview_blocks(task, planning, reader, trace=trace))
+        substituted = _substituted_calculation_equation_block(trace)
+        if substituted:
+            blocks.append(substituted)
+        summary = _required_thickness_summary_block(task)
+        if summary:
+            blocks.append(summary)
+        minimum_equation = _minimum_thickness_equation_block(task)
+        if minimum_equation:
+            blocks.append(minimum_equation)
+        conclusion = _minimum_thickness_conclusion_block(task)
+        if conclusion:
+            blocks.append(conclusion)
+        return _dedupe_blocks_by_id(blocks)
+
+    blocks.extend(_activated_definition_blocks(task, planning, reader))
+    blocks.extend(_path_calculation_preview_blocks(task, planning, reader, trace=trace))
+    status_block = _planning_status_block(task, planning)
+    if status_block:
+        blocks.append(status_block)
+    return _dedupe_blocks_by_id(blocks)
+
+
+def _pipe_wall_t_calculated(task: Task, *, has_trace: bool) -> bool:
+    if not has_trace:
         return False
+    return task.outputs.get("required_thickness") is not None or task.outputs.get("t") is not None
+
+
+def _pipe_wall_tm_complete(task: Task) -> bool:
     return (
         task.outputs.get("minimum_required_thickness") is not None
         or task.outputs.get("t_m") is not None
     )
+
+
+def _required_thickness_summary_block(task: Task) -> dict[str, Any] | None:
+    thickness = task.outputs.get("required_thickness")
+    if thickness is None:
+        thickness = task.outputs.get("t")
+    if thickness is None:
+        return None
+    unit = str(
+        task.outputs.get("required_thickness_unit")
+        or task.outputs.get("t_unit")
+        or task.outputs.get("thickness_unit")
+        or "mm"
+    )
+    from api.equation_inputs_display import format_thickness_result_display
+
+    return {
+        "id": "required-thickness-summary",
+        "type": "text",
+        "title": None,
+        "content": f"Required wall thickness: {format_thickness_result_display(float(thickness), unit)}.",
+        "variant": "body",
+    }
+
+
+def _minimum_thickness_equation_block(task: Task) -> dict[str, Any] | None:
+    thickness = task.outputs.get("required_thickness")
+    if thickness is None:
+        thickness = task.outputs.get("t")
+    if thickness is None:
+        return None
+
+    from api.equation_inputs_display import build_minimum_thickness_equation
+
+    t_value = float(thickness)
+    unit = str(
+        task.outputs.get("required_thickness_unit")
+        or task.outputs.get("t_unit")
+        or task.outputs.get("thickness_unit")
+        or "mm"
+    )
+    c_value = _corrosion_allowance_mm(task)
+    t_m_value = task.outputs.get("t_m")
+    if t_m_value is None:
+        t_m_value = task.outputs.get("minimum_required_thickness")
+
+    display, latex = build_minimum_thickness_equation(
+        t_value=t_value,
+        c_value=c_value,
+        t_m_value=float(t_m_value) if isinstance(t_m_value, (int, float)) else None,
+        unit=unit,
+    )
+    return {
+        "id": "minimum-thickness-equation",
+        "type": "equation",
+        "title": None,
+        "content": latex,
+        "display": display,
+    }
+
+
+def _minimum_thickness_conclusion_block(task: Task) -> dict[str, Any] | None:
+    if not _pipe_wall_tm_complete(task):
+        return None
+    t_m = task.outputs.get("t_m")
+    if t_m is None:
+        t_m = task.outputs.get("minimum_required_thickness")
+    if t_m is None:
+        return None
+
+    from api.equation_inputs_display import format_thickness_result_display
+
+    unit = str(
+        task.outputs.get("t_m_unit")
+        or task.outputs.get("minimum_required_thickness_unit")
+        or "mm"
+    )
+    return {
+        "id": "minimum-thickness-conclusion",
+        "type": "text",
+        "title": None,
+        "content": (
+            f"Minimum required pipe wall thickness is "
+            f"{format_thickness_result_display(float(t_m), unit)}. "
+            "The selected pipe wall thickness must be not less than t_m per §304.1.1(a)."
+        ),
+        "variant": "body",
+    }
+
+
+def _corrosion_allowance_mm(task: Task) -> float | None:
+    from engine.executor.unit_manager import prepare_engineering_input
+    from models.input import InputStatus
+
+    engineering_input = task.inputs.get("corrosion_allowance")
+    if engineering_input is None or engineering_input.value is None:
+        return None
+    if engineering_input.status == InputStatus.PROPOSED_DEFAULT:
+        return None
+    return float(prepare_engineering_input(engineering_input).value)
+
+
+def _pipe_wall_calculation_complete(task: Task, *, has_trace: bool) -> bool:
+    return _pipe_wall_t_calculated(task, has_trace=has_trace)
 
 
 def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] | None:
@@ -252,7 +386,7 @@ def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] 
         return None
 
     result_unit = str(final.get("unit") or "mm")
-    display, latex = build_wall_thickness_substituted_equation(
+    display, latex, leading_result = build_wall_thickness_substituted_equation(
         result_value=float(final["value"]),
         result_unit=result_unit,
         variables_si=variables,
@@ -264,6 +398,7 @@ def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] 
         "title": None,
         "content": latex,
         "display": display,
+        "leading_result": leading_result,
     }
 
 
