@@ -8,7 +8,7 @@ export const mockTaskState: TaskStateDto = {
   discipline: 'Piping',
   description: 'ASME B31.3 wall thickness design',
   status: 'awaiting_input',
-  active_nodes: ['B313-material-stress', 'B313-304.1.1'],
+  active_nodes: ['B313-table-A-1', 'B313-304.1.1'],
   progress: {
     timeline: [
       {

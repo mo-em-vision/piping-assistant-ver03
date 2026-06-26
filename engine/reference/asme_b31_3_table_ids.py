@@ -23,4 +23,6 @@ TABLE_A_1A = asme_b31_3_table_id("A-1A")
 TABLE_A_1B = asme_b31_3_table_id("A-1B")
 TABLE_304_1_1 = asme_b31_3_table_id("table_304_1_1")
 TABLE_302_3_5 = asme_b31_3_table_id("302.3.5")
-TABLE_MATERIAL_ALLOWABLE_STRESS = asme_b31_3_table_id("material_allowable_stress")
+TABLE_302_3_3C = asme_b31_3_table_id("table_302_3_3C")
+# Legacy alias; canonical id is TABLE_A_1.
+TABLE_MATERIAL_ALLOWABLE_STRESS = TABLE_A_1

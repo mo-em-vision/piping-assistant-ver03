@@ -261,7 +261,7 @@ def test_allowable_stress_value_includes_asme_b31_3_lookup_context() -> None:
         "allowable_stress_unit": "Pa",
         "allowable_stress_lookup": {
             "standard": "asme_b31.3",
-            "table_id": "asme_b31.3_material_allowable_stress",
+            "table_id": "asme_b31.3_A-1",
             "material": "SA-106B",
             "design_temperature_f": 400.0,
             "interpolated": False,

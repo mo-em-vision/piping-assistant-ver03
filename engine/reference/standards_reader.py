@@ -2,15 +2,28 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-import yaml
-
+from engine.reference.pack_nodes_db import resolve_pack_nodes_db
 from engine.reference.pack_tables_db import resolve_pack_tables_db
-from engine.reference.standards_paths import list_standard_packs, resolve_standard_pack
+from engine.reference.standards_markdown import split_frontmatter
+from engine.reference.standards_nodes import StandardsNodesDatabase
+from engine.reference.standards_paths import (
+    list_standard_packs,
+    resolve_global_tasks_db,
+    resolve_pack_tasks_dir,
+    resolve_standard_pack,
+    resolve_standard_tasks_dir,
+    resolve_standards_tasks_dir,
+)
 from engine.reference.standards_tables import StandardsTablesDatabase
+from engine.reference.standards_tasks_db import StandardsTasksDatabase
+
+_logger = logging.getLogger(__name__)
+_warned_missing_nodes_db: set[str] = set()
 
 
 @dataclass
@@ -29,9 +42,9 @@ class NodeRecord:
         deps: list[str] = []
         for item in self.metadata.get("depends_on", []) or []:
             if isinstance(item, dict):
-                node_id = item.get("node_id")
-                if node_id:
-                    deps.append(str(node_id))
+                dep_node_id = item.get("node_id")
+                if dep_node_id:
+                    deps.append(str(dep_node_id))
             elif isinstance(item, str):
                 deps.append(item)
         return deps
@@ -60,23 +73,104 @@ class NodeValidationResult:
 
 
 class StandardsReader:
-    """Load nodes and roots from the on-disk standards pack."""
+    """Load nodes and roots from compiled SQLite with markdown file fallback."""
 
     def __init__(self, standards_root: Path, *, standard: str = "asme_b31.3") -> None:
         self.standards_root = standards_root.resolve()
         self.standard = standard
         self.pack_root = resolve_standard_pack(self.standards_root, standard)
         self.nodes_dir = self.pack_root / "nodes"
-        self.roots_dir = self.pack_root / "roots"
-        self.tables_dir = self.pack_root / "tables"
+        self.global_tasks_dir = resolve_standards_tasks_dir(self.standards_root)
+        global_tasks_dir = resolve_standard_tasks_dir(self.standards_root, standard)
+        if global_tasks_dir.is_dir():
+            self.tasks_dir = global_tasks_dir
+        else:
+            self.tasks_dir = resolve_pack_tasks_dir(self.pack_root)
         self.tables_db_path = resolve_pack_tables_db(self.pack_root)
+        self.nodes_db_path = resolve_pack_nodes_db(self.pack_root)
+        self.tasks_db_path = resolve_global_tasks_db(self.standards_root)
         self._tables_db = StandardsTablesDatabase(self.tables_db_path)
+        self._nodes_db = StandardsNodesDatabase(self.nodes_db_path)
+        self._tasks_db = StandardsTasksDatabase(self.tasks_db_path)
         self._node_path_cache: dict[str, Path | None] = {}
         self._node_record_cache: dict[str, NodeRecord] = {}
 
     @property
+    def roots_dir(self) -> Path:
+        """Legacy alias for :attr:`tasks_dir`."""
+        return self.tasks_dir
+
+    @property
     def tables_database(self) -> StandardsTablesDatabase:
         return self._tables_db
+
+    @property
+    def nodes_database(self) -> StandardsNodesDatabase:
+        return self._nodes_db
+
+    @property
+    def tasks_database(self) -> StandardsTasksDatabase:
+        return self._tasks_db
+
+    @property
+    def nodes_db_available(self) -> bool:
+        return self._nodes_db.exists
+
+    @property
+    def tasks_db_available(self) -> bool:
+        return self._tasks_db.exists
+
+    def _warn_missing_nodes_db_once(self) -> None:
+        key = str(self.pack_root)
+        if key in _warned_missing_nodes_db:
+            return
+        _warned_missing_nodes_db.add(key)
+        _logger.warning(
+            "Pack nodes database not found at %s; falling back to markdown files. "
+            "Run scripts/build_standards_nodes_db.py",
+            self.nodes_db_path,
+        )
+
+    def _virtual_node_path(self, source_rel_path: str, *, kind: str) -> Path:
+        filename = "root.md" if kind == "root" else "node.md"
+        if kind == "root":
+            return self.standards_root / "tasks" / source_rel_path / filename
+        return self.pack_root / source_rel_path / filename
+
+    def _record_from_tasks_db(self, node_id: str) -> NodeRecord | None:
+        if not self.tasks_db_available:
+            return None
+        resolved_id = self._tasks_db.resolve_node_id(node_id) or node_id
+        data = self._tasks_db.get_node(resolved_id)
+        if data is None:
+            return None
+        path = self._virtual_node_path(str(data["source_rel_path"]), kind="root")
+        return NodeRecord(
+            node_id=str(data["node_id"]),
+            path=path,
+            metadata=data["metadata"],
+            body=str(data["body"]),
+        )
+
+    def _record_from_db(self, node_id: str) -> NodeRecord | None:
+        root_record = self._record_from_tasks_db(node_id)
+        if root_record is not None:
+            return root_record
+        if not self.nodes_db_available:
+            return None
+        resolved_id = self._nodes_db.resolve_node_id(node_id) or node_id
+        data = self._nodes_db.get_node(resolved_id)
+        if data is None:
+            return None
+        if str(data["kind"]) == "root":
+            return self._record_from_tasks_db(str(data["node_id"]))
+        path = self._virtual_node_path(str(data["source_rel_path"]), kind=str(data["kind"]))
+        return NodeRecord(
+            node_id=str(data["node_id"]),
+            path=path,
+            metadata=data["metadata"],
+            body=str(data["body"]),
+        )
 
     def load_table(self, table_ref: str) -> dict[str, Any]:
         """Load a lookup table from the pack SQLite database."""
@@ -109,12 +203,23 @@ class StandardsReader:
             return self._node_path_cache[node_id]
 
         resolved: Path | None = None
-        if node_id.endswith("/root") or node_id.endswith("root.md"):
+        if self.nodes_db_available:
+            data = self._nodes_db.get_node(self._nodes_db.resolve_node_id(node_id) or node_id)
+            if data is not None:
+                resolved = self._virtual_node_path(str(data["source_rel_path"]), kind=str(data["kind"]))
+
+        if resolved is None and (node_id.endswith("/root") or node_id.endswith("root.md")):
             slug = node_id.replace("/root", "").replace("root.md", "").strip("/")
             if slug:
-                candidate = self.roots_dir / slug / "root.md"
+                candidate = self.tasks_dir / slug / "root.md"
                 if candidate.exists():
                     resolved = candidate
+        if resolved is None and node_id.startswith("tasks/"):
+            candidate = self.standards_root / node_id
+            if candidate.suffix != ".md":
+                candidate = candidate / "root.md"
+            if candidate.exists():
+                resolved = candidate
         if resolved is None and node_id.startswith("roots/"):
             candidate = self.pack_root / node_id
             if candidate.suffix != ".md":
@@ -127,14 +232,16 @@ class StandardsReader:
             if direct.exists():
                 resolved = direct
             else:
-                for path in self.nodes_dir.glob("*/node.md"):
+                self._warn_missing_nodes_db_once()
+                for path in self.nodes_dir.rglob("node.md"):
                     record = self.load_file(path)
                     if record.node_id == node_id:
                         resolved = path
                         break
 
-        if resolved is None and self.roots_dir.is_dir():
-            for path in self.roots_dir.glob("*/root.md"):
+        if resolved is None and self.tasks_dir.is_dir():
+            self._warn_missing_nodes_db_once()
+            for path in self.tasks_dir.glob("*/root.md"):
                 record = self.load_file(path)
                 if record.node_id == node_id or path.parent.name == node_id:
                     resolved = path
@@ -146,10 +253,17 @@ class StandardsReader:
     def load(self, node_id: str) -> NodeRecord:
         if node_id in self._node_record_cache:
             return self._node_record_cache[node_id]
-        path = self.find_node_path(node_id)
-        if path is None:
-            raise FileNotFoundError(f"Node not found in standards pack: {node_id}")
-        record = self.load_file(path)
+
+        record = self._record_from_db(node_id)
+        if record is None:
+            path = self.find_node_path(node_id)
+            if path is None:
+                raise FileNotFoundError(f"Node not found in standards pack: {node_id}")
+            if path.is_file():
+                record = self.load_file(path)
+            else:
+                raise FileNotFoundError(f"Node not found in standards pack: {node_id}")
+
         self._node_record_cache[node_id] = record
         return record
 
@@ -174,10 +288,57 @@ class StandardsReader:
             )
         raise KeyError(f"Subsection {subsection_id!r} not found in node: {node_id}")
 
+    def resolve_asset_path(self, record: NodeRecord, file_ref: str) -> Path | None:
+        file_ref = str(file_ref).strip()
+        if not file_ref:
+            return None
+        ref_path = Path(file_ref)
+        if ref_path.is_absolute():
+            return ref_path if ref_path.is_file() else None
+        if file_ref.startswith("nodes/"):
+            candidate = self.pack_root / file_ref
+            return candidate if candidate.is_file() else None
+        candidate = record.path.parent / file_ref
+        if candidate.is_file():
+            return candidate
+        if self.nodes_db_available:
+            relative = file_ref.replace("\\", "/").lstrip("/")
+            if not relative.startswith(("equations/", "conditions/", "notes/", "references/")):
+                relative = f"equations/{relative}"
+            asset = self._nodes_db.get_asset_by_relative_path(record.node_id, relative)
+            if asset is not None:
+                disk_path = record.path.parent / relative
+                if disk_path.is_file():
+                    return disk_path
+        return candidate if candidate.is_file() else None
+
+    def read_asset_text(self, record: NodeRecord, file_ref: str) -> str | None:
+        if self.nodes_db_available:
+            relative = str(file_ref).replace("\\", "/").lstrip("/")
+            if not relative.startswith(("equations/", "conditions/", "notes/", "references/")):
+                if "/" not in relative:
+                    relative = f"equations/{relative}"
+            asset = self._nodes_db.get_asset_by_relative_path(record.node_id, relative)
+            if asset is not None and asset.body:
+                return asset.body
+            other_node_id = None
+            if relative.startswith("nodes/"):
+                parts = relative.split("/")
+                if len(parts) >= 2:
+                    other_node_id = parts[1]
+            if other_node_id:
+                other = self._nodes_db.get_asset_by_relative_path(other_node_id, "/".join(parts[2:]))
+                if other is not None:
+                    return other.body
+        path = self.resolve_asset_path(record, file_ref)
+        if path is None or not path.is_file():
+            return None
+        return path.read_text(encoding="utf-8")
+
     @staticmethod
     def load_file(path: Path) -> NodeRecord:
         text = path.read_text(encoding="utf-8")
-        metadata, body = _split_frontmatter(text)
+        metadata, body = split_frontmatter(text)
         node_id = str(metadata.get("id") or path.parent.name)
         return NodeRecord(node_id=node_id, path=path, metadata=metadata, body=body)
 
@@ -217,17 +378,17 @@ class StandardsReader:
         if not record.metadata.get("type"):
             issues.append(ValidationIssue("error", "Missing required field: type"))
 
-        node_dir = record.path.parent
         equation_refs = record.metadata.get("equations", []) or record.metadata.get("formulas", []) or []
         label = "equation" if record.metadata.get("equations") is not None else "formula"
         for equation in equation_refs:
             if not isinstance(equation, dict):
                 continue
             file_name = equation.get("file")
-            if file_name and not (node_dir / file_name).exists():
-                issues.append(
-                    ValidationIssue("error", f"Missing {label} file: {file_name}")
-                )
+            if file_name and self.resolve_asset_path(record, str(file_name)) is None:
+                if self.read_asset_text(record, str(file_name)) is None:
+                    issues.append(
+                        ValidationIssue("error", f"Missing {label} file: {file_name}")
+                    )
 
         for dep in record.depends_on:
             if self.find_node_path(dep) is None:
@@ -244,14 +405,7 @@ class StandardsReader:
 
 
 def _split_frontmatter(text: str) -> tuple[dict[str, Any], str]:
-    if not text.startswith("---"):
-        return {}, text
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return {}, text
-    metadata = yaml.safe_load(parts[1]) or {}
-    body = parts[2].lstrip("\n")
-    return metadata, body
+    return split_frontmatter(text)
 
 
 def _extract_subsection_body(body: str, subsection_id: str) -> str:

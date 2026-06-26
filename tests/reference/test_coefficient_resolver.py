@@ -59,9 +59,25 @@ def test_thick_wall_y_formula() -> None:
 def test_lookup_quality_factor_a1b_seamless_and_forging() -> None:
     pack = _pack_root()
     e_seamless = lookup_quality_factor(pack, material="SA-106B", joint_category="seamless")
-    e_forging = lookup_quality_factor(pack, material="SA-105", joint_category="forging")
+    e_forging = lookup_quality_factor(pack, material="A105", joint_category="forging")
     assert e_seamless == 1.0
-    assert e_forging == 1.0
+    assert e_forging == 0.6
+
+
+def test_lookup_quality_factor_a1b_a53_and_api_5l() -> None:
+    pack = _pack_root()
+    assert (
+        lookup_quality_factor(pack, material="A53", joint_category="Electric resistance welded pipe")
+        == 0.85
+    )
+    assert (
+        lookup_quality_factor(
+            pack,
+            material="API 5L",
+            joint_category="Electric fusion welded pipe, double butt seam",
+        )
+        == 0.95
+    )
 
 
 def test_lookup_quality_factor_resolves_material_catalog_alias() -> None:

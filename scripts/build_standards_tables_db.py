@@ -24,6 +24,8 @@ if str(_ROOT) not in sys.path:
 
 from engine.reference.asme_b31_3_table_ids import (
 
+    TABLE_302_3_3C,
+
     TABLE_302_3_5,
 
     TABLE_304_1_1,
@@ -34,11 +36,19 @@ from engine.reference.asme_b31_3_table_ids import (
 
     TABLE_A_1B,
 
-    TABLE_MATERIAL_ALLOWABLE_STRESS,
-
 )
 
-from engine.reference.material_ids import ASTM_A106_GR_B, ASME_SA_105
+from engine.reference.material_ids import (
+    API_5L,
+    ASTM_A105,
+    ASTM_A106_GR_A,
+    ASTM_A106_GR_B,
+    ASTM_A106_GR_C,
+    ASTM_A351,
+    ASTM_A451,
+    ASTM_A487,
+    ASTM_A53,
+)
 
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 
@@ -49,6 +59,104 @@ from engine.reference.standards_tables import StandardsTablesDatabase
 _PACK_ROOT = _ROOT / "standards" / "asme" / "asme_b31.3"
 
 _DB_PATH = resolve_pack_tables_db(_PACK_ROOT)
+
+# B31.3 Table A-1A base-metal group headings (row field: base_metal_group).
+BASE_METAL_GROUP_STAINLESS_STEEL = "Stainless Steel"
+BASE_METAL_GROUP_IRON = "Iron"
+BASE_METAL_GROUP_CARBON_STEEL = "Carbon steel"
+BASE_METAL_GROUP_LOW_AND_INTERMEDIATE_ALLOY_STEEL = "Low and Intermediate Alloy Steel"
+BASE_METAL_GROUP_COPPER_AND_COPPER_ALLOY = "Copper and Copper Alloy"
+BASE_METAL_GROUP_NICKEL_AND_NICKEL_ALLOY = "Nickel and Nickel Alloy"
+BASE_METAL_GROUP_ALUMINUM_ALLOY = "Aluminum Alloy"
+
+_TABLE_A_1A_DESCRIPTION = (
+    "These quality factors are determined in accordance with "
+    "[para. 302.3.3(b)](node:B313-302.3.3/b). See also "
+    "[para. 302.3.3(c)](node:B313-302.3.3/c) and "
+    "[Table 302.3.3C](table:asme_b31.3_table_302_3_3C) for increased quality factors "
+    "applicable in special cases. Specifications are ASTM."
+)
+
+_TABLE_302_3_3C_DESCRIPTION = (
+    "Increased casting quality factors per "
+    "[para. 302.3.3(c)](node:B313-302.3.3/c). "
+    "Notes to this table: "
+    "[(1)](node:B313-note-302-3-3C-1), "
+    "[(2)(a)](node:B313-note-302-3-3C-2a), "
+    "[(2)(b)](node:B313-note-302-3-3C-2b), "
+    "[(3)(a)](node:B313-note-302-3-3C-3a), "
+    "[(3)(b)](node:B313-note-302-3-3C-3b)."
+)
+
+_TABLE_302_3_3C_ROWS = [
+    {
+        "row_id": "note_1_only",
+        "supplementary_examination": "[(1)](node:B313-note-302-3-3C-1)",
+        "quality_factor_E_c": 0.85,
+        "requires_note_1": True,
+        "requires_note_2_surface": False,
+        "requires_note_3_volume": False,
+    },
+    {
+        "row_id": "note_2_surface_only",
+        "supplementary_examination": (
+            "[(2)(a)](node:B313-note-302-3-3C-2a) or "
+            "[(2)(b)](node:B313-note-302-3-3C-2b)"
+        ),
+        "quality_factor_E_c": 0.85,
+        "requires_note_1": False,
+        "requires_note_2_surface": True,
+        "requires_note_3_volume": False,
+    },
+    {
+        "row_id": "note_3_volume_only",
+        "supplementary_examination": (
+            "[(3)(a)](node:B313-note-302-3-3C-3a) or "
+            "[(3)(b)](node:B313-note-302-3-3C-3b)"
+        ),
+        "quality_factor_E_c": 0.95,
+        "requires_note_1": False,
+        "requires_note_2_surface": False,
+        "requires_note_3_volume": True,
+    },
+    {
+        "row_id": "note_1_and_2_surface",
+        "supplementary_examination": (
+            "[(1)](node:B313-note-302-3-3C-1) and "
+            "[(2)(a)](node:B313-note-302-3-3C-2a) or "
+            "[(2)(b)](node:B313-note-302-3-3C-2b)"
+        ),
+        "quality_factor_E_c": 0.90,
+        "requires_note_1": True,
+        "requires_note_2_surface": True,
+        "requires_note_3_volume": False,
+    },
+    {
+        "row_id": "note_1_and_3_volume",
+        "supplementary_examination": (
+            "[(1)](node:B313-note-302-3-3C-1) and "
+            "[(3)(a)](node:B313-note-302-3-3C-3a) or "
+            "[(3)(b)](node:B313-note-302-3-3C-3b)"
+        ),
+        "quality_factor_E_c": 1.00,
+        "requires_note_1": True,
+        "requires_note_2_surface": False,
+        "requires_note_3_volume": True,
+    },
+    {
+        "row_id": "note_2_surface_and_3_volume",
+        "supplementary_examination": (
+            "[(2)(a)](node:B313-note-302-3-3C-2a) or "
+            "[(2)(b)](node:B313-note-302-3-3C-2b) and "
+            "[(3)(a)](node:B313-note-302-3-3C-3a) or "
+            "[(3)(b)](node:B313-note-302-3-3C-3b)"
+        ),
+        "quality_factor_E_c": 1.00,
+        "requires_note_1": False,
+        "requires_note_2_surface": True,
+        "requires_note_3_volume": True,
+    },
+]
 
 
 
@@ -275,39 +383,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "table_b31_3_A1",
 
-            "nodes/B313-appendix_A/tables/A-1.yaml",
+            "nodes/appendix_A/tables/A-1.yaml",
 
-            "nodes/B313-appendix_A/tables/A-1",
-
-        ],
-
-        materials=_STRESS_MATERIALS,
-
-    )
-
-
-
-    database.upsert_table(
-
-        table_id=TABLE_MATERIAL_ALLOWABLE_STRESS,
-
-        title="Sample Material Allowable Stress",
-
-        version="1.0",
-
-        unit="Pa",
-
-        temperature_unit="F",
-
-        interpolation=True,
-
-        keys=["material_id", "design_temperature"],
-
-        layout="material_rows",
-
-        source_node="B313-material-stress",
-
-        aliases=[
+            "nodes/appendix_A/tables/A-1",
 
             "material_allowable_stress",
 
@@ -327,15 +405,17 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
         table_id=TABLE_A_1A,
 
-        title="Table A-1A — Quality Factors for Seamless Pipe (sample)",
+        title="Table A-1A — Basic Casting Quality Factors, E_c",
 
         version="1.0",
 
-        keys=["material_id", "joint_category"],
+        keys=["material_id", "base_metal_group"],
 
         layout="flat_rows",
 
         source_node="B313-table-A-1A",
+
+        metadata={"description": _TABLE_A_1A_DESCRIPTION},
 
         aliases=[
 
@@ -343,16 +423,32 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "table_b31_3_A-1A",
 
-            "nodes/B313-appendix_A/tables/A-1A.yaml",
+            "nodes/appendix_A/tables/A-1A.yaml",
 
-            "nodes/B313-appendix_A/tables/A-1A",
+            "nodes/appendix_A/tables/A-1A",
 
         ],
 
         rows=[
 
-            {"material_id": ASTM_A106_GR_B, "joint_category": "seamless", "quality_factor_E": 1.0},
-
+            {
+                "material_id": ASTM_A351,
+                "base_metal_group": BASE_METAL_GROUP_STAINLESS_STEEL,
+                "description": "Austenitic steel castings",
+                "quality_factor_E_c": 0.8,
+            },
+            {
+                "material_id": ASTM_A451,
+                "base_metal_group": BASE_METAL_GROUP_STAINLESS_STEEL,
+                "description": "Centrifugally cast pipe",
+                "quality_factor_E_c": 0.9,
+            },
+            {
+                "material_id": ASTM_A487,
+                "base_metal_group": BASE_METAL_GROUP_STAINLESS_STEEL,
+                "description": "Steel castings",
+                "quality_factor_E_c": 0.8,
+            },
         ],
 
     )
@@ -379,28 +475,76 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "table_b31_3_A_1B",
 
-            "nodes/B313-appendix_A/tables/A-1B.yaml",
+            "nodes/appendix_A/tables/A-1B.yaml",
 
-            "nodes/B313-appendix_A/tables/A-1B",
+            "nodes/appendix_A/tables/A-1B",
 
         ],
 
         rows=[
 
-            {"material_id": ASTM_A106_GR_B, "joint_category": "seamless", "quality_factor_E": 1.0},
-
-            {"material_id": ASME_SA_105, "joint_category": "forging", "quality_factor_E": 1.0},
-
-            {"material_id": ASTM_A106_GR_B, "joint_category": "erw", "quality_factor_E": 0.85},
-
             {
-
+                "material_id": ASTM_A53,
+                "class": "Type S",
+                "joint_category": "Seamless pipe",
+                "quality_factor_E": 1.0,
+            },
+            {
+                "material_id": ASTM_A53,
+                "class": "Type E",
+                "joint_category": "Electric resistance welded pipe",
+                "quality_factor_E": 0.85,
+            },
+            {
+                "material_id": ASTM_A53,
+                "class": "Type F",
+                "joint_category": "Furnace butt welded pipe",
+                "quality_factor_E": 0.6,
+            },
+            {
+                "material_id": ASTM_A105,
+                "joint_category": "Forgings",
+                "quality_factor_E": 0.6,
+            },
+            {
+                "material_id": ASTM_A106_GR_A,
+                "joint_category": "Seamless pipe",
+                "quality_factor_E": 1.0,
+            },
+            {
                 "material_id": ASTM_A106_GR_B,
-
-                "joint_category": "furnace_butt_welded",
-
-                "quality_factor_E": 0.60,
-
+                "joint_category": "Seamless pipe",
+                "quality_factor_E": 1.0,
+            },
+            {
+                "material_id": ASTM_A106_GR_C,
+                "joint_category": "Seamless pipe",
+                "quality_factor_E": 1.0,
+            },
+            {
+                "material_id": API_5L,
+                "joint_category": "Seamless pipe",
+                "quality_factor_E": 1.0,
+            },
+            {
+                "material_id": API_5L,
+                "joint_category": "Electric fusion welded pipe, 100% radiographed",
+                "quality_factor_E": 1.0,
+            },
+            {
+                "material_id": API_5L,
+                "joint_category": "Electric resistance welded pipe",
+                "quality_factor_E": 0.85,
+            },
+            {
+                "material_id": API_5L,
+                "joint_category": "Electric fusion welded pipe, double butt seam",
+                "quality_factor_E": 0.95,
+            },
+            {
+                "material_id": API_5L,
+                "joint_category": "Continuous welded (furnace butt welded) pipe",
+                "quality_factor_E": 0.6,
             },
 
         ],
@@ -431,9 +575,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "table_304_1_1",
 
-            "nodes/B313-304.1.1/tables/table_304_1_1.yaml",
+            "nodes/304/304.1.1/tables/table_304_1_1.yaml",
 
-            "nodes/B313-304.1.1/tables/table_304_1_1",
+            "nodes/304/304.1.1/tables/table_304_1_1",
 
             "asme_table_304_1_1",
 
@@ -469,13 +613,47 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "302.3.5",
 
-            "nodes/B313-302.3.5/tables/302.3.5.yaml",
+            "nodes/302/302.3.5/tables/302.3.5.yaml",
 
-            "nodes/B313-302.3.5/tables/302.3.5",
+            "nodes/302/302.3.5/tables/302.3.5",
 
         ],
 
         rows=[],
+
+    )
+
+
+
+    database.upsert_table(
+
+        table_id=TABLE_302_3_3C,
+
+        title="Table 302.3.3C — Increased Casting Quality Factors, E_c",
+
+        version="1.0",
+
+        keys=["row_id"],
+
+        layout="flat_rows",
+
+        source_node="B313-table-302-3-3C",
+
+        metadata={"description": _TABLE_302_3_3C_DESCRIPTION},
+
+        aliases=[
+
+            "302.3.3C",
+
+            "table_302_3_3C",
+
+            "nodes/302/302.3.3/tables/302.3.3C.yaml",
+
+            "nodes/302/302.3.3/tables/302.3.3C",
+
+        ],
+
+        rows=_TABLE_302_3_3C_ROWS,
 
     )
 

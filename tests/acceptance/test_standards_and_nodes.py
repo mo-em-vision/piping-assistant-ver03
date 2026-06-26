@@ -20,7 +20,7 @@ class TestStandardsCoverage:
     def test_b31_3_has_paragraph_calculation_and_table_assets(self, standards_reader) -> None:
         definition_node = standards_reader.load("B313-304.1.1")
         wall_node = standards_reader.load("B313-304.1.2")
-        stress_node = standards_reader.load("B313-material-stress")
+        stress_node = standards_reader.load("B313-table-A-1")
 
         assert definition_node.metadata.get("paragraph") == "304.1.1"
         assert definition_node.metadata.get("type") == "definition"
@@ -61,7 +61,7 @@ class TestNodeAcceptanceCriteria:
             ("pipe_wall_thickness_design", ("id", "type", "depends_on", "report")),
             ("B313-304.1.1", ("id", "nomenclature", "report")),
             ("B313-304.1.2", ("id", "inputs", "outputs", "depends_on", "conditions", "equations", "report")),
-            ("B313-material-stress", ("id", "inputs", "outputs", "depends_on", "report")),
+            ("B313-table-A-1", ("id", "inputs", "outputs", "depends_on", "report")),
         ],
     )
     def test_active_nodes_contain_required_fields(
@@ -80,7 +80,7 @@ class TestNodeAcceptanceCriteria:
         assert metadata.get("notes")
         assert metadata.get("references")
 
-    @pytest.mark.parametrize("node_id", ("B313-304.1.1", "B313-304.1.2", "B313-material-stress"))
+    @pytest.mark.parametrize("node_id", ("B313-304.1.1", "B313-304.1.2", "B313-table-A-1"))
     def test_active_nodes_pass_schema_validation(self, standards_reader, node_id: str) -> None:
         result = standards_reader.validate(node_id)
         assert result.passed, [issue.message for issue in result.issues]

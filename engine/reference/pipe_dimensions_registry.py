@@ -30,6 +30,21 @@ def pipe_dimensions_registry_path(standards_root: Path) -> Path:
 
 
 def load_pipe_dimensions_registry(standards_root: Path) -> tuple[str | None, list[PipeDimensionSourceSpec]]:
+    from engine.reference.standards_config_db import StandardsConfigDatabase, standards_config_db_path
+
+    config_db = StandardsConfigDatabase(standards_config_db_path(standards_root))
+    if config_db.exists:
+        default_standard, sources = config_db.load_pipe_dimension_sources()
+        if sources:
+            if default_standard is None:
+                for source in sources:
+                    if source.default:
+                        default_standard = source.standard
+                        break
+                if default_standard is None:
+                    default_standard = sources[0].standard
+            return default_standard, sources
+
     path = pipe_dimensions_registry_path(standards_root)
     if not path.is_file():
         return None, []

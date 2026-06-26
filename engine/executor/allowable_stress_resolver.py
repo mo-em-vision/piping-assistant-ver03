@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from engine.executor.lookup_engine import LookupEngine
+from engine.reference.asme_b31_3_table_ids import TABLE_A_1
 from engine.reference.standards_paths import resolve_standard_pack
 from models.input import (
     EngineeringInput,
@@ -15,13 +16,11 @@ from models.input import (
 )
 from models.task import Task
 
-from engine.reference.asme_b31_3_table_ids import TABLE_MATERIAL_ALLOWABLE_STRESS
-
 B31_3_SLUG = "asme_b31.3"
-B31_3_MATERIAL_STRESS_TABLE = TABLE_MATERIAL_ALLOWABLE_STRESS
-B31_3_TABLE_REF = f"{B31_3_SLUG}/{TABLE_MATERIAL_ALLOWABLE_STRESS}"
+B31_3_TABLE_A_1 = TABLE_A_1
+B31_3_TABLE_REF = f"{B31_3_SLUG}/{TABLE_A_1}"
 LOOKUP_CONFIG = {
-    "table_id": B31_3_MATERIAL_STRESS_TABLE,
+    "table_id": B31_3_TABLE_A_1,
     "interpolation": True,
 }
 
@@ -60,7 +59,7 @@ def apply_allowable_stress_lookup(task: Task, standards_root: Path) -> None:
 
     try:
         result = engine.execute_lookup(
-            node_id="B313-material-stress",
+            node_id="B313-table-A-1",
             lookup_config=LOOKUP_CONFIG,
             inputs={
                 "material": material,

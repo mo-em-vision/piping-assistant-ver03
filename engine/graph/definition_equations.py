@@ -126,8 +126,14 @@ def _definition_equation_specs(
             file_rel = equation.get("file")
             if not function_name or not file_rel:
                 continue
-            path = record.path.parent / str(file_rel)
-            data = _parse_equation_frontmatter(path)
+            path = reader.resolve_asset_path(record, str(file_rel))
+            if path is not None and path.is_file():
+                data = _parse_equation_frontmatter(path)
+            else:
+                text = reader.read_asset_text(record, str(file_rel))
+                data = _parse_equation_frontmatter_text(text) if text else {}
+            if not data:
+                continue
             variables = tuple(
                 str(key)
                 for key in (data.get("variables") or {}).keys()
@@ -144,10 +150,11 @@ def _definition_equation_specs(
                                 output_keys.append(value)
             if not output_keys:
                 output_keys = ["minimum_required_thickness", "t_m"]
+            equation_stem = path.stem if path is not None else Path(str(file_rel)).stem
             specs.append(
                 DefinitionEquationSpec(
                     node_id=record.node_id,
-                    equation_id=str(equation.get("id") or path.stem),
+                    equation_id=str(equation.get("id") or equation_stem),
                     function_name=function_name,
                     node_dir=record.path.parent,
                     variables=variables,
@@ -248,7 +255,10 @@ def _input_value_ready(task: Task, input_id: str) -> bool:
 def _parse_equation_frontmatter(path: Path) -> dict[str, Any]:
     if not path.exists():
         return {}
-    text = path.read_text(encoding="utf-8")
+    return _parse_equation_frontmatter_text(path.read_text(encoding="utf-8"))
+
+
+def _parse_equation_frontmatter_text(text: str) -> dict[str, Any]:
     if not text.startswith("---"):
         return {}
     parts = text.split("---", 2)

@@ -79,6 +79,14 @@ def standards_root_from_pack_root(pack_root: Path) -> Path:
 
 
 def load_material_registry(standards_root: Path) -> list[MaterialSourceSpec]:
+    from engine.reference.standards_config_db import StandardsConfigDatabase, standards_config_db_path
+
+    config_db = StandardsConfigDatabase(standards_config_db_path(standards_root))
+    if config_db.exists:
+        sources = config_db.load_material_sources()
+        if sources:
+            return sources
+
     path = material_registry_path(standards_root)
     if not path.is_file():
         return []
@@ -108,6 +116,14 @@ def load_material_registry(standards_root: Path) -> list[MaterialSourceSpec]:
 
 
 def load_supplemental_materials(standards_root: Path) -> list[dict[str, Any]]:
+    from engine.reference.standards_config_db import StandardsConfigDatabase, standards_config_db_path
+
+    config_db = StandardsConfigDatabase(standards_config_db_path(standards_root))
+    if config_db.exists:
+        items = config_db.load_supplemental_materials()
+        if items:
+            return items
+
     path = supplemental_materials_path(standards_root)
     if not path.is_file():
         return []
@@ -301,6 +317,14 @@ class GlobalMaterialCatalog:
                 display_name = str(item.get("display_name", grade_key)).strip()
                 if not material_id or not standard_slug or not grade_key:
                     continue
+                connection.execute(
+                    """
+                    INSERT OR IGNORE INTO material_sources (
+                        standard_slug, specification, table_id, db_relative_path, source_node
+                    ) VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (standard_slug, display_name, "supplemental", "", None),
+                )
                 payload = {
                     "display_name": display_name,
                     "aliases": item.get("aliases", []) or [],

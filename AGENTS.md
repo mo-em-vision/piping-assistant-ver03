@@ -27,6 +27,7 @@ Structure → data flow → backend connection → visualization → interaction
 - Frontend: `cd desktopApp && npm run test:run`
 - MVP smoke: `cd desktopApp && npm run verify:mvp`
 - Release gate: `cd desktopApp && npm run verify:release`
+- After changing standards markdown/YAML: `python scripts/build_all_standards_dbs.py` then re-run backend tests
 
 ## Key paths
 

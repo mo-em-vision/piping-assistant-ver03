@@ -7,3 +7,18 @@ materials:
     aliases:
       - SA-105
       - SA105
+  - material_id: astm_a105
+    standard_slug: astm_a105
+    grade_key: A105
+    display_name: ASTM A105 — Carbon Steel Forgings
+    aliases:
+      - A105
+      - ASTM A105
+  - material_id: api_5l
+    standard_slug: api_5l
+    grade_key: API-5L
+    display_name: API 5L — Line Pipe
+    aliases:
+      - API 5L
+      - API-5L
+      - API5L

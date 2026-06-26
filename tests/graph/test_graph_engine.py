@@ -27,7 +27,7 @@ def test_build_plan_execution_order_without_pressure_loading() -> None:
         reader=reader,
     )
 
-    assert "B313-material-stress" in plan.nodes
+    assert "B313-table-A-1" in plan.nodes
     assert "B313-304.1.1" in plan.nodes
     assert "B313-304.1.2" not in plan.nodes
     assert plan.skipped_nodes
@@ -42,11 +42,11 @@ def test_build_plan_internal_pressure_path() -> None:
         reader=reader,
     )
 
-    assert "B313-material-stress" in plan.nodes
+    assert "B313-table-A-1" in plan.nodes
     assert "B313-304.1.1" in plan.nodes
     assert "B313-304.1.2" in plan.nodes
     assert "B313-304.1.3" not in plan.nodes
-    assert plan.execution_order.index("B313-material-stress") < plan.execution_order.index(
+    assert plan.execution_order.index("B313-table-A-1") < plan.execution_order.index(
         "B313-304.1.2"
     )
 
@@ -108,7 +108,8 @@ def test_topological_sort_cycle_raises() -> None:
 
 
 def test_normalize_root_id() -> None:
-    assert normalize_root_id("roots/pipe_wall_thickness_design/root.md") == "pipe_wall_thickness_design"
+    assert normalize_root_id("tasks/pipe_wall_thickness_design/root.md") == "pipe_wall_thickness_design"
+    assert normalize_root_id("tasks/asme_b31.3/pipe_wall_thickness_design/root.md") == "pipe_wall_thickness_design"
     assert normalize_root_id("pipe_wall_thickness_design") == "pipe_wall_thickness_design"
 
 

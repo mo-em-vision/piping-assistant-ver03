@@ -141,10 +141,26 @@ class ApiHandler(BaseHTTPRequestHandler):
                 return
 
             if path.startswith("/api/v1/standards/nodes/"):
-                node_id = path.removeprefix("/api/v1/standards/nodes/").strip("/")
-                if not node_id:
+                remainder = path.removeprefix("/api/v1/standards/nodes/").strip("/")
+                if not remainder:
                     raise ApiError("invalid_request", "node_id is required", status=400)
-                _json_response(self, 200, self.service.get_standards_node(node_id))
+                if "/subsections/" in remainder:
+                    node_id, subsection_id = remainder.split("/subsections/", 1)
+                    node_id = node_id.strip("/")
+                    subsection_id = subsection_id.strip("/")
+                    if not node_id or not subsection_id:
+                        raise ApiError(
+                            "invalid_request",
+                            "node_id and subsection_id are required",
+                            status=400,
+                        )
+                    _json_response(
+                        self,
+                        200,
+                        self.service.get_standards_node_subsection(node_id, subsection_id),
+                    )
+                    return
+                _json_response(self, 200, self.service.get_standards_node(remainder))
                 return
 
             if path.startswith("/api/v1/standards/tables/"):

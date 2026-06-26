@@ -38,7 +38,7 @@ class TestValidationAcceptance:
             "B313-304.1.2",
             task_inputs=inputs,
             dependency_outputs={"allowable_stress": 193_000_000.0, "S": 193_000_000.0},
-            prior_nodes_completed={"B313-material-stress"},
+            prior_nodes_completed={"B313-table-A-1"},
         )
         assert result.status == ComplianceStatus.FAIL
 
@@ -48,14 +48,14 @@ class TestValidationAcceptance:
             "B313-304.1.2",
             task_inputs=inputs,
             dependency_outputs={"allowable_stress": 193_000_000.0, "S": 193_000_000.0},
-            prior_nodes_completed={"B313-material-stress"},
+            prior_nodes_completed={"B313-table-A-1"},
         )
         assert result.status in {ComplianceStatus.PASS, ComplianceStatus.PASS_WITH_WARNING}
 
     def test_engineering_temperature_limit_enforced(self, standards_reader) -> None:
         inputs = sample_inputs(temperature=900)
         result = ValidationEngine(standards_reader).validate_node(
-            "B313-material-stress",
+            "B313-table-A-1",
             task_inputs=inputs,
             dependency_outputs={},
             prior_nodes_completed=set(),

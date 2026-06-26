@@ -36,7 +36,7 @@ def test_response_handler_formats_intent_without_hiding_structure() -> None:
             intent="pipe_wall_thickness_design",
             domain="piping",
             possible_standards=["ASME B31.3"],
-            root_nodes=["roots/pipe_wall_thickness_design/root.md"],
+            root_nodes=["tasks/asme_b31.3/pipe_wall_thickness_design/root.md"],
             confidence=0.95,
         )
     )

@@ -9,9 +9,27 @@ import './NodeReferenceTab.css'
 
 interface NodeReferenceTabProps {
   nodeId: string
+  subsectionId?: string
 }
 
-export function NodeReferenceTab({ nodeId }: NodeReferenceTabProps) {
+function subsectionHeader(payload: NodeSourceDto): string | null {
+  const parts: string[] = []
+  const paragraph = payload.subsection_paragraph ?? payload.paragraph
+  const subsectionTitle = payload.subsection_title?.trim()
+
+  if (paragraph) {
+    parts.push(`§${paragraph}`)
+  }
+  if (subsectionTitle) {
+    parts.push(subsectionTitle)
+  }
+  if (parts.length === 0) {
+    return null
+  }
+  return parts.join(' — ')
+}
+
+export function NodeReferenceTab({ nodeId, subsectionId }: NodeReferenceTabProps) {
   const [payload, setPayload] = useState<NodeSourceDto | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -21,8 +39,11 @@ export function NodeReferenceTab({ nodeId }: NodeReferenceTabProps) {
     setLoading(true)
     setError(null)
 
-    void standardsApi
-      .getNode(nodeId)
+    const request = subsectionId
+      ? standardsApi.getNodeSubsection(nodeId, subsectionId)
+      : standardsApi.getNode(nodeId)
+
+    void request
       .then((data) => {
         if (!cancelled) {
           setPayload(data)
@@ -30,7 +51,11 @@ export function NodeReferenceTab({ nodeId }: NodeReferenceTabProps) {
       })
       .catch(() => {
         if (!cancelled) {
-          setError('Could not load standards reference text.')
+          setError(
+            subsectionId
+              ? 'Could not load standards subsection text.'
+              : 'Could not load standards reference text.',
+          )
         }
       })
       .finally(() => {
@@ -42,10 +67,14 @@ export function NodeReferenceTab({ nodeId }: NodeReferenceTabProps) {
     return () => {
       cancelled = true
     }
-  }, [nodeId])
+  }, [nodeId, subsectionId])
 
   if (loading) {
-    return <p className="node-reference-tab__hint">Loading reference text…</p>
+    return (
+      <p className="node-reference-tab__hint">
+        {subsectionId ? 'Loading subsection…' : 'Loading reference text…'}
+      </p>
+    )
   }
 
   if (error) {
@@ -56,9 +85,25 @@ export function NodeReferenceTab({ nodeId }: NodeReferenceTabProps) {
     return <p className="node-reference-tab__hint">No reference text available.</p>
   }
 
+  const header = subsectionId ? subsectionHeader(payload) : null
+  const body = payload.body.trim()
+  const fallbackText = payload.subsection_title ?? payload.hover_excerpt
+
   return (
     <div className="node-reference-tab">
-      <StandardsMarkdownViewer content={payload.body} />
+      {subsectionId ? (
+        <header className="node-reference-tab__subsection-header">
+          <p className="node-reference-tab__parent-title">{payload.title}</p>
+          {header ? <h3 className="node-reference-tab__subsection-title">{header}</h3> : null}
+        </header>
+      ) : null}
+      {body ? (
+        <StandardsMarkdownViewer content={body} />
+      ) : fallbackText ? (
+        <p className="node-reference-tab__hint">{fallbackText}</p>
+      ) : (
+        <p className="node-reference-tab__hint">No subsection text available.</p>
+      )}
     </div>
   )
 }

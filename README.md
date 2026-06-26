@@ -102,7 +102,7 @@ standards/
     └── api_650/
 ```
 
-Each pack is self-contained (`nodes/`, `roots/`, `tables/`, `index.md`). The reader resolves paths via `engine/reference/standards_paths.py` — use slug `asme_b31.3`, not the full folder path.
+Each pack is self-contained (`nodes/`, `tasks/` or legacy `roots/`, `tables/`, `index.md`). The reader resolves paths via `engine/reference/standards_paths.py` — use slug `asme_b31.3`, not the full folder path.
 
 ### Reference lookups (Python)
 
@@ -123,6 +123,25 @@ MaterialPropertiesLookup(root, standard="astm_a312").lookup("TP316L")
 ```
 
 ### Build standards lookup databases
+
+After changing standards markdown nodes, registry YAML, ASTM seeds, or lookup table data, rebuild all compiled databases:
+
+```bash
+python scripts/build_all_standards_dbs.py
+```
+
+This builds per-pack `{slug}_tables.db` and `{slug}_nodes.db` files, `standards/standards_config.db`, `standards/materials/materials.db`, and pipe dimension databases.
+
+Individual builders (when you only changed one source type):
+
+```bash
+python scripts/build_standards_nodes_db.py      # node/root markdown → {pack}_nodes.db
+python scripts/build_standards_registry_db.py   # registry YAML → standards_config.db
+python scripts/build_standards_tables_db.py     # ASME B31.3 lookup tables
+python scripts/build_astm_standards_tables_db.py
+python scripts/build_material_catalog_db.py     # material search index
+python scripts/build_pipe_dimensions_db.py
+```
 
 After changing ASTM material seed YAML or adding a pack to `standards/materials/registry.yaml`:
 

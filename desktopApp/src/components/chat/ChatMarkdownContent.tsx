@@ -143,6 +143,7 @@ function MarkdownLink({ href, children }: { href?: string; children?: ReactNode 
       <StandardReferenceLink
         referenceKind={target.referenceKind}
         referenceId={target.referenceId}
+        subsectionId={target.subsectionId}
         label={label}
       />
 

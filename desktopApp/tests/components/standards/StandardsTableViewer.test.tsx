@@ -61,6 +61,48 @@ const TABLE_304: TableSourceDto = {
 }
 
 describe('StandardsTableViewer', () => {
+  it('renders table description with standards reference links', () => {
+    render(
+      <StandardsTableViewer
+        payload={{
+          ...SAMPLE_TABLE,
+          description:
+            'See [para. 302.3.3(b)](node:B313-302.3.3/b) and [Table 302.3.3C](table:asme_b31.3_table_302_3_3C).',
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'para. 302.3.3(b)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Table 302.3.3C' })).toBeInTheDocument()
+  })
+
+  it('renders supplementary_examination cells with clickable note links', () => {
+    render(
+      <StandardsTableViewer
+        payload={{
+          table_id: 'asme_b31.3_table_302_3_3C',
+          title: 'Table 302.3.3C',
+          standard: 'ASME B31.3',
+          source_path: 'asme_b313_tables.db',
+          columns: [
+            { key: 'supplementary_examination', label: 'Supplementary Examination' },
+            { key: 'quality_factor_E_c', label: 'Factor, E_c' },
+          ],
+          rows: [
+            {
+              supplementary_examination: '[(1)](node:B313-note-302-3-3C-1)',
+              quality_factor_E_c: 0.85,
+            },
+          ],
+          hover_excerpt: 'Table 302.3.3C',
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: '(1)' })).toBeInTheDocument()
+    expect(screen.getByText('0.85')).toBeInTheDocument()
+  })
+
   it('hides internal columns such as material_id from the table view', () => {
     render(<StandardsTableViewer payload={TABLE_304} />)
 

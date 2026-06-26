@@ -90,6 +90,9 @@ export interface NodeSourceDto {
   standard: string
   paragraph?: string | null
   section?: string | null
+  subsection_id?: string | null
+  subsection_title?: string | null
+  subsection_paragraph?: string | null
   body: string
   hover_excerpt: string
 }
@@ -102,6 +105,7 @@ export interface TableSourceColumnDto {
 export interface TableSourceDto {
   table_id: string
   title: string
+  description?: string | null
   standard: string
   source_path?: string | null
   columns: TableSourceColumnDto[]

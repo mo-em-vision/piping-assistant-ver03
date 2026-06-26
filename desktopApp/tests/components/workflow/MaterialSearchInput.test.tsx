@@ -37,7 +37,7 @@ describe('MaterialSearchInput', () => {
     const onSubmit = vi.fn()
 
     function PrefilledHarness() {
-      const [value, setValue] = useState('sa-')
+      const [value, setValue] = useState('106')
       return <MaterialSearchInput value={value} onChange={setValue} onSubmit={onSubmit} />
     }
 

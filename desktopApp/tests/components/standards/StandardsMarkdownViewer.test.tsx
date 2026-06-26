@@ -159,6 +159,23 @@ $$
     expect(useRightPanelStore.getState().activeTabId).toBe('ref-table-table_b31_3_A-1A')
   })
 
+  it('renders node subsection cross-reference links as separate reference tabs', () => {
+    render(
+      <StandardsMarkdownViewer content="See [para. 302.3.5(e)](node:B313-302.3.5/e) for weld joint strength reduction." />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'para. 302.3.5(e)' }))
+
+    const state = useRightPanelStore.getState()
+    expect(state.activeTabId).toBe('ref-B313-302.3.5-e')
+    const tab = state.tabs.find((item) => item.id === 'ref-B313-302.3.5-e')
+    expect(tab?.kind).toBe('reference')
+    if (tab?.kind === 'reference') {
+      expect(tab.referenceId).toBe('B313-302.3.5')
+      expect(tab.viewerContext).toEqual({ subsectionId: 'e' })
+    }
+  })
+
   it('renders external links with enhanced external-link styling', () => {
     render(
       <StandardsMarkdownViewer content="See [ASME B31.3](https://www.asme.org/codes-standards) for details." />,

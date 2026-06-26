@@ -59,9 +59,13 @@ def normalize_root_id(root_ref: str) -> str:
     text = root_ref.strip().strip("/")
     if text.endswith("root.md"):
         text = text[: -len("root.md")].strip("/")
+    if text.startswith("tasks/"):
+        text = text[len("tasks/") :].strip("/")
     if text.startswith("roots/"):
         text = text[len("roots/") :].strip("/")
-    return text.split("/")[0] if text else root_ref
+    if not text:
+        return root_ref
+    return text.split("/")[-1]
 
 
 class GraphCycleError(ValueError):
@@ -171,7 +175,7 @@ class GraphEngine:
         candidates: list[WorkflowCandidate] = []
         keyword_text = " ".join(keywords or []).lower()
 
-        for path in sorted(reader.roots_dir.glob("*/root.md")):
+        for path in sorted(reader.tasks_dir.glob("*/root.md")):
             record = reader.load_file(path)
             slug = path.parent.name
             intent = str(record.metadata.get("engineering_intent", "") or "")
@@ -193,7 +197,7 @@ class GraphEngine:
                         root_id=slug,
                         title=title,
                         engineering_intent=intent or None,
-                        standard="ASME B31.3",
+                        standard=reader.standard,
                         confidence=confidence,
                         implemented=True,
                     )

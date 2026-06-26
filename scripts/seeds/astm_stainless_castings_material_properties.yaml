@@ -1,0 +1,57 @@
+# ASTM stainless steel casting and centrifugal pipe specifications.
+# Development reference data — verify against licensed ASTM standards for production use.
+
+table_id: astm_stainless_castings_material_properties
+title: ASTM — Stainless Steel Castings and Centrifugal Pipe
+standard: ASTM A351 / A451 / A487
+version: "1.0"
+product_form: [casting, centrifugal_pipe]
+test_method: longitudinal_tension
+temperature_unit: F
+stress_unit: Pa
+
+keys:
+  - grade
+
+aliases:
+  grade:
+    A351: "A351"
+    ASTM A351: "A351"
+    A451: "A451"
+    ASTM A451: "A451"
+    A487: "A487"
+    ASTM A487: "A487"
+
+materials:
+  A351:
+    material_id: astm_a351
+    display_name: "ASTM A351 — Austenitic Stainless Steel Castings"
+    specification: ASTM A351/A351M
+    product_form: casting
+    material_family: stainless_steel
+    aliases: [A351, ASTM A351]
+    notes:
+      - Austenitic steel castings for pressure-containing parts.
+      - Refer to B31.3 Table A-1A for casting quality factor E_c.
+
+  A451:
+    material_id: astm_a451
+    display_name: "ASTM A451 — Centrifugally Cast Stainless Steel Pipe"
+    specification: ASTM A451/A451M
+    product_form: centrifugal_pipe
+    material_family: stainless_steel
+    aliases: [A451, ASTM A451]
+    notes:
+      - Centrifugally cast austenitic steel pipe for high-temperature service.
+      - Refer to B31.3 Table A-1A for casting quality factor E_c.
+
+  A487:
+    material_id: astm_a487
+    display_name: "ASTM A487 — Stainless Steel Castings for Pressure Service"
+    specification: ASTM A487/A487M
+    product_form: casting
+    material_family: stainless_steel
+    aliases: [A487, ASTM A487]
+    notes:
+      - Steel castings suitable for pressure service.
+      - Refer to B31.3 Table A-1A for casting quality factor E_c.

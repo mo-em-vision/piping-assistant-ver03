@@ -1,5 +1,6 @@
 import {
   useRightPanelStore,
+  type NodeViewerContext,
   type StandardsReferenceKind,
   type TableViewerContext,
 } from '@/store/rightPanelStore'
@@ -12,9 +13,10 @@ import './StandardReferenceLink.css'
 interface StandardReferenceLinkProps {
   referenceKind?: StandardsReferenceKind
   referenceId?: string
+  subsectionId?: string
   nodeId?: string
   label: string
-  viewerContext?: TableViewerContext
+  viewerContext?: TableViewerContext | NodeViewerContext
   /** When false, open the reference tab without leaving the current panel view. */
   activateTab?: boolean
 }
@@ -22,6 +24,7 @@ interface StandardReferenceLinkProps {
 export function StandardReferenceLink({
   referenceKind = 'node',
   referenceId,
+  subsectionId,
   nodeId,
   label,
   viewerContext,
@@ -35,7 +38,9 @@ export function StandardReferenceLink({
     viewerContext ??
     (referenceKind === 'table'
       ? buildTableViewerContext(resolvedId, activeTaskState)
-      : undefined)
+      : subsectionId
+        ? { subsectionId }
+        : undefined)
 
   return (
     <span className="standard-reference-link">

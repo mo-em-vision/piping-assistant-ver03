@@ -36,7 +36,7 @@ class TestCalculationTraceAcceptance:
         run_completed_workflow(state_manager, standards_reader, task_id)
         trace = state_manager.get_task(task_id).outputs["_execution_trace"]
 
-        lookup_entry = next(entry for entry in trace if entry["node_id"] == "B313-material-stress")
+        lookup_entry = next(entry for entry in trace if entry["node_id"] == "B313-table-A-1")
         calc_entry = next(entry for entry in trace if entry["node_id"] == WALL_THICKNESS_NODE)
 
         assert "lookup" in lookup_entry.get("trace", {}) or "calculation" in lookup_entry.get("trace", {})

@@ -15,7 +15,7 @@
     }
   },
   "execution_order": [
-    "B313-material-stress",
+    "B313-table-A-1",
     "B313-304.1.2"
   ],
   "intermediate_symbols": ["SEW", "PY"],

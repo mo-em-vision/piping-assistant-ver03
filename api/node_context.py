@@ -113,6 +113,37 @@ def node_source_payload(reader: StandardsReader, node_id: str) -> dict[str, Any]
     }
 
 
+def subsection_source_payload(
+    reader: StandardsReader,
+    node_id: str,
+    subsection_id: str,
+) -> dict[str, Any]:
+    """Build a focused node-subsection payload for the desktop reference tab."""
+    record = reader.load(node_id)
+    parent_metadata = record.metadata
+    subsection = reader.load_subsection(node_id, subsection_id)
+    subsection_meta = subsection.metadata if isinstance(subsection.metadata, dict) else {}
+
+    title = str(subsection_meta.get("title", "")).strip()
+    paragraph = str(subsection.paragraph or subsection_meta.get("paragraph", "")).strip() or None
+    body = subsection.body.strip()
+    purpose = str(subsection_meta.get("purpose", "")).strip()
+    hover_excerpt = _first_body_paragraph(body) if body else _collapse_whitespace(title or purpose)
+
+    return {
+        "node_id": record.node_id,
+        "title": str(parent_metadata.get("title", "")).strip(),
+        "standard": _DEFAULT_STANDARD_LABEL,
+        "paragraph": paragraph,
+        "section": str(parent_metadata.get("section", "")).strip() or None,
+        "subsection_id": subsection.subsection_id,
+        "subsection_title": title or None,
+        "subsection_paragraph": paragraph,
+        "body": body,
+        "hover_excerpt": hover_excerpt,
+    }
+
+
 def active_node_context_for_task(
     task: Task,
     reader: StandardsReader,

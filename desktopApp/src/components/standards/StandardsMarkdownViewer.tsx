@@ -90,6 +90,7 @@ function MarkdownLink({
       <StandardReferenceLink
         referenceKind={target.referenceKind}
         referenceId={target.referenceId}
+        subsectionId={target.subsectionId}
         label={label}
       />
     )

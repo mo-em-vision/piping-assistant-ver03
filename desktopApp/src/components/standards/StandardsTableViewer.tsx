@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
+import { StandardsMarkdownViewer } from '@/components/standards/StandardsMarkdownViewer'
 import type { TableSourceColumnDto, TableSourceDto } from '@/types/backend/api'
 import type { TableViewerContext } from '@/store/rightPanelStore'
 
@@ -10,7 +11,23 @@ interface StandardsTableViewerProps {
   viewerContext?: TableViewerContext
 }
 
-const HIDDEN_DISPLAY_COLUMNS = new Set(['material_id'])
+const HIDDEN_DISPLAY_COLUMNS = new Set([
+  'material_id',
+  'row_id',
+  'requires_note_1',
+  'requires_note_2_surface',
+  'requires_note_3_volume',
+])
+
+const MARKDOWN_CELL_COLUMNS = new Set(['supplementary_examination'])
+
+function renderCellValue(columnKey: string, cellValue: unknown) {
+  const text = String(cellValue ?? '')
+  if (MARKDOWN_CELL_COLUMNS.has(columnKey) && text.includes('](')) {
+    return <StandardsMarkdownViewer content={text} />
+  }
+  return text
+}
 
 function displayColumnsForTable(columns: TableSourceColumnDto[]): TableSourceColumnDto[] {
   return columns.filter((column) => !HIDDEN_DISPLAY_COLUMNS.has(column.key))
@@ -144,6 +161,11 @@ export function StandardsTableViewer({ payload, viewerContext }: StandardsTableV
             {payload.standard} · {payload.source_path}
           </p>
         ) : null}
+        {payload.description ? (
+          <div className="standards-table-viewer__description">
+            <StandardsMarkdownViewer content={payload.description} />
+          </div>
+        ) : null}
       </header>
 
       <p className="standards-table-viewer__count" aria-live="polite">
@@ -195,7 +217,7 @@ export function StandardsTableViewer({ payload, viewerContext }: StandardsTableV
                       }
                     >
                       {displayColumns.map((column) => (
-                        <td key={column.key}>{String(row[column.key] ?? '')}</td>
+                        <td key={column.key}>{renderCellValue(column.key, row[column.key])}</td>
                       ))}
                     </tr>
                   )

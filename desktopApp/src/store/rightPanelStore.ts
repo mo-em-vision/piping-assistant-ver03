@@ -8,6 +8,12 @@ export interface TableViewerContext {
   highlightKeys?: Record<string, string>
 }
 
+export interface NodeViewerContext {
+  subsectionId?: string
+}
+
+export type ReferenceViewerContext = TableViewerContext | NodeViewerContext
+
 export type RightPanelTab =
   | { id: 'task'; kind: 'task'; title: 'Task' }
   | { id: 'chat'; kind: 'chat'; title: 'Chat' }
@@ -17,7 +23,7 @@ export type RightPanelTab =
       title: string
       referenceKind: StandardsReferenceKind
       referenceId: string
-      viewerContext?: TableViewerContext
+      viewerContext?: ReferenceViewerContext
     }
 
 const PINNED_TABS: RightPanelTab[] = [
@@ -37,7 +43,7 @@ interface RightPanelState {
     referenceId: string,
     title: string,
     referenceKind?: StandardsReferenceKind,
-    viewerContext?: TableViewerContext,
+    viewerContext?: ReferenceViewerContext,
     options?: OpenReferenceTabOptions,
   ) => void
   closeTab: (id: string) => void
@@ -45,8 +51,59 @@ interface RightPanelState {
   reset: () => void
 }
 
-function referenceTabId(referenceKind: StandardsReferenceKind, referenceId: string): string {
-  return referenceKind === 'table' ? `ref-table-${referenceId}` : `ref-${referenceId}`
+function referenceTabId(
+  referenceKind: StandardsReferenceKind,
+  referenceId: string,
+  subsectionId?: string,
+): string {
+  if (referenceKind === 'table') {
+    return `ref-table-${referenceId}`
+  }
+  if (subsectionId) {
+    return `ref-${referenceId}-${subsectionId}`
+  }
+  return `ref-${referenceId}`
+}
+
+function referenceTabsMatch(
+  tab: RightPanelTab,
+  referenceKind: StandardsReferenceKind,
+  referenceId: string,
+  subsectionId?: string,
+): boolean {
+  if (tab.kind !== 'reference') {
+    return false
+  }
+  if (tab.referenceKind !== referenceKind || tab.referenceId !== referenceId) {
+    return false
+  }
+  if (referenceKind === 'node') {
+    const tabSubsectionId =
+      tab.viewerContext && 'subsectionId' in tab.viewerContext
+        ? tab.viewerContext.subsectionId
+        : undefined
+    return tabSubsectionId === subsectionId
+  }
+  return true
+}
+
+function nextActiveTabIdAfterClose(
+  tabs: RightPanelTab[],
+  closingId: string,
+  currentActiveId: string,
+): string {
+  if (currentActiveId !== closingId) {
+    return currentActiveId
+  }
+
+  const closingIndex = tabs.findIndex((tab) => tab.id === closingId)
+  if (closingIndex < 0) {
+    return currentActiveId
+  }
+
+  const leftTab = closingIndex > 0 ? tabs[closingIndex - 1] : undefined
+  const rightTab = closingIndex < tabs.length - 1 ? tabs[closingIndex + 1] : undefined
+  return leftTab?.id ?? rightTab?.id ?? 'task'
 }
 
 export const useRightPanelStore = create<RightPanelState>((set, get) => ({
@@ -55,11 +112,12 @@ export const useRightPanelStore = create<RightPanelState>((set, get) => ({
 
   openReferenceTab: (referenceId, title, referenceKind = 'node', viewerContext, options) => {
     const activate = options?.activate ?? true
-    const existing = get().tabs.find(
-      (tab) =>
-        tab.kind === 'reference' &&
-        tab.referenceKind === referenceKind &&
-        tab.referenceId === referenceId,
+    const subsectionId =
+      referenceKind === 'node' && viewerContext && 'subsectionId' in viewerContext
+        ? viewerContext.subsectionId
+        : undefined
+    const existing = get().tabs.find((tab) =>
+      referenceTabsMatch(tab, referenceKind, referenceId, subsectionId),
     )
     if (existing) {
       set((state) => ({
@@ -77,7 +135,7 @@ export const useRightPanelStore = create<RightPanelState>((set, get) => ({
       return
     }
 
-    const id = referenceTabId(referenceKind, referenceId)
+    const id = referenceTabId(referenceKind, referenceId, subsectionId)
     set((state) => ({
       tabs: [
         ...state.tabs,
@@ -101,7 +159,7 @@ export const useRightPanelStore = create<RightPanelState>((set, get) => ({
 
     set((state) => {
       const tabs = state.tabs.filter((tab) => tab.id !== id)
-      const activeTabId = state.activeTabId === id ? 'task' : state.activeTabId
+      const activeTabId = nextActiveTabIdAfterClose(state.tabs, id, state.activeTabId)
       return { tabs, activeTabId }
     })
   },

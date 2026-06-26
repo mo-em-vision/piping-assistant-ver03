@@ -23,8 +23,8 @@ def test_validate_resolves_material_stress_dependency() -> None:
     result = reader.validate("B313-304.1.2")
 
     assert result.passed is True
-    assert not any("B313-material-stress" in issue.message for issue in result.issues)
-    assert reader.find_node_path("B313-material-stress") is not None
+    assert not any("B313-table-A-1" in issue.message for issue in result.issues)
+    assert reader.find_node_path("B313-table-A-1") is not None
 
 
 def test_dependency_tree_includes_children() -> None:

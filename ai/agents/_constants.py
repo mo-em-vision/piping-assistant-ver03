@@ -6,7 +6,7 @@ import re
 
 PIPE_WALL_THICKNESS_DESIGN = "pipe_wall_thickness_design"
 
-PIPE_WALL_THICKNESS_ROOT = "roots/pipe_wall_thickness_design/root.md"
+PIPE_WALL_THICKNESS_ROOT = "tasks/asme_b31.3/pipe_wall_thickness_design/root.md"
 
 PIPE_WALL_THICKNESS_NODE = "B313-304.1.2"
 

@@ -12,7 +12,7 @@ def test_planner_agent_returns_correct_root_for_pipe_workflow() -> None:
     intent = IntentResult(
         intent=PIPE_WALL_THICKNESS_DESIGN,
         domain="piping",
-        root_nodes=["roots/pipe_wall_thickness_design/root.md"],
+        root_nodes=["tasks/asme_b31.3/pipe_wall_thickness_design/root.md"],
         confidence=0.95,
     )
 

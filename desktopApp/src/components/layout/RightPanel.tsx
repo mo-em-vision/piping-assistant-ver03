@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { ParameterEditDialog } from '@/components/engineering/ParameterEditDialog'
@@ -19,6 +19,15 @@ import { TaskTimeline } from '@/components/engineering/TaskTimeline'
 
 import { PanelSection } from './PanelSection'
 import './SidePanel.css'
+
+const TAB_SCROLL_INTO_VIEW_OPTIONS: ScrollIntoViewOptions = {
+  block: 'nearest',
+  inline: 'nearest',
+}
+
+function scrollTabItemIntoView(element: HTMLElement | null) {
+  element?.scrollIntoView(TAB_SCROLL_INTO_VIEW_OPTIONS)
+}
 
 function TaskContextTab() {
   const activeTask = useTaskStore((state) => state.activeTask)
@@ -143,6 +152,13 @@ export function RightPanel() {
   const setActiveTab = useRightPanelStore((state) => state.setActiveTab)
   const closeTab = useRightPanelStore((state) => state.closeTab)
   const toggleRightCollapsed = useUiStore((state) => state.toggleRightCollapsed)
+  const tabItemRefs = useRef(new Map<string, HTMLDivElement>())
+  const tabIdsKey = tabs.map((tab) => tab.id).join('|')
+
+  useLayoutEffect(() => {
+    const activeTabElement = tabItemRefs.current.get(activeTabId)
+    scrollTabItemIntoView(activeTabElement ?? null)
+  }, [activeTabId, tabIdsKey])
 
   if (!activeTask) {
     return null
@@ -150,10 +166,22 @@ export function RightPanel() {
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? tabs[0]
 
+  const setTabItemRef = (tabId: string, element: HTMLDivElement | null) => {
+    if (element) {
+      tabItemRefs.current.set(tabId, element)
+      return
+    }
+    tabItemRefs.current.delete(tabId)
+  }
+
   return (
     <aside className="side-panel side-panel--right">
       <header className="side-panel__header">
-        <div className="side-panel__tab-bar" role="tablist" aria-label="Right panel tabs">
+        <div
+          className="side-panel__tab-bar"
+          role="tablist"
+          aria-label="Right panel tabs"
+        >
           {tabs.map((tab) => {
             const isActive = tab.id === activeTabId
             const isClosable = tab.kind === 'reference'
@@ -161,7 +189,18 @@ export function RightPanel() {
             return (
               <div
                 key={tab.id}
+                ref={(element) => setTabItemRef(tab.id, element)}
                 className={`side-panel__tab-item${isActive ? ' side-panel__tab-item--active' : ''}${isClosable ? ' side-panel__tab-item--closable' : ''}`}
+                onMouseEnter={
+                  isClosable
+                    ? (event) => scrollTabItemIntoView(event.currentTarget)
+                    : undefined
+                }
+                onFocus={
+                  isClosable
+                    ? (event) => scrollTabItemIntoView(event.currentTarget)
+                    : undefined
+                }
               >
                 <button
                   type="button"
@@ -177,6 +216,7 @@ export function RightPanel() {
                     type="button"
                     className="side-panel__tab-close"
                     aria-label={`Close ${tab.title}`}
+                    onFocus={(event) => scrollTabItemIntoView(event.currentTarget.parentElement)}
                     onClick={(event) => {
                       event.stopPropagation()
                       closeTab(tab.id)
@@ -211,7 +251,14 @@ export function RightPanel() {
                 viewerContext={activeTab.viewerContext}
               />
             ) : (
-              <NodeReferenceTab nodeId={activeTab.referenceId} />
+              <NodeReferenceTab
+                nodeId={activeTab.referenceId}
+                subsectionId={
+                  activeTab.viewerContext && 'subsectionId' in activeTab.viewerContext
+                    ? activeTab.viewerContext.subsectionId
+                    : undefined
+                }
+              />
             )}
           </div>
         ) : null}

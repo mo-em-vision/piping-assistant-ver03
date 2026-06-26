@@ -24,7 +24,7 @@ Respond with **JSON only**:
   "intent": "pipe_wall_thickness_design or null",
   "domain": "piping | pressure_vessel | tank | inspection | null",
   "possible_standards": ["ASME B31.3"],
-  "root_nodes": ["roots/pipe_wall_thickness_design/root.md"],
+  "root_nodes": ["tasks/asme_b31.3/pipe_wall_thickness_design/root.md"],
   "missing_context": ["design_pressure", "outside_diameter"],
   "confidence": 0.0,
   "action": "clarify | propose_path",

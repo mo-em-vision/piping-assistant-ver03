@@ -56,11 +56,13 @@ class EngineeringValidator:
                     )
                 )
 
-        if node_id == "B313-material-stress":
+        table_status = ComplianceStatus.PASS
+        if node_id == "B313-table-A-1":
             table_result = self._validate_table_temperature(reader, task_inputs, overrides)
             errors.extend(table_result.errors)
             warnings.extend(table_result.warnings)
             constraints.extend(table_result.constraints)
+            table_status = table_result.status
 
         node_type = str(record.metadata.get("type", ""))
         if node_type in {"calculation", "lookup"}:
@@ -73,7 +75,9 @@ class EngineeringValidator:
                 warnings.extend(assumption_result.warnings)
 
         status = ComplianceStatus.FAIL if errors else (
-            ComplianceStatus.PASS_WITH_WARNING if warnings else ComplianceStatus.PASS
+            ComplianceStatus.PASS_WITH_WARNING
+            if warnings or table_status == ComplianceStatus.PASS_WITH_WARNING
+            else ComplianceStatus.PASS
         )
         return LayerValidationResult(
             status=status,
@@ -138,9 +142,6 @@ class EngineeringValidator:
         if "design_temperature" not in task_inputs or "material" not in task_inputs:
             return LayerValidationResult(status=ComplianceStatus.PASS)
 
-        if "temperature_table_bounds" in overrides:
-            return LayerValidationResult(status=ComplianceStatus.PASS_WITH_WARNING)
-
         inp = task_inputs["design_temperature"]
         material = str(task_inputs["material"].value)
         if not isinstance(inp.value, (int, float)):
@@ -163,13 +164,13 @@ class EngineeringValidator:
                     message=f"Material not found in allowable stress table: {material}",
                     severity=ValidationSeverity.ERROR,
                     input_id="material",
-                    node_id="B313-material-stress",
+                    node_id="B313-table-A-1",
                 )
             )
             return LayerValidationResult(
                 status=ComplianceStatus.FAIL,
                 errors=errors,
-                affected_nodes=["B313-material-stress"],
+                affected_nodes=["B313-table-A-1"],
             )
 
         rows = table_data.get("materials", {}).get(material_key, {}).get("rows", [])
@@ -191,7 +192,7 @@ class EngineeringValidator:
                         ),
                         severity=ValidationSeverity.WARNING,
                         input_id="design_temperature",
-                        node_id="B313-material-stress",
+                        node_id="B313-table-A-1",
                     )
                 )
             else:
@@ -204,7 +205,7 @@ class EngineeringValidator:
                         ),
                         severity=ValidationSeverity.ERROR,
                         input_id="design_temperature",
-                        node_id="B313-material-stress",
+                        node_id="B313-table-A-1",
                     )
                 )
 

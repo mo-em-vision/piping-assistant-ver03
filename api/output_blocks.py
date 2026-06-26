@@ -30,7 +30,7 @@ _NODE_REFERENCES: dict[str, dict[str, str]] = {
         "title": "Straight Pipe Under Internal Pressure",
         "excerpt": "The minimum required wall thickness for straight pipe under internal pressure shall be computed.",
     },
-    "B313-material-stress": {
+    "B313-table-A-1": {
         "standard": "ASME B31.3",
         "paragraph": "Table A-1",
         "title": "Allowable Stress Lookup",

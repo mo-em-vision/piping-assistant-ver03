@@ -27,8 +27,22 @@ def test_resolve_pack_tables_db_prefers_slug_named_file(project_root: Path) -> N
 def test_load_material_registry_includes_astm_sources(standards_root: Path) -> None:
     sources = load_material_registry(standards_root)
     slugs = {source.standard for source in sources}
+    assert "astm_a53" in slugs
     assert "astm_a106" in slugs
     assert "astm_a312" in slugs
+    assert "astm_stainless_castings" in slugs
+
+
+def test_global_catalog_search_finds_a53_and_api_5l(standards_root: Path) -> None:
+    a53 = search_materials(standards_root, "a53")
+    assert any(item["value"] == "astm_a53" for item in a53)
+    api = search_materials(standards_root, "api 5")
+    assert any(item["value"] == "api_5l" for item in api)
+
+
+def test_global_catalog_search_finds_a351(standards_root: Path) -> None:
+    results = search_materials(standards_root, "a351")
+    assert any(item["value"] == "astm_a351" for item in results)
 
 
 def test_global_catalog_search_finds_a106_alias(standards_root: Path) -> None:

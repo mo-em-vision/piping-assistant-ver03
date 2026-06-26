@@ -60,7 +60,7 @@ def test_catalog_material_name_passes_stress_table_validation() -> None:
     inputs = _sample_inputs(material="A106 Gr B")
 
     result = engine.validate_node(
-        "B313-material-stress",
+        "B313-table-A-1",
         task_inputs=inputs,
         dependency_outputs={},
         prior_nodes_completed=set(),
@@ -83,7 +83,7 @@ def test_temperature_out_of_table_range_fails() -> None:
     )
 
     result = engine.validate_node(
-        "B313-material-stress",
+        "B313-table-A-1",
         task_inputs=inputs,
         dependency_outputs={},
         prior_nodes_completed=set(),
@@ -107,7 +107,7 @@ def test_invalid_pressure_string_fails() -> None:
         "B313-304.1.2",
         task_inputs=inputs,
         dependency_outputs={"allowable_stress": 193_000_000.0, "S": 193_000_000.0},
-        prior_nodes_completed={"B313-material-stress"},
+        prior_nodes_completed={"B313-table-A-1"},
     )
 
     assert result.status == ComplianceStatus.FAIL
@@ -131,7 +131,7 @@ def test_unconfirmed_weld_efficiency_is_incomplete() -> None:
         "B313-304.1.2",
         task_inputs=inputs,
         dependency_outputs={"allowable_stress": 193_000_000.0, "S": 193_000_000.0},
-        prior_nodes_completed={"B313-material-stress"},
+        prior_nodes_completed={"B313-table-A-1"},
     )
 
     assert result.status == ComplianceStatus.INCOMPLETE

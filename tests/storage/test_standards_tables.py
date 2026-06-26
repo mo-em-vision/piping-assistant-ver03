@@ -22,7 +22,7 @@ def test_standards_tables_db_exists(standards_reader: StandardsReader) -> None:
 
 
 def test_resolve_legacy_yaml_alias(standards_reader: StandardsReader) -> None:
-    data = standards_reader.load_table("nodes/B313-appendix_A/tables/A-1.yaml")
+    data = standards_reader.load_table("nodes/appendix_A/tables/A-1.yaml")
     assert data["table_id"] == TABLE_A_1
     assert ASTM_A106_GR_B in data["materials"]
 

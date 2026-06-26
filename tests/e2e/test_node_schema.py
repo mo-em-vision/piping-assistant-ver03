@@ -10,7 +10,7 @@ from tests.acceptance.helpers import confirmed_default_inputs, internal_pressure
 
 ROOT_NODES = ("pipe_wall_thickness_design",)
 CALCULATION_NODES = ("B313-304.1.2",)
-LOOKUP_NODES = ("B313-material-stress",)
+LOOKUP_NODES = ("B313-table-A-1",)
 
 REQUIRED_CALCULATION_FIELDS = (
     "id",
@@ -60,7 +60,7 @@ def test_lookup_node_schema(node_id: str, standards_reader: StandardsReader) -> 
         assert field in metadata, f"Node {node_id} missing required field: {field}"
 
 
-@pytest.mark.parametrize("node_id", ("B313-material-stress", "B313-304.1.2"))
+@pytest.mark.parametrize("node_id", ("B313-table-A-1", "B313-304.1.2"))
 def test_calculation_nodes_have_formula_or_lookup(node_id: str, standards_reader: StandardsReader) -> None:
     record = standards_reader.load(node_id)
     node_type = record.metadata.get("type")

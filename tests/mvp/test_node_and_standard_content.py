@@ -29,6 +29,11 @@ class TestNodeValidationTesting:
 class TestStandardContentTesting:
     """§13 Standard Content — paragraph, equations, notes, limitations, references."""
 
+    def test_b31_pack_nodes_db_is_built(self, standards_reader) -> None:
+        assert standards_reader.nodes_db_available, (
+            "Run python scripts/build_all_standards_dbs.py before content tests"
+        )
+
     def test_wall_thickness_node_is_self_contained(self, standards_reader) -> None:
         record = standards_reader.load(WALL_THICKNESS_NODE)
         node_dir = record.path.parent
@@ -48,8 +53,9 @@ class TestStandardContentTesting:
 
         assert record.body.strip()
         assert record.metadata.get("lookups")
-        table_rel = record.metadata["lookups"][0].get("table", "")
-        assert (standards_reader.pack_root / table_rel).exists()
+        table_id = record.metadata["lookups"][0].get("table_id", "")
+        assert table_id == "asme_b31.3_A-1"
+        assert standards_reader.tables_database.get_table(table_id) is not None
 
     def test_equation_file_is_executable(self, standards_reader) -> None:
         equation_path = (

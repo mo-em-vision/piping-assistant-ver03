@@ -22,6 +22,17 @@
   color: #64748b;
 }
 
+.standards-table-viewer__description {
+  margin: 0 0 0.75rem;
+  font-size: 0.78rem;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.standards-table-viewer__description .standards-markdown-viewer {
+  font-size: inherit;
+}
+
 .standards-table-viewer__count {
   margin: 0 0 0.5rem;
   font-size: 0.72rem;

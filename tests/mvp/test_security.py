@@ -44,7 +44,7 @@ class TestInputInjectionTesting:
     ) -> None:
         inputs = sample_inputs(material="<script>alert(1)</script>")
         result = ValidationEngine(standards_reader).validate_node(
-            "B313-material-stress",
+            "B313-table-A-1",
             task_inputs=inputs,
             dependency_outputs={},
             prior_nodes_completed=set(),

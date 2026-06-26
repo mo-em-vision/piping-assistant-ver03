@@ -159,7 +159,7 @@ def _build_index(reader: StandardsReader) -> list[_IndexEntry]:
     entries: list[_IndexEntry] = []
     nodes_dir = reader.nodes_dir
     if nodes_dir.is_dir():
-        for path in sorted(nodes_dir.glob("*/node.md")):
+        for path in sorted(nodes_dir.rglob("node.md")):
             record = reader.load_file(path)
             metadata = record.metadata
             node_id = record.node_id

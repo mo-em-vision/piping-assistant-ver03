@@ -24,7 +24,7 @@ class TestSupportedInterface:
         assert result.exit_code == 0
         assert "B313-304.1.1" in result.stdout
         assert "B313-304.1.2" in result.stdout
-        assert "B313-material-stress" in result.stdout
+        assert "B313-table-A-1" in result.stdout
 
     def test_cli_node_validate_command(self) -> None:
         result = CliRunner().invoke(app, ["node", "validate", "B313-304.1.1"])
@@ -85,7 +85,7 @@ class TestUserVisibility:
     def test_graph_command_shows_dependencies_before_execution(self) -> None:
         result = CliRunner().invoke(app, ["graph", "show", "B313-304.1.2"])
         assert result.exit_code == 0
-        assert "B313-material-stress" in result.stdout
+        assert "B313-table-A-1" in result.stdout
         assert "B313-304.1.1" in result.stdout
 
     def test_planner_exposes_selected_nodes_and_missing_inputs(

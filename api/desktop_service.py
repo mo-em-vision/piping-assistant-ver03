@@ -26,7 +26,7 @@ from api.report_service import (
     resolve_report_download,
 )
 from api.parameter_definitions import submit_task_input
-from api.node_context import node_source_payload
+from api.node_context import node_source_payload, subsection_source_payload
 from api.table_context import table_source_payload
 from api.workflow_bootstrap import (
     bootstrap_new_task,
@@ -609,6 +609,19 @@ class DesktopApiService:
             return node_source_payload(reader, node_id)
         except FileNotFoundError as exc:
             raise ApiError("node_not_found", f"Node not found: {node_id}", status=404) from exc
+
+    def get_standards_node_subsection(self, node_id: str, subsection_id: str) -> dict[str, Any]:
+        reader = standards_reader_for_config(self.config)
+        try:
+            return subsection_source_payload(reader, node_id, subsection_id)
+        except FileNotFoundError as exc:
+            raise ApiError("node_not_found", f"Node not found: {node_id}", status=404) from exc
+        except KeyError as exc:
+            raise ApiError(
+                "subsection_not_found",
+                f"Subsection not found: {node_id}/{subsection_id}",
+                status=404,
+            ) from exc
 
     def get_standards_table(self, table_id: str) -> dict[str, Any]:
         reader = standards_reader_for_config(self.config)

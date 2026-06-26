@@ -1,0 +1,33 @@
+# ASTM A53/A53M — Pipe, Steel, Black and Hot-Dipped, Zinc-Coated, Welded and Seamless
+# Development reference data — verify against licensed ASTM A53/A53M for production use.
+
+table_id: astm_a53_material_properties
+title: ASTM A53 — Carbon Steel Pipe
+standard: ASTM A53/A53M
+version: "1.0"
+product_form: [seamless_pipe, welded_pipe]
+test_method: longitudinal_tension
+temperature_unit: F
+stress_unit: Pa
+
+keys:
+  - grade
+
+aliases:
+  grade:
+    A53: "A53"
+    ASTM A53: "A53"
+    SA-53: "A53"
+
+materials:
+  A53:
+    material_id: astm_a53
+    display_name: "ASTM A53 — Carbon Steel Pipe"
+    specification: ASTM A53/A53M
+    product_form: pipe
+    aliases: [A53, ASTM A53, SA-53]
+    notes:
+      - Type S — seamless pipe.
+      - Type E — electric resistance welded pipe.
+      - Type F — furnace butt welded pipe.
+      - Refer to B31.3 Table A-1B for quality factor E by type and joint category.

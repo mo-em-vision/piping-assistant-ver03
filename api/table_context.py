@@ -33,6 +33,11 @@ def _column_label(key: str) -> str:
         "coefficient_Y": "Coefficient Y",
         "material_id": "Material ID",
         "material": "Material",
+        "base_metal_group": "Base Metal Group",
+        "supplementary_examination": "Supplementary Examination in Accordance With Note(s)",
+        "quality_factor_E_c": "Factor, E_c",
+        "quality_factor_E": "Quality Factor E",
+        "description": "Description",
     }
     return labels.get(key, key.replace("_", " ").strip().title())
 
@@ -57,13 +62,19 @@ def _collect_column_keys(data: dict[str, Any], rows: list[dict[str, Any]]) -> li
                 seen.add(normalized)
 
     preferred = (
+        "base_metal_group",
         "material",
+        "description",
+        "supplementary_examination",
         "temperature_c",
         "design_temperature",
         "coefficient_Y",
+        "quality_factor_E_c",
         "quality_factor_E",
         "allowable_stress",
         "joint_category",
+        "class",
+        "row_id",
         "material_id",
     )
     rank = {key: index for index, key in enumerate(preferred)}
@@ -77,6 +88,8 @@ def table_source_payload(reader: StandardsReader, table_id: str) -> dict[str, An
     resolved_id = str(data.get("table_id") or table_id).strip()
 
     title = str(data.get("title") or resolved_id).strip()
+
+    description = str(data.get("description") or "").strip() or None
 
     rows = _flatten_table_rows(data)
 
@@ -110,6 +123,8 @@ def table_source_payload(reader: StandardsReader, table_id: str) -> dict[str, An
 
         "title": title,
 
+        "description": description,
+
         "standard": _DEFAULT_STANDARD_LABEL,
 
         "source_path": source_path,
@@ -118,7 +133,7 @@ def table_source_payload(reader: StandardsReader, table_id: str) -> dict[str, An
 
         "rows": normalized_rows,
 
-        "hover_excerpt": title,
+        "hover_excerpt": description or title,
 
     }
 

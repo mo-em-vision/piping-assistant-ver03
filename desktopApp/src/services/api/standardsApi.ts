@@ -9,6 +9,12 @@ export const standardsApi = {
     )
   },
 
+  getNodeSubsection(nodeId: string, subsectionId: string): Promise<NodeSourceDto> {
+    return backendClient.request<NodeSourceDto>(
+      `/api/v1/standards/nodes/${encodeURIComponent(nodeId)}/subsections/${encodeURIComponent(subsectionId)}`,
+    )
+  },
+
   getTable(tableId: string): Promise<TableSourceDto> {
     return backendClient.request<TableSourceDto>(
       `/api/v1/standards/tables/${encodeURIComponent(tableId)}`,

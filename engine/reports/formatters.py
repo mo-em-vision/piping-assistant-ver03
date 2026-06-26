@@ -320,8 +320,10 @@ def _results_section(report: ReportData) -> str:
 
     lines = [f"**Overall status:** {report.status}", ""]
     lines.extend(
-        "| Result | Value |",
-        "| --- | --- |",
+        [
+            "| Result | Value |",
+            "| --- | --- |",
+        ]
     )
     for key, value in outputs.items():
         lines.append(f"| {human_input_label(key)} | {format_report_cell(value)} |")

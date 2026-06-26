@@ -193,7 +193,7 @@ def test_task_state_timeline_formats_allowable_stress_in_mpa() -> None:
         "allowable_stress_unit": "Pa",
         "allowable_stress_lookup": {
             "standard": "asme_b31.3",
-            "table_id": "asme_b31.3_material_allowable_stress",
+            "table_id": "asme_b31.3_A-1",
             "material": "SA-106B",
             "design_temperature_f": 400.0,
         },

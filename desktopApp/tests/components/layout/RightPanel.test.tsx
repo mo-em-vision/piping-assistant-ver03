@@ -1,5 +1,5 @@
-import { render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { fireEvent, render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { RightPanel } from '@/components/layout/RightPanel'
 import { useRightPanelStore } from '@/store/rightPanelStore'
@@ -42,6 +42,85 @@ describe('RightPanel tabs', () => {
     expect(tabItem).toBeTruthy()
     expect(tabItem?.querySelector('.side-panel__tab-label')).toHaveTextContent('§304.1.1')
     expect(tabItem?.querySelector('.side-panel__tab-close')).toBeTruthy()
+  })
+
+  it('renders close buttons for each closable reference tab', () => {
+    const store = useRightPanelStore.getState()
+    store.openReferenceTab('B313-304.1.1', '§304.1.1')
+    store.openReferenceTab('asme_b31.3_A-1A', 'Table A-1A', 'table')
+
+    const { container } = render(<RightPanel />)
+
+    const closableTabs = container.querySelectorAll('.side-panel__tab-item--closable')
+    const closeButtons = container.querySelectorAll('.side-panel__tab-item--closable .side-panel__tab-close')
+    expect(closableTabs).toHaveLength(2)
+    expect(closeButtons).toHaveLength(2)
+  })
+
+  it('scrolls the active reference tab into view when opened', () => {
+    const scrollIntoView = vi.fn()
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(scrollIntoView)
+
+    useRightPanelStore.getState().openReferenceTab('B313-304.1.1', '§304.1.1')
+    render(<RightPanel />)
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
+  })
+
+  it('scrolls a closable tab into view on hover', () => {
+    const scrollIntoView = vi.fn()
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(scrollIntoView)
+
+    useRightPanelStore.getState().openReferenceTab('B313-304.1.1', '§304.1.1')
+    const { container } = render(<RightPanel />)
+    scrollIntoView.mockClear()
+
+    const tabItem = container.querySelector('.side-panel__tab-item--closable')
+    expect(tabItem).toBeTruthy()
+    fireEvent.mouseEnter(tabItem!)
+
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
+  })
+
+  it('activates the previous tab when closing the active reference tab', () => {
+    const store = useRightPanelStore.getState()
+    store.openReferenceTab('B313-304.1.1', '§304.1.1')
+    store.openReferenceTab('asme_b31.3_A-1A', 'Table A-1A', 'table')
+
+    const tabs = useRightPanelStore.getState().tabs
+    const firstReferenceTabId = tabs[2]?.id
+    const secondReferenceTabId = tabs[3]?.id
+    expect(firstReferenceTabId).toBeTruthy()
+    expect(secondReferenceTabId).toBeTruthy()
+
+    store.setActiveTab(secondReferenceTabId!)
+    store.closeTab(secondReferenceTabId!)
+
+    expect(useRightPanelStore.getState().activeTabId).toBe(firstReferenceTabId)
+  })
+
+  it('scrolls the newly active tab into view after closing the active reference tab', () => {
+    const scrollIntoView = vi.fn()
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(scrollIntoView)
+
+    const store = useRightPanelStore.getState()
+    store.openReferenceTab('B313-304.1.1', '§304.1.1')
+    store.openReferenceTab('asme_b31.3_A-1A', 'Table A-1A', 'table')
+
+    const tabs = useRightPanelStore.getState().tabs
+    const secondReferenceTabId = tabs[3]?.id
+    store.setActiveTab(secondReferenceTabId!)
+
+    const { container } = render(<RightPanel />)
+    scrollIntoView.mockClear()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Close Table A-1A' }),
+    )
+
+    expect(useRightPanelStore.getState().activeTabId).toBe(tabs[2]?.id)
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
+    expect(container.querySelectorAll('.side-panel__tab-item--closable')).toHaveLength(1)
   })
 
   it('shows Engineering report when the report step is active', () => {

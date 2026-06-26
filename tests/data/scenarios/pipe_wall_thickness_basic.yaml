@@ -28,13 +28,13 @@ expected:
   planner:
     selected_root: pipe_wall_thickness_design
     selected_nodes_contains:
-      - B313-material-stress
+      - B313-table-A-1
       - B313-304.1.2
     missing_inputs: []
 
     graph:
     execution_order:
-      - B313-material-stress
+      - B313-table-A-1
       - B313-304.1.1
       - B313-304.1.2
 

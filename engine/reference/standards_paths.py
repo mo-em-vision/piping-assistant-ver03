@@ -23,6 +23,30 @@ def is_standard_pack(path: Path) -> bool:
     return any((path / marker).exists() for marker in markers)
 
 
+def resolve_standards_tasks_dir(standards_root: Path) -> Path:
+    """Return the global workflow tasks folder under standards/."""
+    return standards_root.resolve() / "tasks"
+
+
+def resolve_standard_tasks_dir(standards_root: Path, standard: str) -> Path:
+    """Return task entry folder for one standard slug under standards/tasks/."""
+    return resolve_standards_tasks_dir(standards_root) / normalize_standard_slug(standard)
+
+
+def resolve_global_tasks_db(standards_root: Path) -> Path:
+    """Return the compiled global tasks SQLite database path."""
+    return resolve_standards_tasks_dir(standards_root) / "tasks.db"
+
+
+def resolve_pack_tasks_dir(pack_root: Path) -> Path:
+    """Return the pack task entry folder (`tasks/` preferred, `roots/` legacy)."""
+    pack_root = pack_root.resolve()
+    tasks = pack_root / "tasks"
+    if tasks.is_dir():
+        return tasks
+    return pack_root / "roots"
+
+
 def resolve_standard_pack(standards_root: Path, standard: str) -> Path:
     """
     Resolve a standards pack directory.

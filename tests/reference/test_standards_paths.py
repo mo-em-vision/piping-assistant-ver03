@@ -6,7 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from engine.reference.standards_paths import list_standard_packs, resolve_standard_pack
+from engine.reference.standards_paths import (
+    list_standard_packs,
+    resolve_global_tasks_db,
+    resolve_pack_tasks_dir,
+    resolve_standard_pack,
+    resolve_standard_tasks_dir,
+    resolve_standards_tasks_dir,
+)
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 
 
@@ -15,11 +22,25 @@ def test_resolve_grouped_asme_b31_3() -> None:
     pack = resolve_standard_pack(root, "asme_b31.3")
     assert pack.name == "asme_b31.3"
     assert pack.parent.name == "asme"
-    assert (pack / "nodes" / "B313-304.1.1" / "node.md").exists()
-    assert (pack / "nodes" / "B313-304.1.2" / "node.md").exists()
+    assert (pack / "nodes" / "304" / "304.1.1" / "node.md").exists()
+    assert (pack / "nodes" / "304" / "304.1.2" / "node.md").exists()
     tables_db = resolve_pack_tables_db(pack)
     assert tables_db.name in {"standards_tables.db", "asme_b313_tables.db"}
     assert tables_db.is_file()
+
+
+def test_resolve_standard_tasks_dir_for_asme_b31_3(project_root: Path) -> None:
+    standards_root = project_root / "standards"
+    tasks_dir = resolve_standard_tasks_dir(standards_root, "asme_b31.3")
+    assert tasks_dir == resolve_standards_tasks_dir(standards_root) / "asme_b31.3"
+    assert (tasks_dir / "pipe_wall_thickness_design" / "root.md").is_file()
+    assert resolve_global_tasks_db(standards_root).name == "tasks.db"
+
+
+def test_resolve_pack_tasks_dir_legacy_roots(project_root: Path) -> None:
+    pack = project_root / "standards" / "api" / "api_570"
+    tasks_dir = resolve_pack_tasks_dir(pack)
+    assert tasks_dir.name == "roots"
 
 
 def test_resolve_grouped_asme_b36_10() -> None:

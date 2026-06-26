@@ -1,4 +1,9 @@
 sources:
+  - standard: astm_a53
+    group: astm
+    table_id: astm_a53_material_properties
+    db_file: astm_a53_tables.db
+    source_node: ASTM-a53-material-properties
   - standard: astm_a106
     group: astm
     table_id: astm_a106_material_properties
@@ -9,3 +14,8 @@ sources:
     table_id: astm_a312_material_properties
     db_file: astm_a312.db
     source_node: ASTM-a312-material-properties
+  - standard: astm_stainless_castings
+    group: astm
+    table_id: astm_stainless_castings_material_properties
+    db_file: astm_stainless_castings_tables.db
+    source_node: ASTM-stainless-castings-material-properties

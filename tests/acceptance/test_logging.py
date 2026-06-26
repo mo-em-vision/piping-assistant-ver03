@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from engine.events.event_logger import EventLogger
-from engine.executor.executor import Executor
+from engine.executor.executor import Executor, execute_workflow
 from engine.graph.graph_engine import GraphEngine
 from models.event import EventType
 from models.input import EngineeringInput, InputSource
@@ -63,7 +63,12 @@ class TestLoggingAcceptance:
 
     def test_warnings_are_recorded_on_task(self, standards_reader, state_manager) -> None:
         task_id = "acceptance-logging-warnings"
-        run_completed_workflow(state_manager, standards_reader, task_id)
+        state_manager.create_task(task_id)
+        for engineering_input in sample_inputs(temperature=900).values():
+            state_manager.store_input(task_id, engineering_input)
+        task = state_manager.get_task(task_id)
+        task.outputs["validation_overrides"] = ["temperature_table_bounds"]
+        execute_workflow(task_id, PIPE_WALL_THICKNESS_ROOT, state=state_manager, reader=standards_reader)
         task = state_manager.get_task(task_id)
 
         assert task.warnings

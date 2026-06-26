@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.standards_reader import StandardsReader
 
 
@@ -17,8 +18,7 @@ def load_formula_display(reader: StandardsReader, node_id: str) -> str | None:
     equations = node.metadata.get("equations", []) or node.metadata.get("formulas", []) or []
     for equation in equations:
         if isinstance(equation, dict) and equation.get("file"):
-            path = node.path.parent / str(equation["file"])
-            display = _display_from_equation_file(path)
+            display = _display_from_equation(reader, node, str(equation["file"]))
             if display:
                 return display
     return None
@@ -36,10 +36,14 @@ def load_equation_context(reader: StandardsReader, node_id: str) -> dict[str, An
     for equation in equations:
         if not isinstance(equation, dict) or not equation.get("file"):
             continue
-        path = node.path.parent / str(equation["file"])
-        if not path.exists():
-            continue
-        data = _parse_equation_frontmatter(path)
+        file_ref = str(equation["file"])
+        path = reader.resolve_asset_path(node, file_ref)
+        if path is not None and path.is_file():
+            data = _parse_equation_frontmatter(path)
+        else:
+            text = reader.read_asset_text(node, file_ref)
+            metadata, _ = split_frontmatter(text) if text else ({}, "")
+            data = metadata if isinstance(metadata, dict) else {}
         if data:
             display = display or str(data.get("display", "")).strip().strip('"') or None
             name = name or str(data.get("name", "")).strip() or None
@@ -182,6 +186,22 @@ def _nomenclature_reference_link(
 
 def _collapse_whitespace(text: str) -> str:
     return re.sub(r"\s+", " ", text.strip())
+
+
+def _display_from_equation(reader: StandardsReader, node, file_ref: str) -> str | None:
+    path = reader.resolve_asset_path(node, file_ref)
+    if path is not None and path.is_file():
+        return _display_from_equation_file(path)
+    text = reader.read_asset_text(node, file_ref)
+    if not text:
+        return None
+    metadata, _ = split_frontmatter(text)
+    if isinstance(metadata, dict) and metadata.get("display"):
+        return str(metadata["display"]).strip().strip('"')
+    for line in text.splitlines():
+        if line.strip().startswith("display:"):
+            return line.split("display:", 1)[1].strip().strip('"')
+    return None
 
 
 def _display_from_equation_file(path: Path) -> str | None:

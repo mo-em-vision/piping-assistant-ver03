@@ -34,7 +34,7 @@ def test_pending_definition_inputs_after_thickness_without_corrosion(standards_r
     pending = pending_definition_equation_inputs(
         task,
         standards_reader,
-        ("B313-304.1.1", "B313-material-stress", "B313-304.1.2"),
+        ("B313-304.1.1", "B313-table-A-1", "B313-304.1.2"),
     )
     assert pending == ["corrosion_allowance"]
 
@@ -46,7 +46,7 @@ def test_complete_definition_equation_after_corrosion_input(standards_reader) ->
     del inputs["corrosion_allowance"]
     run_completed_workflow(manager, standards_reader, task_id, inputs=inputs)
     task = manager.get_task(task_id)
-    execution_order = ("B313-304.1.1", "B313-material-stress", "B313-304.1.2")
+    execution_order = ("B313-304.1.1", "B313-table-A-1", "B313-304.1.2")
 
     task.inputs["corrosion_allowance"] = EngineeringInput(
         input_id="corrosion_allowance",

@@ -28,6 +28,11 @@ def state_manager() -> TaskStateManager:
 
 
 @pytest.fixture
+def data_dir(project_root: Path) -> Path:
+    return project_root / "tests" / "data"
+
+
+@pytest.fixture
 def scenarios_dir(project_root: Path) -> Path:
     return project_root / "tests" / "data" / "scenarios"
 

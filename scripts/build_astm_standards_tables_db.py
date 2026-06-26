@@ -94,6 +94,12 @@ def import_material_properties_pack(
 def build_all() -> list[Path]:
     packs = [
         (
+            _ROOT / "standards" / "astm" / "astm_a53",
+            "astm_a53",
+            "ASTM-a53-material-properties",
+            _ROOT / "scripts" / "seeds" / "astm_a53_material_properties.yaml",
+        ),
+        (
             _ROOT / "standards" / "astm" / "astm_a106",
             "astm_a106",
             "ASTM-a106-material-properties",
@@ -104,6 +110,12 @@ def build_all() -> list[Path]:
             "astm_a312",
             "ASTM-a312-material-properties",
             _ROOT / "scripts" / "seeds" / "astm_a312_material_properties.yaml",
+        ),
+        (
+            _ROOT / "standards" / "astm" / "astm_stainless_castings",
+            "astm_stainless_castings",
+            "ASTM-stainless-castings-material-properties",
+            _ROOT / "scripts" / "seeds" / "astm_stainless_castings_material_properties.yaml",
         ),
     ]
     built: list[Path] = []

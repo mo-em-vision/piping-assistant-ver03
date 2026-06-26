@@ -5,10 +5,16 @@ from __future__ import annotations
 import re
 
 # Sample catalog ids used in development seeds and B31.3 lookup tables.
+ASTM_A53 = "astm_a53"
+ASTM_A105 = "astm_a105"
 ASTM_A106_GR_A = "astm_a106_gr_a"
 ASTM_A106_GR_B = "astm_a106_gr_b"
 ASTM_A106_GR_C = "astm_a106_gr_c"
 ASME_SA_105 = "asme_sa_105"
+API_5L = "api_5l"
+ASTM_A351 = "astm_a351"
+ASTM_A451 = "astm_a451"
+ASTM_A487 = "astm_a487"
 
 _ID_SLUG_RE = re.compile(r"[^a-z0-9_]+")
 

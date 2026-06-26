@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -149,6 +150,19 @@ def inside_diameter_from_od_and_thickness(outside_diameter: float, thickness: fl
     return outside_diameter - 2.0 * thickness
 
 
+def _normalize_joint_category(value: str) -> str:
+    """Normalize B31.3 joint-category labels and short workflow aliases."""
+    cleaned = re.sub(r"[^a-z0-9]+", "_", value.strip().lower())
+    cleaned = re.sub(r"_+", "_", cleaned).strip("_")
+    aliases = {
+        "seamless": "seamless_pipe",
+        "erw": "electric_resistance_welded_pipe",
+        "forging": "forgings",
+        "furnace_butt_welded": "furnace_butt_welded_pipe",
+    }
+    return aliases.get(cleaned, cleaned)
+
+
 def _row_material_token(row: dict[str, Any]) -> str:
     return str(row.get("material_id") or row.get("material", ""))
 
@@ -160,7 +174,7 @@ def lookup_quality_factor(
     joint_category: str,
 ) -> float | None:
     """Look up E from Tables A-1A and A-1B by material and joint category."""
-    category = joint_category.strip().lower().replace("-", "_")
+    category = _normalize_joint_category(joint_category)
     standards_root = standards_root_from_pack_root(pack_root)
     for table_ref in (TABLE_A_1A, TABLE_A_1B):
         table_data = _load_table(pack_root, table_ref)
@@ -175,9 +189,11 @@ def lookup_quality_factor(
             continue
         for row in rows:
             row_material = _row_material_token(row)
-            row_category = str(row.get("joint_category", "")).strip().lower().replace("-", "_")
+            row_category = _normalize_joint_category(str(row.get("joint_category", "")))
             if row_material == material_key and row_category == category:
-                return float(row["quality_factor_E"])
+                value = row.get("quality_factor_E", row.get("quality_factor_E_c"))
+                if value is not None:
+                    return float(value)
     return None
 
 
