@@ -86,13 +86,19 @@ class ProjectSessionStore:
             encoding="utf-8",
         )
 
-    def load_conversation(self) -> list[dict[str, str]]:
-        return self.repository.load_conversation(self.session_id)
+    def load_conversation(self, task_id: str | None = None) -> list[dict[str, str]]:
+        return self.repository.load_conversation(self.session_id, task_id=task_id)
 
     def save_conversation(self, messages: list[dict[str, str]]) -> None:
         self.repository.save_conversation(self.session_id, messages)
         conversation_path = self.session_path / "conversation.json"
         conversation_path.write_text(json.dumps(messages, indent=2), encoding="utf-8")
+
+    def clear_conversation(self, task_id: str | None = None) -> None:
+        self.repository.clear_conversation(self.session_id, task_id=task_id)
+        conversation_path = self.session_path / "conversation.json"
+        remaining = self.repository.load_conversation(self.session_id)
+        conversation_path.write_text(json.dumps(remaining, indent=2), encoding="utf-8")
 
     def append_message(self, role: str, content: str) -> None:
         messages = self.load_conversation()

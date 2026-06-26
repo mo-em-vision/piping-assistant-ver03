@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from engine.reports.formatters import is_valid_pdf_file
 from engine.reports.report_generator import ReportGenerator
 from engine.state.state_manager import TaskNotFoundError, TaskStateManager
 from models.report import ReportData, ReportStorage
@@ -19,7 +20,7 @@ DOWNLOAD_FORMATS = frozenset({"pdf", "html", "markdown", "md", "json"})
 
 _FORMAT_GROUPS: dict[str, tuple[str, ...]] = {
     "pdf": ("pdf", "html", "markdown", "json"),
-    "html": ("html", "markdown", "json"),
+    "html": ("html", "markdown", "json", "pdf"),
     "markdown": ("markdown", "json"),
     "md": ("markdown", "json"),
     "json": ("json",),
@@ -35,6 +36,8 @@ def _file_info(path: str | None) -> dict[str, Any]:
         return {"available": False, "filename": None, "updated_at": None, "path": None}
     file_path = Path(path)
     if not file_path.exists():
+        return {"available": False, "filename": file_path.name, "updated_at": None, "path": str(file_path)}
+    if file_path.suffix.lower() == ".pdf" and not is_valid_pdf_file(file_path):
         return {"available": False, "filename": file_path.name, "updated_at": None, "path": str(file_path)}
     updated = datetime.fromtimestamp(file_path.stat().st_mtime, tz=timezone.utc).isoformat()
     return {

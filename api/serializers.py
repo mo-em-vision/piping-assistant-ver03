@@ -6,7 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from api.error_catalog import enrich_api_error_payload
-from api.equation_inputs_display import format_thickness_result_display
+from api.equation_inputs_display import (
+    _input_display_value,
+    format_thickness_result_display,
+    format_value_with_unit_for_display,
+)
 from api.json_encoding import dumps as json_dumps, json_safe
 from api.node_calculation_summaries import build_node_calculation_summaries
 from api.node_context import active_node_context_for_task
@@ -25,8 +29,6 @@ from engine.graph.definition_equations import (
     has_execution_trace,
     pending_definition_equation_inputs,
 )
-from engine.reference.material_catalog_db import material_display_name
-from engine.reference.material_resolver import canonical_material_id
 from engine.reference.standards_reader import StandardsReader
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
@@ -102,6 +104,9 @@ def _task_workflow_id(task: Task) -> str:
 
 
 def _task_display_name(task: Task) -> str:
+    custom = task.outputs.get("display_name")
+    if isinstance(custom, str) and custom.strip():
+        return custom.strip()
     workflow_id = _task_workflow_id(task)
     meta = _workflow_meta(workflow_id)
     return meta["name"]
@@ -121,11 +126,7 @@ def _input_to_dict(value: Any) -> dict[str, Any]:
 
 
 def _format_display_value(value: Any, unit: str | None) -> str | None:
-    if value is None:
-        return None
-    if unit and unit not in _HIDDEN_UNITS:
-        return f"{value} {unit}"
-    return str(value)
+    return format_value_with_unit_for_display(value, unit)
 
 
 def _thickness_step_display_value(task: Task, thickness: float) -> str:
@@ -144,25 +145,12 @@ def _input_display(
     *,
     standards_root: Path | None = None,
 ) -> str | None:
-    engineering_input = task.inputs.get(input_id)
-    if engineering_input is None and input_id == "allowable_stress":
-        stress = task.outputs.get("allowable_stress") or task.outputs.get("S")
-        if stress is not None:
-            return _format_display_value(stress, "MPa")
-        return None
-    if engineering_input is None:
-        return None
     if input_id == "pressure_loading":
-        return _pressure_loading_report_value(engineering_input.value)
-    if input_id == "material":
-        raw = str(engineering_input.value).strip()
-        if not raw:
+        engineering_input = task.inputs.get(input_id)
+        if engineering_input is None:
             return None
-        root = standards_root or (Path(__file__).resolve().parent.parent / "standards")
-        material_id = canonical_material_id(raw, standards_root=root) or raw
-        label = material_display_name(root, material_id)
-        return label or raw
-    return _format_display_value(engineering_input.value, engineering_input.unit)
+        return _pressure_loading_report_value(engineering_input.value)
+    return _input_display_value(task, input_id, standards_root=standards_root)
 
 
 def _pressure_loading_report_value(value: Any) -> str:

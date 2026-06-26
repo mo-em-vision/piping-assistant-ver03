@@ -57,6 +57,31 @@ export function isDisplayEquationLike(text: string): boolean {
   return normalizeDisplayEquation(text) != null
 }
 
+const FENCED_BLOCK_PATTERN = /```[\s\S]*?```/g
+const BARE_DISPLAY_EQUATION_PATTERN = /(^|\n)\$\$\s*\n([\s\S]*?)\n\$\$\s*(?=\n|$)/g
+
+function wrapBareDisplayEquationsInSegment(segment: string): string {
+  return segment.replace(BARE_DISPLAY_EQUATION_PATTERN, (match, before, equationBody) => {
+    return `${before}\`\`\`\n$$\n${equationBody}\n$$\n\`\`\``
+  })
+}
+
+export function normalizeBareDisplayEquations(markdown: string): string {
+  const parts = markdown.split(FENCED_BLOCK_PATTERN)
+  const fences = markdown.match(FENCED_BLOCK_PATTERN) ?? []
+
+  if (fences.length === 0) {
+    return wrapBareDisplayEquationsInSegment(markdown)
+  }
+
+  let result = wrapBareDisplayEquationsInSegment(parts[0] ?? '')
+  for (let index = 0; index < fences.length; index += 1) {
+    result += fences[index]
+    result += wrapBareDisplayEquationsInSegment(parts[index + 1] ?? '')
+  }
+  return result
+}
+
 export function isInequalityLike(text: string): boolean {
   const normalized = text.trim()
   if (!normalized || normalized.includes('\n') || normalized.length > 120) {

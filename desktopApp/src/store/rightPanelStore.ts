@@ -2,6 +2,12 @@ import { create } from 'zustand'
 
 export type StandardsReferenceKind = 'node' | 'table'
 
+export interface TableViewerContext {
+  searchQuery?: string
+  columnFilters?: Record<string, string>
+  highlightKeys?: Record<string, string>
+}
+
 export type RightPanelTab =
   | { id: 'task'; kind: 'task'; title: 'Task' }
   | { id: 'chat'; kind: 'chat'; title: 'Chat' }
@@ -11,6 +17,7 @@ export type RightPanelTab =
       title: string
       referenceKind: StandardsReferenceKind
       referenceId: string
+      viewerContext?: TableViewerContext
     }
 
 const PINNED_TABS: RightPanelTab[] = [
@@ -18,10 +25,21 @@ const PINNED_TABS: RightPanelTab[] = [
   { id: 'chat', kind: 'chat', title: 'Chat' },
 ]
 
+export interface OpenReferenceTabOptions {
+  /** When false, add or update the tab without leaving the current panel view. */
+  activate?: boolean
+}
+
 interface RightPanelState {
   tabs: RightPanelTab[]
   activeTabId: string
-  openReferenceTab: (referenceId: string, title: string, referenceKind?: StandardsReferenceKind) => void
+  openReferenceTab: (
+    referenceId: string,
+    title: string,
+    referenceKind?: StandardsReferenceKind,
+    viewerContext?: TableViewerContext,
+    options?: OpenReferenceTabOptions,
+  ) => void
   closeTab: (id: string) => void
   setActiveTab: (id: string) => void
   reset: () => void
@@ -35,7 +53,8 @@ export const useRightPanelStore = create<RightPanelState>((set, get) => ({
   tabs: PINNED_TABS,
   activeTabId: 'task',
 
-  openReferenceTab: (referenceId, title, referenceKind = 'node') => {
+  openReferenceTab: (referenceId, title, referenceKind = 'node', viewerContext, options) => {
+    const activate = options?.activate ?? true
     const existing = get().tabs.find(
       (tab) =>
         tab.kind === 'reference' &&
@@ -43,14 +62,35 @@ export const useRightPanelStore = create<RightPanelState>((set, get) => ({
         tab.referenceId === referenceId,
     )
     if (existing) {
-      set({ activeTabId: existing.id })
+      set((state) => ({
+        activeTabId: activate ? existing.id : state.activeTabId,
+        tabs: state.tabs.map((tab) =>
+          tab.id === existing.id && tab.kind === 'reference'
+            ? {
+                ...tab,
+                title,
+                viewerContext: viewerContext ?? tab.viewerContext,
+              }
+            : tab,
+        ),
+      }))
       return
     }
 
     const id = referenceTabId(referenceKind, referenceId)
     set((state) => ({
-      tabs: [...state.tabs, { id, kind: 'reference', title, referenceKind, referenceId }],
-      activeTabId: id,
+      tabs: [
+        ...state.tabs,
+        {
+          id,
+          kind: 'reference',
+          title,
+          referenceKind,
+          referenceId,
+          viewerContext,
+        },
+      ],
+      activeTabId: activate ? id : state.activeTabId,
     }))
   },
 

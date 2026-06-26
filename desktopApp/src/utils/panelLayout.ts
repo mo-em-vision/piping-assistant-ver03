@@ -2,7 +2,31 @@ export const MIN_PANEL_WIDTH = 200
 export const MAX_LEFT_PANEL_WIDTH = 480
 export const MIN_CENTER_PANEL_WIDTH = 280
 export const DEFAULT_LEFT_WIDTH = 260
-export const DEFAULT_RIGHT_WIDTH = 320
+export const DEFAULT_RIGHT_WIDTH = 420
+export const DEFAULT_RIGHT_WIDTH_FULLSCREEN = DEFAULT_RIGHT_WIDTH
+export const LEGACY_DEFAULT_RIGHT_WIDTH = 320
+
+const AUTOMATIC_RIGHT_WIDTHS = new Set([MIN_PANEL_WIDTH, LEGACY_DEFAULT_RIGHT_WIDTH, 640])
+
+export function getDefaultRightWidth(isFullScreen: boolean): number {
+  return isFullScreen ? DEFAULT_RIGHT_WIDTH_FULLSCREEN : DEFAULT_RIGHT_WIDTH
+}
+
+export function shouldSnapRightWidthToDefault(
+  width: number,
+  previousMaxWidth: number,
+  nextMaxWidth: number,
+  isFullScreen: boolean,
+): boolean {
+  const preferredDefault = getDefaultRightWidth(isFullScreen)
+  if (nextMaxWidth < preferredDefault || width === preferredDefault) {
+    return false
+  }
+  if (AUTOMATIC_RIGHT_WIDTHS.has(width)) {
+    return true
+  }
+  return false
+}
 export const COLLAPSED_RAIL_WIDTH = 32
 export const RESIZE_HANDLE_WIDTH = 4
 

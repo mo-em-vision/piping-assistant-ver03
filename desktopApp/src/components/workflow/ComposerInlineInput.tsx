@@ -18,6 +18,9 @@ interface ComposerInlineInputProps {
   onUnitChange?: (unit: string) => void
   unitAriaLabel?: string
   variant?: 'text' | 'numeric'
+  layout?: 'compact' | 'fluid'
+  autoFocus?: boolean
+  className?: string
   onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void
   focusKey?: string
 }
@@ -47,6 +50,9 @@ export function ComposerInlineInput({
   onUnitChange,
   unitAriaLabel,
   variant = 'text',
+  layout = 'compact',
+  autoFocus = true,
+  className,
   onKeyDown,
   focusKey,
 }: ComposerInlineInputProps) {
@@ -56,7 +62,7 @@ export function ComposerInlineInput({
   const initialValueRef = useRef(value)
 
   useEffect(() => {
-    if (busy) {
+    if (!autoFocus || busy) {
       return
     }
 
@@ -69,11 +75,20 @@ export function ComposerInlineInput({
     if (initialValueRef.current) {
       input.select()
     }
-  }, [busy, focusKey])
+  }, [autoFocus, busy, focusKey])
+
+  const rowClassName = [
+    'composer-inline-row',
+    `composer-inline-row--${variant}`,
+    layout === 'fluid' ? 'composer-inline-row--fluid' : null,
+    className,
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <form
-      className={`composer-inline-row composer-inline-row--${variant}`}
+      className={rowClassName}
       onSubmit={(event) => {
         event.preventDefault()
         if (!busy && canSubmit) {

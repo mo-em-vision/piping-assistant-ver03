@@ -35,7 +35,7 @@ outputs:
 lookups:
   - id: appendix_a1a_quality
     source: table
-    table_id: A-1A
+    table_id: asme_b31.3_A-1A
     lookup_rule: material_and_joint_category
 ---
 
@@ -43,4 +43,4 @@ lookups:
 
 > **Development sample — not verbatim ASME B31.3 table data.**
 
-Lookup for quality factor **E** by material and joint category. Data is stored in `standards_tables.db` (`table_id: A-1A`).
+Lookup for quality factor **E** by material and joint category. Data is stored in `asme_b313_tables.db` (`table_id: asme_b31.3_A-1A`).

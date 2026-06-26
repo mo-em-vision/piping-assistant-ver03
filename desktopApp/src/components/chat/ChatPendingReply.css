@@ -1,0 +1,32 @@
+.chat-message--pending .chat-message__bubble {
+  color: #64748b;
+  font-style: italic;
+}
+
+.chat-message__pending-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.chat-message__pending-text::after {
+  content: '';
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: #94a3b8;
+  animation: chat-pending-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes chat-pending-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

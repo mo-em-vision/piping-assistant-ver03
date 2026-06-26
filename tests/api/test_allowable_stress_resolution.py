@@ -58,7 +58,7 @@ def test_submit_temperature_after_material_resolves_allowable_stress(standards_r
     assert stress == pytest.approx(193_000_000)
     assert updated.outputs["S"] == pytest.approx(193_000_000)
     lookup = updated.outputs["allowable_stress_lookup"]
-    assert lookup["table_id"] == "material_allowable_stress"
+    assert lookup["table_id"] == "asme_b31.3_material_allowable_stress"
     assert lookup["standard"] == "asme_b31.3"
     assert lookup["design_temperature_f"] == pytest.approx(200)
     assert updated.inputs["allowable_stress"].unit == "Pa"

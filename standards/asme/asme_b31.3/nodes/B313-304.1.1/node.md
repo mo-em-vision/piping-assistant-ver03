@@ -165,10 +165,10 @@ nomenclature:
     references:
       - paragraph: "304.1.1(b)"
       - table: "Table A-1A"
-        table_id: A-1A
+        table_id: asme_b31.3_A-1A
         node_id: B313-table-A-1A
       - table: "Table A-1B"
-        table_id: A-1B
+        table_id: asme_b31.3_A-1B
         node_id: B313-table-A-1B
     resolution:
       - method: table_lookup
@@ -194,7 +194,7 @@ nomenclature:
     references:
       - paragraph: "304.1.1(b)"
       - table: "Table A-1"
-        table_id: A-1
+        table_id: asme_b31.3_A-1
         node_id: B313-table-A-1
       - node_id: B313-material-stress
 
@@ -236,7 +236,7 @@ nomenclature:
     resolution:
       method: table_lookup
       keys: [material, design_temperature, weld_joint_category]
-      table_id: "302.3.5"
+      table_id: asme_b31.3_302.3.5
       node_id: B313-table-302-3-5
       subsection: e
 
@@ -249,12 +249,12 @@ nomenclature:
     references:
       - paragraph: "304.1.1(b)"
       - table: "Table 304.1.1"
-        table_id: table_304_1_1
+        table_id: asme_b31.3_table_304_1_1
         node_id: B313-table-304-1-1
     resolution:
       - when: { field: thin_wall, in: [true] }
         method: table_lookup
-        table_id: table_304_1_1
+        table_id: asme_b31.3_table_304_1_1
         key: design_temperature
         interpolation: true
       - when: { field: thin_wall, in: [false] }
@@ -345,14 +345,14 @@ The following nomenclature is used in the equations for pressure design of strai
 | **c**   | sum of the mechanical allowances (thread or groove depth) plus corrosion and erosion allowances. For threaded components, the nominal thread depth (dimension h of ASME B1.20.1, or equivalent) shall apply. For machined surfaces or grooves where the tolerance is not specified, the tolerance shall be assumed to be 0.5 mm (0.02 in.) in addition to the specified depth of the cut. |
 | **D**   | outside diameter of pipe as listed in tables of standards or specifications or as measured                                                                                                                                                                                                                                                                                                |
 | **d**   | inside diameter of pipe. For pressure design calculation, the inside diameter of the pipe is the maximum value allowable under the purchase specification.                                                                                                                                                                                                                                |
-| **E**   | quality factor from [Table A-1A](table:table_b31_3_A-1A) or [Table A-1B](table:A-1B)                                                                                                                                                                                                                                                                                            |
+| **E**   | quality factor from Table A-1A or Table A-1B                                                                                                                                                                                                                                                                                                                                              |
 | **P**   | internal design gage pressure                                                                                                                                                                                                                                                                                                                                                             |
-| **S**   | stress value for material from Table A-1                                                                                                                                                                                                                                                                                                                                                  |
+| **S**   | stress value for material from [Table A-1](table:asme_b31.3_A-1)                                                                                                                                                                                                                                                                                                                          |
 | **T**   | pipe wall thickness (measured or minimum in accordance with the purchase specification)                                                                                                                                                                                                                                                                                                   |
 | **t**   | pressure design thickness, as calculated in accordance with para. 304.1.2 for internal pressure or as determined in accordance with para. 304.1.3 for external pressure                                                                                                                                                                                                                   |
 | **t_m** | minimum required thickness, including mechanical, corrosion, and erosion allowances                                                                                                                                                                                                                                                                                                       |
 | **W**   | weld joint strength reduction factor in accordance with para. 302.3.5(e)                                                                                                                                                                                                                                                                                                                  |
-| **Y**   | coefficient from Table 304.1.1, valid for t < D/6 and for materials shown. The value of Y may be interpolated for intermediate temperatures. For t ≥ D/6: Y=(d + 2c)/(D + d + 2c)                                                                                                                                                                                                         |
+| **Y**   | coefficient from [Table 304.1.1](table:asme_b31.3_table_304_1_1), valid for t < D/6 and for materials shown. The value of Y may be interpolated for intermediate temperatures. For t ≥ D/6: Y=(d + 2c)/(D + d + 2c)                                                                                                                                                                       |
 
 
 ---

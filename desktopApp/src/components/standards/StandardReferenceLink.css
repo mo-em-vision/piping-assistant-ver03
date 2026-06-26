@@ -57,20 +57,3 @@
   border-color: #93c5fd;
   box-shadow: 0 0 0 3px rgba(191, 219, 254, 0.55);
 }
-
-.standard-reference-link__tooltip {
-  position: absolute;
-  left: 0;
-  top: calc(100% + 0.35rem);
-  z-index: 20;
-  width: min(22rem, 70vw);
-  padding: 0.55rem 0.7rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #ffffff;
-  color: #334155;
-  font-size: 0.75rem;
-  line-height: 1.45;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  pointer-events: none;
-}

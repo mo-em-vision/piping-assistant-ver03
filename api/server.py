@@ -28,7 +28,7 @@ def _json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict[s
     handler.send_header("Content-Type", "application/json")
     handler.send_header("Content-Length", str(len(body)))
     handler.send_header("Access-Control-Allow-Origin", "*")
-    handler.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+    handler.send_header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
     handler.send_header("Access-Control-Allow-Headers", "Content-Type")
     handler.end_headers()
     handler.wfile.write(body)
@@ -84,7 +84,7 @@ class ApiHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self) -> None:
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
@@ -122,7 +122,13 @@ class ApiHandler(BaseHTTPRequestHandler):
 
             if path == "/api/v1/chat/messages":
                 session_id = query.get("session_id", [None])[0]
-                _json_response(self, 200, self.service.list_chat_messages(session_id))
+                task_id = query.get("task_id", [None])[0]
+                resolved_task_id = str(task_id) if task_id else None
+                _json_response(
+                    self,
+                    200,
+                    self.service.list_chat_messages(session_id, task_id=resolved_task_id),
+                )
                 return
 
             if path == "/api/v1/materials/search":
@@ -183,6 +189,14 @@ class ApiHandler(BaseHTTPRequestHandler):
 
                 if suffix == "reports":
                     _json_response(self, 200, self.service.get_task_report(task_id, session_id))
+                    return
+
+                if suffix == "continuation-suggestions":
+                    _json_response(
+                        self,
+                        200,
+                        self.service.get_task_continuation_suggestions(task_id, session_id),
+                    )
                     return
 
                 if suffix is None:
@@ -306,17 +320,63 @@ class ApiHandler(BaseHTTPRequestHandler):
                 body = _read_json_body(self)
                 message = str(body.get("message") or "")
                 task_id = body.get("task_id")
+                display_message = body.get("display_message")
+                mode = body.get("mode")
                 resolved_task_id = str(task_id) if task_id else None
+                resolved_display_message = (
+                    str(display_message).strip() if display_message else None
+                )
+                resolved_mode = str(mode).strip() if mode else None
                 _json_response(
                     self,
                     200,
                     self.service.post_chat_message(
                         message,
+                        display_message=resolved_display_message,
                         task_id=resolved_task_id,
+                        mode=resolved_mode,
                         session_id=session_id,
                     ),
                 )
                 return
+
+            _json_response(
+                self,
+                404,
+                _api_error_payload("not_found", f"No route for {path}"),
+            )
+        except ApiError as exc:
+            _json_response(self, exc.status, _api_error_from_exception(exc))
+        except Exception as exc:  # noqa: BLE001
+            _json_response(
+                self,
+                500,
+                _api_error_payload("internal_error", str(exc)),
+            )
+
+    def do_PATCH(self) -> None:
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+        query = parse_qs(parsed.query)
+        session_id = query.get("session_id", [None])[0]
+
+        try:
+            if path.startswith("/api/v1/projects/"):
+                project_id = path.removeprefix("/api/v1/projects/").strip("/")
+                if project_id and "/" not in project_id:
+                    body = _read_json_body(self)
+                    name = str(body.get("name") or "")
+                    _json_response(self, 200, self.service.rename_project(project_id, name))
+                    return
+
+            task_route = _parse_task_route(path)
+            if task_route:
+                task_id, suffix = task_route
+                if suffix is None:
+                    body = _read_json_body(self)
+                    name = str(body.get("name") or "")
+                    _json_response(self, 200, self.service.rename_task(task_id, name, session_id))
+                    return
 
             _json_response(
                 self,
@@ -339,12 +399,28 @@ class ApiHandler(BaseHTTPRequestHandler):
         session_id = query.get("session_id", [None])[0]
 
         try:
+            if path.startswith("/api/v1/projects/"):
+                project_id = path.removeprefix("/api/v1/projects/").strip("/")
+                if project_id and "/" not in project_id:
+                    _json_response(self, 200, self.service.delete_project(project_id))
+                    return
+
             task_route = _parse_task_route(path)
             if task_route:
                 task_id, suffix = task_route
                 if suffix is None:
                     _json_response(self, 200, self.service.delete_task(task_id, session_id))
                     return
+
+            if path == "/api/v1/chat/messages":
+                task_id = query.get("task_id", [None])[0]
+                resolved_task_id = str(task_id) if task_id else None
+                _json_response(
+                    self,
+                    200,
+                    self.service.clear_chat_messages(session_id, task_id=resolved_task_id),
+                )
+                return
 
             _json_response(
                 self,

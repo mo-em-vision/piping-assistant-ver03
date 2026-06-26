@@ -1,3 +1,6 @@
+import type { MouseEvent } from 'react'
+
+import { SidePanelRowActions } from '@/components/layout/SidePanelRowActions'
 import type { TaskSummary } from '@/types/frontend/workspace'
 
 import './RecentTaskRow.css'
@@ -8,6 +11,8 @@ interface RecentTaskRowProps {
   disabled?: boolean
   onSelect: () => void
   onDelete: () => void
+  onRename: (task: TaskSummary) => void
+  onContextMenu: (event: MouseEvent, task: TaskSummary) => void
 }
 
 function formatStatus(status?: string): string {
@@ -17,9 +22,20 @@ function formatStatus(status?: string): string {
   return status.replace(/_/g, ' ')
 }
 
-export function RecentTaskRow({ task, isActive, disabled, onSelect, onDelete }: RecentTaskRowProps) {
+export function RecentTaskRow({
+  task,
+  isActive,
+  disabled,
+  onSelect,
+  onDelete,
+  onRename,
+  onContextMenu,
+}: RecentTaskRowProps) {
   return (
-    <div className={`recent-task-row${isActive ? ' recent-task-row--active' : ''}`}>
+    <div
+      className={`recent-task-row${isActive ? ' recent-task-row--active' : ''}`}
+      onContextMenu={(event) => onContextMenu(event, task)}
+    >
       <button
         type="button"
         className="recent-task-row__select"
@@ -29,19 +45,13 @@ export function RecentTaskRow({ task, isActive, disabled, onSelect, onDelete }: 
         <span className="recent-task-row__name">{task.name}</span>
         <span className="recent-task-row__status">{formatStatus(task.status)}</span>
       </button>
-      <button
-        type="button"
-        className="recent-task-row__delete"
+      <SidePanelRowActions
         disabled={disabled}
-        onClick={(event) => {
-          event.stopPropagation()
-          onDelete()
-        }}
-        aria-label={`Delete ${task.name}`}
-        title="Delete task"
-      >
-        🗑
-      </button>
+        editLabel={`Rename ${task.name}`}
+        deleteLabel={`Delete ${task.name}`}
+        onEdit={() => onRename(task)}
+        onDelete={onDelete}
+      />
     </div>
   )
 }

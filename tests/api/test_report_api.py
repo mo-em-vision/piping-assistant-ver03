@@ -50,6 +50,7 @@ def test_generate_and_preview_report(temp_service: DesktopApiService, standards_
     generated = temp_service.generate_task_report(task_id, report_format="html", session_id=session_id)
     assert generated["generation_status"] == "ready"
     assert generated["files"]["html"]["available"] is True
+    assert generated["files"]["pdf"]["available"] is True
 
     preview = temp_service.preview_task_report(task_id, preview_format="html", session_id=session_id)
     assert "Purpose" in preview["content"] or generated["title"] in preview["content"]
@@ -61,3 +62,32 @@ def test_generate_and_preview_report(temp_service: DesktopApiService, standards_
     )
     assert file_path.exists()
     assert "html" in content_type
+
+    pdf_path, pdf_content_type = temp_service.download_task_report(
+        task_id,
+        download_format="pdf",
+        session_id=session_id,
+    )
+    assert pdf_path.exists()
+    assert pdf_path.read_bytes()[:5] == b"%PDF-"
+    assert "pdf" in pdf_content_type
+
+
+def test_generate_pdf_report(temp_service: DesktopApiService, standards_reader, state_manager) -> None:
+    session_id = api_session_id(temp_service)
+    task_id = "pipe-wall-thickness-desi-report03"
+    run_completed_workflow(state_manager, standards_reader, task_id)
+    temp_service._save_manager(state_manager, session_id)
+
+    generated = temp_service.generate_task_report(task_id, report_format="pdf", session_id=session_id)
+    assert generated["generation_status"] == "ready"
+    assert generated["files"]["pdf"]["available"] is True
+
+    file_path, content_type = temp_service.download_task_report(
+        task_id,
+        download_format="pdf",
+        session_id=session_id,
+    )
+    assert file_path.exists()
+    assert file_path.read_bytes()[:5] == b"%PDF-"
+    assert "pdf" in content_type

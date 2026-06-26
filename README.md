@@ -44,6 +44,8 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+PDF reports require `xhtml2pdf` (included in `requirements.txt`). After setup, generate with `format: pdf` via the API or desktop UI. For the packaged desktop app, run `npm run stage:backend && npm run prepare:backend` inside `desktopApp/` to install backend dependencies into the bundled virtual environment.
+
 Optional environment variables (for AI chat):
 
 | Variable          | Purpose                        |
@@ -51,6 +53,8 @@ Optional environment variables (for AI chat):
 | `OPENAI_API_KEY`  | OpenAI API key                 |
 | `OPENAI_MODEL`    | Model name (optional)          |
 | `OPENAI_BASE_URL` | Custom API base URL (optional) |
+
+Place these in a `.env` file at the repository root (or `desktopApp/.env`). The backend loads both locations on startup.
 
 Configuration file: [`config/config.yaml`](config/config.yaml) (`default_standard`, `standards_root`, `sessions_dir`, etc.).
 

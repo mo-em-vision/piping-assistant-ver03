@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ConnectionErrorBanner } from '@/components/errors/ConnectionErrorBanner'
+import { useWindowDisplayState } from '@/hooks/useWindowDisplayState'
 import { useTaskStore } from '@/store/taskStore'
 import { useUiStore } from '@/store/uiStore'
 import { computeMaxRightPanelWidth } from '@/utils/panelLayout'
@@ -38,6 +39,8 @@ export function WorkspaceLayout({
   const setMaxRightWidth = useUiStore((state) => state.setMaxRightWidth)
   const toggleLeftCollapsed = useUiStore((state) => state.toggleLeftCollapsed)
   const toggleRightCollapsed = useUiStore((state) => state.toggleRightCollapsed)
+
+  useWindowDisplayState()
 
   const bodyRef = useRef<HTMLDivElement>(null)
   const [workspaceBodyWidth, setWorkspaceBodyWidth] = useState(0)

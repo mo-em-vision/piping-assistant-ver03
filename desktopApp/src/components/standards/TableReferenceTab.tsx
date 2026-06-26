@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react'
 
+import { StandardsTableViewer } from '@/components/standards/StandardsTableViewer'
 import { standardsApi } from '@/services/api/standardsApi'
+import type { TableViewerContext } from '@/store/rightPanelStore'
 
 import type { TableSourceDto } from '@/types/backend/api'
 
 import './NodeReferenceTab.css'
-import './TableReferenceTab.css'
 
 interface TableReferenceTabProps {
   tableId: string
+  viewerContext?: TableViewerContext
 }
 
-export function TableReferenceTab({ tableId }: TableReferenceTabProps) {
+export function TableReferenceTab({ tableId, viewerContext }: TableReferenceTabProps) {
   const [payload, setPayload] = useState<TableSourceDto | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -57,29 +59,8 @@ export function TableReferenceTab({ tableId }: TableReferenceTabProps) {
   }
 
   return (
-    <div className="node-reference-tab">
-      <h3 className="table-reference-tab__title">{payload.title}</h3>
-      {payload.source_path ? (
-        <p className="table-reference-tab__meta">{payload.standard} · {payload.source_path}</p>
-      ) : null}
-      <table className="table-reference-tab__table">
-        <thead>
-          <tr>
-            {payload.columns.map((column) => (
-              <th key={column.key}>{column.label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {payload.rows.map((row, index) => (
-            <tr key={`${payload.table_id}-row-${index}`}>
-              {payload.columns.map((column) => (
-                <td key={column.key}>{String(row[column.key] ?? '')}</td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="node-reference-tab node-reference-tab--table-viewer">
+      <StandardsTableViewer payload={payload} viewerContext={viewerContext} />
     </div>
   )
 }

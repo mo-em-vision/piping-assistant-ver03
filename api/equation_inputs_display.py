@@ -61,6 +61,17 @@ def _format_scalar(value: object) -> str:
     return str(value)
 
 
+def format_value_with_unit_for_display(value: Any, unit: str | None) -> str | None:
+    if value is None:
+        return None
+    if unit and unit not in _HIDDEN_UNITS:
+        normalized = unit.strip()
+        if normalized == "Pa" and isinstance(value, (int, float)):
+            return f"{float(value) / 1_000_000:g} MPa"
+        return f"{_format_scalar(value)} {_format_unit_for_display(normalized)}"
+    return _format_scalar(value)
+
+
 def _format_unit_for_display(unit: str) -> str:
     normalized = unit.strip().lower()
     if normalized == "c":
@@ -95,7 +106,7 @@ def _input_display_value_from_input(task: Task, input_id: str) -> str | None:
         value = engineering_input.value
         unit = engineering_input.unit
         if unit and unit not in _HIDDEN_UNITS:
-            return f"{_format_scalar(value)} {_format_unit_for_display(unit)}"
+            return format_value_with_unit_for_display(value, unit)
         return _format_scalar(value)
 
     return None
@@ -221,7 +232,7 @@ def _allowable_stress_display_value(task: Task) -> str | None:
         return None
     unit = str(task.outputs.get("allowable_stress_unit") or task.outputs.get("S_unit") or "Pa")
     if unit == "Pa":
-        display = f"{float(stress) / 1_000_000:g} MPa"
+        display = format_value_with_unit_for_display(stress, "Pa")
     elif unit not in _HIDDEN_UNITS:
         display = f"{_format_scalar(stress)} {unit}"
     else:
@@ -287,9 +298,9 @@ def _temperature_coefficient_display_value(task: Task) -> str | None:
     return f"{display} ({_ASME_B31_3} Table 304.1.1, {material} @ {temp_display})"
 
 
-def _input_display_value(task: Task, input_id: str) -> str | None:
+def _input_display_value(task: Task, input_id: str, *, standards_root: Path | None = None) -> str | None:
     if input_id == "material":
-        return _material_label(task)
+        return _material_label(task, standards_root=standards_root)
     if input_id == "outside_diameter":
         return _outside_diameter_display_value(task)
     if input_id == "allowable_stress":

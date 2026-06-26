@@ -12,6 +12,7 @@ from api.equation_inputs_display import (
     build_formula_inputs_table_rows,
     build_substituted_formula_display,
     definitions_from_equation_variables,
+    format_value_with_unit_for_display,
     primary_formula_inputs_complete,
 )
 from api.output_blocks import build_display_outputs
@@ -30,6 +31,12 @@ _ALL_AWAITING_ROWS = [
     {"symbol": "W", "definition": "Weld strength reduction", "value": AWAITING_USER_INPUT},
     {"symbol": "Y", "definition": "Temperature coefficient", "value": AWAITING_USER_INPUT},
 ]
+
+
+def test_format_value_with_unit_for_display_converts_pascal_to_mpa() -> None:
+    assert format_value_with_unit_for_display(193_000_000, "Pa") == "193 MPa"
+    assert format_value_with_unit_for_display(8.0, "bar") == "8.0 bar"
+    assert format_value_with_unit_for_display(200.0, "C") == "200.0 °C"
 
 
 def test_build_formula_inputs_table_rows_from_task_inputs() -> None:
@@ -254,7 +261,7 @@ def test_allowable_stress_value_includes_asme_b31_3_lookup_context() -> None:
         "allowable_stress_unit": "Pa",
         "allowable_stress_lookup": {
             "standard": "asme_b31.3",
-            "table_id": "material_allowable_stress",
+            "table_id": "asme_b31.3_material_allowable_stress",
             "material": "SA-106B",
             "design_temperature_f": 400.0,
             "interpolated": False,

@@ -1,7 +1,11 @@
-import { useCallback, useState } from 'react'
-
-import { standardsApi } from '@/services/api/standardsApi'
-import { useRightPanelStore, type StandardsReferenceKind } from '@/store/rightPanelStore'
+import {
+  useRightPanelStore,
+  type StandardsReferenceKind,
+  type TableViewerContext,
+} from '@/store/rightPanelStore'
+import { useTaskStore } from '@/store/taskStore'
+import { useUiStore } from '@/store/uiStore'
+import { buildTableViewerContext } from '@/utils/tableViewerContext'
 
 import './StandardReferenceLink.css'
 
@@ -10,7 +14,9 @@ interface StandardReferenceLinkProps {
   referenceId?: string
   nodeId?: string
   label: string
-  hoverExcerpt?: string | null
+  viewerContext?: TableViewerContext
+  /** When false, open the reference tab without leaving the current panel view. */
+  activateTab?: boolean
 }
 
 export function StandardReferenceLink({
@@ -18,53 +24,33 @@ export function StandardReferenceLink({
   referenceId,
   nodeId,
   label,
-  hoverExcerpt,
+  viewerContext,
+  activateTab = true,
 }: StandardReferenceLinkProps) {
   const resolvedId = referenceId ?? nodeId ?? ''
   const openReferenceTab = useRightPanelStore((state) => state.openReferenceTab)
-  const [excerpt, setExcerpt] = useState<string | null>(hoverExcerpt ?? null)
-  const [isHovering, setIsHovering] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const activeTaskState = useTaskStore((state) => state.activeTaskState)
 
-  const ensureExcerpt = useCallback(async () => {
-    if (excerpt || loading || !resolvedId) {
-      return
-    }
-    setLoading(true)
-    try {
-      const payload =
-        referenceKind === 'table'
-          ? await standardsApi.getTable(resolvedId)
-          : await standardsApi.getNode(resolvedId)
-      setExcerpt(payload.hover_excerpt || payload.title)
-    } catch {
-      setExcerpt('Reference text unavailable.')
-    } finally {
-      setLoading(false)
-    }
-  }, [excerpt, loading, referenceKind, resolvedId])
+  const resolvedViewerContext =
+    viewerContext ??
+    (referenceKind === 'table'
+      ? buildTableViewerContext(resolvedId, activeTaskState)
+      : undefined)
 
   return (
-    <span
-      className="standard-reference-link"
-      onMouseEnter={() => {
-        setIsHovering(true)
-        void ensureExcerpt()
-      }}
-      onMouseLeave={() => {
-        setIsHovering(false)
-      }}
-    >
+    <span className="standard-reference-link">
       <button
         type="button"
         className="standard-reference-link__button"
-        onClick={() => openReferenceTab(resolvedId, label, referenceKind)}
+        onClick={() => {
+          useUiStore.setState({ rightCollapsed: false })
+          openReferenceTab(resolvedId, label, referenceKind, resolvedViewerContext, {
+            activate: activateTab,
+          })
+        }}
       >
         {label}
       </button>
-      {isHovering && excerpt ? (
-        <span className="standard-reference-link__tooltip">{excerpt}</span>
-      ) : null}
     </span>
   )
 }

@@ -2,6 +2,7 @@ import { startTransition } from 'react'
 import { create } from 'zustand'
 
 import { applyOptimisticParameterSubmit } from '@/components/workflow/optimisticWorkflowTransition'
+import { formatEngineeringDisplayValue } from '@/utils/engineeringDisplay'
 import { inputApi } from '@/services/api/inputApi'
 import { taskApi } from '@/services/api/taskApi'
 import { toNavTaskSummary, workflowToSummary } from '@/services/api/responseParser'
@@ -38,6 +39,8 @@ interface TaskStoreState {
   createTask: (workflowId: string) => Promise<void>
   clearActiveTask: () => void
   deleteTask: (taskId: string, projectId?: string) => Promise<void>
+  renameTask: (taskId: string, name: string, projectId?: string) => Promise<void>
+  removeProjectTasks: (projectId: string) => void
   refreshActiveTask: () => Promise<void>
   submitParameter: (parameter: string, value: unknown, unit?: string) => Promise<void>
   applyTaskState: (state: TaskStateDto) => void
@@ -55,6 +58,10 @@ function stateToSummary(state: TaskStateDto): TaskSummary {
 
 function workflowToNav(workflow: TaskSummaryDto): TaskSummary {
   return toNavTaskSummary(workflow)
+}
+
+function withRenamedTaskName(tasks: TaskSummary[], taskId: string, name: string): TaskSummary[] {
+  return tasks.map((task) => (task.id === taskId ? { ...task, name } : task))
 }
 
 async function ensureProjectForTask(projectId?: string): Promise<string | undefined> {
@@ -270,6 +277,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       })
       await get().loadWorkspace()
       await get().loadProjectTasks(sessionId)
+      await useProjectStore.getState().loadProjects()
     } catch (error) {
       set({ loading: false, userError: toUserFacingError(error) })
     }
@@ -278,6 +286,13 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   clearActiveTask: () => {
     useRightPanelStore.getState().reset()
     set({ activeTask: null, activeTaskState: null })
+  },
+
+  removeProjectTasks: (projectId: string) => {
+    set((state) => {
+      const { [projectId]: _removed, ...projectTasks } = state.projectTasks
+      return { projectTasks }
+    })
   },
 
   deleteTask: async (taskId: string, projectId?: string) => {
@@ -333,7 +348,62 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
       await get().loadWorkspace()
       await get().loadProjectTasks(resolvedProjectId)
+      await useProjectStore.getState().loadProjects()
       set({ loading: false, userError: null })
+    } catch (error) {
+      set({ loading: false, userError: toUserFacingError(error) })
+    }
+  },
+
+  renameTask: async (taskId: string, name: string, projectId?: string) => {
+    const trimmed = name.trim()
+    if (!trimmed) {
+      return
+    }
+
+    const resolvedProjectId = projectId ?? get().sessionId ?? getActiveSessionId()
+
+    if (useMockData) {
+      set((state) => ({
+        activeTask:
+          state.activeTask?.id === taskId ? { ...state.activeTask, name: trimmed } : state.activeTask,
+        activeTaskState:
+          state.activeTaskState?.task_id === taskId
+            ? { ...state.activeTaskState, name: trimmed }
+            : state.activeTaskState,
+        recentTasks: withRenamedTaskName(state.recentTasks, taskId, trimmed),
+        projectTasks: Object.fromEntries(
+          Object.entries(state.projectTasks).map(([id, tasks]) => [
+            id,
+            withRenamedTaskName(tasks, taskId, trimmed),
+          ]),
+        ),
+        userError: null,
+      }))
+      return
+    }
+
+    if (!resolvedProjectId) {
+      return
+    }
+
+    set({ loading: true, userError: null })
+    try {
+      const state = await taskApi.rename(taskId, trimmed, resolvedProjectId)
+      const summary = stateToSummary(state)
+      set((current) => ({
+        activeTask: current.activeTask?.id === taskId ? summary : current.activeTask,
+        activeTaskState: current.activeTask?.id === taskId ? state : current.activeTaskState,
+        recentTasks: withRenamedTaskName(current.recentTasks, taskId, trimmed),
+        projectTasks: Object.fromEntries(
+          Object.entries(current.projectTasks).map(([id, tasks]) => [
+            id,
+            withRenamedTaskName(tasks, taskId, trimmed),
+          ]),
+        ),
+        loading: false,
+        userError: null,
+      }))
     } catch (error) {
       set({ loading: false, userError: toUserFacingError(error) })
     }
@@ -369,14 +439,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
           ? { ...item, value, status: 'confirmed' as const }
           : item,
       )
-      const displayValue =
-        typeof value === 'boolean'
-          ? value
-            ? 'Yes'
-            : 'No'
-          : unit && unit !== 'dimensionless'
-            ? `${value} ${unit}`
-            : String(value)
+      const displayValue = formatEngineeringDisplayValue(value, unit)
 
       set({
         userError: null,

@@ -102,6 +102,14 @@ def render_json(report: ReportData) -> str:
     return json.dumps(asdict(report), indent=2, default=str)
 
 
+def is_valid_pdf_file(file_path: Path) -> bool:
+    try:
+        with file_path.open("rb") as handle:
+            return handle.read(5) == b"%PDF-"
+    except OSError:
+        return False
+
+
 def write_pdf(html_content: str, output_path: Path) -> bool:
     try:
         from xhtml2pdf import pisa
@@ -110,7 +118,11 @@ def write_pdf(html_content: str, output_path: Path) -> bool:
 
     with output_path.open("wb") as handle:
         result = pisa.CreatePDF(html_content, dest=handle, encoding="utf-8")
-    return not result.err
+    if result.err or not output_path.exists():
+        if output_path.exists():
+            output_path.unlink()
+        return False
+    return is_valid_pdf_file(output_path)
 
 
 def _template_context(report: ReportData) -> dict[str, str]:

@@ -21,6 +21,16 @@ function sendBackendStatus(): void {
   mainWindow.webContents.send('backend:status', backendService.getStatus())
 }
 
+function sendWindowDisplayState(): void {
+  if (!mainWindow) {
+    return
+  }
+
+  mainWindow.webContents.send('window:displayState', {
+    isFullScreen: mainWindow.isFullScreen(),
+  })
+}
+
 async function loadRenderer(window: BrowserWindow): Promise<void> {
   const devServerUrl = process.env.VITE_DEV_SERVER_URL
 
@@ -57,12 +67,16 @@ async function createWindow(): Promise<void> {
     mainWindow = null
   })
 
+  mainWindow.on('enter-full-screen', sendWindowDisplayState)
+  mainWindow.on('leave-full-screen', sendWindowDisplayState)
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     void shell.openExternal(url)
     return { action: 'deny' }
   })
 
   await loadRenderer(mainWindow)
+  sendWindowDisplayState()
 }
 
 function registerIpcHandlers(): void {
@@ -77,6 +91,10 @@ function registerIpcHandlers(): void {
     sendBackendStatus()
     return status
   })
+
+  ipcMain.handle('window:getDisplayState', () => ({
+    isFullScreen: mainWindow?.isFullScreen() ?? false,
+  }))
 }
 
 function buildDiagnostics(): string {

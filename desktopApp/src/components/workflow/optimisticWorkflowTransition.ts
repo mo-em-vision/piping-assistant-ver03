@@ -1,4 +1,5 @@
 import type { TaskStateDto } from '@/types/backend/api'
+import { formatEngineeringDisplayValue } from '@/utils/engineeringDisplay'
 
 /** Matches backend phased navigation order in engine/graph/navigation_phases.py */
 const PIPE_WALL_STEP_ORDER = [
@@ -17,13 +18,7 @@ const PIPE_WALL_STEP_ORDER = [
 ] as const
 
 function formatDisplayValue(value: unknown, unit?: string): string {
-  if (typeof value === 'boolean') {
-    return value ? 'Yes' : 'No'
-  }
-  if (unit && unit !== 'dimensionless') {
-    return `${value} ${unit}`
-  }
-  return String(value)
+  return formatEngineeringDisplayValue(value, unit)
 }
 
 function findNextPipeWallStep(parameter: string): string | null {

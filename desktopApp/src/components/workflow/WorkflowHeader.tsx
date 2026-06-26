@@ -25,11 +25,7 @@ function renderHeading(context: ActiveNodeContextDto) {
   return (
     <p className="workflow-header__heading">
       {lead} (according to{' '}
-      <StandardReferenceLink
-        nodeId={context.node_id}
-        label={referenceLabel}
-        hoverExcerpt={context.hover_excerpt}
-      />
+      <StandardReferenceLink nodeId={context.node_id} label={referenceLabel} />
       )
     </p>
   )

@@ -29,7 +29,7 @@ outputs:
 lookups:
   - id: table_304_1_1_y
     source: table
-    table_id: table_304_1_1
+    table_id: asme_b31.3_table_304_1_1
     lookup_rule: temperature
     interpolation: true
 ---
@@ -38,4 +38,4 @@ lookups:
 
 > **Development sample — not verbatim ASME B31.3 table data.**
 
-Lookup for coefficient **Y** at design temperature (thin-wall, t < D/6). Data is stored in `standards_tables.db` (`table_id: table_304_1_1`).
+Lookup for coefficient **Y** at design temperature (thin-wall, t < D/6). Data is stored in `asme_b313_tables.db` (`table_id: asme_b31.3_table_304_1_1`).

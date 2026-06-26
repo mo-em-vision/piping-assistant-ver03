@@ -6,7 +6,6 @@ import { ReportPanel } from '@/components/reports/ReportPanel'
 import { NodeReferenceTab } from '@/components/standards/NodeReferenceTab'
 import { TableReferenceTab } from '@/components/standards/TableReferenceTab'
 import { useActiveTaskViewModel } from '@/hooks/useActiveTaskViewModel'
-import { useChatStore } from '@/store/chatStore'
 import { useRightPanelStore } from '@/store/rightPanelStore'
 import { isReportSectionVisible } from '@/store/taskStateManager'
 import { useTaskStore } from '@/store/taskStore'
@@ -125,8 +124,6 @@ function TaskContextTab() {
 
 function ChatTab() {
   const activeTask = useTaskStore((state) => state.activeTask)
-  const activeTaskState = useTaskStore((state) => state.activeTaskState)
-  const lastContext = useChatStore((state) => state.lastContext)
 
   if (!activeTask) {
     return null
@@ -134,25 +131,7 @@ function ChatTab() {
 
   return (
     <div className="side-panel__tab-body side-panel__tab-body--chat">
-      <ChatPanel
-        variant="sidebar"
-        taskId={activeTask.id}
-        context={
-          lastContext?.task_id
-            ? lastContext
-            : activeTaskState
-              ? {
-                  task_id: activeTaskState.task_id,
-                  workflow_id: activeTaskState.workflow_id,
-                  status: activeTaskState.status,
-                  current_step_id: activeTaskState.progress.current_step_id,
-                  active_nodes: activeTaskState.active_nodes,
-                  missing_inputs: activeTaskState.progress.missing_inputs,
-                  output_count: activeTaskState.display_outputs?.length ?? 0,
-                }
-              : null
-        }
-      />
+      <ChatPanel variant="sidebar" taskId={activeTask.id} />
     </div>
   )
 }
@@ -225,9 +204,12 @@ export function RightPanel() {
         {activeTab.kind === 'task' ? <TaskContextTab /> : null}
         {activeTab.kind === 'chat' ? <ChatTab /> : null}
         {activeTab.kind === 'reference' ? (
-          <div className="side-panel__tab-body">
+          <div className="side-panel__tab-body side-panel__tab-body--reference">
             {activeTab.referenceKind === 'table' ? (
-              <TableReferenceTab tableId={activeTab.referenceId} />
+              <TableReferenceTab
+                tableId={activeTab.referenceId}
+                viewerContext={activeTab.viewerContext}
+              />
             ) : (
               <NodeReferenceTab nodeId={activeTab.referenceId} />
             )}

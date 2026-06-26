@@ -34,6 +34,17 @@ class BaseAgent:
             system = f"{system}\n\n{extra_system}"
         return self.client.complete_json(system, user_prompt)
 
+    def complete_json_messages(
+        self,
+        messages: list[dict[str, str]],
+        *,
+        extra_system: str = "",
+    ) -> dict[str, Any]:
+        system = self.load_prompt()
+        if extra_system:
+            system = f"{system}\n\n{extra_system}"
+        return self.client.complete_json_messages(system, messages)
+
     @staticmethod
     def format_context(context: dict[str, Any] | None) -> str:
         if not context:

@@ -1,0 +1,78 @@
+.chat-markdown {
+  min-width: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.chat-markdown > :first-child {
+  margin-top: 0;
+}
+
+.chat-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.chat-markdown__h1,
+.chat-markdown__h2,
+.chat-markdown__h3 {
+  margin: 0.75rem 0 0.35rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.chat-markdown__h1 {
+  font-size: 1rem;
+}
+
+.chat-markdown__h2 {
+  font-size: 0.95rem;
+}
+
+.chat-markdown__h3 {
+  font-size: 0.9rem;
+}
+
+.chat-markdown__p {
+  margin: 0 0 0.55rem;
+}
+
+.chat-markdown__ul,
+.chat-markdown__ol {
+  margin: 0 0 0.55rem;
+  padding-left: 1.2rem;
+}
+
+.chat-markdown__li {
+  margin-bottom: 0.25rem;
+}
+
+.chat-markdown__inline-code {
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  background: #f1f5f9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8em;
+}
+
+.chat-markdown__pre {
+  margin: 0 0 0.55rem;
+  padding: 0.5rem 0.65rem;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: #f8fafc;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8em;
+}
+
+.chat-markdown__th,
+.chat-markdown__td {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+}
+
+.chat-markdown strong {
+  font-weight: 600;
+}

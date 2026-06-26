@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -17,7 +18,7 @@ from storage.migrate_legacy_sessions import migrate_legacy_sessions
 from storage.project_repository import ProjectRepository
 from storage.project_session_store import ProjectSessionStore, get_database_for_config, list_project_summaries
 
-from api.chat_service import list_chat_messages, send_chat_message
+from api.chat_service import list_chat_messages, send_chat_message, clear_chat_messages
 from api.report_service import (
     generate_task_report,
     get_report_preview,
@@ -45,6 +46,7 @@ from api.parameter_edit import (
     begin_parameter_edit as begin_parameter_edit_session,
 )
 from api.serializers import task_state, task_summary, workflow_catalog
+from api.task_continuation_service import get_continuation_suggestions
 
 _PROPOSE_DEFAULTS_ON_FIELDS = frozenset(
     {
@@ -178,6 +180,41 @@ class DesktopApiService:
             "active_task_id": project.get("active_task_id"),
         }
 
+    def delete_project(self, project_id: str) -> dict[str, Any]:
+        if project_id == "default":
+            raise ApiError(
+                "invalid_request",
+                "The default project cannot be deleted",
+                status=400,
+            )
+        self._ensure_storage()
+        repository = ProjectRepository(self._database())
+        if not repository.delete_project(project_id):
+            raise ApiError("project_not_found", f"Project not found: {project_id}", status=404)
+        session_path = self.config.sessions_dir / project_id
+        if session_path.exists():
+            shutil.rmtree(session_path, ignore_errors=True)
+        return {
+            "id": project_id,
+            "deleted": True,
+        }
+
+    def rename_project(self, project_id: str, name: str) -> dict[str, Any]:
+        cleaned = name.strip()
+        if not cleaned:
+            raise ApiError("invalid_request", "name is required", status=400)
+        self._ensure_storage()
+        project = ProjectRepository(self._database()).update_project_name(project_id, cleaned)
+        if project is None:
+            raise ApiError("project_not_found", f"Project not found: {project_id}", status=404)
+        return {
+            "id": project["id"],
+            "name": project["name"],
+            "task_count": int(project["task_count"] or 0),
+            "updated_at": project["updated_at"],
+            "active_task_id": project.get("active_task_id"),
+        }
+
     def activate_project(self, project_id: str) -> dict[str, Any]:
         project = self.get_project(project_id)
         return {
@@ -270,6 +307,21 @@ class DesktopApiService:
             "deleted": True,
             "session_id": store.session_id,
         }
+
+    def rename_task(self, task_id: str, name: str, session_id: str | None = None) -> dict[str, Any]:
+        cleaned = name.strip()
+        if not cleaned:
+            raise ApiError("invalid_request", "name is required", status=400)
+        store = self._store_for(session_id)
+        manager = store.load_state_manager()
+        try:
+            task = manager.get_task(task_id)
+        except TaskNotFoundError as exc:
+            raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+        task.outputs["display_name"] = cleaned
+        manager.replace_task(task_id, task)
+        self._save_manager(manager, session_id)
+        return self._task_state(task, manager)
 
     def submit_input(
         self,
@@ -382,32 +434,86 @@ class DesktopApiService:
         self._save_manager(manager, session_id)
         return self._task_state(task, manager)
 
-    def list_chat_messages(self, session_id: str | None = None) -> dict[str, Any]:
+    def list_chat_messages(
+        self,
+        session_id: str | None = None,
+        *,
+        task_id: str | None = None,
+    ) -> dict[str, Any]:
         store = self._store_for(session_id)
         return {
             "session_id": store.session_id,
-            "messages": list_chat_messages(store),
+            "messages": list_chat_messages(store, task_id=task_id),
         }
+
+    def clear_chat_messages(
+        self,
+        session_id: str | None = None,
+        *,
+        task_id: str | None = None,
+    ) -> dict[str, Any]:
+        store = self._store_for(session_id)
+        return clear_chat_messages(store, task_id=task_id)
 
     def post_chat_message(
         self,
         message: str,
         *,
+        display_message: str | None = None,
         task_id: str | None = None,
+        mode: str | None = None,
         session_id: str | None = None,
     ) -> dict[str, Any]:
         store = self._store_for(session_id)
         manager = store.load_state_manager()
+        project_name = None
+        try:
+            project_name = str(store.repository.get_project(store.session_id).get("name") or "").strip() or None
+        except Exception:
+            project_name = None
         try:
             return send_chat_message(
                 store,
                 self.config,
                 manager,
                 message=message,
+                display_message=display_message,
                 task_id=task_id,
+                mode=mode,
+                project_name=project_name,
             )
         except ValueError as exc:
             raise ApiError("invalid_request", str(exc), status=400) from exc
+
+    def _project_name_for_session(self, session_id: str | None = None) -> str | None:
+        store = self._store_for(session_id)
+        try:
+            return str(store.repository.get_project(store.session_id).get("name") or "").strip() or None
+        except Exception:
+            return None
+
+    def get_task_continuation_suggestions(
+        self,
+        task_id: str,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        store = self._store_for(session_id)
+        manager = store.load_state_manager()
+        try:
+            manager.get_task(task_id)
+        except TaskNotFoundError as exc:
+            raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+        try:
+            return get_continuation_suggestions(
+                store,
+                self.config,
+                manager,
+                task_id,
+                reader=self._reader(),
+                project_name=self._project_name_for_session(session_id),
+            )
+        except ValueError as exc:
+            raise ApiError("task_not_completed", str(exc), status=409) from exc
 
     def get_task_report(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
         store = self._store_for(session_id)

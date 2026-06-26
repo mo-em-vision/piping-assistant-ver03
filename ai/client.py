@@ -16,6 +16,13 @@ class LLMClient(Protocol):
     def complete_json(self, system_prompt: str, user_prompt: str) -> dict[str, Any]:
         ...
 
+    def complete_json_messages(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+    ) -> dict[str, Any]:
+        ...
+
 
 class OpenAIClient:
     """Thin wrapper around the OpenAI chat completions API."""
@@ -55,6 +62,27 @@ class OpenAIClient:
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
             ],
+            response_format={"type": "json_object"},
+            temperature=0.2,
+        )
+        content = response.choices[0].message.content or "{}"
+        return json.loads(content)
+
+    def complete_json_messages(
+        self,
+        system_prompt: str,
+        messages: list[dict[str, str]],
+    ) -> dict[str, Any]:
+        api_messages: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
+        for item in messages:
+            role = str(item.get("role") or "").strip()
+            content = str(item.get("content") or "").strip()
+            if role not in {"user", "assistant"} or not content:
+                continue
+            api_messages.append({"role": role, "content": content})
+        response = self._client.chat.completions.create(
+            model=self.model,
+            messages=api_messages,
             response_format={"type": "json_object"},
             temperature=0.2,
         )

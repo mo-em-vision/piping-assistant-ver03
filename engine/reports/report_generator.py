@@ -65,12 +65,8 @@ class ReportGenerator:
         if "pdf" in formats:
             if write_pdf(html, pdf_path):
                 pdf_written = str(pdf_path)
-            else:
-                pdf_path.write_text(
-                    "PDF generation requires xhtml2pdf. Install with: pip install xhtml2pdf\n",
-                    encoding="utf-8",
-                )
-                pdf_written = str(pdf_path)
+            elif pdf_path.exists():
+                pdf_path.unlink()
 
         data_path = output_dir / f"{base}_report_data.json"
         data_path.write_text(json_text, encoding="utf-8")

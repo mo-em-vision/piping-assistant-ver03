@@ -15,3 +15,11 @@ export function writeActiveProjectId(projectId: string): void {
     // Ignore storage failures in restricted environments.
   }
 }
+
+export function clearActiveProjectId(): void {
+  try {
+    localStorage.removeItem(ACTIVE_PROJECT_KEY)
+  } catch {
+    // Ignore storage failures in restricted environments.
+  }
+}

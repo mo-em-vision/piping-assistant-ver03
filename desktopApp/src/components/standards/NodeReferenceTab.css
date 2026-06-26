@@ -22,3 +22,10 @@
 .node-reference-tab__hint {
   color: #64748b;
 }
+
+.node-reference-tab--table-viewer {
+  border: none;
+  padding: 0;
+  background: transparent;
+  overflow: hidden;
+}

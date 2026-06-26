@@ -67,6 +67,27 @@ Following text.`
     expect(container.querySelector('.katex .tag')).toBeTruthy()
   })
 
+  it('renders bare Obsidian-style display equations with equation tags', () => {
+    const content = `**(a)** For t < D/6:
+
+$$
+ t = PD/2(SEW + PY)
+\\tag{3a}
+$$
+
+$$
+t = P(d+2c)/2(SEW - P(1-Y))
+\\tag{3b}
+$$
+
+**(b)** For t >= D/6.`
+
+    const { container } = render(<StandardsMarkdownViewer content={content} />)
+
+    expect(container.querySelectorAll('.standards-markdown__equation .katex').length).toBe(2)
+    expect(container.querySelectorAll('.katex .tag').length).toBeGreaterThanOrEqual(2)
+  })
+
   it('renders table symbols and inline code symbols with KaTeX', () => {
     const { container } = render(<StandardsMarkdownViewer content={SAMPLE_BODY} />)
 
@@ -117,7 +138,7 @@ Following text.`
 
   it('renders table cross-reference links as table reference controls', () => {
     render(
-      <StandardsMarkdownViewer content="Quality factor from [Table A-1A](table:A-1A)." />,
+      <StandardsMarkdownViewer content="Quality factor from [Table A-1A](table:asme_b31.3_A-1A)." />,
     )
 
     const link = screen.getByRole('button', { name: 'Table A-1A' })
@@ -125,7 +146,7 @@ Following text.`
 
     fireEvent.click(link)
 
-    expect(useRightPanelStore.getState().activeTabId).toBe('ref-table-A-1A')
+    expect(useRightPanelStore.getState().activeTabId).toBe('ref-table-asme_b31.3_A-1A')
   })
 
   it('treats legacy node:table_* links as table references', () => {

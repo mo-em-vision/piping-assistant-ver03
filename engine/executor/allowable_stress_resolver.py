@@ -15,9 +15,11 @@ from models.input import (
 )
 from models.task import Task
 
+from engine.reference.asme_b31_3_table_ids import TABLE_MATERIAL_ALLOWABLE_STRESS
+
 B31_3_SLUG = "asme_b31.3"
-B31_3_MATERIAL_STRESS_TABLE = "material_allowable_stress"
-B31_3_TABLE_REF = "asme_b31.3/material_allowable_stress"
+B31_3_MATERIAL_STRESS_TABLE = TABLE_MATERIAL_ALLOWABLE_STRESS
+B31_3_TABLE_REF = f"{B31_3_SLUG}/{TABLE_MATERIAL_ALLOWABLE_STRESS}"
 LOOKUP_CONFIG = {
     "table_id": B31_3_MATERIAL_STRESS_TABLE,
     "interpolation": True,

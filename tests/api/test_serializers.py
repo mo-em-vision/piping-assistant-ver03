@@ -163,6 +163,58 @@ def test_task_state_timeline_includes_coefficient_parameters() -> None:
     assert "material" in param_names
 
 
+def test_task_state_timeline_formats_allowable_stress_in_mpa() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-test13", status=TaskStatus.AWAITING_INPUT)
+    task.inputs["pressure_loading"] = EngineeringInput(
+        input_id="pressure_loading",
+        value="internal_pressure",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+    task.inputs["material"] = EngineeringInput(
+        input_id="material",
+        value="SA-106B",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+    task.inputs["design_temperature"] = EngineeringInput(
+        input_id="design_temperature",
+        value=400.0,
+        unit="F",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,
+    )
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "allowable_stress": 193_000_000,
+        "allowable_stress_unit": "Pa",
+        "allowable_stress_lookup": {
+            "standard": "asme_b31.3",
+            "table_id": "asme_b31.3_material_allowable_stress",
+            "material": "SA-106B",
+            "design_temperature_f": 400.0,
+        },
+        "planning_summary": {
+            "missing_inputs": ["design_pressure"],
+            "missing_assumptions": [],
+            "current_phase": "parameter_gathering",
+            "phase_missing": {"parameter_gathering": ["design_pressure"]},
+        },
+    }
+    manager.replace_task(task.task_id, task)
+
+    state = task_state(task, manager)
+    stress_step = next(
+        step for step in state["progress"]["timeline"] if step["id"] == "allowable_stress"
+    )
+
+    assert stress_step["display_value"].startswith("193 MPa")
+    assert "ASME B31.3 Table A-1" in stress_step["display_value"]
+
+
 def test_task_state_report_step_active_after_thickness_complete() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test07", status=TaskStatus.AWAITING_INPUT)

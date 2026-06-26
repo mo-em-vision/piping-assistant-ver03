@@ -42,6 +42,13 @@ export const taskApi = {
     )
   },
 
+  rename(taskId: string, name: string, sessionId?: string) {
+    const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''
+    return requestManager.run(`tasks:rename:${taskId}`, () =>
+      backendClient.patch<TaskStateDto>(`/api/v1/tasks/${taskId}${query}`, { name }).then(parseTaskState),
+    )
+  },
+
   listWorkflows() {
     return requestManager.run('workflows:list', () =>
       backendClient.get<{ workflows: WorkflowDto[] }>('/api/v1/workflows').then(parseWorkflows),

@@ -7,6 +7,12 @@ from typing import Any
 
 from engine.reference.material_catalog_db import material_display_name, standards_root_from_pack_root
 from engine.reference.material_resolver import canonical_material_id, resolve_material_table_key
+from engine.reference.asme_b31_3_table_ids import (
+    TABLE_302_3_5,
+    TABLE_304_1_1,
+    TABLE_A_1A,
+    TABLE_A_1B,
+)
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_tables import StandardsTablesDatabase
 
@@ -90,11 +96,18 @@ def lookup_y_coefficient(
     *,
     design_temperature: float,
     design_temperature_unit: str = "F",
+    material: str | None = None,
 ) -> tuple[float, bool]:
     """Return Y from Table 304.1.1 at design temperature."""
-    table_data = _load_table(pack_root, "table_304_1_1")
+    from engine.reference.standards_tables import flatten_lookup_table_rows
+
+    table_data = _load_table(pack_root, TABLE_304_1_1)
     temp_f = temperature_to_fahrenheit(design_temperature, design_temperature_unit)
-    rows = table_data.get("rows", []) or []
+    rows = flatten_lookup_table_rows(table_data)
+    if material:
+        rows = _filter_y_rows_for_material(rows, material)
+    elif rows:
+        rows = [row for row in rows if row.get("material_id") == "ferritic_steels"] or rows
     interpolate = bool(table_data.get("interpolation", True))
     value, _, interpolated = interpolate_by_temperature(
         rows,
@@ -103,6 +116,23 @@ def lookup_y_coefficient(
         interpolate=interpolate,
     )
     return value, interpolated
+
+
+def _filter_y_rows_for_material(rows: list[dict[str, Any]], material: str) -> list[dict[str, Any]]:
+    token = material.strip().lower()
+    material_aliases: dict[str, tuple[str, ...]] = {
+        "ferritic_steels": ("ferritic", "carbon steel", "carbon_steel", "a106", "sa-106", "sa106"),
+        "austenitic_steels": ("austenitic", "stainless", "ss", "304", "316"),
+        "nickel_alloys": ("nickel", "inconel", "incoloy", "n06617", "n08800", "n08810", "n08825"),
+        "gray_iron": ("gray iron", "cast iron", "grey iron"),
+        "other_ductile_metals": ("ductile", "other ductile"),
+    }
+    for material_id, aliases in material_aliases.items():
+        if token == material_id.replace("_", " "):
+            return [row for row in rows if row.get("material_id") == material_id]
+        if any(alias in token for alias in aliases):
+            return [row for row in rows if row.get("material_id") == material_id]
+    return [row for row in rows if row.get("material_id") == "ferritic_steels"] or rows
 
 
 def compute_thick_wall_y(*, inside_diameter: float, outside_diameter: float, corrosion_allowance: float = 0.0) -> float:
@@ -132,7 +162,7 @@ def lookup_quality_factor(
     """Look up E from Tables A-1A and A-1B by material and joint category."""
     category = joint_category.strip().lower().replace("-", "_")
     standards_root = standards_root_from_pack_root(pack_root)
-    for table_ref in ("A-1A", "A-1B"):
+    for table_ref in (TABLE_A_1A, TABLE_A_1B):
         table_data = _load_table(pack_root, table_ref)
         rows = table_data.get("rows", []) or []
         material_keys = {_row_material_token(row): row for row in rows}
@@ -161,7 +191,7 @@ def lookup_w_factor(
 ) -> float | None:
     """Look up W from Table 302.3.5 when rows are available; otherwise return 1.0."""
     try:
-        table_data = _load_table(pack_root, "302.3.5")
+        table_data = _load_table(pack_root, TABLE_302_3_5)
     except FileNotFoundError:
         return None
     rows = table_data.get("rows", []) or []

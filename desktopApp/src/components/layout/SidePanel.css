@@ -206,6 +206,20 @@
   flex-direction: column;
 }
 
+.side-panel__tab-body--reference {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.side-panel__tab-body--reference .node-reference-tab--table-viewer {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .side-panel__tab-body--chat .panel-section__body {
   flex: 1;
   min-height: 0;

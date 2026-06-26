@@ -36,7 +36,7 @@ outputs:
 lookups:
   - id: appendix_a1_stress
     source: table
-    table_id: A-1
+    table_id: asme_b31.3_A-1
     lookup_rule: material_and_temperature
     interpolation: true
 ---
@@ -45,4 +45,4 @@ lookups:
 
 > **Development sample — not verbatim ASME B31.3 table data.**
 
-Deterministic lookup for allowable stress **S** at design temperature. Data is stored in `standards_tables.db` (`table_id: A-1`).
+Deterministic lookup for allowable stress **S** at design temperature. Data is stored in `asme_b313_tables.db` (`table_id: asme_b31.3_A-1`).

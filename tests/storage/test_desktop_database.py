@@ -24,6 +24,38 @@ def test_project_repository_create_and_list(tmp_path: Path) -> None:
     assert any(project["id"] == created["id"] for project in projects)
 
 
+def test_project_repository_persists_chat_sources(tmp_path: Path) -> None:
+    database = DesktopDatabase(tmp_path / "desktop.db")
+    repository = ProjectRepository(database)
+    project = repository.create_project("Sources Project")
+
+    repository.save_conversation(
+        project["id"],
+        [
+            {
+                "id": "assistant-1",
+                "role": "assistant",
+                "content": "See Table 304.1.1 for Y values.",
+                "status": "explained",
+                "timestamp": "2026-01-01T00:00:00+00:00",
+                "task_id": "task-1",
+                "sources": [
+                    {
+                        "kind": "table",
+                        "id": "asme_b31.3_table_304_1_1",
+                        "label": "Table 304.1.1 — Temperature Coefficient Y",
+                        "table_id": "asme_b31.3_table_304_1_1",
+                    }
+                ],
+            }
+        ],
+    )
+
+    messages = repository.load_conversation(project["id"], task_id="task-1")
+    assert messages
+    assert messages[0]["sources"][0]["id"] == "asme_b31.3_table_304_1_1"
+
+
 def test_project_session_store_persists_tasks(tmp_path: Path) -> None:
     sessions_dir = tmp_path / "sessions"
     database = DesktopDatabase(tmp_path / "desktop.db")

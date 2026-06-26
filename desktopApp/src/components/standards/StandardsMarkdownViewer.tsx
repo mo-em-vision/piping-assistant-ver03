@@ -11,6 +11,7 @@ import {
   isDisplayEquationLike,
   isInlineSymbol,
   isMathExpression,
+  normalizeBareDisplayEquations,
   normalizeDisplayEquation,
   renderRichEngineeringContent,
 } from '@/components/math/engineeringMath'
@@ -98,6 +99,8 @@ function MarkdownLink({
 }
 
 export function StandardsMarkdownViewer({ content, className }: StandardsMarkdownViewerProps) {
+  const normalizedContent = normalizeBareDisplayEquations(content)
+
   return (
     <div className={`standards-markdown${className ? ` ${className}` : ''}`}>
       <ReactMarkdown
@@ -130,7 +133,7 @@ export function StandardsMarkdownViewer({ content, className }: StandardsMarkdow
           code: MarkdownCode,
         }}
       >
-        {content}
+        {normalizedContent}
       </ReactMarkdown>
     </div>
   )

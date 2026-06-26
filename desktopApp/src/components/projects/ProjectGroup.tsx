@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 
+import { SidePanelRowActions } from '@/components/layout/SidePanelRowActions'
 import { useTaskStore } from '@/store/taskStore'
-import type { ProjectSummary } from '@/types/frontend/workspace'
+import type { ProjectSummary, TaskSummary } from '@/types/frontend/workspace'
 
 import './ProjectGroup.css'
 
@@ -9,8 +10,12 @@ function formatTaskCount(count: number): string {
   return count === 1 ? '1 Task' : `${count} Tasks`
 }
 
-function projectLabel(project: ProjectSummary, loadedTaskCount: number): string {
-  const count = loadedTaskCount > 0 ? loadedTaskCount : project.taskCount
+export function projectLabel(
+  project: ProjectSummary,
+  loadedTaskCount: number,
+  tasksLoaded: boolean,
+): string {
+  const count = tasksLoaded ? loadedTaskCount : project.taskCount
   return `${project.name} (${formatTaskCount(count)})`
 }
 
@@ -24,6 +29,11 @@ interface ProjectGroupProps {
   onSelectProject: () => void
   onSelectTask: (taskId: string, projectId: string) => void
   onDeleteTask: (taskId: string, projectId: string) => void
+  onDeleteProject: (projectId: string) => void
+  onRenameProject: (project: ProjectSummary) => void
+  onRenameTask: (task: TaskSummary, projectId: string) => void
+  onProjectContextMenu: (event: MouseEvent, project: ProjectSummary) => void
+  onTaskContextMenu: (event: MouseEvent, task: TaskSummary, projectId: string) => void
   onCreateTask?: () => void
 }
 
@@ -37,6 +47,11 @@ export function ProjectGroup({
   onSelectProject,
   onSelectTask,
   onDeleteTask,
+  onDeleteProject,
+  onRenameProject,
+  onRenameTask,
+  onProjectContextMenu,
+  onTaskContextMenu,
   onCreateTask,
 }: ProjectGroupProps) {
   const projectTasks = useTaskStore((state) => state.projectTasks[project.id])
@@ -53,11 +68,16 @@ export function ProjectGroup({
     })
   }, [expanded, loadProjectTasks, project.id, projectTasks])
 
+  const tasksLoaded = projectTasks !== undefined
   const tasks = projectTasks ?? []
+  const taskCountLabel = formatTaskCount(tasksLoaded ? tasks.length : project.taskCount)
 
   return (
     <div className="project-group">
-      <div className="project-group__header">
+      <div
+        className={`project-group__header${isActive ? ' project-group__header--active' : ''}`}
+        onContextMenu={(event) => onProjectContextMenu(event, project)}
+      >
         <button
           type="button"
           className="project-group__chevron"
@@ -74,8 +94,18 @@ export function ProjectGroup({
           onClick={onSelectProject}
           disabled={disabled}
         >
-          <span className="project-group__name">{projectLabel(project, tasks.length)}</span>
+          <span className="project-group__name">
+            <span className="project-group__name-text">{project.name}</span>
+            <span className="project-group__name-count"> ({taskCountLabel})</span>
+          </span>
         </button>
+        <SidePanelRowActions
+          disabled={disabled}
+          editLabel={`Rename ${project.name}`}
+          deleteLabel={`Delete ${project.name}`}
+          onEdit={() => onRenameProject(project)}
+          onDelete={() => onDeleteProject(project.id)}
+        />
       </div>
       {expanded ? (
         <div className="project-group__tasks">
@@ -88,6 +118,7 @@ export function ProjectGroup({
               <div
                 key={task.id}
                 className={`project-group__task-row${activeTaskId === task.id ? ' project-group__task-row--active' : ''}`}
+                onContextMenu={(event) => onTaskContextMenu(event, task, project.id)}
               >
                 <button
                   type="button"
@@ -102,19 +133,13 @@ export function ProjectGroup({
                     </span>
                   ) : null}
                 </button>
-                <button
-                  type="button"
-                  className="project-group__task-delete"
+                <SidePanelRowActions
                   disabled={disabled}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    onDeleteTask(task.id, project.id)
-                  }}
-                  aria-label={`Delete ${task.name}`}
-                  title="Delete task"
-                >
-                  🗑
-                </button>
+                  editLabel={`Rename ${task.name}`}
+                  deleteLabel={`Delete ${task.name}`}
+                  onEdit={() => onRenameTask(task, project.id)}
+                  onDelete={() => onDeleteTask(task.id, project.id)}
+                />
               </div>
             ))
           )}

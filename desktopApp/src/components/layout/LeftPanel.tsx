@@ -1,17 +1,50 @@
-import { useState } from 'react'
+import { useState, type MouseEvent } from 'react'
 
+import { RenameDialog } from '@/components/common/RenameDialog'
 import { useChatStore } from '@/store/chatStore'
 import { ErrorBanner } from '@/components/errors/ErrorBanner'
 import { CreateProjectDialog } from '@/components/projects/CreateProjectDialog'
 import { ProjectGroup } from '@/components/projects/ProjectGroup'
 import { CreateTaskDialog } from '@/components/tasks/CreateTaskDialog'
 import { RecentTaskRow } from '@/components/tasks/RecentTaskRow'
+import { SidePanelContextMenu } from '@/components/layout/SidePanelContextMenu'
 import { useProjectStore } from '@/store/projectStore'
 import { useTaskStore } from '@/store/taskStore'
 import { useUiStore } from '@/store/uiStore'
+import type { ProjectSummary, TaskSummary } from '@/types/frontend/workspace'
 
 import { PanelSection } from './PanelSection'
 import './SidePanel.css'
+
+type ContextMenuState =
+  | {
+      type: 'project'
+      project: ProjectSummary
+      x: number
+      y: number
+    }
+  | {
+      type: 'task'
+      task: TaskSummary
+      projectId?: string
+      x: number
+      y: number
+    }
+  | null
+
+type RenameTarget =
+  | {
+      type: 'project'
+      id: string
+      name: string
+    }
+  | {
+      type: 'task'
+      id: string
+      name: string
+      projectId?: string
+    }
+  | null
 
 export function LeftPanel() {
   const activeTask = useTaskStore((state) => state.activeTask)
@@ -22,6 +55,7 @@ export function LeftPanel() {
   const createTask = useTaskStore((state) => state.createTask)
   const selectTask = useTaskStore((state) => state.selectTask)
   const deleteTask = useTaskStore((state) => state.deleteTask)
+  const renameTask = useTaskStore((state) => state.renameTask)
   const clearActiveTask = useTaskStore((state) => state.clearActiveTask)
   const loadWorkspace = useTaskStore((state) => state.loadWorkspace)
 
@@ -31,6 +65,8 @@ export function LeftPanel() {
   const projectUserError = useProjectStore((state) => state.userError)
   const selectProject = useProjectStore((state) => state.selectProject)
   const createProject = useProjectStore((state) => state.createProject)
+  const deleteProject = useProjectStore((state) => state.deleteProject)
+  const renameProject = useProjectStore((state) => state.renameProject)
   const loadMessages = useChatStore((state) => state.loadMessages)
   const toggleLeftCollapsed = useUiStore((state) => state.toggleLeftCollapsed)
 
@@ -40,6 +76,8 @@ export function LeftPanel() {
   })
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
   const [createTaskOpen, setCreateTaskOpen] = useState(false)
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
+  const [renameTarget, setRenameTarget] = useState<RenameTarget>(null)
 
   const busy = loading || projectLoading
   const visibleProjects = projects.filter((project) => project.id !== 'default')
@@ -81,6 +119,65 @@ export function LeftPanel() {
   const handleCreateTask = (workflowId: string) => {
     setCreateTaskOpen(false)
     void createTask(workflowId)
+  }
+
+  const openProjectContextMenu = (event: MouseEvent, project: ProjectSummary) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setContextMenu({
+      type: 'project',
+      project,
+      x: event.clientX,
+      y: event.clientY,
+    })
+  }
+
+  const openTaskContextMenu = (
+    event: MouseEvent,
+    task: TaskSummary,
+    projectId?: string,
+  ) => {
+    event.preventDefault()
+    event.stopPropagation()
+    setContextMenu({
+      type: 'task',
+      task,
+      projectId,
+      x: event.clientX,
+      y: event.clientY,
+    })
+  }
+
+  const openRenameProject = (project: ProjectSummary) => {
+    setRenameTarget({
+      type: 'project',
+      id: project.id,
+      name: project.name,
+    })
+  }
+
+  const openRenameTask = (task: TaskSummary, projectId?: string) => {
+    setRenameTarget({
+      type: 'task',
+      id: task.id,
+      name: task.name,
+      projectId: projectId ?? task.projectId,
+    })
+  }
+
+  const handleRenameConfirm = (name: string) => {
+    if (!renameTarget) {
+      return
+    }
+    if (renameTarget.type === 'project') {
+      void renameProject(renameTarget.id, name).then(() => {
+        setRenameTarget(null)
+      })
+      return
+    }
+    void renameTask(renameTarget.id, name, renameTarget.projectId).then(() => {
+      setRenameTarget(null)
+    })
   }
 
   return (
@@ -156,6 +253,20 @@ export function LeftPanel() {
                     onDeleteTask={(taskId, projectId) => {
                       void deleteTask(taskId, projectId)
                     }}
+                    onDeleteProject={(projectId) => {
+                      void deleteProject(projectId).then(() => {
+                        setExpandedProjectIds((current) => {
+                          const next = new Set(current)
+                          next.delete(projectId)
+                          return next
+                        })
+                        void loadMessages()
+                      })
+                    }}
+                    onRenameProject={openRenameProject}
+                    onRenameTask={openRenameTask}
+                    onProjectContextMenu={openProjectContextMenu}
+                    onTaskContextMenu={openTaskContextMenu}
                     onCreateTask={
                       isActive
                         ? () => {
@@ -187,12 +298,79 @@ export function LeftPanel() {
                   onDelete={() => {
                     void deleteTask(task.id, task.projectId)
                   }}
+                  onRename={openRenameTask}
+                  onContextMenu={openTaskContextMenu}
                 />
               ))}
             </div>
           )}
         </PanelSection>
       </div>
+
+      {contextMenu?.type === 'project' ? (
+        <SidePanelContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          ariaLabel={`Actions for ${contextMenu.project.name}`}
+          onClose={() => setContextMenu(null)}
+          items={[
+            {
+              label: 'Rename project',
+              onClick: () => {
+                openRenameProject(contextMenu.project)
+              },
+            },
+            {
+              label: 'Delete project',
+              danger: true,
+              onClick: () => {
+                void deleteProject(contextMenu.project.id).then(() => {
+                  setExpandedProjectIds((current) => {
+                    const next = new Set(current)
+                    next.delete(contextMenu.project.id)
+                    return next
+                  })
+                  void loadMessages()
+                })
+              },
+            },
+          ]}
+        />
+      ) : null}
+
+      {contextMenu?.type === 'task' ? (
+        <SidePanelContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          ariaLabel={`Actions for ${contextMenu.task.name}`}
+          onClose={() => setContextMenu(null)}
+          items={[
+            {
+              label: 'Rename task',
+              onClick: () => {
+                openRenameTask(contextMenu.task, contextMenu.projectId ?? contextMenu.task.projectId)
+              },
+            },
+            {
+              label: 'Delete task',
+              danger: true,
+              onClick: () => {
+                void deleteTask(contextMenu.task.id, contextMenu.projectId ?? contextMenu.task.projectId)
+              },
+            },
+          ]}
+        />
+      ) : null}
+
+      <RenameDialog
+        open={renameTarget !== null}
+        title={renameTarget?.type === 'project' ? 'Rename project' : 'Rename task'}
+        label={renameTarget?.type === 'project' ? 'Project name' : 'Task name'}
+        initialName={renameTarget?.name ?? ''}
+        busy={busy}
+        onConfirm={handleRenameConfirm}
+        onCancel={() => setRenameTarget(null)}
+      />
 
       <CreateProjectDialog
         open={createProjectOpen}

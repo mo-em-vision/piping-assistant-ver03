@@ -101,6 +101,32 @@ class ProjectRepository:
         assert created is not None
         return created
 
+    def delete_project(self, project_id: str) -> bool:
+        existing = self.get_project(project_id)
+        if existing is None:
+            return False
+        with self._db.connect() as connection:
+            connection.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+            connection.commit()
+        return True
+
+    def update_project_name(self, project_id: str, name: str) -> dict[str, Any] | None:
+        existing = self.get_project(project_id)
+        if existing is None:
+            return None
+        now = utc_now()
+        with self._db.connect() as connection:
+            connection.execute(
+                """
+                UPDATE projects
+                SET name = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (name.strip(), now, project_id),
+            )
+            connection.commit()
+        return self.get_project(project_id)
+
     def touch_project(self, project_id: str, *, active_task_id: str | None = None) -> None:
         now = utc_now()
         with self._db.connect() as connection:
@@ -193,19 +219,36 @@ class ProjectRepository:
             )
             connection.commit()
 
-    def load_conversation(self, project_id: str) -> list[dict[str, Any]]:
+    def load_conversation(
+        self,
+        project_id: str,
+        *,
+        task_id: str | None = None,
+    ) -> list[dict[str, Any]]:
         with self._db.connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT id, role, content, status, timestamp, task_id
-                FROM chat_messages
-                WHERE project_id = ?
-                ORDER BY timestamp ASC
-                """,
-                (project_id,),
-            ).fetchall()
-        return [
-            {
+            if task_id:
+                rows = connection.execute(
+                    """
+                    SELECT id, role, content, status, timestamp, task_id, sources_json
+                    FROM chat_messages
+                    WHERE project_id = ? AND task_id = ?
+                    ORDER BY timestamp ASC
+                    """,
+                    (project_id, task_id),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """
+                    SELECT id, role, content, status, timestamp, task_id, sources_json
+                    FROM chat_messages
+                    WHERE project_id = ?
+                    ORDER BY timestamp ASC
+                    """,
+                    (project_id,),
+                ).fetchall()
+        messages: list[dict[str, Any]] = []
+        for row in rows:
+            message = {
                 "id": row["id"],
                 "role": row["role"],
                 "content": row["content"],
@@ -213,20 +256,54 @@ class ProjectRepository:
                 "timestamp": row["timestamp"],
                 "task_id": row["task_id"],
             }
-            for row in rows
-        ]
+            sources_json = row["sources_json"]
+            if sources_json:
+                try:
+                    sources = json.loads(sources_json)
+                except json.JSONDecodeError:
+                    sources = None
+                if isinstance(sources, list) and sources:
+                    message["sources"] = sources
+            messages.append(message)
+        return messages
+
+    def clear_conversation(
+        self,
+        project_id: str,
+        *,
+        task_id: str | None = None,
+    ) -> None:
+        with self._db.connect() as connection:
+            if task_id:
+                connection.execute(
+                    "DELETE FROM chat_messages WHERE project_id = ? AND task_id = ?",
+                    (project_id, task_id),
+                )
+            else:
+                connection.execute(
+                    "DELETE FROM chat_messages WHERE project_id = ?",
+                    (project_id,),
+                )
+            connection.commit()
+        self.touch_project(project_id)
 
     def save_conversation(self, project_id: str, messages: list[dict[str, Any]]) -> None:
         now = utc_now()
         with self._db.connect() as connection:
             connection.execute("DELETE FROM chat_messages WHERE project_id = ?", (project_id,))
             for message in messages:
+                sources = message.get("sources")
+                sources_json = (
+                    json.dumps(sources, ensure_ascii=False)
+                    if isinstance(sources, list) and sources
+                    else None
+                )
                 connection.execute(
                     """
                     INSERT INTO chat_messages (
-                        id, project_id, task_id, role, content, status, timestamp
+                        id, project_id, task_id, role, content, status, timestamp, sources_json
                     )
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(message.get("id") or uuid4().hex),
@@ -236,6 +313,7 @@ class ProjectRepository:
                         str(message.get("content") or ""),
                         message.get("status"),
                         str(message.get("timestamp") or now),
+                        sources_json,
                     ),
                 )
             connection.commit()

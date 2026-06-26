@@ -5,6 +5,7 @@ import type {
   TimelineStepStatus,
   TimelineStepViewModel,
 } from '@/types/frontend/taskState'
+import { formatEngineeringDisplayValue } from '@/utils/engineeringDisplay'
 
 function mapStepStatus(status: string): TimelineStepStatus {
   if (status === 'done' || status === 'active' || status === 'pending') {
@@ -16,11 +17,7 @@ function mapStepStatus(status: string): TimelineStepStatus {
 function mapStepDto(step: ProgressStepDto): TimelineStepViewModel {
   const displayValue =
     step.display_value ??
-    (step.value != null
-      ? step.unit && step.unit !== 'dimensionless'
-        ? `${String(step.value)} ${step.unit}`
-        : String(step.value)
-      : null)
+    (step.value != null ? formatEngineeringDisplayValue(step.value, step.unit) : null)
 
   return {
     id: step.id,
@@ -99,4 +96,8 @@ export function isReportSectionVisible(timeline: TimelineStepViewModel[]): boole
     return false
   }
   return reportStep.status === 'active' || reportStep.status === 'done'
+}
+
+export function isTaskCompleted(state: TaskStateDto | null | undefined): boolean {
+  return state?.status === 'completed'
 }

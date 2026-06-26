@@ -11,6 +11,8 @@ from typing import Any
 
 
 from engine.reference.standards_reader import StandardsReader
+from engine.reference.standards_tables import flatten_lookup_table_rows
+from engine.reference.standards_tables import flatten_lookup_table_rows
 
 
 
@@ -20,58 +22,52 @@ _DEFAULT_STANDARD_LABEL = "ASME B31.3"
 
 
 
-def _column_label(key: str) -> str:
-
-    return key.replace("_", " ").strip().title()
-
-
-
-
-
 def _flatten_table_rows(data: dict[str, Any]) -> list[dict[str, Any]]:
-
-    rows = data.get("rows") or []
-
-    if isinstance(rows, list) and rows:
-
-        return [row for row in rows if isinstance(row, dict)]
+    return flatten_lookup_table_rows(data)
 
 
-
-    materials = data.get("materials") or {}
-
-    if not isinstance(materials, dict):
-
-        return []
-
-
-
-    flattened: list[dict[str, Any]] = []
-
-    for material_key, material_data in materials.items():
-
-        if not isinstance(material_data, dict):
-
-            continue
-
-        for row in material_data.get("rows", []) or []:
-
-            if not isinstance(row, dict):
-
-                continue
-
-            flattened.append(
-                {
-                    "material_id": material_key,
-                    "material": str(material_data.get("display_name", material_key)),
-                    **row,
-                }
-            )
-
-    return flattened
+def _column_label(key: str) -> str:
+    labels = {
+        "temperature_c": "Temperature (°C)",
+        "design_temperature": "Design Temperature (°F)",
+        "coefficient_Y": "Coefficient Y",
+        "material_id": "Material ID",
+        "material": "Material",
+    }
+    return labels.get(key, key.replace("_", " ").strip().title())
 
 
+def _collect_column_keys(data: dict[str, Any], rows: list[dict[str, Any]]) -> list[str]:
+    ordered: list[str] = []
+    seen: set[str] = set()
 
+    keys = data.get("keys") or []
+    if isinstance(keys, list):
+        for key in keys:
+            normalized = str(key).strip()
+            if normalized and normalized not in seen:
+                ordered.append(normalized)
+                seen.add(normalized)
+
+    for row in rows:
+        for key in row:
+            normalized = str(key).strip()
+            if normalized and normalized not in seen:
+                ordered.append(normalized)
+                seen.add(normalized)
+
+    preferred = (
+        "material",
+        "temperature_c",
+        "design_temperature",
+        "coefficient_Y",
+        "quality_factor_E",
+        "allowable_stress",
+        "joint_category",
+        "material_id",
+    )
+    rank = {key: index for index, key in enumerate(preferred)}
+    return sorted(ordered, key=lambda key: (rank.get(key, len(preferred)), key))
 
 
 def table_source_payload(reader: StandardsReader, table_id: str) -> dict[str, Any]:
@@ -84,20 +80,10 @@ def table_source_payload(reader: StandardsReader, table_id: str) -> dict[str, An
 
     rows = _flatten_table_rows(data)
 
-
-
-    keys = data.get("keys") or []
-
-    if isinstance(keys, list) and keys:
-
-        columns = [{"key": str(key), "label": _column_label(str(key))} for key in keys]
-
-    elif rows and isinstance(rows[0], dict):
-
-        columns = [{"key": str(key), "label": _column_label(str(key))} for key in rows[0]]
-
+    column_keys = _collect_column_keys(data, rows)
+    if column_keys:
+        columns = [{"key": key, "label": _column_label(key)} for key in column_keys]
     else:
-
         columns = []
 
 

@@ -28,4 +28,16 @@ export const projectApi = {
       backendClient.post<ProjectActivateResponse>(`/api/v1/projects/${projectId}/activate`),
     )
   },
+
+  delete(projectId: string) {
+    return requestManager.run(`projects:delete:${projectId}`, () =>
+      backendClient.delete<{ id: string; deleted: boolean }>(`/api/v1/projects/${projectId}`),
+    )
+  },
+
+  rename(projectId: string, name: string) {
+    return requestManager.run(`projects:rename:${projectId}`, () =>
+      backendClient.patch<ProjectDto>(`/api/v1/projects/${projectId}`, { name }),
+    )
+  },
 }

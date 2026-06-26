@@ -39,21 +39,8 @@ describe('StandardReferenceLink', () => {
     useRightPanelStore.getState().reset()
   })
 
-  it('shows hover excerpt on enter and hides it on leave', () => {
-    render(<StandardReferenceLink nodeId="B313-304.1.1" label="§304.1.1" hoverExcerpt="Preview text" />)
-
-    const link = screen.getByRole('button', { name: '§304.1.1' }).parentElement
-    expect(link).toBeTruthy()
-
-    fireEvent.mouseEnter(link!)
-    expect(screen.getByText('Preview text')).toBeInTheDocument()
-
-    fireEvent.mouseLeave(link!)
-    expect(screen.queryByText('Preview text')).not.toBeInTheDocument()
-  })
-
   it('opens a reference tab when clicked', () => {
-    render(<StandardReferenceLink nodeId="B313-304.1.1" label="§304.1.1" hoverExcerpt="Preview text" />)
+    render(<StandardReferenceLink nodeId="B313-304.1.1" label="§304.1.1" />)
 
     fireEvent.click(screen.getByRole('button', { name: '§304.1.1' }))
 

@@ -54,6 +54,34 @@ CREATE INDEX IF NOT EXISTS idx_lookup_table_rows_material
 """
 
 
+def flatten_lookup_table_rows(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return a flat row list for flat_rows and material_rows table payloads."""
+    rows = data.get("rows") or []
+    if isinstance(rows, list) and rows:
+        return [row for row in rows if isinstance(row, dict)]
+
+    materials = data.get("materials") or {}
+    if not isinstance(materials, dict):
+        return []
+
+    flattened: list[dict[str, Any]] = []
+    for material_key, material_data in materials.items():
+        if not isinstance(material_data, dict):
+            continue
+        display_name = str(material_data.get("display_name", material_key))
+        for row in material_data.get("rows", []) or []:
+            if not isinstance(row, dict):
+                continue
+            flattened.append(
+                {
+                    "material_id": material_key,
+                    "material": display_name,
+                    **row,
+                }
+            )
+    return flattened
+
+
 @dataclass
 class StandardsTablesDatabase:
     """Read lookup tables from a per-pack SQLite database."""
@@ -205,6 +233,7 @@ class StandardsTablesDatabase:
                         "rows": [json.loads(str(row["row_json"])) for row in rows],
                     }
                 result["materials"] = materials
+                result["rows"] = flatten_lookup_table_rows(result)
             elif layout == "material_catalog":
                 materials = {}
                 material_rows = connection.execute(
@@ -252,6 +281,17 @@ class StandardsTablesDatabase:
                 "SELECT table_id FROM lookup_tables ORDER BY table_id"
             ).fetchall()
         return [str(row["table_id"]) for row in rows]
+
+    def clear_all_tables(self) -> None:
+        """Remove all lookup tables and related rows from this database."""
+        self.initialize_schema()
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute("PRAGMA foreign_keys = ON")
+            connection.execute("DELETE FROM lookup_table_rows")
+            connection.execute("DELETE FROM lookup_table_materials")
+            connection.execute("DELETE FROM lookup_table_aliases")
+            connection.execute("DELETE FROM lookup_tables")
+            connection.commit()
 
     def upsert_table(
         self,

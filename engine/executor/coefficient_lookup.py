@@ -21,10 +21,16 @@ from models.input import (
 )
 from models.task import Task
 
+from engine.reference.asme_b31_3_table_ids import (
+    TABLE_302_3_5,
+    TABLE_304_1_1,
+    TABLE_A_1A,
+)
+
 B31_3_SLUG = "asme_b31.3"
-A1_TABLE_REF = "asme_b31.3/A-1A"
-W_TABLE_REF = "asme_b31.3/302.3.5"
-Y_TABLE_REF = "asme_b31.3/table_304_1_1"
+A1_TABLE_REF = f"{B31_3_SLUG}/{TABLE_A_1A}"
+W_TABLE_REF = f"{B31_3_SLUG}/{TABLE_302_3_5}"
+Y_TABLE_REF = f"{B31_3_SLUG}/{TABLE_304_1_1}"
 
 _COEFFICIENT_FIELDS = (
     "weld_joint_efficiency",
@@ -171,6 +177,7 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
                     pack_root,
                     design_temperature=float(design_temperature),
                     design_temperature_unit=temp_unit,
+                    material=str(material) if material is not None else None,
                 )
             except (ValueError, FileNotFoundError):
                 y_value = None

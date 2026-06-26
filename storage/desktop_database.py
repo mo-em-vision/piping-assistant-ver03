@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -77,6 +78,15 @@ class DesktopDatabase:
                 );
                 """
             )
+            columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(chat_messages)").fetchall()
+            }
+            if "sources_json" not in columns:
+                connection.execute(
+                    "ALTER TABLE chat_messages ADD COLUMN sources_json TEXT"
+                )
+            connection.commit()
 
     def metadata_get(self, key: str) -> str | None:
         with self.connect() as connection:

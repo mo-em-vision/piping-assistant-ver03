@@ -43,7 +43,7 @@ outputs:
 lookups:
   - id: table_302_3_5_w
     source: table
-    table_id: "302.3.5"
+    table_id: asme_b31.3_302.3.5
     lookup_rule: material_temperature_and_category
     interpolation: true
 ---
@@ -52,4 +52,4 @@ lookups:
 
 > **Development sample — placeholder for ASME B31.3 Table 302.3.5.**
 
-Lookup for weld joint strength reduction factor **W** per §302.3.5(e). Data is stored in `standards_tables.db` (`table_id: 302.3.5`).
+Lookup for weld joint strength reduction factor **W** per §302.3.5(e). Data is stored in `asme_b313_tables.db` (`table_id: asme_b31.3_302.3.5`).

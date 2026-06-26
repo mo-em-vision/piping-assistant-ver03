@@ -335,20 +335,33 @@ ai_hints:
 
 ## Paragraph Text
 
-(a) For t < D/6, the internal pressure design thickness for straight pipe shall be not less than that calculated in accordance with either equation (3a) or equation (3b).
-equation 3a: t = PD/2(SEW + PY)
-equation 3b: t = P(d+2c)/2(SEW - P(1-Y))
+**(a)** For t < D/6, the internal pressure design thickness for straight pipe shall be not less than that calculated in accordance with either equation (3a) or equation (3b).
 
-(b) For t ≥ D/6 or for P/SE > 0.385, calculation of pressure design thickness for straight pipe requires special consideration of factors such as theory of failure,
+
+$$
+ t = PD/2(SEW + PY)
+\tag{3a}
+$$
+
+
+
+$$
+t = P(d+2c)/2(SEW - P(1-Y))
+\tag{3b}
+$$
+```
+
+
+**(b)** For t ≥ D/6 or for P/SE > 0.385, calculation of pressure design thickness for straight pipe requires special consideration of factors such as theory of failure,
 effects of fatigue, and thermal stress.
 
 ---
 
 # Engineering Explanation
 
-This node implements the thin-wall internal pressure thickness calculation for straight pipe. It produces pressure design thickness **t**, which is combined with allowances **c** in ?304.1.1 to obtain **t_m**.
+This node implements the thin-wall internal pressure thickness calculation for straight pipe. It produces pressure design thickness **t**, which is combined with allowances **c** in §304.1.1 to obtain **t_m**.
 
-The allowable stress **S** is expected from the material stress dependency node (`B313-material-stress`). Design pressure **P** and outside diameter **D** are user inputs. Factors **E**, **W**, and **Y** follow the nomenclature in ?304.1.1(b).
+The allowable stress **S** is expected from the material stress dependency node (`B313-material-stress`). Design pressure **P** and outside diameter **D** are user inputs. Factors **E**, **W**, and **Y** follow the nomenclature in §304.1.1(b).
 
 ---
 
@@ -362,7 +375,7 @@ This node applies when:
 
 This node does not apply when:
 
-- External pressure governs (use ?304.1.3).
+- External pressure governs (use §304.1.3).
 - The thick-wall equation is required (thin-wall check fails).
 
 ---
@@ -383,5 +396,5 @@ t = PD / 2(SEW + PY)
 
 - All calculation inputs are converted to SI units before execution; original user units are preserved for traceability.
 - Intermediate values are not rounded during execution.
-- Refer to `B313-304.1.1` for symbol definitions and the t_m = t + c relationship.
+- Refer to §`B313-304.1.1` for symbol definitions and the t_m = t + c relationship.
 

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -9,6 +9,10 @@ import { useTaskStore } from '@/store/taskStore'
 
 vi.mock('@/utils/confirmTaskDeletion', () => ({
   confirmTaskDeletion: vi.fn(() => true),
+}))
+
+vi.mock('@/utils/confirmProjectDeletion', () => ({
+  confirmProjectDeletion: vi.fn(() => true),
 }))
 
 describe('LeftPanel', () => {
@@ -139,5 +143,116 @@ describe('LeftPanel', () => {
     expect(screen.getByRole('button', { name: 'Create new task' })).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Tasks' })).not.toBeInTheDocument()
     expect(screen.queryByText('Create new task', { selector: '.create-task-button' })).not.toBeInTheDocument()
+  })
+
+  it('calls deleteProject when delete action is clicked on a project', async () => {
+    const user = userEvent.setup()
+    const deleteProject = vi.fn().mockResolvedValue(undefined)
+    useProjectStore.setState({
+      projects: mockProjects,
+      activeProjectId: mockProjects[0].id,
+      deleteProject,
+    })
+
+    render(<LeftPanel />)
+
+    await user.click(screen.getByRole('button', { name: /delete refinery expansion/i }))
+    await waitFor(() => {
+      expect(deleteProject).toHaveBeenCalledWith(mockProjects[0].id)
+    })
+  })
+
+  it('opens delete task menu on right-click for a recent task', async () => {
+    const deleteTask = vi.fn().mockResolvedValue(undefined)
+    useProjectStore.setState({
+      projects: mockProjects,
+      activeProjectId: mockProjects[0].id,
+    })
+    useTaskStore.setState({
+      recentTasks: mockRecentTasks,
+      deleteTask,
+    })
+
+    render(<LeftPanel />)
+
+    fireEvent.contextMenu(screen.getByText('Pipe Thickness — Line 200'))
+    fireEvent.click(screen.getByRole('menuitem', { name: /delete task/i }))
+
+    await waitFor(() => {
+      expect(deleteTask).toHaveBeenCalledWith('recent_pipe_001', 'proj_refinery')
+    })
+  })
+
+  it('opens delete project menu on right-click for a project name', async () => {
+    const deleteProject = vi.fn().mockResolvedValue(undefined)
+    useProjectStore.setState({
+      projects: mockProjects,
+      activeProjectId: mockProjects[0].id,
+      deleteProject,
+    })
+
+    render(<LeftPanel />)
+
+    fireEvent.contextMenu(screen.getByText('Refinery Expansion'))
+    fireEvent.click(screen.getByRole('menuitem', { name: /delete project/i }))
+
+    await waitFor(() => {
+      expect(deleteProject).toHaveBeenCalledWith(mockProjects[0].id)
+    })
+  })
+
+  it('opens rename dialog and calls renameProject on save', async () => {
+    const user = userEvent.setup()
+    const renameProject = vi.fn().mockResolvedValue(undefined)
+    useProjectStore.setState({
+      projects: mockProjects,
+      activeProjectId: mockProjects[0].id,
+      renameProject,
+    })
+
+    render(<LeftPanel />)
+
+    fireEvent.contextMenu(screen.getByText('Refinery Expansion'))
+    fireEvent.click(screen.getByRole('menuitem', { name: /rename project/i }))
+
+    expect(screen.getByRole('heading', { name: 'Rename project' })).toBeInTheDocument()
+
+    const input = screen.getByLabelText('Project name')
+    await user.clear(input)
+    await user.type(input, 'Renamed Refinery')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(renameProject).toHaveBeenCalledWith(mockProjects[0].id, 'Renamed Refinery')
+    })
+  })
+
+  it('opens rename dialog and calls renameTask on save', async () => {
+    const user = userEvent.setup()
+    const renameTask = vi.fn().mockResolvedValue(undefined)
+    useProjectStore.setState({
+      projects: mockProjects,
+      activeProjectId: mockProjects[0].id,
+    })
+    useTaskStore.setState({
+      recentTasks: mockRecentTasks,
+      renameTask,
+    })
+
+    render(<LeftPanel />)
+
+    fireEvent.contextMenu(screen.getByText('Pipe Thickness — Line 200'))
+    fireEvent.click(screen.getByRole('menuitem', { name: /rename task/i }))
+
+    expect(screen.getByRole('heading', { name: 'Rename task' })).toBeInTheDocument()
+
+    const input = screen.getByLabelText('Task name')
+    await user.clear(input)
+    await user.type(input, 'Line 200 Custom')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(renameTask).toHaveBeenCalledWith('recent_pipe_001', 'Line 200 Custom', 'proj_refinery')
+    })
   })
 })

@@ -86,17 +86,31 @@ class SessionStore:
             encoding="utf-8",
         )
 
-    def load_conversation(self) -> list[dict[str, str]]:
+    def load_conversation(self, task_id: str | None = None) -> list[dict[str, str]]:
         path = self.session_path / "conversation.json"
         if not path.exists():
             return []
-        return json.loads(path.read_text(encoding="utf-8"))
+        messages = json.loads(path.read_text(encoding="utf-8"))
+        if task_id:
+            return [message for message in messages if message.get("task_id") == task_id]
+        return messages
 
     def save_conversation(self, messages: list[dict[str, str]]) -> None:
         (self.session_path / "conversation.json").write_text(
             json.dumps(messages, indent=2),
             encoding="utf-8",
         )
+
+    def clear_conversation(self, task_id: str | None = None) -> None:
+        if task_id:
+            remaining = [
+                message
+                for message in self.load_conversation()
+                if message.get("task_id") != task_id
+            ]
+            self.save_conversation(remaining)
+            return
+        self.save_conversation([])
 
     def append_message(self, role: str, content: str) -> None:
         messages = self.load_conversation()

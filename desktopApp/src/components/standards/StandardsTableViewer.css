@@ -1,0 +1,109 @@
+.standards-table-viewer {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+
+.standards-table-viewer__header {
+  flex: 0 0 auto;
+}
+
+.standards-table-viewer__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.standards-table-viewer__meta {
+  margin: 0 0 0.75rem;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.standards-table-viewer__count {
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  color: #64748b;
+  flex: 0 0 auto;
+}
+
+.standards-table-viewer__empty {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.standards-table-viewer__empty-row td {
+  padding: 0.75rem 0.55rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-style: italic;
+  background: #f8fafc;
+}
+
+.standards-table-viewer__table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.35rem;
+}
+
+.standards-table-viewer__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.standards-table-viewer__table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #475569;
+  background: #f8fafc;
+}
+
+.standards-table-viewer__filter-row th {
+  top: 2rem;
+  z-index: 1;
+  padding: 0.35rem 0.45rem;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 500;
+  background: #f1f5f9;
+}
+
+.standards-table-viewer__column-filter {
+  width: 100%;
+  min-width: 4.5rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.3rem;
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #0f172a;
+  background: #fff;
+}
+
+.standards-table-viewer__table td {
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+  vertical-align: top;
+  color: #334155;
+}
+
+.standards-table-viewer__row--highlighted td {
+  background: #eff6ff;
+}

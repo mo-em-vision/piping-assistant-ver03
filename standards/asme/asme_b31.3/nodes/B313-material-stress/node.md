@@ -76,7 +76,7 @@ outputs:
 lookups:
   - id: material_stress_table
     source: table
-    table_id: material_allowable_stress
+    table_id: asme_b31.3_material_allowable_stress
     lookup_rule: material_and_temperature
     interpolation: true
 
@@ -112,7 +112,7 @@ This node performs a deterministic table lookup to obtain allowable stress `S` a
 
 ## Lookup
 
-See lookup table `material_allowable_stress` in `standards_tables.db` for sample development values (SA-106B / A106-B).
+See lookup table `asme_b31.3_material_allowable_stress` in `asme_b313_tables.db` for sample development values (SA-106B / A106-B).
 
 ## Output
 
