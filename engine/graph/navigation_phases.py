@@ -28,6 +28,24 @@ _PHASE4_ORDER = (
 _PHASE5_ORDER: tuple[str, ...] = ()
 _PHASE_DEFINITION_EQUATION_ORDER = ("corrosion_allowance",)
 
+_MAWP_PHASE1_FIELDS = frozenset({"straight_pipe_section"})
+_MAWP_PHASE2_FIELDS = frozenset({"geometry_input_mode"})
+_MAWP_PHASE3_ORDER = (
+    "nominal_pipe_size",
+    "pipe_schedule",
+    "outside_diameter",
+    "actual_wall_thickness",
+    "corrosion_allowance",
+    "material",
+    "design_temperature",
+)
+_MAWP_PHASE4_ORDER = (
+    "joint_category",
+    "weld_joint_efficiency",
+    "weld_strength_reduction",
+    "temperature_coefficient",
+)
+
 
 @dataclass
 class PhasedNavigation:
@@ -148,8 +166,94 @@ def build_phased_navigation(
     return result
 
 
-def allowed_fields_for_phase(phase: NavigationPhase) -> frozenset[str]:
+def build_mawp_phased_navigation(
+    *,
+    assumption_eval: AssumptionEvaluation,
+    expansion_eval: AssumptionEvaluation,
+    user_inputs: list[str],
+    execution_eval: AssumptionEvaluation,
+    question_map: dict[str, str],
+) -> PhasedNavigation:
+    """Partition missing MAWP workflow fields into ordered navigation phases."""
+    result = PhasedNavigation()
+
+    if assumption_eval.blocked:
+        result.blocked_nodes = [block.node_id for block in assumption_eval.blocked]
+        result.block_messages = [block.message for block in assumption_eval.blocked]
+        result.current_phase = NavigationPhase.EXPANSION_ASSUMPTIONS
+        result.questions = result.block_messages[:1] or ["Workflow path is blocked."]
+        return result
+
+    phase1 = list(
+        dict.fromkeys(
+            field_id
+            for field_id in assumption_eval.missing_fields + expansion_eval.missing_fields
+            if field_id in _MAWP_PHASE1_FIELDS
+        )
+    )
+    phase2 = list(
+        dict.fromkeys(
+            field_id
+            for field_id in assumption_eval.missing_fields + expansion_eval.missing_fields
+            if field_id in _MAWP_PHASE2_FIELDS
+        )
+    )
+    phase3 = _ordered_missing(user_inputs, _MAWP_PHASE3_ORDER)
+    phase4_source = [
+        field_id
+        for field_id in list(expansion_eval.missing_fields) + list(execution_eval.missing_fields)
+        if field_id not in _MAWP_PHASE1_FIELDS and field_id not in _MAWP_PHASE2_FIELDS
+    ]
+    phase4 = _ordered_missing(phase4_source, _MAWP_PHASE4_ORDER)
+
+    result.phase_missing = {
+        NavigationPhase.EXPANSION_ASSUMPTIONS.value: phase1,
+        NavigationPhase.PATH_DECISIONS.value: phase2,
+        NavigationPhase.PARAMETER_GATHERING.value: phase3,
+        NavigationPhase.COEFFICIENT_RESOLUTION.value: phase4,
+        NavigationPhase.EXECUTION_ASSUMPTIONS.value: [],
+    }
+
+    for phase, fields in (
+        (NavigationPhase.EXPANSION_ASSUMPTIONS, phase1),
+        (NavigationPhase.PATH_DECISIONS, phase2),
+        (NavigationPhase.PARAMETER_GATHERING, phase3),
+        (NavigationPhase.COEFFICIENT_RESOLUTION, phase4),
+    ):
+        result.phase_questions[phase.value] = _questions_for_fields(fields, question_map)
+
+    for phase, fields in (
+        (NavigationPhase.EXPANSION_ASSUMPTIONS, phase1),
+        (NavigationPhase.PATH_DECISIONS, phase2),
+        (NavigationPhase.PARAMETER_GATHERING, phase3),
+        (NavigationPhase.COEFFICIENT_RESOLUTION, phase4),
+    ):
+        if fields:
+            result.current_phase = phase
+            result.all_missing = fields
+            result.questions = result.phase_questions[phase.value]
+            break
+    else:
+        result.current_phase = NavigationPhase.READY
+        result.all_missing = []
+        result.questions = []
+
+    return result
+
+
+def allowed_fields_for_phase(phase: NavigationPhase, *, workflow: str | None = None) -> frozenset[str]:
     """Return input fields that may be extracted/stored during a navigation phase."""
+    if workflow == "mawp_design":
+        if phase == NavigationPhase.EXPANSION_ASSUMPTIONS:
+            return _MAWP_PHASE1_FIELDS
+        if phase == NavigationPhase.PATH_DECISIONS:
+            return _MAWP_PHASE2_FIELDS
+        if phase == NavigationPhase.PARAMETER_GATHERING:
+            return frozenset(_MAWP_PHASE3_ORDER)
+        if phase == NavigationPhase.COEFFICIENT_RESOLUTION:
+            return frozenset(_MAWP_PHASE4_ORDER)
+        return frozenset()
+
     if phase == NavigationPhase.EXPANSION_ASSUMPTIONS:
         return _PHASE1_FIELDS
     if phase == NavigationPhase.PATH_DECISIONS:

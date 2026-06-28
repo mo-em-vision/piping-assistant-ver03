@@ -7,8 +7,8 @@ from typing import Any
 
 from engine.reference.material_catalog_db import resolve_material_id
 from engine.reference.material_ids import (
+    ASTM_A105,
     ASTM_A106_GR_B,
-    ASME_SA_105,
     is_material_id,
 )
 
@@ -25,8 +25,8 @@ _LEGACY_TO_MATERIAL_ID: dict[str, str] = {
     "SA-106B": ASTM_A106_GR_B,
     "SA-106 B": ASTM_A106_GR_B,
     "SA-106 GRADE B": ASTM_A106_GR_B,
-    "SA105": ASME_SA_105,
-    "SA-105": ASME_SA_105,
+    "SA105": ASTM_A105,
+    "SA-105": ASTM_A105,
 }
 
 

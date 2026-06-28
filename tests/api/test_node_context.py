@@ -30,6 +30,16 @@ def test_node_source_payload_includes_body(standards_reader: StandardsReader) ->
     assert "304.1.1" in payload["body"]
     assert "t_m = t + c" in payload["body"]
     assert payload["hover_excerpt"]
+    assert payload["revision_year"] == 2024
+
+
+def test_node_source_payload_includes_latex_fractions(standards_reader: StandardsReader) -> None:
+    payload = node_source_payload(standards_reader, "B313-304.1.2")
+
+    assert payload["node_id"] == "B313-304.1.2"
+    assert "\\frac" in payload["body"]
+    assert "$t < \\frac{D}{6}$" in payload["body"]
+    assert "\\tag{3a}" in payload["body"]
 
 
 def test_active_node_context_uses_display_heading(standards_reader: StandardsReader) -> None:
@@ -80,6 +90,7 @@ def test_subsection_source_payload_for_302_3_3_b(standards_reader: StandardsRead
     payload = subsection_source_payload(standards_reader, "B313-302.3.3", "b")
 
     assert payload["node_id"] == "B313-302.3.3"
+    assert payload["revision_year"] == 2024
     assert payload["subsection_id"] == "b"
     assert payload["subsection_paragraph"] == "302.3.3(b)"
     assert payload["subsection_title"] == "Basic Quality Factors"

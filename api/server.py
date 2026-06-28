@@ -131,13 +131,22 @@ class ApiHandler(BaseHTTPRequestHandler):
                 )
                 return
 
-            if path == "/api/v1/materials/search":
-                search_query = str(query.get("q", [""])[0] or "")
-                _json_response(self, 200, self.service.search_materials(search_query))
-                return
+            if path.startswith("/api/v1/materials/"):
+                material_remainder = path.removeprefix("/api/v1/materials/").strip("/")
+                if material_remainder == "search":
+                    search_query = str(query.get("q", [""])[0] or "")
+                    _json_response(self, 200, self.service.search_materials(search_query))
+                    return
+                if material_remainder == "warm":
+                    _json_response(self, 200, self.service.warm_material_catalog())
+                    return
+                if material_remainder:
+                    _json_response(self, 200, self.service.get_material_detail(material_remainder))
+                    return
 
-            if path == "/api/v1/materials/warm":
-                _json_response(self, 200, self.service.warm_material_catalog())
+            if path == "/api/v1/standards/browse":
+                standard = query.get("standard", ["asme_b31.3"])[0]
+                _json_response(self, 200, self.service.get_standards_browse(standard))
                 return
 
             if path.startswith("/api/v1/standards/nodes/"):

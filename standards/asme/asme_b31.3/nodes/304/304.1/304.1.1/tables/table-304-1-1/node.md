@@ -7,6 +7,7 @@ status: draft
 paragraph: "304.1.1"
 section: "304.1.1"
 topic: temperature_coefficient
+revision_year: 2024
 
 depends_on: []
 

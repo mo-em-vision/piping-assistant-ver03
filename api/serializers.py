@@ -18,11 +18,17 @@ from api.output_blocks import build_display_outputs
 from api.parameter_definitions import build_parameter_definitions
 from api.workflow_timeline import (
     collect_all_missing,
+    is_mawp_task,
     is_pipe_wall_thickness_task,
+    mawp_input_step_done,
+    mawp_step_title,
     pipe_wall_input_step_done,
     pipe_wall_step_title,
+    revealed_input_ids,
     revealed_pipe_wall_input_ids,
     submittable_parameter_ids,
+    workflow_input_step_done,
+    workflow_step_title,
 )
 from api.parameter_edit import active_edit_parameter, is_timeline_parameter_editable
 from engine.graph.definition_equations import (
@@ -30,7 +36,7 @@ from engine.graph.definition_equations import (
     pending_definition_equation_inputs,
 )
 from engine.reference.standards_reader import StandardsReader
-from engine.router import PIPE_WALL_THICKNESS_DESIGN
+from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
 from models.task import Task, TaskStatus
 
@@ -39,6 +45,13 @@ WORKFLOW_CATALOG: tuple[dict[str, Any], ...] = (
         "id": PIPE_WALL_THICKNESS_DESIGN,
         "name": "Pipe Thickness Calculation",
         "description": "ASME B31.3 wall thickness design workflow",
+        "discipline": "Piping",
+        "available": True,
+    },
+    {
+        "id": MAWP_DESIGN,
+        "name": "Maximum Allowable Working Pressure (MAWP)",
+        "description": "Calculate MAWP of piping components per ASME B31.3",
         "discipline": "Piping",
         "available": True,
     },
@@ -184,6 +197,111 @@ def _step(
     }
 
 
+def _mawp_step_display_value(task: Task, mawp_pa: float) -> str:
+    return format_value_with_unit_for_display(float(mawp_pa) / 1_000_000, "MPa") or f"{mawp_pa} Pa"
+
+
+def _build_mawp_timeline(
+    task: Task,
+    planning: dict[str, Any],
+    *,
+    standards_root: Path | None = None,
+    reader: StandardsReader | None = None,
+) -> list[dict[str, Any]]:
+    del reader
+    phase_missing = planning.get("phase_missing") or {}
+    phase_questions = planning.get("phase_questions") or {}
+    current_phase = str(planning.get("current_phase") or "")
+
+    all_missing = collect_all_missing(planning)
+    revealed_inputs = revealed_input_ids(task, planning)
+    ordered_steps: list[tuple[str, str]] = [
+        (step_id, workflow_step_title(task, step_id)) for step_id in revealed_inputs
+    ]
+    ordered_steps.extend(
+        [
+            ("mawp", mawp_step_title("mawp")),
+            ("report", mawp_step_title("report")),
+        ]
+    )
+
+    mawp_output = task.outputs.get("mawp") or task.outputs.get("MAWP")
+    mawp_done = mawp_output is not None
+    report_done = task.status == TaskStatus.COMPLETED
+
+    timeline: list[dict[str, Any]] = []
+    active_assigned = False
+    editing_parameter = active_edit_parameter(task)
+
+    for step_id, title in ordered_steps:
+        if step_id == "mawp":
+            if mawp_done:
+                status = "done"
+                hint = None
+                display_value = _mawp_step_display_value(task, float(mawp_output))
+            elif not active_assigned and current_phase not in {
+                "expansion_assumptions",
+                "path_decisions",
+            }:
+                status = "active"
+                hint = "Waiting for MAWP calculation"
+                display_value = None
+                active_assigned = True
+            else:
+                status = "pending"
+                hint = None
+                display_value = None
+        elif step_id == "report":
+            if report_done:
+                status = "done"
+                hint = None
+            elif mawp_done:
+                status = "active"
+                hint = "Generate the engineering report"
+            else:
+                status = "pending"
+                hint = "Available after MAWP calculation completes"
+            display_value = None
+        else:
+            if editing_parameter and step_id == editing_parameter:
+                status = "active"
+                hint = "Update this value in the workflow composer."
+                display_value = _input_display(task, step_id, standards_root=standards_root)
+                active_assigned = True
+            else:
+                input_done = workflow_input_step_done(task, step_id, all_missing)
+                if input_done:
+                    status = "done"
+                    hint = None
+                    display_value = _input_display(task, step_id, standards_root=standards_root)
+                elif not active_assigned:
+                    status = "active"
+                    hint = _step_hint(step_id, phase_missing, phase_questions, current_phase)
+                    display_value = None
+                    active_assigned = True
+                else:
+                    status = "pending"
+                    hint = None
+                    display_value = None
+
+        timeline.append(
+            _step(
+                step_id=step_id,
+                title=title,
+                status=status,
+                display_value=display_value,
+                hint=hint,
+                editable=(
+                    status == "done"
+                    and is_timeline_parameter_editable(task, step_id)
+                    and step_id != editing_parameter
+                ),
+            )
+        )
+
+    return timeline
+
+
 def _build_pipe_wall_timeline(
     task: Task,
     planning: dict[str, Any],
@@ -326,6 +444,10 @@ def _step_hint(
         return "Waiting for material selection"
     if step_id == "design_pressure":
         return "Waiting for design pressure"
+    if step_id == "pipe_schedule":
+        return "Waiting for pipe schedule"
+    if step_id == "actual_wall_thickness":
+        return "Waiting for actual wall thickness"
     return None
 
 
@@ -336,6 +458,13 @@ def _build_progress_steps(
     standards_root: Path | None = None,
     reader: StandardsReader | None = None,
 ) -> list[dict[str, Any]]:
+    if is_mawp_task(task):
+        return _build_mawp_timeline(
+            task,
+            planning,
+            standards_root=standards_root,
+            reader=reader,
+        )
     if is_pipe_wall_thickness_task(task):
         return _build_pipe_wall_timeline(
             task,

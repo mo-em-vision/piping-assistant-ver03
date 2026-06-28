@@ -82,9 +82,37 @@ def calculate_minimum_required_thickness(
     )
 
 
+def calculate_pressure_design_thickness(
+    *,
+    node_dir: Path,
+    variables: dict[str, float],
+) -> CalculationResult:
+    formula_path = node_dir.parent / "mawp_definition" / "equations" / "pressure_design_thickness.md"
+    return _calculation_engine.execute_from_file(
+        calculation_id="B313-MAWP-PRESSURE-DESIGN:pressure_design_thickness",
+        formula_path=formula_path,
+        variables=variables,
+    )
+
+
+def calculate_mawp(
+    *,
+    node_dir: Path,
+    variables: dict[str, float],
+) -> CalculationResult:
+    formula_path = node_dir.parent / "304.1.2" / "equations" / "mawp_pressure.md"
+    return _calculation_engine.execute_from_file(
+        calculation_id="B313-MAWP-CALCULATION:mawp_pressure",
+        formula_path=formula_path,
+        variables=variables,
+    )
+
+
 REGISTERED_FUNCTIONS: dict[str, CalculationFn] = {
     "calculate_wall_thickness": calculate_wall_thickness,
     "calculate_minimum_required_thickness": calculate_minimum_required_thickness,
+    "calculate_pressure_design_thickness": calculate_pressure_design_thickness,
+    "calculate_mawp": calculate_mawp,
     "calculate_allowable_displacement_stress_range": calculate_allowable_displacement_stress_range,
     "calculate_allowable_displacement_stress_range_with_margin": (
         calculate_allowable_displacement_stress_range_with_margin

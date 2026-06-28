@@ -7,6 +7,7 @@ status: draft
 paragraph: "302.3.5(e)"
 section: "302.3.5"
 topic: weld_strength_reduction
+revision_year: 2024
 
 depends_on: []
 

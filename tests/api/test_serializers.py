@@ -16,6 +16,7 @@ def test_workflow_catalog_includes_pipe_wall_thickness() -> None:
     workflows = workflow_catalog()
     ids = {item["id"] for item in workflows}
     assert "pipe_wall_thickness_design" in ids
+    assert "mawp_design" in ids
 
 
 def test_task_summary_uses_workflow_metadata() -> None:

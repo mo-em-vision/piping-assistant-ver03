@@ -71,6 +71,11 @@
   background: #f8fafc;
 }
 
+.create-task-dialog__item--highlighted {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
 .create-task-dialog__item:disabled {
   opacity: 0.6;
   cursor: not-allowed;

@@ -61,6 +61,19 @@ const TABLE_304: TableSourceDto = {
 }
 
 describe('StandardsTableViewer', () => {
+  it('renders revision year under the table title', () => {
+    render(
+      <StandardsTableViewer
+        payload={{
+          ...SAMPLE_TABLE,
+          revision_year: 2024,
+        }}
+      />,
+    )
+
+    expect(screen.getByText('Based on ASME B31.3, 2024 edition')).toBeInTheDocument()
+  })
+
   it('renders table description with standards reference links', () => {
     render(
       <StandardsTableViewer

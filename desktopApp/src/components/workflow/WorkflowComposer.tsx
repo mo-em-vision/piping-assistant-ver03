@@ -90,7 +90,7 @@ function renderInlineComposerInput({
   busy: boolean
   submitting: boolean
   canSubmit: boolean
-  submitCurrentValue: (nextValue?: unknown) => Promise<void>
+  submitCurrentValue: (nextValue?: unknown, displayValue?: string) => Promise<void>
 }) {
   if (parameter.type === 'material') {
     return (
@@ -98,7 +98,7 @@ function renderInlineComposerInput({
         inline
         value={textValue}
         onChange={setValue}
-        onSubmit={(nextValue) => void submitCurrentValue(nextValue)}
+        onSubmit={(nextValue, displayValue) => void submitCurrentValue(nextValue, displayValue)}
         disabled={busy}
         submitting={submitting}
         placeholder={composerPlaceholder(parameter)}
@@ -150,7 +150,7 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
   const busy = Boolean(disabled || submitting)
   const options = useMemo(() => parameter?.options ?? [], [parameter])
 
-  const submitCurrentValue = async (nextValue?: unknown) => {
+  const submitCurrentValue = async (nextValue?: unknown, displayValue?: string) => {
     if (!parameter || busy) {
       return
     }
@@ -167,6 +167,7 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
         parameter.name,
         payload,
         parameter.units.length > 0 ? unit : undefined,
+        displayValue,
       )
       setValue(parameter.type === 'multi_select' ? [] : '')
     } finally {

@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
 import { searchMockMaterials } from '@/mock/materials.mock'
 import { materialApi } from '@/services/api/materialApi'
 import { useMaterialCatalogStore } from '@/store/materialCatalogStore'
+import { useRightPanelStore } from '@/store/rightPanelStore'
+import { useUiStore } from '@/store/uiStore'
 
 import type { MaterialOptionDto } from '@/types/backend/materials'
 
@@ -18,7 +20,7 @@ const SEARCH_DEBOUNCE_MS = 80
 interface MaterialSearchInputProps {
   value: string
   onChange: (value: string) => void
-  onSubmit: (value?: string) => void
+  onSubmit: (value?: string, displayValue?: string) => void
   disabled?: boolean
   submitting?: boolean
   placeholder?: string
@@ -41,6 +43,7 @@ export function MaterialSearchInput({
   const catalogWarming = useMaterialCatalogStore((state) => state.warming)
   const catalogError = useMaterialCatalogStore((state) => state.error)
   const warmCatalog = useMaterialCatalogStore((state) => state.warmCatalog)
+  const openMaterialTab = useRightPanelStore((state) => state.openMaterialTab)
 
   const query = value.trim()
   const showSuggestions = query.length >= MIN_QUERY_LENGTH && suggestions.length > 0
@@ -102,8 +105,13 @@ export function MaterialSearchInput({
 
   const chooseSuggestion = (option: MaterialOptionDto) => {
     onChange(option.value)
-    onSubmit(option.value)
+    onSubmit(option.value, option.label)
     setSuggestions([])
+  }
+
+  const openMaterialInfo = (option: MaterialOptionDto) => {
+    useUiStore.setState({ rightCollapsed: false })
+    openMaterialTab(option.value, option.label)
   }
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -136,65 +144,67 @@ export function MaterialSearchInput({
   const suggestionsList = showSuggestions ? (
     <div className="composer-suggestions" role="listbox" aria-label="Material suggestions">
       {suggestions.map((option, index) => (
-        <button
+        <div
           key={`${option.standard}-${option.value}`}
-          type="button"
-          role="option"
-          aria-label={option.value}
-          aria-selected={highlightIndex === index}
           className={`composer-suggestions__item${
             highlightIndex === index ? ' composer-suggestions__item--highlighted' : ''
           }`}
-          disabled={disabled || submitting}
           onMouseEnter={() => setHighlightIndex(index)}
-          onClick={() => chooseSuggestion(option)}
         >
-          <span className="composer-suggestions__value">{option.value}</span>
-          <span className="composer-suggestions__meta">
-            {option.label} · {option.specification}
-          </span>
-        </button>
+          <button
+            type="button"
+            role="option"
+            aria-label={option.label}
+            aria-selected={highlightIndex === index}
+            className="composer-suggestions__select"
+            disabled={disabled || submitting}
+            onClick={() => chooseSuggestion(option)}
+          >
+            <span className="composer-suggestions__body">
+              <span className="composer-suggestions__value">{option.label}</span>
+              <span className="composer-suggestions__meta">{option.specification}</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            className="composer-suggestions__info"
+            disabled={disabled || submitting}
+            aria-label={`View details for ${option.label}`}
+            onClick={(event) => {
+              event.stopPropagation()
+              openMaterialInfo(option)
+            }}
+          >
+            ?
+          </button>
+        </div>
       ))}
     </div>
   ) : null
 
-  if (inline) {
-    return (
-      <div className="material-search-input material-search-input--inline">
-        {statusHint ? <p className="material-search-input__status">{statusHint}</p> : null}
-        <ComposerInlineInput
-          value={value}
-          onChange={onChange}
-          placeholder="Search…"
-          disabled={disabled}
-          submitting={submitting || loadingSuggestions}
-          canSubmit={canSubmit}
-          onSubmit={() => onSubmit()}
-          inputMode="search"
-          variant="text"
-          onKeyDown={handleKeyDown}
-        />
-        {suggestionsList}
-      </div>
-    )
-  }
+  const input = (
+    <ComposerInlineInput
+      value={value}
+      onChange={onChange}
+      placeholder={inline ? 'Search…' : placeholder}
+      disabled={disabled}
+      submitting={submitting || loadingSuggestions}
+      canSubmit={canSubmit}
+      onSubmit={() => onSubmit()}
+      inputMode="search"
+      variant="text"
+      layout={inline ? 'compact' : 'fluid'}
+      onKeyDown={handleKeyDown}
+    />
+  )
 
   return (
-    <div className="material-search-input">
+    <div className={`material-search-input${inline ? ' material-search-input--inline' : ''}`}>
       {statusHint ? <p className="material-search-input__status">{statusHint}</p> : null}
-      {suggestionsList}
-      <ComposerInlineInput
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        disabled={disabled}
-        submitting={submitting || loadingSuggestions}
-        canSubmit={canSubmit}
-        onSubmit={() => onSubmit()}
-        inputMode="search"
-        variant="text"
-        onKeyDown={handleKeyDown}
-      />
+      <div className="material-search-input__anchor">
+        {suggestionsList}
+        {input}
+      </div>
     </div>
   )
 }

@@ -37,6 +37,29 @@ export interface WorkflowDto {
   available: boolean
 }
 
+export type StandardsBrowseNodeKind = 'group' | 'node' | 'table' | 'workflow'
+
+export interface StandardsBrowseNodeDto {
+  id: string
+  kind: StandardsBrowseNodeKind
+  label: string
+  description?: string | null
+  node_id?: string | null
+  workflow_id?: string | null
+  content_kind?: 'node' | 'table' | null
+  table_id?: string | null
+  related_workflows?: WorkflowDto[]
+  children?: StandardsBrowseNodeDto[]
+}
+
+export interface StandardsBrowseDto {
+  standard: string
+  standard_slug: string
+  revision_year?: number | null
+  tree: StandardsBrowseNodeDto[]
+  workflow_index: Record<string, WorkflowDto[]>
+}
+
 export interface ProjectDto {
   id: string
   name: string
@@ -93,6 +116,7 @@ export interface NodeSourceDto {
   subsection_id?: string | null
   subsection_title?: string | null
   subsection_paragraph?: string | null
+  revision_year?: number | null
   body: string
   hover_excerpt: string
 }
@@ -107,6 +131,7 @@ export interface TableSourceDto {
   title: string
   description?: string | null
   standard: string
+  revision_year?: number | null
   source_path?: string | null
   columns: TableSourceColumnDto[]
   rows: Record<string, unknown>[]

@@ -2,12 +2,15 @@ import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import {
+  DisplayMath,
   EngineeringMathText,
   extractText,
   isEngineeringSymbol,
   isEquationLike,
   isInequalityLike,
   normalizeBareDisplayEquations,
+  renderEngineeringText,
+  toKatexExpression,
 } from '@/components/math/engineeringMath'
 
 describe('engineeringMath', () => {
@@ -26,6 +29,28 @@ describe('engineeringMath', () => {
   it('recognizes inequality expressions used in standards prose', () => {
     expect(isInequalityLike('Do/t < 10')).toBe(true)
     expect(isInequalityLike('t < D/6')).toBe(true)
+  })
+
+  it('routes latex equations with \\frac through a single inline math node', () => {
+    const text = 't = \\frac{PD}{2(SEW + PY)}'
+    const nodes = renderEngineeringText(text)
+    expect(nodes).toHaveLength(1)
+    expect(isEquationLike(text)).toBe(true)
+  })
+
+  it('converts slash equations with \\tag to stacked fractions', () => {
+    const latex = toKatexExpression('t = PD/2(SEW + PY) \\tag{3a}')
+    expect(latex).toContain('\\frac{PD}{2(SEW + PY)}')
+    expect(latex).toContain('\\tag{3a}')
+  })
+
+  it('preserves existing \\frac when \\tag is present', () => {
+    const input = 't = \\frac{PD}{2(SEW + PY)} \\tag{3a}'
+    expect(toKatexExpression(input)).toBe(input)
+  })
+
+  it('converts inequality slash notation to \\frac', () => {
+    expect(toKatexExpression('t < D/6')).toContain('\\frac{D}{6}')
   })
 })
 
@@ -91,5 +116,30 @@ describe('EngineeringMathText', () => {
     )
 
     expect(container.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(3)
+  })
+
+  it('renders standard inline LaTeX delimiters with fractions', () => {
+    const { container } = render(
+      <EngineeringMathText text={'For $t < \\frac{D}{6}$, use equation (3a).'} />,
+    )
+
+    expect(container.querySelectorAll('.katex').length).toBeGreaterThanOrEqual(1)
+    expect(container.querySelector('.katex .mfrac, .katex .frac-line')).toBeTruthy()
+  })
+
+  it('renders equations containing \\frac without dollar delimiters', () => {
+    const text = 't = \\frac{PD}{2(SEW + PY)}'
+    const { container } = render(<EngineeringMathText text={text} />)
+
+    expect(container.querySelector('.katex .mfrac, .katex .frac-line')).toBeTruthy()
+  })
+
+  it('renders legacy slash equations with equation tags as stacked fractions', () => {
+    const { container } = render(
+      <DisplayMath expression={'t = PD/2(SEW + PY) \\tag{3a}'} className="standards-markdown__equation" />,
+    )
+
+    expect(container.querySelector('.katex .mfrac, .katex .frac-line')).toBeTruthy()
+    expect(container.querySelector('.katex .tag')).toBeTruthy()
   })
 })

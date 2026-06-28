@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { StandardsMarkdownViewer } from '@/components/standards/StandardsMarkdownViewer'
+import { ReferenceEditionLine } from '@/components/standards/ReferenceEditionLine'
 import type { TableSourceColumnDto, TableSourceDto } from '@/types/backend/api'
 import type { TableViewerContext } from '@/store/rightPanelStore'
 
@@ -156,6 +157,7 @@ export function StandardsTableViewer({ payload, viewerContext }: StandardsTableV
     <div className="standards-table-viewer">
       <header className="standards-table-viewer__header">
         <h3 className="standards-table-viewer__title">{payload.title}</h3>
+        <ReferenceEditionLine standard={payload.standard} revisionYear={payload.revision_year} />
         {payload.source_path ? (
           <p className="standards-table-viewer__meta">
             {payload.standard} · {payload.source_path}

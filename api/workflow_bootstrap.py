@@ -14,17 +14,18 @@ from engine.graph.definition_equations import (
     try_complete_definition_equations,
 )
 from engine.graph.graph_engine import normalize_root_id
-from engine.graph.navigation_phases import build_phased_navigation
+from engine.graph.navigation_phases import build_mawp_phased_navigation, build_phased_navigation
 from engine.planner.planner import _INPUT_QUESTIONS
 from engine.planner.tools import GraphTools
 from engine.reference.standards_reader import StandardsReader
-from engine.router import PIPE_WALL_THICKNESS_DESIGN
+from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from models.agent import AgentAction
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.planning import NavigationPhase
 from models.task import Task, TaskStatus
 from api.material_catalog_service import warm_material_catalog
-from api.workflow_timeline import submittable_parameter_ids
+from api.workflow_timeline import is_mawp_task, submittable_parameter_ids
+from engine.executor.mawp_geometry_resolver import apply_geometry_input_mode_default
 
 
 def standards_reader_for_config(config: CLIConfig) -> StandardsReader:
@@ -78,6 +79,9 @@ _PROPOSE_DEFAULTS_ON_FIELDS = frozenset(
         "design_temperature",
         "nominal_pipe_size",
         "outside_diameter",
+        "pipe_schedule",
+        "actual_wall_thickness",
+        "geometry_input_mode",
         "joint_category",
         "weld_joint_efficiency",
         "weld_strength_reduction",
@@ -85,6 +89,8 @@ _PROPOSE_DEFAULTS_ON_FIELDS = frozenset(
         "corrosion_allowance",
     }
 )
+
+_SUPPORTED_PLANNING_WORKFLOWS = frozenset({PIPE_WALL_THICKNESS_DESIGN, MAWP_DESIGN})
 
 
 def refresh_task_planning(
@@ -100,6 +106,8 @@ def refresh_task_planning(
 
     root_slug = normalize_root_id(workflow_id)
     graph = GraphTools(reader)
+    if root_slug == MAWP_DESIGN:
+        apply_geometry_input_mode_default(task)
     existing_inputs = dict(task.inputs)
 
     preview = graph.preview_plan(
@@ -152,7 +160,8 @@ def refresh_task_planning(
     for field_id, question in execution_eval.field_questions.items():
         question_map.setdefault(field_id, question)
 
-    phased = build_phased_navigation(
+    phased_builder = build_mawp_phased_navigation if root_slug == MAWP_DESIGN else build_phased_navigation
+    phased = phased_builder(
         assumption_eval=assumption_eval,
         expansion_eval=expansion_eval,
         user_inputs=missing_inputs,
@@ -160,15 +169,20 @@ def refresh_task_planning(
         question_map=question_map,
     )
 
+    assumption_gate_fields = (
+        {"straight_pipe_section", "geometry_input_mode"}
+        if root_slug == MAWP_DESIGN
+        else {"straight_pipe_section", "pressure_loading"}
+    )
     missing_assumptions = [
         field_id
         for field_id in assumption_eval.missing_fields + expansion_eval.missing_fields
-        if field_id in {"straight_pipe_section", "pressure_loading"}
+        if field_id in assumption_gate_fields
     ]
     missing_execution = [
         field_id
         for field_id in list(expansion_eval.missing_fields) + list(execution_eval.missing_fields)
-        if field_id not in {"straight_pipe_section", "pressure_loading"}
+        if field_id not in assumption_gate_fields
     ]
 
     definition_node = resolve_activated_definition_node(
@@ -229,14 +243,18 @@ def refresh_task_planning(
 def task_ready_for_execution(task: Task) -> bool:
     if task.status in {TaskStatus.COMPLETED, TaskStatus.INVALIDATED}:
         return False
-    if str(task.outputs.get("workflow") or "") != PIPE_WALL_THICKNESS_DESIGN:
+    workflow = str(task.outputs.get("workflow") or "")
+    if workflow not in _SUPPORTED_PLANNING_WORKFLOWS:
         return False
 
     planning = task.outputs.get("planning_summary") or {}
     if not isinstance(planning, dict):
         return False
 
-    if planning.get("current_phase") == NavigationPhase.DEFINITION_EQUATION_COMPLETION.value:
+    if (
+        workflow == PIPE_WALL_THICKNESS_DESIGN
+        and planning.get("current_phase") == NavigationPhase.DEFINITION_EQUATION_COMPLETION.value
+    ):
         return False
 
     if planning.get("current_phase") == NavigationPhase.READY.value:
@@ -266,14 +284,15 @@ def maybe_execute_ready_workflow(
     )
     execute_workflow(task_id, root_slug, state=manager, reader=reader)
     task = manager.get_task(task_id)
-    graph = GraphTools(reader)
-    preview = graph.preview_plan(
-        task_id=task_id,
-        root_id=root_slug,
-        inputs=dict(task.inputs),
-    )
-    try_complete_definition_equations(task, reader, preview.execution_order)
-    manager.replace_task(task_id, task)
+    if root_slug == PIPE_WALL_THICKNESS_DESIGN:
+        graph = GraphTools(reader)
+        preview = graph.preview_plan(
+            task_id=task_id,
+            root_id=root_slug,
+            inputs=dict(task.inputs),
+        )
+        try_complete_definition_equations(task, reader, preview.execution_order)
+        manager.replace_task(task_id, task)
     refresh_task_planning(task, reader, propose_defaults=False)
     manager.replace_task(task_id, task)
     return manager.get_task(task_id)
@@ -356,7 +375,7 @@ def bootstrap_new_task(task: Task, workflow_id: str, config: CLIConfig) -> None:
     task.outputs["workflow"] = workflow_id
     task.outputs["selected_root"] = workflow_id
 
-    if workflow_id != PIPE_WALL_THICKNESS_DESIGN:
+    if workflow_id not in _SUPPORTED_PLANNING_WORKFLOWS:
         task.outputs["planning_summary"] = {
             "goal": workflow_id.replace("_", " "),
             "intent": workflow_id,
@@ -376,6 +395,8 @@ def bootstrap_new_task(task: Task, workflow_id: str, config: CLIConfig) -> None:
 
     reader = standards_reader_for_config(config)
     _apply_default_expansion_assumptions(task)
+    if workflow_id == MAWP_DESIGN:
+        apply_geometry_input_mode_default(task)
     refresh_task_planning(task, reader)
 
 
@@ -404,4 +425,6 @@ def _path_decision(
         return {"pressure_loading": "internal_pressure", "selected_node": "B313-304.1.2"}
     if value == "external_pressure" and "B313-304.1.3" in exec_nodes:
         return {"pressure_loading": "external_pressure", "selected_node": "B313-304.1.3"}
+    if "B313-MAWP-CALCULATION" in exec_nodes:
+        return {"selected_node": "B313-MAWP-CALCULATION"}
     return None

@@ -9,8 +9,9 @@ from __future__ import annotations
 import re
 
 PIPE_WALL_THICKNESS_DESIGN = "pipe_wall_thickness_design"
+MAWP_DESIGN = "mawp_design"
 
-_SUPPORTED_WORKFLOWS: frozenset[str] = frozenset({PIPE_WALL_THICKNESS_DESIGN})
+_SUPPORTED_WORKFLOWS: frozenset[str] = frozenset({PIPE_WALL_THICKNESS_DESIGN, MAWP_DESIGN})
 
 _MATCH_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
@@ -23,6 +24,17 @@ _MATCH_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
             r"design\s+pipe\s+thickness|"
             r"calculate\s+pipe\s+thickness|"
             r"pipe\s+thickness\s+design"
+            r")\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        MAWP_DESIGN,
+        re.compile(
+            r"\b("
+            r"mawp|"
+            r"maximum\s+allowable\s+working\s+pressure|"
+            r"allowable\s+working\s+pressure"
             r")\b",
             re.IGNORECASE,
         ),

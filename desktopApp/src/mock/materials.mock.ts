@@ -1,4 +1,4 @@
-import type { MaterialOptionDto } from '@/types/backend/materials'
+import type { MaterialDetailDto, MaterialOptionDto } from '@/types/backend/materials'
 
 /** MOCK_DATA — ASTM material suggestions for offline autocomplete. */
 export const mockMaterialCatalog: MaterialOptionDto[] = [
@@ -46,6 +46,51 @@ export const mockMaterialCatalog: MaterialOptionDto[] = [
   },
 ]
 
+const mockMaterialDetails: Record<string, MaterialDetailDto> = {
+  astm_a106_gr_b: {
+    material_id: 'astm_a106_gr_b',
+    display_name: 'ASTM A106 Grade B',
+    standard_slug: 'astm_a106',
+    grade_key: 'A106 Gr B',
+    specification: 'ASTM A106/A106M',
+    product_form: 'seamless_pipe',
+    uns_number: 'K03006',
+    aliases: ['A106B', 'SA-106B', 'SA-106 Grade B'],
+    mechanical_properties: {
+      room_temperature: {
+        test_temperature_f: 70,
+        tensile_strength_min: { ksi: 60, pa: 413685437 },
+        yield_strength_min: { ksi: 35, pa: 241316505 },
+        elongation_min_percent: 30,
+      },
+      elevated_temperature: [
+        {
+          test_temperature_f: 400,
+          tensile_strength_min: { ksi: 58, pa: 399896758 },
+          yield_strength_min: { ksi: 29, pa: 200048000 },
+          elongation_min_percent: 25,
+        },
+      ],
+    },
+    chemical_composition: {
+      unit: 'percent',
+      limits: {
+        carbon: { max: 0.3 },
+        manganese: { min: 0.29, max: 1.06 },
+        phosphorus: { max: 0.025 },
+        sulfur: { max: 0.025 },
+      },
+    },
+    physical_properties: {
+      density_kg_m3: 7850,
+      poisson_ratio: 0.3,
+    },
+    notes: ['Most common A106 grade for process piping and ASME B31.3 applications.'],
+    source_node: 'ASTM-a106-material-properties',
+    table_id: 'astm_a106_material_properties',
+  },
+}
+
 export function searchMockMaterials(query: string, limit = 12): MaterialOptionDto[] {
   const needle = query.trim().toLowerCase()
   if (needle.length < 3) {
@@ -64,4 +109,12 @@ export function searchMockMaterials(query: string, limit = 12): MaterialOptionDt
   })
 
   return matches.slice(0, limit)
+}
+
+export function getMockMaterialDetail(materialId: string): MaterialDetailDto {
+  const detail = mockMaterialDetails[materialId]
+  if (!detail) {
+    throw new Error(`Mock material detail not found: ${materialId}`)
+  }
+  return detail
 }

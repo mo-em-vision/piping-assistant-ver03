@@ -16,6 +16,8 @@ Navigation only. Paragraph content lives in node folders under `nodes/` grouped 
 
 | Pipe Wall Thickness Design | [../../tasks/asme_b31.3/pipe_wall_thickness_design/root.md](../../tasks/asme_b31.3/pipe_wall_thickness_design/root.md) |
 
+| Maximum Allowable Working Pressure (MAWP) | [../../tasks/asme_b31.3/mawp_design/root.md](../../tasks/asme_b31.3/mawp_design/root.md) |
+
 
 
 ## Section 302 — Allowable stresses
@@ -71,6 +73,12 @@ Navigation only. Paragraph content lives in node folders under `nodes/` grouped 
 | B313-304.1.3 | `nodes/304/` | External pressure wall thickness (stub) |
 
 | B313-table-304-1-1 | `nodes/304/304.1.1/tables/` | Table 304.1.1 coefficient Y lookup |
+
+| B313-304.3.1 | `nodes/304/304.3/` | Branch connections — general applicability and limits |
+
+| B313-304.3.2 | `nodes/304/304.3/` | Branch connections — strength and assumed-adequate cases |
+
+| B313-304.3.3 | `nodes/304/304.3/` | Welded branch reinforcement — nomenclature and area equations |
 
 
 

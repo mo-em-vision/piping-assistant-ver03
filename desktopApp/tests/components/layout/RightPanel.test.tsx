@@ -8,7 +8,7 @@ import { mockTaskState } from '@/mock/taskState.mock'
 
 describe('RightPanel tabs', () => {
   beforeEach(() => {
-    useRightPanelStore.getState().reset()
+    useRightPanelStore.getState().reset(true)
     useTaskStore.setState({
       activeTask: {
         id: mockTaskState.task_id,
@@ -24,13 +24,55 @@ describe('RightPanel tabs', () => {
   it('shows Task and Chat tabs without embedding chat in Task tab', () => {
     render(<RightPanel />)
 
-    expect(screen.getByRole('tab', { name: 'Task' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Task — Awaiting input' })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'Chat' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Standards' })).toBeInTheDocument()
     expect(screen.getByText('Task state')).toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: 'Engineering report' })).not.toBeInTheDocument()
     expect(
       screen.queryByPlaceholderText(/Ask about this task, its inputs, or calculation outputs/i),
     ).not.toBeInTheDocument()
+  })
+
+  it('renders icon-only pinned tabs without visible text labels', () => {
+    const { container } = render(<RightPanel />)
+
+    const pinnedTabs = container.querySelectorAll('.side-panel__tab--icon-only')
+    expect(pinnedTabs).toHaveLength(3)
+    pinnedTabs.forEach((tab) => {
+      expect(tab.querySelector('.side-panel__tab-label')).toBeNull()
+      expect(tab.querySelector('.side-panel__tab-icon')).toBeTruthy()
+    })
+  })
+
+  it('reflects task status in the Task tab accessible name', () => {
+    useTaskStore.setState({
+      activeTaskState: {
+        ...mockTaskState,
+        status: 'completed',
+      },
+    })
+
+    render(<RightPanel />)
+
+    expect(screen.getByRole('tab', { name: 'Task — Completed' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Task — Completed' })).toHaveAttribute(
+      'title',
+      'Task — Completed',
+    )
+  })
+
+  it('hides Task tab when no task is active and shows Chat tab', () => {
+    useRightPanelStore.getState().reset(false)
+    useTaskStore.setState({
+      activeTask: null,
+      activeTaskState: null,
+    })
+
+    render(<RightPanel />)
+
+    expect(screen.queryByRole('tab', { name: 'Task' })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Chat' })).toBeInTheDocument()
   })
 
   it('places reference tab close button inside the tab container', () => {
@@ -88,8 +130,8 @@ describe('RightPanel tabs', () => {
     store.openReferenceTab('asme_b31.3_A-1A', 'Table A-1A', 'table')
 
     const tabs = useRightPanelStore.getState().tabs
-    const firstReferenceTabId = tabs[2]?.id
-    const secondReferenceTabId = tabs[3]?.id
+    const firstReferenceTabId = tabs[3]?.id
+    const secondReferenceTabId = tabs[4]?.id
     expect(firstReferenceTabId).toBeTruthy()
     expect(secondReferenceTabId).toBeTruthy()
 
@@ -108,7 +150,7 @@ describe('RightPanel tabs', () => {
     store.openReferenceTab('asme_b31.3_A-1A', 'Table A-1A', 'table')
 
     const tabs = useRightPanelStore.getState().tabs
-    const secondReferenceTabId = tabs[3]?.id
+    const secondReferenceTabId = tabs[4]?.id
     store.setActiveTab(secondReferenceTabId!)
 
     const { container } = render(<RightPanel />)
@@ -118,7 +160,7 @@ describe('RightPanel tabs', () => {
       screen.getByRole('button', { name: 'Close Table A-1A' }),
     )
 
-    expect(useRightPanelStore.getState().activeTabId).toBe(tabs[2]?.id)
+    expect(useRightPanelStore.getState().activeTabId).toBe(tabs[3]?.id)
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest', inline: 'nearest' })
     expect(container.querySelectorAll('.side-panel__tab-item--closable')).toHaveLength(1)
   })

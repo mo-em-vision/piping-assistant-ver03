@@ -123,6 +123,72 @@ $$
     expect(container.querySelector('.standards-markdown__p .katex')).toBeTruthy()
   })
 
+  it('renders inline LaTeX fractions in paragraph prose', () => {
+    const { container } = render(
+      <StandardsMarkdownViewer content="**(a)** For $t < \\frac{D}{6}$, the internal pressure design thickness shall be calculated." />,
+    )
+
+    expect(container.querySelector('.standards-markdown__p .katex .mfrac, .standards-markdown__p .katex .frac-line')).toBeTruthy()
+  })
+
+  it('renders bare display equations containing \\frac', () => {
+    const content = `**(a)** For t < D/6:
+
+$$
+ t = \\frac{PD}{2(SEW + PY)}
+\\tag{3a}
+$$
+
+Following text.`
+
+    const { container } = render(<StandardsMarkdownViewer content={content} />)
+
+    expect(
+      container.querySelectorAll('.standards-markdown__equation .katex .mfrac, .standards-markdown__equation .katex .frac-line').length,
+    ).toBeGreaterThanOrEqual(1)
+    expect(container.querySelector('.katex .tag')).toBeTruthy()
+  })
+
+  it('renders legacy slash display equations with equation tags', () => {
+    const content = `**(a)** For t < D/6:
+
+$$
+ t = PD/2(SEW + PY)
+\\tag{3a}
+$$
+
+Following text.`
+
+    const { container } = render(<StandardsMarkdownViewer content={content} />)
+
+    expect(
+      container.querySelectorAll('.standards-markdown__equation .katex .mfrac, .standards-markdown__equation .katex .frac-line').length,
+    ).toBeGreaterThanOrEqual(1)
+    expect(container.querySelector('.katex .tag')).toBeTruthy()
+  })
+
+  it('renders paragraph and display blocks from LaTeX standards content', () => {
+    const content = `**(a)** For $t < \\frac{D}{6}$, the internal pressure design thickness shall be calculated.
+
+$$
+ t = \\frac{PD}{2(SEW + PY)}
+\\tag{3a}
+$$
+
+$$
+t = \\frac{P(d+2c)}{2(SEW - P(1-Y))}
+\\tag{3b}
+$$`
+
+    const { container } = render(<StandardsMarkdownViewer content={content} />)
+
+    expect(container.querySelector('.standards-markdown__p .katex .frac-line')).toBeTruthy()
+    expect(
+      container.querySelectorAll('.standards-markdown__equation .katex .frac-line').length,
+    ).toBeGreaterThanOrEqual(2)
+    expect(container.querySelectorAll('.katex .tag').length).toBeGreaterThanOrEqual(2)
+  })
+
   it('renders node cross-reference links as standard reference controls', () => {
     render(
       <StandardsMarkdownViewer content="See [§304.1.2](node:B313-304.1.2) for internal pressure design." />,

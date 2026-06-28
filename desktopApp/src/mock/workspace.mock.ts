@@ -9,6 +9,12 @@ export const mockAvailableTasks: TaskSummary[] = [
     discipline: 'Piping',
   },
   {
+    id: 'mawp_design',
+    name: 'Maximum Allowable Working Pressure (MAWP)',
+    description: 'Calculate MAWP of piping components per ASME B31.3',
+    discipline: 'Piping',
+  },
+  {
     id: 'flange_selection',
     name: 'Flange Selection',
     description: 'Select flanges for piping systems',

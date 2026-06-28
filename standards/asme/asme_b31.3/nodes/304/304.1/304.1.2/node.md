@@ -18,6 +18,7 @@ modified: "2026-06-19"
 paragraph: "304.1.2"
 section: "304 Pressure Design of Components"
 topic: pipe_wall_thickness
+revision_year: 2024
 
 # ==========================================
 # Purpose
@@ -335,25 +336,24 @@ ai_hints:
 
 ## Paragraph Text
 
-**(a)** For t < D/6, the internal pressure design thickness for straight pipe shall be not less than that calculated in accordance with either equation (3a) or equation (3b).
+**(a)** For $t < \frac{D}{6}$, the internal pressure design thickness for straight pipe shall be not less than that calculated in accordance with either equation (3a) or equation (3b).
 
 
 $$
- t = PD/2(SEW + PY)
+ t = \frac{PD}{2(SEW + PY)}
 \tag{3a}
 $$
 
 
 
 $$
-t = P(d+2c)/2(SEW - P(1-Y))
+t = \frac{P(d+2c)}{2(SEW - P(1-Y))}
 \tag{3b}
 $$
 
 
 
-**(b)** For t ≥ D/6 or for P/SE > 0.385, calculation of pressure design thickness for straight pipe requires special consideration of factors such as theory of failure,
-effects of fatigue, and thermal stress.
+**(b)** For $t ≥ \frac{D}{6}$ or for $\frac{P}{SE} > 0.385$ ,calculation of pressure design thickness for straight pipe requires special consideration of factors such as theory of failure, effects of fatigue, and thermal stress.
 
 ---
 

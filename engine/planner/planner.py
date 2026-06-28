@@ -86,6 +86,17 @@ _INPUT_QUESTIONS: dict[str, str] = {
         "Confirm the pipe/joint category for quality factor E lookup (Tables A-1A and A-1B). "
         "Default is seamless pipe."
     ),
+    "geometry_input_mode": (
+        "Provide geometry by nominal pipe size and schedule (looked up per ASME B36.10) "
+        "or enter the outside diameter and actual wall thickness directly?"
+    ),
+    "pipe_schedule": (
+        "Enter the pipe schedule so outside diameter and wall thickness can be "
+        "looked up per ASME B36.10."
+    ),
+    "actual_wall_thickness": (
+        "Enter the actual or ordered wall thickness of the pipe."
+    ),
 }
 
 _THICKNESS_NODES = ("B313-304.1.2", "B313-304.1.3")

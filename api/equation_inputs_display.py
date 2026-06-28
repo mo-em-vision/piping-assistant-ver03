@@ -30,6 +30,22 @@ FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str, str], ...] = (
 
 FORMULA_INPUT_STEP_IDS = frozenset(row[0] for row in FORMULA_INPUT_DISPLAY_ROWS)
 
+MAWP_PRESSURE_DESIGN_ROWS: tuple[tuple[str, str, str], ...] = (
+    ("actual_wall_thickness", "t_actual", "Actual/ordered wall thickness"),
+    ("corrosion_allowance", "c", "Corrosion allowance"),
+    ("pressure_design_thickness", "t", "Pressure design thickness"),
+)
+
+MAWP_FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str, str], ...] = (
+    ("actual_wall_thickness", "t_actual", "Actual/ordered wall thickness"),
+    ("corrosion_allowance", "c", "Corrosion allowance"),
+    ("outside_diameter", "D", "Outside diameter"),
+    ("allowable_stress", "S", "Allowable stress"),
+    ("weld_joint_efficiency", "E", "Joint quality factor"),
+    ("weld_strength_reduction", "W", "Weld strength reduction factor"),
+    ("temperature_coefficient", "Y", "Coefficient Y"),
+)
+
 _SYMBOL_TO_INPUT_ID: dict[str, str] = {
     "P": "design_pressure",
     "D": "outside_diameter",
@@ -311,7 +327,32 @@ def _input_display_value(task: Task, input_id: str, *, standards_root: Path | No
         return _weld_strength_reduction_display_value(task)
     if input_id == "temperature_coefficient":
         return _temperature_coefficient_display_value(task)
+    if input_id == "actual_wall_thickness":
+        return _actual_wall_thickness_display_value(task)
+    if input_id == "pressure_design_thickness":
+        value = task.outputs.get("pressure_design_thickness") or task.outputs.get("t")
+        if value is None:
+            return None
+        return format_thickness_result_display(float(value), "mm")
+    if input_id == "mawp":
+        value = task.outputs.get("mawp") or task.outputs.get("MAWP")
+        if value is None:
+            return None
+        return format_value_with_unit_for_display(float(value) / 1_000_000, "MPa")
     return _input_display_value_from_input(task, input_id)
+
+
+def _actual_wall_thickness_display_value(task: Task) -> str | None:
+    display = _input_display_value_from_input(task, "actual_wall_thickness")
+    if not display:
+        return None
+    lookup = task.outputs.get("outside_diameter_lookup")
+    if isinstance(lookup, dict) and lookup.get("wall_thickness_mm") is not None:
+        schedule = lookup.get("schedule")
+        nps = lookup.get("nps")
+        if schedule and nps:
+            return f"{display} ({_ASME_B36_10}, NPS {nps} Sch {schedule})"
+    return display
 
 
 def definitions_from_equation_variables(
@@ -328,14 +369,15 @@ def definitions_from_equation_variables(
     return overrides
 
 
-def build_formula_inputs_table_rows(
+def _build_formula_table_rows(
     task: Task,
+    rows_spec: tuple[tuple[str, str, str], ...],
     *,
     definition_overrides: dict[str, str] | None = None,
 ) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     overrides = definition_overrides or {}
-    for input_id, symbol, default_definition in FORMULA_INPUT_DISPLAY_ROWS:
+    for input_id, symbol, default_definition in rows_spec:
         if _skip_formula_input_row(task, input_id):
             continue
         display = _input_display_value(task, input_id)
@@ -347,6 +389,52 @@ def build_formula_inputs_table_rows(
             }
         )
     return rows
+
+
+def build_mawp_pressure_design_input_table(
+    task: Task,
+    *,
+    definition_overrides: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "columns": [
+            {"key": "symbol", "label": "Symbol", "sortable": False},
+            {"key": "definition", "label": "Definition", "sortable": False},
+            {"key": "value", "label": "Value", "sortable": False},
+        ],
+        "rows": _build_formula_table_rows(
+            task,
+            MAWP_PRESSURE_DESIGN_ROWS,
+            definition_overrides=definition_overrides,
+        ),
+    }
+
+
+def build_mawp_formula_inputs_input_table(
+    task: Task,
+    *,
+    definition_overrides: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    return {
+        "columns": [
+            {"key": "symbol", "label": "Symbol", "sortable": False},
+            {"key": "definition", "label": "Definition", "sortable": False},
+            {"key": "value", "label": "Value", "sortable": False},
+        ],
+        "rows": _build_formula_table_rows(
+            task,
+            MAWP_FORMULA_INPUT_DISPLAY_ROWS,
+            definition_overrides=definition_overrides,
+        ),
+    }
+
+
+def build_formula_inputs_table_rows(
+    task: Task,
+    *,
+    definition_overrides: dict[str, str] | None = None,
+) -> list[dict[str, str]]:
+    return _build_formula_table_rows(task, FORMULA_INPUT_DISPLAY_ROWS, definition_overrides=definition_overrides)
 
 
 def build_formula_inputs_input_table(
@@ -393,6 +481,30 @@ def _format_result_thickness(value: float) -> str:
 
 def format_thickness_result_display(value: float, unit: str = "mm") -> str:
     return f"{_format_result_thickness(value)} {unit.strip() or 'mm'}"
+
+
+def build_mawp_substituted_equation(
+    *,
+    result_value_pa: float,
+    variables_si: dict[str, float],
+) -> tuple[str, str]:
+    s = float(variables_si["S"])
+    e = float(variables_si["E"])
+    w = float(variables_si["W"])
+    t = float(variables_si["t"])
+    d = float(variables_si["D"])
+    y = float(variables_si["Y"])
+    fmt = _format_substitution_value
+    numerator = f"2({fmt(s)})({fmt(e)})({fmt(w)})({fmt(t)})"
+    denominator = f"({fmt(d)} - 2({fmt(y)})({fmt(t)}))"
+    result_mpa = float(result_value_pa) / 1_000_000
+    result_text = f"{result_mpa:.4g}"
+    display = f"MAWP = {numerator} / {denominator} = {result_text} MPa"
+    latex = (
+        f"\\mathrm{{MAWP}} = \\frac{{{numerator}}}{{{denominator}}}"
+        f" = {result_text}\\ \\mathrm{{MPa}}"
+    )
+    return display, latex
 
 
 def build_wall_thickness_substituted_rhs(

@@ -91,3 +91,5 @@ def test_mvp_workflow_catalog_available(mvp_service: DesktopApiService) -> None:
     workflows = mvp_service.list_workflows()
     pipe = next(item for item in workflows if item["id"] == "pipe_wall_thickness_design")
     assert pipe["available"] is True
+    mawp = next(item for item in workflows if item["id"] == "mawp_design")
+    assert mawp["available"] is True

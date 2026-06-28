@@ -73,3 +73,11 @@ def test_table_source_payload_includes_all_row_columns_for_table_304_1_1(
     assert len(payload["rows"]) >= 30
     assert any(row.get("coefficient_Y") is not None for row in payload["rows"])
     assert len({row.get("material") for row in payload["rows"]}) >= 5
+
+
+def test_table_source_payload_includes_revision_year_from_source_node(
+    standards_reader: StandardsReader,
+) -> None:
+    payload = table_source_payload(standards_reader, TABLE_304_1_1)
+
+    assert payload["revision_year"] == 2024

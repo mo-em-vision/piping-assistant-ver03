@@ -10,6 +10,11 @@ import {
   shouldSnapRightWidthToDefault,
 } from '@/utils/panelLayout'
 
+interface CreateTaskDialogState {
+  open: boolean
+  preselectedWorkflowId?: string
+}
+
 interface UiState {
   leftWidth: number
   rightWidth: number
@@ -17,12 +22,15 @@ interface UiState {
   isFullScreen: boolean
   leftCollapsed: boolean
   rightCollapsed: boolean
+  createTaskDialog: CreateTaskDialogState
   setLeftWidth: (width: number) => void
   setRightWidth: (width: number, maxWidth?: number) => void
   setMaxRightWidth: (maxWidth: number) => void
   setFullScreen: (isFullScreen: boolean) => void
   toggleLeftCollapsed: () => void
   toggleRightCollapsed: () => void
+  openCreateTaskDialog: (workflowId?: string) => void
+  closeCreateTaskDialog: () => void
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -31,7 +39,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   maxRightWidth: MIN_PANEL_WIDTH,
   isFullScreen: false,
   leftCollapsed: false,
-  rightCollapsed: false,
+  rightCollapsed: true,
+  createTaskDialog: { open: false },
   setLeftWidth: (width) => set({ leftWidth: clampLeftPanelWidth(width) }),
   setMaxRightWidth: (maxWidth) => {
     const nextMax = Math.max(MIN_PANEL_WIDTH, maxWidth)
@@ -84,4 +93,18 @@ export const useUiStore = create<UiState>((set, get) => ({
   },
   toggleLeftCollapsed: () => set((state) => ({ leftCollapsed: !state.leftCollapsed })),
   toggleRightCollapsed: () => set((state) => ({ rightCollapsed: !state.rightCollapsed })),
+  openCreateTaskDialog: (workflowId) =>
+    set({
+      createTaskDialog: {
+        open: true,
+        preselectedWorkflowId: workflowId,
+      },
+    }),
+  closeCreateTaskDialog: () =>
+    set({
+      createTaskDialog: {
+        open: false,
+        preselectedWorkflowId: undefined,
+      },
+    }),
 }))

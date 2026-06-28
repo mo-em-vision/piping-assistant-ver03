@@ -7,15 +7,26 @@ import './CreateTaskDialog.css'
 const STRAIGHT_PIPE_TASK_CONFIRMATION =
   'Is the pipe wall thickness you would like to calculate for a straight section of pipe? Non-straight sections (fittings, bends) are not yet supported.'
 
+const MAWP_STRAIGHT_PIPE_CONFIRMATION =
+  'Is the MAWP calculation for a straight section of pipe? Non-straight sections (fittings, bends) are not yet supported.'
+
 interface CreateTaskDialogProps {
   open: boolean
   tasks: TaskSummary[]
+  preselectedWorkflowId?: string
   busy?: boolean
   onSelect: (workflowId: string) => void
   onCancel: () => void
 }
 
-export function CreateTaskDialog({ open, tasks, busy = false, onSelect, onCancel }: CreateTaskDialogProps) {
+export function CreateTaskDialog({
+  open,
+  tasks,
+  preselectedWorkflowId,
+  busy = false,
+  onSelect,
+  onCancel,
+}: CreateTaskDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [query, setQuery] = useState('')
 
@@ -25,7 +36,12 @@ export function CreateTaskDialog({ open, tasks, busy = false, onSelect, onCancel
       return
     }
     if (open) {
-      setQuery('')
+      if (preselectedWorkflowId) {
+        const match = tasks.find((task) => task.id === preselectedWorkflowId)
+        setQuery(match?.name ?? preselectedWorkflowId.replace(/_/g, ' '))
+      } else {
+        setQuery('')
+      }
       if (!dialog.open) {
         dialog.showModal()
       }
@@ -34,7 +50,7 @@ export function CreateTaskDialog({ open, tasks, busy = false, onSelect, onCancel
     if (dialog.open) {
       dialog.close()
     }
-  }, [open])
+  }, [open, preselectedWorkflowId, tasks])
 
   const filteredTasks = useMemo(() => {
     const normalized = query.trim().toLowerCase()
@@ -50,6 +66,12 @@ export function CreateTaskDialog({ open, tasks, busy = false, onSelect, onCancel
   const handleSelect = (workflowId: string) => {
     if (workflowId === 'pipe_wall_thickness_design') {
       const confirmed = window.confirm(STRAIGHT_PIPE_TASK_CONFIRMATION)
+      if (!confirmed) {
+        return
+      }
+    }
+    if (workflowId === 'mawp_design') {
+      const confirmed = window.confirm(MAWP_STRAIGHT_PIPE_CONFIRMATION)
       if (!confirmed) {
         return
       }
@@ -82,7 +104,9 @@ export function CreateTaskDialog({ open, tasks, busy = false, onSelect, onCancel
               <li key={task.id}>
                 <button
                   type="button"
-                  className="create-task-dialog__item"
+                  className={`create-task-dialog__item${
+                    task.id === preselectedWorkflowId ? ' create-task-dialog__item--highlighted' : ''
+                  }`}
                   disabled={busy}
                   onClick={() => handleSelect(task.id)}
                 >

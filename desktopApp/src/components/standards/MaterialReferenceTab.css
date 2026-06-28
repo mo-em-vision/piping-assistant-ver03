@@ -1,0 +1,113 @@
+.material-reference-tab {
+  flex: 1;
+  min-height: 0;
+  padding: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: auto;
+}
+
+.material-reference-tab__hint,
+.material-reference-tab__error {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.material-reference-tab__error {
+  color: #b91c1c;
+}
+
+.material-reference-tab__hint {
+  color: #64748b;
+}
+
+.material-reference-tab__header {
+  margin: 0 0 0.85rem;
+}
+
+.material-reference-tab__title {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.material-reference-tab__spec,
+.material-reference-tab__meta {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.material-reference-tab__section {
+  margin: 0 0 0.85rem;
+}
+
+.material-reference-tab__section-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.material-reference-tab__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.76rem;
+}
+
+.material-reference-tab__table th,
+.material-reference-tab__table td {
+  padding: 0.35rem 0.45rem;
+  border-bottom: 1px solid #e2e8f0;
+  text-align: left;
+}
+
+.material-reference-tab__table th {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.material-reference-tab__properties {
+  margin: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.material-reference-tab__property {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(0, 1.2fr);
+  gap: 0.5rem;
+  font-size: 0.76rem;
+}
+
+.material-reference-tab__property dt {
+  margin: 0;
+  color: #64748b;
+  text-transform: capitalize;
+}
+
+.material-reference-tab__property dd {
+  margin: 0;
+  color: #1e293b;
+}
+
+.material-reference-tab__aliases,
+.material-reference-tab__notes {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: #334155;
+}
+
+.material-reference-tab__notes {
+  padding-left: 1.1rem;
+}
+
+.material-reference-tab__footer {
+  margin-top: 0.5rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #e2e8f0;
+}

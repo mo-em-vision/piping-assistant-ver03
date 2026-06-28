@@ -117,6 +117,12 @@ def build_all() -> list[Path]:
             "ASTM-stainless-castings-material-properties",
             _ROOT / "scripts" / "seeds" / "astm_stainless_castings_material_properties.yaml",
         ),
+        (
+            _ROOT / "standards" / "astm" / "a_105",
+            "a_105",
+            "ASTM-a105-material-properties",
+            _ROOT / "scripts" / "seeds" / "astm_a105_material_properties.yaml",
+        ),
     ]
     built: list[Path] = []
     for pack_root, standard_slug, source_node, seed_yaml in packs:

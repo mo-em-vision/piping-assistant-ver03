@@ -9,6 +9,7 @@ modified: 2026-06-19
 paragraph: 302.3.5
 section: 302.3 Allowable Stresses and Other Stress Limits
 topic: stress_limits
+revision_year: 2024
 purpose: >
   Define limits for calculated stresses due to sustained loads and displacement
   strains, including the weld joint strength reduction factor W in subsection (e).

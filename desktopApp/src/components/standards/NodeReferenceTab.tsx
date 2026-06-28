@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import { StandardsMarkdownViewer } from '@/components/standards/StandardsMarkdownViewer'
+import { ReferenceEditionLine } from '@/components/standards/ReferenceEditionLine'
 import { standardsApi } from '@/services/api/standardsApi'
 
 import type { NodeSourceDto } from '@/types/backend/api'
@@ -88,6 +89,7 @@ export function NodeReferenceTab({ nodeId, subsectionId }: NodeReferenceTabProps
   const header = subsectionId ? subsectionHeader(payload) : null
   const body = payload.body.trim()
   const fallbackText = payload.subsection_title ?? payload.hover_excerpt
+  const hasMarkdownH1 = /^#\s/m.test(body)
 
   return (
     <div className="node-reference-tab">
@@ -95,10 +97,18 @@ export function NodeReferenceTab({ nodeId, subsectionId }: NodeReferenceTabProps
         <header className="node-reference-tab__subsection-header">
           <p className="node-reference-tab__parent-title">{payload.title}</p>
           {header ? <h3 className="node-reference-tab__subsection-title">{header}</h3> : null}
+          <ReferenceEditionLine standard={payload.standard} revisionYear={payload.revision_year} />
         </header>
       ) : null}
+      {!subsectionId && !hasMarkdownH1 ? (
+        <ReferenceEditionLine standard={payload.standard} revisionYear={payload.revision_year} />
+      ) : null}
       {body ? (
-        <StandardsMarkdownViewer content={body} />
+        <StandardsMarkdownViewer
+          content={body}
+          standard={payload.standard}
+          revisionYear={payload.revision_year}
+        />
       ) : fallbackText ? (
         <p className="node-reference-tab__hint">{fallbackText}</p>
       ) : (

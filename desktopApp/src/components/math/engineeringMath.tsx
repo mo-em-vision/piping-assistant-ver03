@@ -92,8 +92,21 @@ export function isInequalityLike(text: string): boolean {
   )
 }
 
+export function isLatexExpression(text: string): boolean {
+  const normalized = text.trim()
+  if (!normalized || normalized.includes('\n')) {
+    return false
+  }
+  return /\\(?:frac|tag|mathrm|sqrt|text|left|right)\b/.test(normalized)
+}
+
 export function isMathExpression(text: string): boolean {
-  return isEquationLike(text) || isInequalityLike(text) || isDisplayEquationLike(text)
+  return (
+    isEquationLike(text) ||
+    isInequalityLike(text) ||
+    isDisplayEquationLike(text) ||
+    isLatexExpression(text)
+  )
 }
 
 export function isInlineSymbol(text: string): boolean {
@@ -124,33 +137,76 @@ export function isEngineeringSymbol(text: string): boolean {
   return LOWERCASE_SYMBOLS.has(normalized)
 }
 
-export function toKatexExpression(expression: string): string {
-  let text = expression.trim()
-  if (text.includes('\\tag') || text.includes('\\frac')) {
-    return text.replace(/\s+/g, ' ').trim()
+function extractEquationTag(text: string): { body: string; tag: string } {
+  const tagMatch = text.match(/\\tag\{[^}]+\}/)
+  if (!tagMatch) {
+    return { body: text, tag: '' }
+  }
+  return {
+    body: text.replace(tagMatch[0], '').trim(),
+    tag: tagMatch[0],
+  }
+}
+
+function appendEquationTag(text: string, tag: string): string {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+  if (!tag) {
+    return normalized
+  }
+  return `${normalized} ${tag}`
+}
+
+function convertSlashNotationToFrac(text: string): string {
+  if (text.includes('\\frac')) {
+    return text
   }
 
-  text = text
-    .replace(/≤/g, '\\leq ')
-    .replace(/≥/g, '\\geq ')
-    .replace(/<=/g, '\\leq ')
-    .replace(/>=/g, '\\geq ')
-    .replace(/\b([A-Z])([a-z])(?=[_/\\s<>=]|$)/g, '$1_$2')
+  let converted = text.replace(/\b([A-Z])([a-z])(?=[_/\\s<>=]|$)/g, '$1_$2')
 
-  text = text.replace(
-    /([A-Za-z][A-Za-z0-9_]*)\s*\/\s*([A-Za-z][A-Za-z0-9_]*)/g,
+  if (converted.includes(' = ') && converted.includes('/')) {
+    const [left, right] = converted.split(' = ', 2)
+    if (right) {
+      const slashIndex = right.indexOf('/')
+      if (slashIndex > 0) {
+        const numerator = right.slice(0, slashIndex).trim()
+        const denominator = right.slice(slashIndex + 1).trim()
+        return `${left.trim()} = \\frac{${numerator}}{${denominator}}`
+      }
+    }
+  }
+
+  converted = converted.replace(
+    /([A-Za-z][A-Za-z0-9_]*)\s*\/\s*([A-Za-z0-9_.()+\-]+)/g,
     '\\frac{$1}{$2}',
   )
 
-  if (text.includes(' = ') && text.includes(' / ')) {
-    const [left, right] = text.split(' = ', 2)
+  if (converted.includes(' = ') && converted.includes(' / ')) {
+    const [left, right] = converted.split(' = ', 2)
     if (right?.includes(' / ') && !right.includes('\\frac')) {
       const [numerator, denominator] = right.split(' / ', 2)
       return `${left.trim()} = \\frac{${numerator.trim()}}{${denominator.trim()}}`
     }
   }
 
-  return text.replace(/\s+/g, ' ').trim()
+  return converted
+}
+
+export function toKatexExpression(expression: string): string {
+  let text = expression
+    .trim()
+    .replace(/≤/g, '\\leq ')
+    .replace(/≥/g, '\\geq ')
+    .replace(/<=/g, '\\leq ')
+    .replace(/>=/g, '\\geq ')
+
+  const { body, tag } = extractEquationTag(text)
+  text = body
+
+  if (text.includes('\\frac') || isLatexExpression(text)) {
+    return appendEquationTag(text, tag)
+  }
+
+  return appendEquationTag(convertSlashNotationToFrac(text), tag)
 }
 
 export function InlineMath({
@@ -210,7 +266,9 @@ export function DisplayMath({
 const ENGINEERING_TEXT_PATTERN =
   /([A-Za-z][A-Za-z0-9_]*(?:\s*\/\s*[A-Za-z][A-Za-z0-9_]*)?\s*(?:<|>|≤|≥|<=|>=)\s*[A-Za-z0-9_.]+(?:\s*\/\s*[A-Za-z0-9_.]+)?)|([A-Za-z][A-Za-z0-9_]*\s*=\s*[^.,;\n]+)|([A-Za-z][A-Za-z0-9_]*)/g
 
-export function renderEngineeringText(text: string): ReactNode[] {
+const INLINE_LATEX_PATTERN = /\$([^$\n]+?)\$/g
+
+function renderPlainEngineeringText(text: string): ReactNode[] {
   const nodes: ReactNode[] = []
   let lastIndex = 0
 
@@ -242,6 +300,33 @@ export function renderEngineeringText(text: string): ReactNode[] {
   }
 
   return nodes.length > 0 ? nodes : [text]
+}
+
+export function renderEngineeringText(text: string): ReactNode[] {
+  const nodes: ReactNode[] = []
+  let lastIndex = 0
+
+  for (const match of text.matchAll(INLINE_LATEX_PATTERN)) {
+    const index = match.index ?? 0
+    if (index > lastIndex) {
+      nodes.push(...renderPlainEngineeringText(text.slice(lastIndex, index)))
+    }
+
+    const expression = match[1]?.trim() ?? ''
+    if (expression) {
+      nodes.push(<InlineMath key={`latex-${index}`} expression={expression} />)
+    } else {
+      nodes.push(match[0])
+    }
+
+    lastIndex = index + match[0].length
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(...renderPlainEngineeringText(text.slice(lastIndex)))
+  }
+
+  return nodes.length > 0 ? nodes : renderPlainEngineeringText(text)
 }
 
 export function renderRichEngineeringContent(children: ReactNode): ReactNode {

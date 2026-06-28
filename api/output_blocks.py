@@ -8,13 +8,17 @@ from typing import Any
 
 from api.equation_inputs_display import (
     build_formula_inputs_input_table,
+    build_mawp_formula_inputs_input_table,
+    build_mawp_pressure_design_input_table,
+    build_mawp_substituted_equation,
     build_wall_thickness_substituted_equation,
     definitions_from_equation_variables,
+    format_thickness_result_display,
     primary_formula_inputs_complete,
 )
 from api.node_display import build_activated_node_blocks
 from api.workflow_bootstrap import resolve_activated_definition_node
-from api.workflow_timeline import is_pipe_wall_thickness_task
+from api.workflow_timeline import is_mawp_task, is_pipe_wall_thickness_task
 from engine.reference.formula_display import (
     load_equation_context,
     resolve_equation_display_variables,
@@ -36,11 +40,11 @@ _NODE_REFERENCES: dict[str, dict[str, str]] = {
         "title": "Allowable Stress Lookup",
         "excerpt": "Allowable stress values are selected from Table A-1 for the design material and temperature.",
     },
-    "B313-304.1.1": {
+    "B313-MAWP-CALCULATION": {
         "standard": "ASME B31.3",
-        "paragraph": "304.1.1",
-        "title": "Conditions for Internal Pressure",
-        "excerpt": "Pressure design thickness and minimum required thickness relationships are defined in this section.",
+        "paragraph": "304.1.2",
+        "title": "Maximum Allowable Working Pressure",
+        "excerpt": "MAWP for straight pipe under internal pressure using the thin-wall equation.",
     },
 }
 
@@ -49,7 +53,13 @@ _RESULT_KEYS: tuple[tuple[str, str, str], ...] = (
     ("t", "Required Thickness", "mm"),
     ("minimum_required_thickness", "Minimum Required Pipe Wall Thickness", "mm"),
     ("t_m", "Minimum Required Pipe Wall Thickness", "mm"),
+    ("mawp", "Maximum Allowable Working Pressure (MAWP)", "Pa"),
+    ("MAWP", "Maximum Allowable Working Pressure (MAWP)", "Pa"),
 )
+
+_MAWP_FORMULA = "MAWP = 2SEWt / (D - 2Yt)"
+_MAWP_PRESSURE_DESIGN_FORMULA = "t = t_actual - c"
+
 
 _WALL_THICKNESS_FORMULA = "t = PD / 2(SEW + PY)"
 
@@ -78,6 +88,15 @@ def build_display_outputs(
             trace if has_trace else None,
             has_trace=has_trace,
             standards_root=resolved_standards_root,
+        )
+
+    if is_mawp_task(task):
+        return _build_mawp_display_outputs(
+            task,
+            planning,
+            resolved_reader,
+            trace if has_trace else None,
+            has_trace=has_trace,
         )
 
     blocks.extend(_activated_definition_blocks(task, planning, resolved_reader))
@@ -208,6 +227,124 @@ def _resolve_calculation_node_id(
                 if node_id:
                     return str(node_id)
     return None
+
+
+def _build_mawp_display_outputs(
+    task: Task,
+    planning: dict[str, Any],
+    reader: StandardsReader,
+    trace: list[Any] | None,
+    *,
+    has_trace: bool,
+) -> list[dict[str, Any]]:
+    blocks: list[dict[str, Any]] = []
+
+    if _mawp_calculated(task, has_trace=has_trace):
+        blocks.extend(_mawp_equation_preview_blocks(task, reader))
+        substituted = _mawp_substituted_equation_block(trace)
+        if substituted:
+            blocks.append(substituted)
+        conclusion = _mawp_conclusion_block(task)
+        if conclusion:
+            blocks.append(conclusion)
+        return _dedupe_blocks_by_id(blocks)
+
+    blocks.extend(_activated_definition_blocks(task, planning, reader))
+    blocks.extend(_mawp_equation_preview_blocks(task, reader))
+    status_block = _planning_status_block(task, planning)
+    if status_block:
+        blocks.append(status_block)
+    return _dedupe_blocks_by_id(blocks)
+
+
+def _mawp_calculated(task: Task, *, has_trace: bool) -> bool:
+    if not has_trace:
+        return False
+    return task.outputs.get("mawp") is not None or task.outputs.get("MAWP") is not None
+
+
+def _mawp_equation_preview_blocks(task: Task, reader: StandardsReader) -> list[dict[str, Any]]:
+    del reader
+    blocks: list[dict[str, Any]] = []
+    reference = _NODE_REFERENCES.get("B313-MAWP-CALCULATION")
+    if reference:
+        blocks.append(_path_preview_intro_block("B313-MAWP-CALCULATION", reference))
+
+    blocks.append(
+        {
+            "id": "mawp-pressure-design-equation",
+            "type": "equation",
+            "title": None,
+            "content": _display_to_latex(_MAWP_PRESSURE_DESIGN_FORMULA),
+            "display": _MAWP_PRESSURE_DESIGN_FORMULA,
+            "input_table": build_mawp_pressure_design_input_table(task),
+        }
+    )
+    blocks.append(
+        {
+            "id": "mawp-formula-equation",
+            "type": "equation",
+            "title": None,
+            "content": _display_to_latex(_MAWP_FORMULA),
+            "display": _MAWP_FORMULA,
+            "input_table": build_mawp_formula_inputs_input_table(task),
+            "nomenclature_reference": {
+                "standard": "ASME B31.3",
+                "paragraph": "304.1.2",
+            },
+        }
+    )
+    return blocks
+
+
+def _mawp_substituted_equation_block(trace: list[Any] | None) -> dict[str, Any] | None:
+    if not isinstance(trace, list):
+        return None
+    for entry in trace:
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("node_id")) != "B313-MAWP-CALCULATION":
+            continue
+        node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
+        calc = node_trace.get("calculation") if isinstance(node_trace.get("calculation"), dict) else {}
+        variables_si = node_trace.get("variables_si") if isinstance(node_trace.get("variables_si"), dict) else {}
+        final = calc.get("final_result") if isinstance(calc.get("final_result"), dict) else {}
+        value = final.get("value")
+        if value is None or not variables_si:
+            return None
+        display, latex = build_mawp_substituted_equation(
+            result_value_pa=float(value),
+            variables_si={k: float(v) for k, v in variables_si.items()},
+        )
+        return {
+            "id": "mawp-substituted-equation",
+            "type": "equation",
+            "title": None,
+            "content": latex,
+            "display": display,
+        }
+    return None
+
+
+def _mawp_conclusion_block(task: Task) -> dict[str, Any] | None:
+    mawp = task.outputs.get("mawp")
+    if mawp is None:
+        mawp = task.outputs.get("MAWP")
+    if mawp is None:
+        return None
+    from api.equation_inputs_display import format_value_with_unit_for_display
+
+    pressure_display = format_value_with_unit_for_display(float(mawp) / 1_000_000, "MPa")
+    return {
+        "id": "mawp-conclusion",
+        "type": "text",
+        "title": None,
+        "content": (
+            f"Maximum Allowable Working Pressure (MAWP): {pressure_display} "
+            "(per ASME B31.3 §304.1.2)."
+        ),
+        "variant": "body",
+    }
 
 
 def _build_pipe_wall_display_outputs(

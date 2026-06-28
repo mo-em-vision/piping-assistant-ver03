@@ -69,13 +69,15 @@ export function LeftPanel() {
   const renameProject = useProjectStore((state) => state.renameProject)
   const loadMessages = useChatStore((state) => state.loadMessages)
   const toggleLeftCollapsed = useUiStore((state) => state.toggleLeftCollapsed)
+  const createTaskDialog = useUiStore((state) => state.createTaskDialog)
+  const openCreateTaskDialog = useUiStore((state) => state.openCreateTaskDialog)
+  const closeCreateTaskDialog = useUiStore((state) => state.closeCreateTaskDialog)
 
   const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(() => {
     const initialActiveId = useProjectStore.getState().activeProjectId
     return initialActiveId ? new Set([initialActiveId]) : new Set()
   })
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
-  const [createTaskOpen, setCreateTaskOpen] = useState(false)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
   const [renameTarget, setRenameTarget] = useState<RenameTarget>(null)
 
@@ -117,7 +119,7 @@ export function LeftPanel() {
   }
 
   const handleCreateTask = (workflowId: string) => {
-    setCreateTaskOpen(false)
+    closeCreateTaskDialog()
     void createTask(workflowId)
   }
 
@@ -270,7 +272,7 @@ export function LeftPanel() {
                     onCreateTask={
                       isActive
                         ? () => {
-                            setCreateTaskOpen(true)
+                            openCreateTaskDialog()
                           }
                         : undefined
                     }
@@ -380,11 +382,12 @@ export function LeftPanel() {
       />
 
       <CreateTaskDialog
-        open={createTaskOpen}
+        open={createTaskDialog.open}
+        preselectedWorkflowId={createTaskDialog.preselectedWorkflowId}
         tasks={availableTasks}
         busy={busy}
         onSelect={handleCreateTask}
-        onCancel={() => setCreateTaskOpen(false)}
+        onCancel={closeCreateTaskDialog}
       />
     </aside>
   )

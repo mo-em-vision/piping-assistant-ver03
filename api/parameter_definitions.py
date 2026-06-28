@@ -8,16 +8,21 @@ from typing import Any
 from ai.interaction_specs import default_pipe_wall_thickness_decision_interactions
 from engine.executor.allowable_stress_resolver import apply_allowable_stress_lookup
 from engine.executor.coefficient_lookup import apply_coefficient_lookups
+from engine.executor.mawp_geometry_resolver import (
+    apply_direct_geometry_mode,
+    apply_nominal_pipe_size_for_mawp,
+    apply_pipe_schedule_lookup,
+)
 from engine.executor.nps_input_resolver import apply_nominal_pipe_size_lookup
 from engine.executor.unit_manager import normalize_unit
 from engine.reference.material_resolver import canonical_material_id
-from engine.router import PIPE_WALL_THICKNESS_DESIGN
+from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import Task
 
 from api.parameter_edit import active_edit_parameter, clear_edit_session
-from api.workflow_timeline import is_pipe_wall_thickness_task, revealed_pipe_wall_input_ids, submittable_parameter_ids
+from api.workflow_timeline import is_mawp_task, is_pipe_wall_thickness_task, revealed_input_ids, revealed_pipe_wall_input_ids, submittable_parameter_ids
 
 _PARAMETER_SPECS: dict[str, dict[str, Any]] = {
     "material": {
@@ -52,6 +57,29 @@ _PARAMETER_SPECS: dict[str, dict[str, Any]] = {
         "type": "text",
         "units": ["NPS", "DN"],
         "default_unit": "NPS",
+    },
+    "pipe_schedule": {
+        "label": "Pipe Schedule",
+        "type": "text",
+        "units": [],
+        "default_unit": "dimensionless",
+    },
+    "actual_wall_thickness": {
+        "label": "Actual Wall Thickness",
+        "type": "number",
+        "units": ["in", "mm"],
+        "default_unit": "mm",
+        "validation": {"min": 0},
+    },
+    "geometry_input_mode": {
+        "label": "Geometry Input Mode",
+        "type": "dropdown",
+        "units": [],
+        "default_unit": "dimensionless",
+        "options": [
+            {"value": "nps_and_schedule", "label": "Nominal pipe size and schedule"},
+            {"value": "direct_od_and_thickness", "label": "Outside diameter and wall thickness"},
+        ],
     },
     "allowable_stress": {
         "label": "Allowable Stress",
@@ -214,8 +242,8 @@ def build_parameter_definitions(task: Task) -> list[dict[str, Any]]:
 
 
 def _requested_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]:
-    if is_pipe_wall_thickness_task(task):
-        requested = revealed_pipe_wall_input_ids(task, planning)
+    if is_pipe_wall_thickness_task(task) or is_mawp_task(task):
+        requested = revealed_input_ids(task, planning)
         editing = active_edit_parameter(task)
         if editing and editing not in requested:
             requested = [editing, *requested]
@@ -353,10 +381,26 @@ def submit_task_input(
     manager.store_input(task_id, engineering_input)
 
     task = manager.get_task(task_id)
+    workflow_id = _task_workflow_id(task)
     if parameter == "nominal_pipe_size":
         if standards_root is None:
             raise ValueError("Standards root is required to resolve nominal pipe size.")
-        apply_nominal_pipe_size_lookup(task, standards_root)
+        if workflow_id == MAWP_DESIGN:
+            apply_nominal_pipe_size_for_mawp(task, standards_root)
+        else:
+            apply_nominal_pipe_size_lookup(task, standards_root)
+        manager.replace_task(task_id, task)
+        task = manager.get_task(task_id)
+
+    if parameter == "pipe_schedule" and workflow_id == MAWP_DESIGN:
+        if standards_root is None:
+            raise ValueError("Standards root is required to resolve pipe schedule.")
+        apply_pipe_schedule_lookup(task, standards_root)
+        manager.replace_task(task_id, task)
+        task = manager.get_task(task_id)
+
+    if parameter == "geometry_input_mode" and workflow_id == MAWP_DESIGN:
+        apply_direct_geometry_mode(task)
         manager.replace_task(task_id, task)
         task = manager.get_task(task_id)
 

@@ -1,6 +1,6 @@
 import { backendClient } from '@/services/api/backendClient'
 
-import type { MaterialSearchResponse } from '@/types/backend/materials'
+import type { MaterialDetailDto, MaterialSearchResponse } from '@/types/backend/materials'
 
 export interface MaterialWarmResponse {
   ready: boolean
@@ -16,5 +16,11 @@ export const materialApi = {
   search(query: string): Promise<MaterialSearchResponse> {
     const params = new URLSearchParams({ q: query })
     return backendClient.request<MaterialSearchResponse>(`/api/v1/materials/search?${params.toString()}`)
+  },
+
+  getDetail(materialId: string): Promise<MaterialDetailDto> {
+    return backendClient.request<MaterialDetailDto>(
+      `/api/v1/materials/${encodeURIComponent(materialId)}`,
+    )
   },
 }

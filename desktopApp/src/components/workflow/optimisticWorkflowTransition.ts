@@ -21,12 +21,35 @@ function formatDisplayValue(value: unknown, unit?: string): string {
   return formatEngineeringDisplayValue(value, unit)
 }
 
-function findNextPipeWallStep(parameter: string): string | null {
-  const index = PIPE_WALL_STEP_ORDER.indexOf(parameter as (typeof PIPE_WALL_STEP_ORDER)[number])
-  if (index === -1 || index >= PIPE_WALL_STEP_ORDER.length - 1) {
+const MAWP_STEP_ORDER = [
+  'nominal_pipe_size',
+  'pipe_schedule',
+  'outside_diameter',
+  'actual_wall_thickness',
+  'corrosion_allowance',
+  'material',
+  'design_temperature',
+  'joint_category',
+  'weld_joint_efficiency',
+  'weld_strength_reduction',
+  'temperature_coefficient',
+] as const
+
+function findNextWorkflowStep(workflowId: string, parameter: string): string | null {
+  const order =
+    workflowId === 'mawp_design'
+      ? MAWP_STEP_ORDER
+      : workflowId === 'pipe_wall_thickness_design'
+        ? PIPE_WALL_STEP_ORDER
+        : null
+  if (!order) {
     return null
   }
-  return PIPE_WALL_STEP_ORDER[index + 1]
+  const index = order.indexOf(parameter as (typeof order)[number])
+  if (index === -1 || index >= order.length - 1) {
+    return null
+  }
+  return order[index + 1]
 }
 
 function advanceTimeline(
@@ -80,10 +103,13 @@ export function applyOptimisticParameterSubmit(
   parameter: string,
   value: unknown,
   unit?: string,
+  displayValueOverride?: string,
 ): TaskStateDto {
-  const displayValue = formatDisplayValue(value, unit)
+  const displayValue = displayValueOverride ?? formatDisplayValue(value, unit)
   const candidateNextStepId =
-    state.workflow_id === 'pipe_wall_thickness_design' ? findNextPipeWallStep(parameter) : null
+    state.workflow_id === 'pipe_wall_thickness_design' || state.workflow_id === 'mawp_design'
+      ? findNextWorkflowStep(state.workflow_id, parameter)
+      : null
   const nextStepId =
     candidateNextStepId != null && canOptimisticallyActivateStep(state, candidateNextStepId)
       ? candidateNextStepId

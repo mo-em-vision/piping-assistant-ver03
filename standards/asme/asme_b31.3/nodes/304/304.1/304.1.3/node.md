@@ -10,6 +10,7 @@ modified: "2026-06-19"
 paragraph: "304.1.3"
 section: "304 Pressure Design of Piping Components"
 topic: external_wall_thickness
+revision_year: 2024
 
 purpose: >
   Determine required wall thickness for straight pipe under external pressure.
@@ -91,11 +92,9 @@ trace:
 
 
 # Straight Pipe Under External Pressure.
-To determine wall thickness and stiffening requirements for straight pipe under external pressure, the procedure outlined in the BPV Code, Section VIII, Division 1, UG-28 through UG-30 shall be followed, using as the design length, L, the running centerline length between any two sections stiffened in accordance with UG-29. As an
-exception, for pipe with Do/t < 10, the value of S to be used in determining Pa2 shall be the lesser of the following values for pipe material at design temperature:
-(a) 1.5 times the stress value from Table A-1 or Table A-1M of this Code, or
-(b) 0.9 times the yield strength tabulated in Section II, Part D, Table Y-1 for materials listed therein (The symbol Do in Section VIII is equivalent to D in this
-Code.)
+To determine wall thickness and stiffening requirements for straight pipe under external pressure, the procedure outlined in the BPV Code, Section VIII, Division 1, UG-28 through UG-30 shall be followed, using as the design length, L, the running centerline length between any two sections stiffened in accordance with UG-29. As an exception, for pipe with D_o/t < 10, the value of S to be used in determining Pa2 shall be the lesser of the following values for pipe material at design temperature:
+	a) 1.5 times the stress value from [Table A-1](table:B313-table-A-1) or Table A-1M of this Code, or
+	b) 0.9 times the yield strength tabulated in Section II, Part D, Table Y-1 for materials listed therein (The symbol D_o in Section VIII is equivalent to D in this Code.)
 ## Engineering Explanation
 
 This node is the external-pressure path for pressure design thickness **t** defined in §304.1.1(b). When `pressure_loading` is confirmed as external at §304.1.1, the workflow expands this node instead of the internal pressure equation in §304.1.2.

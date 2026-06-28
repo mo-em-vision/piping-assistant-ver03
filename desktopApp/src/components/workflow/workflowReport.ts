@@ -1,7 +1,12 @@
 import type { ParameterDefinitionDto } from '@/types/backend/parameters'
 import type { TimelineStepViewModel } from '@/types/frontend/taskState'
 
-const HIDDEN_STEP_IDS = new Set(['straight_pipe_section', 'd_input_mode', 'thin_wall'])
+const HIDDEN_STEP_IDS = new Set([
+  'straight_pipe_section',
+  'd_input_mode',
+  'thin_wall',
+  'geometry_input_mode',
+])
 
 export const FORMULA_INPUT_STEP_IDS = new Set([
   'material',
@@ -35,10 +40,14 @@ export function parameterNextStepPrompt(parameter: ParameterDefinitionDto): stri
       return 'Enter the design temperature for the pipe.'
     case 'nominal_pipe_size':
       return 'Enter the nominal pipe size.'
+    case 'pipe_schedule':
+      return 'Enter the pipe schedule (for example 40, 80, or STD).'
+    case 'actual_wall_thickness':
+      return 'Enter the actual or ordered wall thickness of the pipe.'
     case 'outside_diameter':
       return 'Enter the outside diameter of the pipe.'
     case 'corrosion_allowance':
-      return 'Enter the corrosion allowance to complete the minimum required thickness calculation (t_m = t + c).'
+      return 'Enter the corrosion allowance for the pressure design thickness calculation (t = t_actual - c).'
     default:
       if (parameter.type === 'material') {
         return PIPE_MATERIAL_PROMPT
@@ -60,6 +69,9 @@ export function getNextStepPrompt(
   )
   if (activeStep?.id === 'thickness') {
     return 'Computing required wall thickness from the confirmed inputs.'
+  }
+  if (activeStep?.id === 'mawp') {
+    return 'Computing Maximum Allowable Working Pressure (MAWP) from the confirmed inputs.'
   }
 
   if (!activeStep) {
@@ -93,6 +105,8 @@ export function completedStepStatement(step: TimelineStepViewModel): string | nu
       return null
     case 'thickness':
       return `Required wall thickness: ${step.displayValue}.`
+    case 'mawp':
+      return `Maximum Allowable Working Pressure (MAWP): ${step.displayValue}.`
     default:
       return `${step.title}: ${step.displayValue}.`
   }

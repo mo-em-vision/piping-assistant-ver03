@@ -99,6 +99,13 @@ def display_heading_for_node(
     return title or str(metadata.get("id", ""))
 
 
+def revision_year_from_metadata(metadata: dict[str, Any]) -> int | None:
+    raw = metadata.get("revision_year")
+    if raw is None or str(raw).strip() == "":
+        return None
+    return int(raw)
+
+
 def node_source_payload(reader: StandardsReader, node_id: str) -> dict[str, Any]:
     record = reader.load(node_id)
     metadata = record.metadata
@@ -108,6 +115,7 @@ def node_source_payload(reader: StandardsReader, node_id: str) -> dict[str, Any]
         "standard": _DEFAULT_STANDARD_LABEL,
         "paragraph": str(metadata.get("paragraph", "")).strip() or None,
         "section": str(metadata.get("section", "")).strip() or None,
+        "revision_year": revision_year_from_metadata(metadata),
         "body": record.body.strip(),
         "hover_excerpt": hover_excerpt_for_node(record),
     }
@@ -139,6 +147,7 @@ def subsection_source_payload(
         "subsection_id": subsection.subsection_id,
         "subsection_title": title or None,
         "subsection_paragraph": paragraph,
+        "revision_year": revision_year_from_metadata(parent_metadata),
         "body": body,
         "hover_excerpt": hover_excerpt,
     }

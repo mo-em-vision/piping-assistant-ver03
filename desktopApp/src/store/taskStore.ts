@@ -8,6 +8,7 @@ import { taskApi } from '@/services/api/taskApi'
 import { toNavTaskSummary, workflowToSummary } from '@/services/api/responseParser'
 import { getActiveSessionId, useProjectStore } from '@/store/projectStore'
 import { useRightPanelStore } from '@/store/rightPanelStore'
+import { useUiStore } from '@/store/uiStore'
 import { toUserFacingError } from '@/types/backend/errors'
 import { confirmTaskDeletion } from '@/utils/confirmTaskDeletion'
 import { mergeDisplayOutputs } from '@/utils/mergeDisplayOutputs'
@@ -42,7 +43,7 @@ interface TaskStoreState {
   renameTask: (taskId: string, name: string, projectId?: string) => Promise<void>
   removeProjectTasks: (projectId: string) => void
   refreshActiveTask: () => Promise<void>
-  submitParameter: (parameter: string, value: unknown, unit?: string) => Promise<void>
+  submitParameter: (parameter: string, value: unknown, unit?: string, displayValue?: string) => Promise<void>
   applyTaskState: (state: TaskStateDto) => void
 }
 
@@ -71,6 +72,11 @@ async function ensureProjectForTask(projectId?: string): Promise<string | undefi
   }
   await useProjectStore.getState().selectProject(projectId)
   return projectId
+}
+
+function collapseRightPanelForNoTask() {
+  useRightPanelStore.getState().reset(false)
+  useUiStore.setState({ rightCollapsed: true })
 }
 
 export const useTaskStore = create<TaskStoreState>((set, get) => ({
@@ -136,6 +142,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         loading: false,
         userError: null,
       }))
+      useRightPanelStore.getState().syncForActiveTask(Boolean(activeTask))
     } catch (error) {
       set({
         loading: false,
@@ -203,6 +210,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
           },
           activeTaskState: mockTaskState,
         })
+        useRightPanelStore.getState().syncForActiveTask(true)
       }
       return
     }
@@ -247,6 +255,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
           activeTask: stateToSummary(mockTaskState),
           activeTaskState: mockTaskState,
         })
+        useRightPanelStore.getState().syncForActiveTask(true)
       }
       return
     }
@@ -284,7 +293,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
   },
 
   clearActiveTask: () => {
-    useRightPanelStore.getState().reset()
+    collapseRightPanelForNoTask()
     set({ activeTask: null, activeTaskState: null })
   },
 
@@ -317,7 +326,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
     if (useMockData) {
       if (activeTask?.id === taskId) {
-        useRightPanelStore.getState().reset()
+        collapseRightPanelForNoTask()
       }
       set((state) => ({
         activeTask: state.activeTask?.id === taskId ? null : state.activeTask,
@@ -342,7 +351,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       await taskApi.delete(taskId, resolvedProjectId)
 
       if (activeTask?.id === taskId) {
-        useRightPanelStore.getState().reset()
+        collapseRightPanelForNoTask()
         set({ activeTask: null, activeTaskState: null })
       }
 
@@ -422,7 +431,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     }
   },
 
-  submitParameter: async (parameter: string, value: unknown, unit?: string) => {
+  submitParameter: async (parameter: string, value: unknown, unit?: string, displayValue?: string) => {
     const activeTask = get().activeTask
     if (!activeTask) {
       return
@@ -439,7 +448,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
           ? { ...item, value, status: 'confirmed' as const }
           : item,
       )
-      const displayValue = formatEngineeringDisplayValue(value, unit)
+      const resolvedDisplayValue = displayValue ?? formatEngineeringDisplayValue(value, unit)
 
       set({
         userError: null,
@@ -452,7 +461,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
               input_id: parameter,
               value,
               unit: unit ?? 'dimensionless',
-              display_value: displayValue,
+              display_value: resolvedDisplayValue,
             },
           },
           progress: {
@@ -469,7 +478,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
     if (snapshot) {
       set({
-        activeTaskState: applyOptimisticParameterSubmit(snapshot, parameter, value, unit),
+        activeTaskState: applyOptimisticParameterSubmit(snapshot, parameter, value, unit, displayValue),
       })
     }
 

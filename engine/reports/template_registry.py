@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 PIPE_WALL_THICKNESS_WORKFLOW = "pipe_wall_thickness_design"
+MAWP_DESIGN_WORKFLOW = "mawp_design"
 
 _WORKFLOW_TEMPLATES: dict[str, str] = {
     PIPE_WALL_THICKNESS_WORKFLOW: "pipe_wall_thickness_design_report.md",
+    MAWP_DESIGN_WORKFLOW: "mawp_design_report.md",
 }
 
 DEFAULT_TEMPLATE = "generic_task_report.md"

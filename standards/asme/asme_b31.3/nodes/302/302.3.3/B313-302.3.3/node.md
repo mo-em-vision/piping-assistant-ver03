@@ -7,6 +7,7 @@ status: draft
 paragraph: 302.3.3
 section: 302.3 Allowable Stresses and Other Stress Limits
 topic: quality_factor
+revision_year: 2024
 purpose: >
   Define casting quality factor E_c for components without pressure-temperature
   ratings from Table 326.1, including basic factors in Table A-1A and increased
@@ -146,7 +147,7 @@ nomenclature:
         subsection: c
 ---
 
-# 302.3.3 Casting Quality Factor, E_c
+# 302.3.3 Casting Quality Factor, Ec
 
 **a) General**. The casting quality factors, E_c, defined herein shall be used for cast components not having pressure–temperature ratings established by standards in Table 326.1.
 

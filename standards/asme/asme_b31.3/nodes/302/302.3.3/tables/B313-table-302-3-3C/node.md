@@ -7,6 +7,7 @@ status: draft
 paragraph: "302.3.3(c), Table 302.3.3C"
 section: "302.3"
 topic: quality_factor
+revision_year: 2024
 
 depends_on:
   - node_id: B313-302.3.3

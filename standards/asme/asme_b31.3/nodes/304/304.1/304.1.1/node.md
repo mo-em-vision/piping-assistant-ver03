@@ -18,6 +18,7 @@ modified: "2026-06-19"
 paragraph: "304.1.1"
 section: "304 Pressure Design of Components"
 topic: pipe_wall_thickness
+revision_year: 2024
 display_heading: >
   Calculation of Minimum Required Thickness of a straight section pipe
   (according to ASME B 31.3 paragraph 304.1.1)

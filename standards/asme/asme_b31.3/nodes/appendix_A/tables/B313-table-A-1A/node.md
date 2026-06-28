@@ -7,6 +7,7 @@ status: draft
 paragraph: "Appendix A, Table A-1A"
 section: "Appendix A"
 topic: quality_factor
+revision_year: 2024
 
 depends_on:
   - node_id: B313-302.3.3

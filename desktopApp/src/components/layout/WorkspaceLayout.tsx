@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ConnectionErrorBanner } from '@/components/errors/ConnectionErrorBanner'
 import { useWindowDisplayState } from '@/hooks/useWindowDisplayState'
-import { useTaskStore } from '@/store/taskStore'
 import { useUiStore } from '@/store/uiStore'
 import { computeMaxRightPanelWidth } from '@/utils/panelLayout'
 
@@ -29,7 +28,6 @@ export function WorkspaceLayout({
   onRetryBackend,
   onReloadWorkspace,
 }: WorkspaceLayoutProps) {
-  const activeTask = useTaskStore((state) => state.activeTask)
   const leftWidth = useUiStore((state) => state.leftWidth)
   const rightWidth = useUiStore((state) => state.rightWidth)
   const leftCollapsed = useUiStore((state) => state.leftCollapsed)
@@ -45,7 +43,7 @@ export function WorkspaceLayout({
   const bodyRef = useRef<HTMLDivElement>(null)
   const [workspaceBodyWidth, setWorkspaceBodyWidth] = useState(0)
 
-  const rightPanelVisible = Boolean(activeTask) && !rightCollapsed
+  const rightPanelVisible = !rightCollapsed
 
   const maxRightWidth = useMemo(
     () =>
@@ -140,33 +138,31 @@ export function WorkspaceLayout({
           <CenterPanel />
         </div>
 
-        {activeTask ? (
-          rightCollapsed ? (
-            <div className="panel-collapsed-rail panel-collapsed-rail--right">
-              <button
-                type="button"
-                onClick={toggleRightCollapsed}
-                aria-label="Expand task context panel"
-                title="Expand task context"
-              >
-                ‹
-              </button>
-              <p className="panel-collapsed-rail__label" aria-hidden="true">
-                Tasks/AI Chat/References
-              </p>
+        {rightCollapsed ? (
+          <div className="panel-collapsed-rail panel-collapsed-rail--right">
+            <button
+              type="button"
+              onClick={toggleRightCollapsed}
+              aria-label="Expand task context panel"
+              title="Expand task context"
+            >
+              ‹
+            </button>
+            <p className="panel-collapsed-rail__label" aria-hidden="true">
+              Tasks/AI Chat/References
+            </p>
+          </div>
+        ) : (
+          <>
+            <ResizeHandle onResizeDelta={handleRightResize} />
+            <div
+              className="workspace__panel workspace__panel--right"
+              style={{ width: rightWidth, maxWidth: maxRightWidth }}
+            >
+              <RightPanel />
             </div>
-          ) : (
-            <>
-              <ResizeHandle onResizeDelta={handleRightResize} />
-              <div
-                className="workspace__panel workspace__panel--right"
-                style={{ width: rightWidth, maxWidth: maxRightWidth }}
-              >
-                <RightPanel />
-              </div>
-            </>
-          )
-        ) : null}
+          </>
+        )}
       </div>
     </div>
   )

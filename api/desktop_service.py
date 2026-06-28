@@ -28,6 +28,7 @@ from api.report_service import (
 from api.parameter_definitions import submit_task_input
 from api.node_context import node_source_payload, subsection_source_payload
 from api.table_context import table_source_payload
+from api.standards_browse import build_standards_browse_payload, resolve_browse_standard
 from api.workflow_bootstrap import (
     bootstrap_new_task,
     maybe_execute_ready_workflow,
@@ -41,6 +42,7 @@ from engine.graph.definition_equations import (
 from api.workflow_timeline import is_pipe_wall_thickness_task
 from engine.planner.tools import GraphTools
 from api.material_catalog import search_astm_materials, warm_astm_material_catalog
+from api.material_detail import get_material_detail as resolve_material_detail
 from api.parameter_edit import (
     assess_parameter_edit,
     begin_parameter_edit as begin_parameter_edit_session,
@@ -603,6 +605,14 @@ class DesktopApiService:
     def warm_material_catalog(self) -> dict[str, Any]:
         return warm_astm_material_catalog(self.config.standards_root)
 
+    def get_material_detail(self, material_id: str) -> dict[str, Any]:
+        try:
+            return resolve_material_detail(self.config.standards_root, material_id)
+        except FileNotFoundError as exc:
+            raise ApiError("material_not_found", f"Material not found: {material_id}", status=404) from exc
+        except ValueError as exc:
+            raise ApiError("material_not_found", str(exc), status=404) from exc
+
     def get_standards_node(self, node_id: str) -> dict[str, Any]:
         reader = standards_reader_for_config(self.config)
         try:
@@ -629,6 +639,19 @@ class DesktopApiService:
             return table_source_payload(reader, table_id)
         except FileNotFoundError as exc:
             raise ApiError("table_not_found", f"Table not found: {table_id}", status=404) from exc
+
+    def get_standards_browse(self, standard: str | None = None) -> dict[str, Any]:
+        reader = standards_reader_for_config(self.config)
+        try:
+            resolved = resolve_browse_standard(self.config.standards_root, standard)
+            reader = StandardsReader(self.config.standards_root, standard=resolved)
+            return build_standards_browse_payload(reader, standard=resolved)
+        except FileNotFoundError as exc:
+            raise ApiError(
+                "standards_browse_unavailable",
+                str(exc),
+                status=404,
+            ) from exc
 
     def _store_for(self, session_id: str | None) -> ProjectSessionStore:
         if not session_id:

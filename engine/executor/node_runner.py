@@ -334,17 +334,25 @@ class NodeRunner:
                     warnings.append(cond_result.message)
 
         output_id = "required_thickness"
+        output_symbol = "t"
         for spec in record.metadata.get("outputs", []) or []:
             if isinstance(spec, dict) and spec.get("id"):
                 output_id = str(spec["id"])
+                output_symbol = str(spec.get("name", output_id))
                 break
 
         final = calculation.final_result
-        outputs = {
+        outputs: dict[str, Any] = {
             output_id: final.value if final else None,
-            "t": final.value if final else None,
-            "thin_wall": thin_wall_valid,
         }
+        if output_symbol:
+            outputs[output_symbol] = final.value if final else None
+        if output_symbol == "t":
+            outputs["required_thickness"] = final.value if final else None
+            outputs["pressure_design_thickness"] = final.value if final else None
+        if output_symbol == "MAWP":
+            outputs["mawp"] = final.value if final else None
+        outputs["thin_wall"] = thin_wall_valid
 
         tm_value = self._compute_minimum_required_thickness(
             record,

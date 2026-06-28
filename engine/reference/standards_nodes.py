@@ -152,6 +152,49 @@ class StandardsNodesDatabase:
             ).fetchall()
         return [str(row["node_id"]) for row in rows]
 
+    def list_pack_index(self) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT section, node_id, description, sort_order
+                FROM pack_index
+                ORDER BY sort_order, id
+                """
+            ).fetchall()
+        return [
+            {
+                "section": str(row["section"]) if row["section"] is not None else None,
+                "node_id": str(row["node_id"]) if row["node_id"] is not None else None,
+                "description": str(row["description"]) if row["description"] is not None else None,
+                "sort_order": int(row["sort_order"]),
+            }
+            for row in rows
+        ]
+
+    def get_node_summaries(self) -> dict[str, dict[str, Any]]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT node_id, metadata_json, source_rel_path
+                FROM node_records
+                ORDER BY node_id
+                """
+            ).fetchall()
+        summaries: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            metadata = json.loads(str(row["metadata_json"] or "{}"))
+            node_id = str(row["node_id"])
+            node_type = str(metadata.get("type") or "node")
+            summaries[node_id] = {
+                "paragraph": str(metadata.get("paragraph") or "").strip() or None,
+                "section": str(metadata.get("section") or "").strip() or None,
+                "title": str(metadata.get("title") or "").strip() or None,
+                "node_type": node_type,
+                "revision_year": metadata.get("revision_year"),
+                "source_rel_path": str(row["source_rel_path"] or ""),
+            }
+        return summaries
+
     def get_assets(self, node_id: str, *, asset_type: str | None = None) -> list[NodeAssetRecord]:
         query = """
             SELECT node_id, asset_type, asset_id, relative_path, metadata_json, body

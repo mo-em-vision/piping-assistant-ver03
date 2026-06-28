@@ -37,6 +37,15 @@ def test_search_finds_a106_grade_b_alias(standards_root: Path) -> None:
     }
 
 
+def test_search_finds_single_a105_from_astm_pack(standards_root: Path) -> None:
+    results = search_astm_materials(standards_root, "a105")
+    a105 = [item for item in results if item["value"] == "astm_a105"]
+
+    assert len(a105) == 1
+    assert a105[0]["standard"] == "a_105"
+    assert a105[0]["label"] == "ASTM A105 — Carbon Steel Forgings"
+
+
 def test_search_finds_stainless_tp316(standards_root: Path) -> None:
     results = search_astm_materials(standards_root, "tp3")
     assert results
@@ -51,3 +60,24 @@ def test_warm_material_catalog_endpoint_shape(standards_root: Path) -> None:
 
     payload = warm_astm_material_catalog(standards_root)
     assert payload["ready"] is True
+
+
+def test_get_material_detail_returns_a106_grade_b(standards_root: Path) -> None:
+    from api.material_detail import get_material_detail
+
+    detail = get_material_detail(standards_root, "astm_a106_gr_b")
+
+    assert detail["material_id"] == "astm_a106_gr_b"
+    assert detail["display_name"] == "ASTM A106 Grade B"
+    assert detail["standard_slug"] == "astm_a106"
+    assert detail["product_form"] == "seamless_pipe"
+    assert detail["uns_number"] == "K03006"
+    assert detail["mechanical_properties"]["room_temperature"]["tensile_strength_min"]["ksi"] == 60
+    assert detail["source_node"] == "ASTM-a106-material-properties"
+
+
+def test_get_material_detail_unknown_raises(standards_root: Path) -> None:
+    from api.material_detail import get_material_detail
+
+    with pytest.raises(FileNotFoundError):
+        get_material_detail(standards_root, "unknown_material_id")

@@ -1,0 +1,358 @@
+.standards-browser-tab {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.standards-browser-tab__split {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.standards-browser-tab__sidebar-pane {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.standards-browser-tab__preview-pane {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.65rem;
+  background: #f8fafc;
+}
+
+.standards-browser-tab__hint,
+.standards-browser-tab__error {
+  margin: 0.65rem;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.standards-browser-tab__hint {
+  color: #64748b;
+}
+
+.standards-browser-tab__error {
+  color: #991b1b;
+}
+
+.standards-browser-sidebar {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.standards-browser-sidebar__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  padding: 0.35rem 0.4rem 0.15rem;
+}
+
+.standards-browser-sidebar__icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.standards-browser-sidebar__icon-button:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.standards-browser-sidebar__icon-button--active {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.standards-browser-sidebar__standard {
+  margin: 0;
+  padding: 0.15rem 0.65rem 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.standards-browser-sidebar__search {
+  flex-shrink: 0;
+  margin: 0 0.5rem 0.4rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  font-size: 0.74rem;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.standards-browser-sidebar__search:focus {
+  outline: 2px solid #bfdbfe;
+  border-color: #93c5fd;
+}
+
+.standards-browser-sidebar__tree {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 0.35rem 0.55rem;
+}
+
+.standards-browser-expand-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 2rem;
+  padding: 0.35rem 0.2rem;
+  border-right: 1px solid #e2e8f0;
+  background: #fafafa;
+}
+
+.standards-browser-tree {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.standards-browser-tree__group {
+  display: grid;
+  gap: 0.05rem;
+}
+
+.standards-browser-tree__group-header {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.28rem 0.3rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  text-align: left;
+  font-size: 0.74rem;
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.standards-browser-tree__group-header:hover {
+  background: #f1f5f9;
+}
+
+.standards-browser-tree__group-header--active {
+  background: #eff6ff;
+}
+
+.standards-browser-tree__group-label {
+  flex: 1;
+  min-width: 0;
+}
+
+.standards-browser-tree__chevron {
+  flex-shrink: 0;
+  transition: transform 0.12s ease;
+}
+
+.standards-browser-tree__chevron--open {
+  transform: rotate(90deg);
+}
+
+.standards-browser-tree__children {
+  display: grid;
+  gap: 0.03rem;
+  margin-left: 0.85rem;
+  padding-left: 0;
+}
+
+.standards-browser-tree__depth-0 {
+  color: #334155;
+}
+
+.standards-browser-tree__depth-1 {
+  color: #475569;
+}
+
+.standards-browser-tree__depth-2 {
+  color: #64748b;
+}
+
+.standards-browser-tree__leaf {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.24rem 0.3rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  font-size: 0.74rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.standards-browser-tree__depth-leaf {
+  color: #64748b;
+  font-weight: 400;
+}
+
+.standards-browser-tree__leaf:hover {
+  background: #f1f5f9;
+}
+
+.standards-browser-tree__leaf--active {
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 500;
+}
+
+.standards-browser-preview__workflow {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.standards-browser-preview__workflow-title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.standards-browser-preview__workflow-description {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.standards-browser-preview__placeholder {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  line-height: 1.45;
+}
+
+.standards-browser-preview__related {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.standards-browser-preview__related-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.standards-browser-preview__related-list {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.standards-browser-preview__related-item {
+  display: grid;
+  gap: 0.1rem;
+}
+
+.standards-browser-preview__related-button {
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1d4ed8;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.standards-browser-preview__related-button:hover:not(:disabled) {
+  background: #eff6ff;
+}
+
+.standards-browser-preview__related-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  color: #64748b;
+  border-color: #e2e8f0;
+}
+
+.standards-browser-preview__related-meta {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+
+.standards-browser-preview__index-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.standards-browser-preview__index-list {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.standards-browser-preview__index-item {
+  margin: 0;
+}
+
+.standards-browser-preview__index-heading,
+.standards-browser-preview__index-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.standards-browser-preview__index-heading {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.standards-browser-preview__index-link {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: #475569;
+}
+
+.standards-browser-preview__index-heading:hover,
+.standards-browser-preview__index-link:hover {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}

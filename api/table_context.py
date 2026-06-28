@@ -10,6 +10,7 @@ from typing import Any
 
 
 
+from api.node_context import revision_year_from_metadata
 from engine.reference.standards_reader import StandardsReader
 from engine.reference.standards_tables import flatten_lookup_table_rows
 from engine.reference.standards_tables import flatten_lookup_table_rows
@@ -115,7 +116,14 @@ def table_source_payload(reader: StandardsReader, table_id: str) -> dict[str, An
 
         source_path = path.name
 
-
+    revision_year = None
+    source_node = data.get("source_node")
+    if source_node:
+        try:
+            record = reader.load(str(source_node))
+            revision_year = revision_year_from_metadata(record.metadata)
+        except FileNotFoundError:
+            pass
 
     return {
 
@@ -126,6 +134,8 @@ def table_source_payload(reader: StandardsReader, table_id: str) -> dict[str, An
         "description": description,
 
         "standard": _DEFAULT_STANDARD_LABEL,
+
+        "revision_year": revision_year,
 
         "source_path": source_path,
 

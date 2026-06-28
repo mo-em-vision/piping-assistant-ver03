@@ -1,0 +1,62 @@
+# ASTM A105/A105M — Carbon Steel Forgings for Piping Applications
+# Development reference data — verify against licensed ASTM A105/A105M for production use.
+
+table_id: astm_a105_material_properties
+title: ASTM A105 — Carbon Steel Forgings
+standard: ASTM A105/A105M
+version: "1.0"
+product_form: forging
+test_method: longitudinal_tension
+temperature_unit: F
+stress_unit: Pa
+
+keys:
+  - grade
+
+aliases:
+  grade:
+    A105: A105
+    ASTM A105: A105
+    SA-105: A105
+    SA105: A105
+
+materials:
+  A105:
+    material_id: astm_a105
+    display_name: ASTM A105 — Carbon Steel Forgings
+    specification: ASTM A105/A105M
+    product_form: forging
+    uns_number: K03504
+    aliases:
+      - A105
+      - ASTM A105
+      - SA-105
+      - SA105
+    chemical_composition:
+      unit: percent
+      limits:
+        carbon: {max: 0.35}
+        manganese: {min: 0.60, max: 1.05}
+        phosphorus: {max: 0.035}
+        sulfur: {max: 0.040}
+        silicon: {max: 0.35}
+        copper: {max: 0.40}
+        nickel: {max: 0.40}
+        chromium: {max: 0.30}
+        molybdenum: {max: 0.12}
+        vanadium: {max: 0.08}
+    mechanical_properties:
+      room_temperature:
+        test_temperature_f: 70
+        tensile_strength_min: {ksi: 70, pa: 482633160}
+        yield_strength_min: {ksi: 36, pa: 248211008}
+        elongation_min_percent: 30
+        reduction_of_area_min_percent: null
+    physical_properties:
+      density_kg_m3: 7850
+      modulus_of_elasticity_70f_pa: 200000000000
+      poisson_ratio: 0.30
+      thermal_expansion_coefficient_per_f: 6.5e-6
+    notes:
+      - Minimum mechanical properties for longitudinal tension test at room temperature per ASTM A105/A105M.
+      - Refer to B31.3 Table A-1B for quality factor E for forgings.

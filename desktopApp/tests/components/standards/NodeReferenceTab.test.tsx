@@ -24,6 +24,7 @@ describe('NodeReferenceTab', () => {
       standard: 'ASME B31.3',
       paragraph: '304.1.1',
       section: '304 Pressure Design of Components',
+      revision_year: 2024,
       hover_excerpt:
         'The required thickness of straight sections of pipe shall be determined in accordance with eq. (2).',
       body: '# ASME B31.3 Paragraph 304.1.1\n\n## (a)\n\nBody-only paragraph content.',
@@ -34,6 +35,8 @@ describe('NodeReferenceTab', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'ASME B31.3 Paragraph 304.1.1' })).toBeInTheDocument()
     })
+
+    expect(screen.getByText('Based on ASME B31.3, 2024 edition')).toBeInTheDocument()
 
     expect(
       screen.queryByRole('heading', { name: 'Required Thickness and Nomenclature for Straight Pipe' }),

@@ -19,3 +19,8 @@ sources:
     table_id: astm_stainless_castings_material_properties
     db_file: astm_stainless_castings_tables.db
     source_node: ASTM-stainless-castings-material-properties
+  - standard: a_105
+    group: astm
+    table_id: astm_a105_material_properties
+    db_file: a_105_tables.db
+    source_node: ASTM-a105-material-properties

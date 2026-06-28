@@ -9,6 +9,7 @@ modified: "2026-06-17"
 paragraph: "Appendix A, Table A-1"
 section: "Appendix A"
 topic: allowable_stress
+revision_year: 2024
 
 purpose: Determine allowable stress S at design temperature for pressure design calculations.
 engineering_intent: pipe_wall_thickness_design
