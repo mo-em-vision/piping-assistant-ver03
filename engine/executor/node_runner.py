@@ -13,7 +13,14 @@ from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
 from engine.equation.sympy_evaluator import evaluate_equation
 from engine.graph.assumption_checker import field_value, evaluate_node_execution_assumptions
 from engine.graph.param_priority import normalize_require_ids
-from engine.reference.node_types import is_lookup_node, is_section_node, is_table_node, is_ui_parameter
+from engine.reference.node_types import (
+    is_designation_node,
+    is_lookup_node,
+    is_quantity_node,
+    is_section_node,
+    is_table_node,
+    is_ui_parameter,
+)
 from engine.graph.node_interaction import evaluate_node_interactions
 from engine.executor.functions import get_execution_function
 from engine.executor.lookup_engine import LookupEngine
@@ -79,7 +86,14 @@ class NodeRunner:
                 task_inputs=task_inputs,
                 dependency_outputs=dependency_outputs,
             )
-        if node_type in {"workflow", "text", "parameter"} or is_section_node(metadata, node_type) or is_table_node(metadata, node_type) or is_ui_parameter(metadata, node_type):
+        if (
+            node_type in {"workflow", "text", "parameter", "quantity", "designation"}
+            or is_section_node(metadata, node_type)
+            or is_table_node(metadata, node_type)
+            or is_ui_parameter(metadata, node_type)
+            or is_quantity_node(metadata, node_type)
+            or is_designation_node(metadata, node_type)
+        ):
             return NodeExecutionResult(
                 node_id=record.node_id,
                 status=NodeExecutionStatus.SKIPPED,

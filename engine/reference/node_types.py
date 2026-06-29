@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-CANONICAL_NODE_TYPES = frozenset({"workflow", "equation", "parameter", "text", "unit"})
+CANONICAL_NODE_TYPES = frozenset(
+    {"workflow", "equation", "parameter", "quantity", "designation", "text", "unit"}
+)
+RUNTIME_NODE_FIELDS = frozenset({"value", "user_input", "runtime_unit", "runtime_units"})
 
 # Legacy on-disk types → (canonical type, kind metadata value)
 _LEGACY_TYPE_KIND: dict[str, tuple[str, str]] = {
@@ -27,6 +30,9 @@ def normalize_node_metadata(
     meta = dict(metadata)
     explicit_kind = meta.get("kind")
     if node_type in CANONICAL_NODE_TYPES:
+        if node_type in {"quantity", "designation"}:
+            for field in RUNTIME_NODE_FIELDS:
+                meta.pop(field, None)
         if explicit_kind is not None:
             meta["kind"] = str(explicit_kind)
         return node_type, meta
@@ -105,6 +111,16 @@ def is_table_node(metadata: dict[str, Any], node_type: str | None = None) -> boo
     return ctype == "text" and node_kind(meta) == "table"
 
 
+def is_quantity_node(metadata: dict[str, Any], node_type: str | None = None) -> bool:
+    raw = node_type if node_type is not None else str(metadata.get("type", ""))
+    return canonical_type(metadata, raw) == "quantity"
+
+
+def is_designation_node(metadata: dict[str, Any], node_type: str | None = None) -> bool:
+    raw = node_type if node_type is not None else str(metadata.get("type", ""))
+    return canonical_type(metadata, raw) == "designation"
+
+
 def expansion_priority_order(node_type: str, metadata: dict[str, Any]) -> int:
     """Lower sorts earlier during lazy expansion."""
     ctype, meta = normalize_node_metadata(metadata, node_type)
@@ -117,12 +133,16 @@ def expansion_priority_order(node_type: str, metadata: dict[str, Any]) -> int:
         return 2
     if ctype == "parameter":
         return 3
-    if ctype == "equation" and kind == "lookup":
+    if ctype == "quantity":
         return 4
-    if ctype == "equation":
+    if ctype == "designation":
         return 5
-    if ctype == "text":
+    if ctype == "equation" and kind == "lookup":
         return 6
-    if ctype == "unit":
+    if ctype == "equation":
         return 7
+    if ctype == "text":
+        return 8
+    if ctype == "unit":
+        return 9
     return 50

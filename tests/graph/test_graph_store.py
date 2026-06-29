@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from engine.graph.graph_engine import GraphEngine
+from engine.graph.graph_builder import GraphBuilder
 from engine.graph.graph_store import GraphStore
 from engine.reference.standards_reader import StandardsReader
 from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
@@ -70,3 +71,46 @@ def test_graph_store_builds_from_sources_without_sqlite_cache(tmp_path: Path) ->
     assert not cache_path.is_file()
     workflows = store.list_workflows()
     assert any(wf.node_id == "B313-WF-PIPE-WALL-THICKNESS" for wf in workflows)
+
+
+def test_graph_builder_accepts_quantity_and_designation_nodes(tmp_path: Path) -> None:
+    nodes_dir = tmp_path / "nodes"
+    quantity_dir = nodes_dir / "quantities" / "quantity_pressure"
+    designation_dir = nodes_dir / "designations" / "designation_nps"
+    quantity_dir.mkdir(parents=True)
+    designation_dir.mkdir(parents=True)
+    (quantity_dir / "node.yaml").write_text(
+        """---
+id: quantity_pressure
+type: quantity
+name: Pressure
+dimension: pressure
+value: 500
+runtime_unit: psi
+---
+Pressure is an engineering quantity.
+""",
+        encoding="utf-8",
+    )
+    (designation_dir / "node.yaml").write_text(
+        """---
+id: designation_nps
+type: designation
+name: Nominal Pipe Size
+symbol: NPS
+value: 4
+---
+NPS is a pipe size designation, not a physical quantity.
+""",
+        encoding="utf-8",
+    )
+
+    graph = GraphBuilder(tmp_path).build()
+
+    assert graph.nodes["quantity_pressure"].node_type == "quantity"
+    assert graph.nodes["quantity_pressure"].metadata["dimension"] == "pressure"
+    assert "value" not in graph.nodes["quantity_pressure"].metadata
+    assert "runtime_unit" not in graph.nodes["quantity_pressure"].metadata
+    assert graph.nodes["designation_nps"].node_type == "designation"
+    assert graph.nodes["designation_nps"].metadata["symbol"] == "NPS"
+    assert "value" not in graph.nodes["designation_nps"].metadata

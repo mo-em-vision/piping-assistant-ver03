@@ -7,6 +7,7 @@ from typing import Any
 
 from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
 from models.task import InputConflict, Task, TaskStatus
+from models.workflow_state import WorkflowState
 
 
 class TaskNotFoundError(KeyError):
@@ -183,6 +184,15 @@ class TaskStateManager:
     def list_step_progress(self, task_id: str) -> list[StepProgress]:
         self.get_task(task_id)
         return list(self._step_progress[task_id].values())
+
+    def get_workflow_state(self, task_id: str) -> WorkflowState:
+        from engine.state.workflow_state import build_workflow_state
+
+        task = self.get_task(task_id)
+        return build_workflow_state(
+            task,
+            step_progress=self.list_step_progress(task_id),
+        )
 
     def compare_inputs(self, task_id: str, other_task_id: str) -> list[InputConflict]:
         task = self.get_task(task_id)

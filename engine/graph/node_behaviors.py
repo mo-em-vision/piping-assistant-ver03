@@ -7,7 +7,9 @@ from typing import Any, Callable
 
 from engine.reference.node_types import (
     canonical_type,
+    is_designation_node,
     is_lookup_node,
+    is_quantity_node,
     is_section_node,
     is_table_node,
     is_ui_parameter,
@@ -52,6 +54,14 @@ def is_reference_unit(metadata: dict[str, Any], node_type: str | None = None) ->
     return canonical_type(metadata, raw) == "unit"
 
 
+def is_reference_quantity(metadata: dict[str, Any], node_type: str | None = None) -> bool:
+    return is_quantity_node(metadata, node_type)
+
+
+def is_reference_designation(metadata: dict[str, Any], node_type: str | None = None) -> bool:
+    return is_designation_node(metadata, node_type)
+
+
 def is_structural_text(metadata: dict[str, Any], node_type: str | None = None) -> bool:
     return is_section_node(metadata, node_type) or is_table_node(metadata, node_type)
 
@@ -61,6 +71,8 @@ __all__ = [
     "is_data_parameter",
     "is_executable_equation",
     "is_lookup_node",
+    "is_reference_designation",
+    "is_reference_quantity",
     "is_reference_unit",
     "is_section_node",
     "is_structural_text",

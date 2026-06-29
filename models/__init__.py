@@ -34,6 +34,7 @@ from .validation import (
     ValidationOverride,
     ValidationSeverity,
 )
+from .workflow_state import WorkflowState
 from .report import (
     ReportData,
     ReportDecision,
@@ -120,4 +121,5 @@ __all__ = [
     "ValidationResult",
     "ValidationSeverity",
     "WorkflowCandidate",
+    "WorkflowState",
 ]

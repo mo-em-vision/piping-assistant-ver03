@@ -33,6 +33,20 @@ EDGE_LIST_KEYS = (
     "converts_to",
 )
 
+_EDGE_ROUTING_KEYS = frozenset({"node_id", "to", "id", "type", "direction", "dependency_type"})
+
+
+def relationship_metadata(item: dict[str, Any]) -> dict[str, Any]:
+    """Return metadata that belongs to the relationship, not either node."""
+    meta: dict[str, Any] = {}
+    for key, value in item.items():
+        if key in _EDGE_ROUTING_KEYS:
+            continue
+        if key == "when" and not isinstance(value, dict):
+            continue
+        meta[key] = value
+    return meta
+
 
 def compile_metadata_edges(
     node_id: str,
@@ -72,17 +86,8 @@ def compile_metadata_edges(
                 ).strip()
                 if not to_id:
                     continue
-                when = target.get("when") if isinstance(target.get("when"), dict) else None
-                edge_meta: dict[str, Any] = {}
-                if when:
-                    edge_meta["when"] = when
-                if "priority" in target:
-                    edge_meta["priority"] = target["priority"]
-                if "factor" in target:
-                    edge_meta["factor"] = target["factor"]
-                if "offset" in target:
-                    edge_meta["offset"] = target["offset"]
                 et = str(target.get("type") or edge_type)
+                edge_meta = relationship_metadata(target)
                 add_edge(node_id, to_id, et, edge_meta if edge_meta else None)
 
     anchors_to = metadata.get("anchors_to")
@@ -96,13 +101,12 @@ def compile_metadata_edges(
         if not to_id:
             continue
         edge_type = str(item.get("type") or "related_to")
-        when = item.get("when") if isinstance(item.get("when"), dict) else None
-        edge_meta = {"when": when} if when else None
+        edge_meta = relationship_metadata(item)
         direction = str(item.get("direction") or "outgoing")
         if direction == "incoming":
-            add_edge(to_id, node_id, edge_type, edge_meta)
+            add_edge(to_id, node_id, edge_type, edge_meta if edge_meta else None)
         else:
-            add_edge(node_id, to_id, edge_type, edge_meta)
+            add_edge(node_id, to_id, edge_type, edge_meta if edge_meta else None)
 
     for item in metadata.get("depends_on", []) or []:
         if isinstance(item, dict):
@@ -110,9 +114,8 @@ def compile_metadata_edges(
             if not dep_id:
                 continue
             dep_type = str(item.get("dependency_type") or "requires")
-            when = item.get("when") if isinstance(item.get("when"), dict) else None
-            edge_meta = {"when": when} if when else None
-            add_edge(dep_id, node_id, dep_type, edge_meta)
+            edge_meta = relationship_metadata(item)
+            add_edge(dep_id, node_id, dep_type, edge_meta if edge_meta else None)
         elif isinstance(item, str) and item.strip():
             add_edge(item.strip(), node_id, "requires")
 

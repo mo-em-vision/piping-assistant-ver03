@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from engine.reference.node_types import (
+    is_designation_node,
     is_lookup_node,
+    is_quantity_node,
     is_section_node,
     is_ui_parameter,
     normalize_node_metadata,
@@ -48,3 +50,33 @@ def test_unit_is_canonical() -> None:
     node_type, normalized = normalize_node_metadata(meta, "unit")
     assert node_type == "unit"
     assert normalized["symbol"] == "Pa"
+
+
+def test_quantity_is_canonical_and_runtime_fields_are_removed() -> None:
+    meta = {
+        "name": "Pressure",
+        "dimension": "pressure",
+        "value": 500,
+        "runtime_unit": "psi",
+    }
+    node_type, normalized = normalize_node_metadata(meta, "quantity")
+    assert node_type == "quantity"
+    assert normalized["dimension"] == "pressure"
+    assert "value" not in normalized
+    assert "runtime_unit" not in normalized
+    assert is_quantity_node(normalized, node_type)
+
+
+def test_designation_is_canonical_and_not_a_quantity() -> None:
+    meta = {
+        "name": "Nominal Pipe Size",
+        "symbol": "NPS",
+        "description": "Pipe size designation.",
+        "value": "4",
+    }
+    node_type, normalized = normalize_node_metadata(meta, "designation")
+    assert node_type == "designation"
+    assert normalized["symbol"] == "NPS"
+    assert "value" not in normalized
+    assert is_designation_node(normalized, node_type)
+    assert not is_quantity_node(normalized, node_type)

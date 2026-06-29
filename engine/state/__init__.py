@@ -6,10 +6,12 @@ from .state_manager import (
     TaskNotFoundError,
     TaskStateManager,
 )
+from .workflow_state import build_workflow_state
 
 __all__ = [
     "StepProgress",
     "TaskAlreadyExistsError",
     "TaskNotFoundError",
     "TaskStateManager",
+    "build_workflow_state",
 ]
