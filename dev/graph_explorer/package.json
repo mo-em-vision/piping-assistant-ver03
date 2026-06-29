@@ -1,0 +1,14 @@
+{
+  "name": "graph-explorer",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,green \"python -m dev.graph_explorer\" \"npm run dev:web\"",
+    "dev:server": "python -m dev.graph_explorer",
+    "dev:web": "npm run dev --prefix web",
+    "build:web": "npm run build --prefix web",
+    "install:all": "npm install && npm install --prefix web"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

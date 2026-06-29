@@ -10,6 +10,13 @@ from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from api.desktop_service import ApiError, DesktopApiService
+from api.dev_studio.routes import (
+    handle_dev_delete,
+    handle_dev_get,
+    handle_dev_post,
+    handle_dev_put,
+)
+from api.dev_studio.service import DevStudioService
 from api.error_catalog import enrich_api_error_payload
 from api.json_encoding import dumps as json_dumps
 
@@ -28,7 +35,7 @@ def _json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict[s
     handler.send_header("Content-Type", "application/json")
     handler.send_header("Content-Length", str(len(body)))
     handler.send_header("Access-Control-Allow-Origin", "*")
-    handler.send_header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
+    handler.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
     handler.send_header("Access-Control-Allow-Headers", "Content-Type")
     handler.end_headers()
     handler.wfile.write(body)
@@ -77,6 +84,7 @@ def _parse_task_route(path: str) -> tuple[str, str | None] | None:
 
 class ApiHandler(BaseHTTPRequestHandler):
     service: DesktopApiService
+    dev_studio: DevStudioService | None = None
 
     def log_message(self, format: str, *args: object) -> None:
         return
@@ -100,6 +108,14 @@ class ApiHandler(BaseHTTPRequestHandler):
 
             if path == "/api/v1/workflows":
                 _json_response(self, 200, {"workflows": self.service.list_workflows()})
+                return
+
+            if path == "/api/v1/graph/neighbors":
+                node_id = str(query.get("nodeId", query.get("node_id", [""]))[0] or "")
+                depth = int(query.get("depth", ["1"])[0] or "1")
+                if not node_id:
+                    raise ApiError("invalid_request", "nodeId is required", status=400)
+                _json_response(self, 200, self.service.get_graph_neighbors(node_id, depth=depth))
                 return
 
             if path == "/api/v1/projects":
@@ -170,6 +186,11 @@ class ApiHandler(BaseHTTPRequestHandler):
                     )
                     return
                 _json_response(self, 200, self.service.get_standards_node(remainder))
+                return
+
+            if path.startswith("/api/v1/dev/"):
+                payload = handle_dev_get(path, query, self.dev_studio)
+                _json_response(self, 200, payload)
                 return
 
             if path.startswith("/api/v1/standards/tables/"):
@@ -262,6 +283,11 @@ class ApiHandler(BaseHTTPRequestHandler):
         session_id = query.get("session_id", [None])[0]
 
         try:
+            if path.startswith("/api/v1/dev/"):
+                status, payload = handle_dev_post(path, query, _read_json_body(self), self.dev_studio)
+                _json_response(self, status, payload)
+                return
+
             if path == "/api/v1/tasks":
                 body = _read_json_body(self)
                 workflow_id = str(body.get("workflow_id") or "")
@@ -379,6 +405,31 @@ class ApiHandler(BaseHTTPRequestHandler):
                 _api_error_payload("internal_error", str(exc)),
             )
 
+    def do_PUT(self) -> None:
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+        query = parse_qs(parsed.query)
+
+        try:
+            if path.startswith("/api/v1/dev/"):
+                payload = handle_dev_put(path, query, _read_json_body(self), self.dev_studio)
+                _json_response(self, 200, payload)
+                return
+
+            _json_response(
+                self,
+                404,
+                _api_error_payload("not_found", f"No route for {path}"),
+            )
+        except ApiError as exc:
+            _json_response(self, exc.status, _api_error_from_exception(exc))
+        except Exception as exc:  # noqa: BLE001
+            _json_response(
+                self,
+                500,
+                _api_error_payload("internal_error", str(exc)),
+            )
+
     def do_PATCH(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
@@ -424,6 +475,11 @@ class ApiHandler(BaseHTTPRequestHandler):
         session_id = query.get("session_id", [None])[0]
 
         try:
+            if path.startswith("/api/v1/dev/"):
+                payload = handle_dev_delete(path, query, self.dev_studio)
+                _json_response(self, 200, payload)
+                return
+
             if path.startswith("/api/v1/projects/"):
                 project_id = path.removeprefix("/api/v1/projects/").strip("/")
                 if project_id and "/" not in project_id:
@@ -462,8 +518,27 @@ class ApiHandler(BaseHTTPRequestHandler):
             )
 
 
-def create_handler(service: DesktopApiService) -> type[ApiHandler]:
-    return type("BoundApiHandler", (ApiHandler,), {"service": service})
+def create_handler(
+    service: DesktopApiService,
+    *,
+    dev_studio: DevStudioService | None = None,
+) -> type[ApiHandler]:
+    return type(
+        "BoundApiHandler",
+        (ApiHandler,),
+        {"service": service, "dev_studio": dev_studio},
+    )
+
+
+def _build_dev_studio(service: DesktopApiService) -> DevStudioService | None:
+    from api.dev_studio.routes import dev_studio_enabled
+
+    if not dev_studio_enabled():
+        return None
+    return DevStudioService(
+        standards_root=service.config.standards_root,
+        on_pack_changed=lambda _pack: service.invalidate_standards_cache(),
+    )
 
 
 def main() -> None:
@@ -471,7 +546,8 @@ def main() -> None:
     port = int(os.environ.get("BACKEND_PORT", "8000"))
     project_root = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parent.parent))
     service = DesktopApiService.from_project_root(project_root)
-    handler = create_handler(service)
+    dev_studio = _build_dev_studio(service)
+    handler = create_handler(service, dev_studio=dev_studio)
     server = HTTPServer((host, port), handler)
     print(f"API server listening on http://{host}:{port}", flush=True)
     server.serve_forever()

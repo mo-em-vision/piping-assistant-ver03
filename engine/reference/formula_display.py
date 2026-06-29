@@ -8,6 +8,8 @@ from typing import Any
 
 import yaml
 
+from engine.graph.param_priority import require_target_id
+from engine.reference.node_types import is_section_node
 from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.standards_reader import StandardsReader
 
@@ -26,7 +28,11 @@ def load_formula_display(reader: StandardsReader, node_id: str) -> str | None:
 
 def load_equation_context(reader: StandardsReader, node_id: str) -> dict[str, Any]:
     """Load display formula, name, and ordered variable symbols for a node."""
-    node = reader.load(node_id)
+    resolved_id = _resolve_equation_node_id(reader, node_id)
+    node = reader.load(resolved_id)
+    if str(node.metadata.get("type", "")) == "equation":
+        return _equation_context_from_micro_node(reader, node)
+
     equations = node.metadata.get("equations", []) or node.metadata.get("formulas", []) or []
     display: str | None = None
     name: str | None = None
@@ -71,16 +77,86 @@ def load_equation_context(reader: StandardsReader, node_id: str) -> dict[str, An
     }
 
 
+def _resolve_equation_node_id(reader: StandardsReader, node_id: str) -> str:
+    record = reader.load(node_id)
+    node_type = str(record.metadata.get("type", ""))
+    if node_type == "equation":
+        return node_id
+    if not is_section_node(record.metadata, node_type):
+        return node_id
+    for ref in record.metadata.get("contains", []) or []:
+        ref_id = str(ref)
+        try:
+            child = reader.load(ref_id)
+        except FileNotFoundError:
+            continue
+        if str(child.metadata.get("type", "")) == "equation":
+            return ref_id
+    return node_id
+
+
+def _equation_context_from_micro_node(reader: StandardsReader, node: Any) -> dict[str, Any]:
+    meta = node.metadata
+    display = str(meta.get("display_latex") or meta.get("sympy") or "").strip() or None
+    variables: list[str] = []
+    for ref in meta.get("requires", []) or []:
+        ref_id = require_target_id(ref)
+        if not ref_id:
+            continue
+        try:
+            param = reader.load(ref_id)
+        except FileNotFoundError:
+            continue
+        symbol = str(param.metadata.get("symbol") or "").strip()
+        if symbol and symbol not in variables:
+            variables.append(symbol)
+    return {
+        "display": display,
+        "name": str(meta.get("equation_id") or meta.get("title") or "").strip() or None,
+        "variables": variables,
+        "purpose": str(meta.get("purpose", "")).strip(),
+        "node_id": node.node_id,
+        "title": str(meta.get("title", "")).strip(),
+    }
+
+
 def resolve_equation_display_variables(
     reader: StandardsReader,
     node_id: str,
 ) -> dict[str, Any]:
     """Resolve equation variable rows and nomenclature reference for display blocks."""
-    node = reader.load(node_id)
-    equation_data = _primary_equation_data(reader, node_id)
+    resolved_id = _resolve_equation_node_id(reader, node_id)
+    node = reader.load(resolved_id)
+    if str(node.metadata.get("type", "")) == "equation":
+        section_id = node_id if node_id != resolved_id else (_section_for_equation(reader, resolved_id) or node_id)
+        nomenclature_ref = _nomenclature_section_for(reader, section_id) or section_id
+        equation_data = _micro_equation_display_data(reader, node)
+        result = _resolve_equation_display_from_data(reader, equation_data, node.metadata)
+        if result.get("nomenclature_reference") is None and nomenclature_ref:
+            section = reader.load(nomenclature_ref)
+            paragraph = str(section.metadata.get("paragraph", "")).strip()
+            if paragraph:
+                result["nomenclature_reference"] = {
+                    "node_id": nomenclature_ref,
+                    "label": f"§{paragraph}(b)",
+                    "paragraph": paragraph,
+                }
+        return result
+    equation_data = _primary_equation_data(reader, resolved_id)
     if not equation_data:
         return {"variables": [], "nomenclature_reference": None}
-    return _resolve_equation_display_from_data(reader, equation_data, node.metadata)
+    section_id = resolved_id if is_section_node(node.metadata) else node_id
+    result = _resolve_equation_display_from_data(reader, equation_data, node.metadata)
+    if result.get("nomenclature_reference") is None and section_id != resolved_id:
+        section = reader.load(section_id)
+        paragraph = str(section.metadata.get("paragraph", "")).strip()
+        if paragraph:
+            result["nomenclature_reference"] = {
+                "node_id": section_id,
+                "label": f"§{paragraph}(b)",
+                "paragraph": paragraph,
+            }
+    return result
 
 
 def _resolve_equation_display_from_data(
@@ -130,7 +206,10 @@ def _resolve_equation_display_from_data(
 
 
 def _primary_equation_data(reader: StandardsReader, node_id: str) -> dict[str, Any]:
-    node = reader.load(node_id)
+    resolved_id = _resolve_equation_node_id(reader, node_id)
+    node = reader.load(resolved_id)
+    if str(node.metadata.get("type", "")) == "equation":
+        return _micro_equation_display_data(reader, node)
     equations = node.metadata.get("equations", []) or node.metadata.get("formulas", []) or []
     for equation in equations:
         if not isinstance(equation, dict) or not equation.get("file"):
@@ -142,6 +221,77 @@ def _primary_equation_data(reader: StandardsReader, node_id: str) -> dict[str, A
         if data:
             return data
     return {}
+
+
+def _micro_equation_display_data(reader: StandardsReader, node: Any) -> dict[str, Any]:
+    variables: dict[str, dict[str, str]] = {}
+    section_id = _section_for_equation(reader, node.node_id)
+    legacy_inputs: dict[str, dict[str, Any]] = {}
+    if section_id:
+        section = reader.load(section_id)
+        for item in section.metadata.get("inputs", []) or []:
+            if isinstance(item, dict) and item.get("id"):
+                legacy_inputs[str(item["id"])] = item
+    for ref in node.metadata.get("requires", []) or []:
+        ref_id = require_target_id(ref)
+        if not ref_id:
+            continue
+        try:
+            param = reader.load(ref_id)
+        except FileNotFoundError:
+            continue
+        input_id = str(param.metadata.get("input_id") or ref)
+        symbol = str(param.metadata.get("symbol") or input_id)
+        legacy = legacy_inputs.get(input_id, {})
+        description = _collapse_whitespace(
+            str(
+                legacy.get("description")
+                or param.metadata.get("description")
+                or param.metadata.get("title")
+                or symbol
+            )
+        )
+        variables[input_id] = {
+            "symbol": symbol,
+            "description": description,
+            "unit": str(legacy.get("unit") or param.metadata.get("unit", "dimensionless")),
+        }
+    nomenclature_ref = ""
+    if section_id:
+        nomenclature_ref = _nomenclature_section_for(reader, section_id) or section_id
+    return {
+        "variables": variables,
+        "nomenclature_ref": nomenclature_ref,
+        "display": str(
+            node.metadata.get("display_latex") or node.metadata.get("sympy") or ""
+        ).strip(),
+    }
+
+
+def _section_for_equation(reader: StandardsReader, equation_id: str) -> str | None:
+    equation = reader.load(equation_id)
+    parent_path = equation.path.parent.parent.parent
+    section_yaml = parent_path / "node.yaml"
+    if section_yaml.is_file():
+        from engine.reference.standards_markdown import split_frontmatter
+
+        metadata, _ = split_frontmatter(section_yaml.read_text(encoding="utf-8"))
+        if isinstance(metadata, dict) and is_section_node(metadata):
+            return str(metadata.get("id") or "")
+    return None
+
+
+def _nomenclature_section_for(reader: StandardsReader, section_id: str) -> str | None:
+    try:
+        section = reader.load(section_id)
+    except FileNotFoundError:
+        return None
+    for item in section.metadata.get("depends_on", []) or []:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("dependency_type", "")) == "reference" and item.get("node_id"):
+            return str(item["node_id"])
+    return section_id
 
 
 def _resolve_variable_description(

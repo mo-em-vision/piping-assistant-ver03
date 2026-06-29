@@ -1,0 +1,9 @@
+---
+id: UNIT-K
+type: unit
+symbol: K
+dimension: temperature
+description: Kelvin (SI)
+aliases:
+  - k
+---

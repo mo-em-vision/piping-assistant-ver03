@@ -13,6 +13,7 @@ from engine.reference.formula_display import (
     load_equation_context,
     resolve_equation_display_variables,
 )
+from engine.reference.node_types import is_section_node
 from engine.reference.standards_reader import StandardsReader
 
 
@@ -29,7 +30,41 @@ def build_activated_node_blocks(
         return []
 
     metadata = record.metadata
-    if str(metadata.get("type", "")) != "definition":
+    node_type = str(metadata.get("type", ""))
+    if is_section_node(metadata, node_type):
+        blocks: list[dict[str, Any]] = []
+        for ref in metadata.get("contains", []) or []:
+            ref_id = str(ref)
+            try:
+                eq_record = reader.load(ref_id)
+            except FileNotFoundError:
+                continue
+            if str(eq_record.metadata.get("type", "")) != "equation":
+                continue
+            display = str(
+                eq_record.metadata.get("display_latex")
+                or eq_record.metadata.get("sympy")
+                or ""
+            ).strip()
+            if not display:
+                continue
+            paragraph = str(metadata.get("paragraph", "")).strip()
+            block: dict[str, Any] = {
+                "id": f"node-activation-equation-{ref_id}",
+                "type": "equation",
+                "display": display,
+                "content": display,
+            }
+            if paragraph:
+                block["nomenclature_reference"] = {
+                    "node_id": node_id,
+                    "label": f"§{paragraph}(b)",
+                    "paragraph": paragraph,
+                }
+            blocks.append(block)
+        return blocks
+
+    if node_type != "definition":
         return []
 
     blocks: list[dict[str, Any]] = []

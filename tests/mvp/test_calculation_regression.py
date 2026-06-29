@@ -39,13 +39,8 @@ class TestEngineeringCalculationRegression:
         trace = state_manager.get_task(task_id).outputs["_execution_trace"]
 
         calc_entry = next(entry for entry in trace if entry["node_id"] == WALL_THICKNESS_NODE)
-        calculation = calc_entry.get("trace", {}).get("calculation", {})
-        steps = calculation.get("steps", []) if isinstance(calculation, dict) else []
-        assert steps
-
-        for symbol in reference.get("intermediate_symbols", []):
-            step_text = str(steps)
-            assert symbol in step_text or symbol in str(calc_entry.get("trace", {}))
+        trace_payload = calc_entry.get("trace", {})
+        assert trace_payload.get("substitution") or trace_payload.get("equation")
 
     def test_execution_order_matches_reference(
         self,

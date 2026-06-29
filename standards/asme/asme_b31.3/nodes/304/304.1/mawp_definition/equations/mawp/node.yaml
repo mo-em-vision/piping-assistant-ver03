@@ -1,0 +1,22 @@
+---
+id: B313-eq-mawp
+type: equation
+equation_id: mawp
+sympy: "MAWP = S*E*W*t / (D - 2*t*Y)"
+display_latex: "MAWP = SEWt / (D - 2tY)"
+requires:
+  - node_id: B313-param-S
+    priority: 60
+  - node_id: B313-param-E
+    priority: 70
+  - node_id: B313-param-W
+    priority: 75
+  - node_id: B313-param-t
+    priority: 85
+  - node_id: B313-param-D
+    priority: 50
+  - node_id: B313-param-Y
+    priority: 80
+calculates:
+  - B313-param-mawp
+---

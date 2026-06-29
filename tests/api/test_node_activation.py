@@ -94,7 +94,8 @@ def test_create_task_returns_node_activation_outputs(
     state = service.create_task("pipe_wall_thickness_design", session_id)
 
     assert state["active_nodes"] == ["B313-304.1.1"]
-    assert state["parameters"][0]["name"] == "pressure_loading"
+    param_names = {item["name"] for item in state["parameters"]}
+    assert "pressure_loading" in param_names
     block_ids = [block["id"] for block in state["display_outputs"]]
     assert any(block_id.startswith("node-activation-") for block_id in block_ids)
 
@@ -126,10 +127,13 @@ def test_submit_input_advances_to_pressure_loading(
         session_id=session_id,
     )
 
-    assert state["parameters"][0]["status"] == "confirmed"
+    pressure_param = next(item for item in state["parameters"] if item["name"] == "pressure_loading")
+    assert pressure_param["status"] == "confirmed"
     assert any(
         item["name"] == "material" and item["status"] == "pending"
         for item in state["parameters"]
     )
-    assert state["progress"]["timeline"][0]["status"] == "done"
-    assert state["progress"]["timeline"][0]["display_value"] == "The pipe is internally pressurized."
+    pressure_step = next(
+        step for step in state["progress"]["timeline"] if step.get("id") == "pressure_loading"
+    )
+    assert pressure_step["status"] == "done"

@@ -1,0 +1,22 @@
+---
+id: B313-MAWP-SECTION
+type: text
+kind: section
+title: MAWP Pressure Design
+paragraph: mawp
+section: "304 Pressure Design of Components"
+revision_year: 2024
+
+contains:
+  - B313-eq-mawp
+
+requires:
+  - B313-param-material
+  - B313-param-design_temperature
+  - B313-param-t
+
+calculates:
+  - B313-param-mawp
+---
+
+# MAWP calculation section

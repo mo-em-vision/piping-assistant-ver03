@@ -1,0 +1,12 @@
+---
+id: UNIT-bar
+type: unit
+symbol: bar
+dimension: pressure
+description: Bar
+aliases:
+  - BAR
+converts_to:
+  - node_id: UNIT-Pa
+    factor: 100000.0
+---

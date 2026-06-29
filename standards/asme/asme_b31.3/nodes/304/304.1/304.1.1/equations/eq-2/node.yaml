@@ -1,0 +1,18 @@
+---
+id: B313-eq-2
+type: equation
+equation_id: eq-2
+execution_phase: definition
+sympy: "t_m = t + c"
+display_latex: "t_m = t + c"
+requires:
+  - node_id: B313-param-t
+    priority: 85
+  - node_id: B313-param-c
+    priority: 90
+calculates:
+  - B313-param-t_m
+explains:
+  - B313-eq-2-intro
+  - B313-eq-2-result
+---

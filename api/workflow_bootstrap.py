@@ -13,8 +13,10 @@ from engine.graph.definition_equations import (
     pending_definition_equation_inputs,
     try_complete_definition_equations,
 )
-from engine.graph.graph_engine import normalize_root_id
-from engine.graph.navigation_phases import build_mawp_phased_navigation, build_phased_navigation
+from engine.graph.graph_engine import GraphEngine, normalize_root_id, resolve_workflow_node_id
+from engine.graph.graph_timeline import graph_input_step_order, graph_question_for_field, graph_step_titles
+from engine.graph.navigation_phases import build_workflow_phased_navigation
+from engine.graph.workflow_navigation import load_workflow_navigation
 from engine.planner.planner import _INPUT_QUESTIONS
 from engine.planner.tools import GraphTools
 from engine.reference.standards_reader import StandardsReader
@@ -38,8 +40,19 @@ def resolve_activated_definition_node(
     *,
     execution_order: tuple[str, ...] | list[str] | None = None,
 ) -> str | None:
-    """Return the workflow's primary definition node, when declared on the root."""
+    """Return the workflow's primary definition/section node."""
     slug = normalize_root_id(workflow_id)
+    resolved_slug = resolve_workflow_node_id(slug)
+    engine = GraphEngine()
+    if engine.uses_micro_graph(reader, resolved_slug):
+        store = engine._micro_engine(reader)
+        if store is not None:
+            resolved = engine._resolve_micro_root(resolved_slug, reader)
+            wf = store.store.get_node(resolved)
+            if wf is not None:
+                anchors = wf.metadata.get("anchors_to")
+                if isinstance(anchors, str):
+                    return anchors
     try:
         root = reader.load(slug)
     except FileNotFoundError:
@@ -61,7 +74,11 @@ def resolve_activated_definition_node(
     order = execution_order
     if order is None:
         graph = GraphTools(reader)
-        order = graph.preview_plan(task_id="bootstrap", root_id=slug, inputs={}).execution_order
+        order = graph.preview_plan(
+            task_id="bootstrap",
+            root_id=resolved_slug,
+            inputs={},
+        ).execution_order
 
     for node_id in order:
         try:
@@ -106,14 +123,20 @@ def refresh_task_planning(
 
     root_slug = normalize_root_id(workflow_id)
     graph = GraphTools(reader)
+    engine = GraphEngine()
+    uses_micro = engine.uses_micro_graph(reader, root_slug)
     if root_slug == MAWP_DESIGN:
         apply_geometry_input_mode_default(task)
     existing_inputs = dict(task.inputs)
 
+    lazy_plan = uses_micro and not engine.expansion_gate_ready(
+        root_slug, reader, existing_inputs=existing_inputs
+    )
     preview = graph.preview_plan(
         task_id=task.task_id,
         root_id=root_slug,
         inputs=existing_inputs,
+        lazy=lazy_plan,
     )
     if propose_defaults:
         added = _apply_proposed_path_inputs(task, graph, root_slug, plan=preview)
@@ -153,6 +176,16 @@ def refresh_task_planning(
     )
 
     question_map: dict[str, str] = dict(_INPUT_QUESTIONS)
+    if uses_micro:
+        for field_id in (
+            assumption_eval.missing_fields
+            + expansion_eval.missing_fields
+            + execution_eval.missing_fields
+            + missing_inputs
+        ):
+            graph_q = graph_question_for_field(reader, field_id)
+            if graph_q:
+                question_map[field_id] = graph_q
     for field_id, question in assumption_eval.field_questions.items():
         question_map.setdefault(field_id, question)
     for field_id, question in expansion_eval.field_questions.items():
@@ -160,8 +193,9 @@ def refresh_task_planning(
     for field_id, question in execution_eval.field_questions.items():
         question_map.setdefault(field_id, question)
 
-    phased_builder = build_mawp_phased_navigation if root_slug == MAWP_DESIGN else build_phased_navigation
-    phased = phased_builder(
+    nav_config = load_workflow_navigation(reader, root_slug)
+    phased = build_workflow_phased_navigation(
+        config=nav_config,
         assumption_eval=assumption_eval,
         expansion_eval=expansion_eval,
         user_inputs=missing_inputs,
@@ -169,11 +203,7 @@ def refresh_task_planning(
         question_map=question_map,
     )
 
-    assumption_gate_fields = (
-        {"straight_pipe_section", "geometry_input_mode"}
-        if root_slug == MAWP_DESIGN
-        else {"straight_pipe_section", "pressure_loading"}
-    )
+    assumption_gate_fields = nav_config.assumption_gate_fields
     missing_assumptions = [
         field_id
         for field_id in assumption_eval.missing_fields + expansion_eval.missing_fields
@@ -197,8 +227,17 @@ def refresh_task_planning(
         active_nodes = [definition_node] + [node for node in active_nodes if node != definition_node]
 
     try:
-        root_record = reader.load(root_slug)
-        goal = str(root_record.metadata.get("title") or root_record.metadata.get("purpose") or workflow_id)
+        if uses_micro:
+            micro = engine._micro_engine(reader)
+            if micro is not None:
+                resolved = engine._resolve_micro_root(root_slug, reader)
+                wf = micro.store.get_node(resolved)
+                goal = str(wf.metadata.get("title") if wf else workflow_id)
+            else:
+                goal = workflow_id.replace("_", " ")
+        else:
+            root_record = reader.load(root_slug)
+            goal = str(root_record.metadata.get("title") or root_record.metadata.get("purpose") or workflow_id)
     except FileNotFoundError:
         goal = workflow_id.replace("_", " ")
 
@@ -218,10 +257,16 @@ def refresh_task_planning(
         "current_phase": phased.current_phase.value,
         "phase_missing": phased.phase_missing,
         "phase_questions": phased.phase_questions,
+        "phase_allowed_fields": nav_config.phase_allowlists(),
         "path_decision": _path_decision(existing_inputs, exec_nodes),
         "confidence": 1.0,
         "action": action.value,
     }
+    if uses_micro:
+        task.outputs["planning_summary"]["graph_input_order"] = list(
+            graph_input_step_order(reader, preview)
+        )
+        task.outputs["planning_summary"]["graph_step_titles"] = graph_step_titles(reader, preview)
     task.active_nodes = active_nodes
 
     _apply_post_execution_definition_planning(
@@ -238,6 +283,15 @@ def refresh_task_planning(
         task, planning_summary
     ):
         warm_material_catalog(reader.standards_root)
+
+    if uses_micro:
+        engine.prefetch(
+            reader,
+            task_id=task.task_id,
+            root_id=root_slug,
+            inputs=dict(task.inputs),
+            horizon=1,
+        )
 
 
 def task_ready_for_execution(task: Task) -> bool:
@@ -311,6 +365,10 @@ def _apply_post_execution_definition_planning(
         return
 
     pending = pending_definition_equation_inputs(task, reader, execution_order)
+    if not pending and has_execution_trace(task):
+        if task.outputs.get("required_thickness") is not None and task.outputs.get("minimum_required_thickness") is None:
+            if "corrosion_allowance" not in task.inputs:
+                pending = ["corrosion_allowance"]
     if not pending:
         if task.outputs.get("t") is not None or task.outputs.get("required_thickness") is not None:
             try_complete_definition_equations(task, reader, execution_order)
@@ -362,10 +420,13 @@ def _apply_proposed_path_inputs(
 
 
 def _execution_nodes(reader: StandardsReader, execution_order: tuple[str, ...] | list[str]) -> list[str]:
+    executable_types = {"calculation", "lookup", "equation"}
     nodes: list[str] = []
     for node_id in execution_order:
         node_type = str(reader.load(node_id).metadata.get("type", ""))
-        if node_type != "root":
+        if node_type in executable_types:
+            nodes.append(node_id)
+        elif node_type not in {"root", "workflow", "standard_section", "text", "parameter", "assumption", "interaction", "table", "definition"}:
             nodes.append(node_id)
     return nodes
 

@@ -3,7 +3,7 @@ id: B313-304.1.3
 type: calculation
 title: Required Thickness Under External Pressure
 version: "1.0"
-status: draft
+status: superseded
 created: "2026-06-18"
 modified: "2026-06-19"
 

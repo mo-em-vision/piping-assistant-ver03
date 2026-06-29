@@ -1,0 +1,18 @@
+---
+id: B313-param-D
+type: parameter
+symbol: D
+input_id: outside_diameter
+title: Outside diameter
+canonical_unit: UNIT-mm
+description: >
+  Outside diameter of pipe as listed in tables or as measured.
+question: >
+  Please provide the outside diameter of the pipe (mm or in).
+resolution:
+  method: table_lookup
+  table_id: asme_b36.10
+  keys: ['nominal_pipe_size']
+defined_in:
+  - B313-304.1.1
+---

@@ -74,7 +74,19 @@ def seed_parameter_registry(
     execution_order: tuple[str, ...] | list[str],
     existing_inputs: dict[str, EngineeringInput | Any] | None = None,
 ) -> dict[str, ParameterDescriptor]:
-    """Register parameters from nomenclature when definition node is on active path."""
+    """Register parameters from legacy definition-node nomenclature.
+
+    Deprecated: micro-graph workflows use ``MicroGraphEngine.seed_parameter_registry``.
+    Only called when ``VER03_LEGACY_GRAPH_TRAVERSAL`` is enabled or graph cache is absent.
+    """
+    import warnings
+
+    warnings.warn(
+        "seed_parameter_registry from definition nomenclature is deprecated; "
+        "use micro-graph parameter nodes.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if _DEFINITION_NODE not in execution_order:
         return {}
 

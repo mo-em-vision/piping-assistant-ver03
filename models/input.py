@@ -79,6 +79,8 @@ class ParameterDescriptor:
     description: str
     introduced_at_node: str
     unit: str = "dimensionless"
+    defined_in_nodes: tuple[str, ...] = ()
+    concept_id: str | None = None
     resolution_method: ResolutionMethod | None = None
     resolution_ref: ResolutionRef | None = None
     required_when_nodes: tuple[str, ...] = ()

@@ -37,7 +37,10 @@ def test_planner_pipe_wall_thickness_missing_inputs() -> None:
     plan = planner.plan(intent, task)
 
     assert plan.selected_root == "pipe_wall_thickness_design"
-    assert "B313-table-A-1" in plan.selected_nodes
+    assert any(
+        node_id in plan.selected_nodes
+        for node_id in ("B313-table-A-1", "B313-lookup-allowable-stress", "B313-param-S")
+    )
     assert "B313-304.1.2" not in plan.selected_nodes
     assert "straight_pipe_section" in plan.missing_assumptions or (
         "straight_pipe_section" in (plan.phase_missing.get("expansion_assumptions") or [])

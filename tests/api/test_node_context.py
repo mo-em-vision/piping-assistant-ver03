@@ -61,7 +61,7 @@ def test_active_node_context_uses_display_heading(standards_reader: StandardsRea
     context = active_node_context_for_task(task, standards_reader)
     assert context is not None
     assert context["node_id"] == "B313-304.1.1"
-    assert "Calculation of Minimum Required Thickness" in context["display_heading"]
+    assert "Required Thickness" in context["display_heading"]
     assert "304.1.1" in context["display_heading"]
 
     state = task_state(task, manager, standards_root=standards_reader.standards_root)

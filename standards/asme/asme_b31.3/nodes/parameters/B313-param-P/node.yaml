@@ -1,0 +1,16 @@
+---
+id: B313-param-P
+type: parameter
+symbol: P
+input_id: design_pressure
+title: Design pressure
+canonical_unit: UNIT-Pa
+description: >
+  Internal design gage pressure.
+question: >
+  To continue the calculation, I need the design pressure.
+resolution:
+  method: user_input
+defined_in:
+  - B313-304.1.1
+---

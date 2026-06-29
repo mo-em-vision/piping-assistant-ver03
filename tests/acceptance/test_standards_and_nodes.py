@@ -38,7 +38,8 @@ class TestStandardsCoverage:
         )
         assert wall_node.metadata.get("paragraph") == "304.1.2"
         assert wall_node.metadata.get("type") == "calculation"
-        assert stress_node.metadata.get("type") == "lookup"
+        assert stress_node.metadata.get("type") == "equation"
+        assert stress_node.metadata.get("kind") == "lookup"
         assert standards_reader.tables_db_path.is_file()
         assert standards_reader.load_table("A-1")["materials"]
 

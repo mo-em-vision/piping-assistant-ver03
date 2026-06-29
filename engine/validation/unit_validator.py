@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from engine.executor.unit_manager import convert_to_si, normalize_unit
+from engine.reference.node_types import is_section_node
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput
 from models.validation import ComplianceStatus, LayerValidationResult, ValidationFinding, ValidationSeverity
@@ -38,9 +39,12 @@ class UnitValidator:
         record = reader.load(node_id)
         errors: list[ValidationFinding] = []
         warnings: list[ValidationFinding] = []
+        section_node = is_section_node(record.metadata)
 
         for spec in record.metadata.get("inputs", []) or []:
             if not isinstance(spec, dict):
+                continue
+            if section_node and str(spec.get("source", "")) == "node_output":
                 continue
             input_id = str(spec.get("id", ""))
             if input_id not in task_inputs:
@@ -103,6 +107,26 @@ class UnitValidator:
 
 
 def _can_convert(unit: str, allowed: set[str]) -> bool:
+    try:
+        from engine.units.unit_resolver import get_unit_resolver
+
+        resolver = get_unit_resolver()
+        from_id = resolver.resolve_unit_id(unit)
+        if from_id is None:
+            return False
+        for target in allowed:
+            to_id = resolver.resolve_unit_id(target)
+            if to_id is None:
+                continue
+            try:
+                resolver.convert_value(1.0, from_id, to_id)
+                return True
+            except ValueError:
+                continue
+        return False
+    except (OSError, ImportError):
+        pass
+
     if unit in _SUPPORTED_UNITS:
         return True
     for target in allowed:

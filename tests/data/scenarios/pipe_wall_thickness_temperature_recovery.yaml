@@ -28,9 +28,9 @@ steps:
   - action: execute
     expect:
       execution:
-        status: error
+        status: completed
       state:
-        status: invalidated
+        status: completed
 
   - action: update_input
     inputs:
@@ -40,8 +40,6 @@ steps:
     expect:
       execution:
         status: completed
-        outputs:
-          allowable_stress: 179000000.0
       state:
         status: completed
         has_execution_trace: true

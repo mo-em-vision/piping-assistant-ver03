@@ -1,0 +1,16 @@
+---
+id: B313-param-S
+type: parameter
+symbol: S
+input_id: allowable_stress
+title: Allowable stress
+canonical_unit: UNIT-Pa
+description: Stress value from Table A-1.
+question: Allowable stress will be looked up from Table A-1.
+resolution:
+  method: table_lookup
+  keys: [material, design_temperature]
+  table_id: asme_b31.3_A-1
+defined_in:
+  - B313-304.1.1
+---

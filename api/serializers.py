@@ -36,6 +36,7 @@ from engine.graph.definition_equations import (
     pending_definition_equation_inputs,
 )
 from engine.reference.standards_reader import StandardsReader
+from engine.graph.graph_engine import GraphEngine
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
 from models.task import Task, TaskStatus
@@ -90,11 +91,29 @@ _WORKFLOW_BY_ID = {item["id"]: item for item in WORKFLOW_CATALOG}
 _HIDDEN_UNITS = frozenset({"dimensionless", ""})
 
 
-def workflow_catalog() -> list[dict[str, Any]]:
+def workflow_catalog(reader: StandardsReader | None = None) -> list[dict[str, Any]]:
+    if reader is not None:
+        dynamic = GraphEngine().list_workflows(reader)
+        if dynamic:
+            catalog = [dict(item) for item in dynamic]
+            catalog.extend(
+                item
+                for item in WORKFLOW_CATALOG
+                if not item["available"] and item["id"] not in {w["id"] for w in catalog}
+            )
+            return catalog
     return [dict(item) for item in WORKFLOW_CATALOG]
 
 
-def _workflow_meta(workflow_id: str) -> dict[str, Any]:
+def workflow_catalog_legacy() -> list[dict[str, Any]]:
+    return [dict(item) for item in WORKFLOW_CATALOG]
+
+
+def _workflow_meta(workflow_id: str, reader: StandardsReader | None = None) -> dict[str, Any]:
+    if reader is not None:
+        for item in workflow_catalog(reader):
+            if item["id"] == workflow_id or item.get("node_id") == workflow_id:
+                return item
     return _WORKFLOW_BY_ID.get(
         workflow_id,
         {
@@ -334,12 +353,12 @@ def _build_pipe_wall_timeline(
 
     revealed_inputs = revealed_pipe_wall_input_ids(task, planning)
     ordered_steps: list[tuple[str, str]] = [
-        (step_id, pipe_wall_step_title(step_id)) for step_id in revealed_inputs
+        (step_id, pipe_wall_step_title(step_id, planning)) for step_id in revealed_inputs
     ]
     ordered_steps.extend(
         [
-            ("thickness", pipe_wall_step_title("thickness")),
-            ("report", pipe_wall_step_title("report")),
+            ("thickness", pipe_wall_step_title("thickness", planning)),
+            ("report", pipe_wall_step_title("report", planning)),
         ]
     )
 

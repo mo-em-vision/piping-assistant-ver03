@@ -7,7 +7,7 @@ id: B313-304.1.2
 type: calculation
 title: Internal Pressure Design of Straight Pipe
 version: "2016"
-status: draft
+status: superseded
 created: "2026-06-17"
 modified: "2026-06-19"
 

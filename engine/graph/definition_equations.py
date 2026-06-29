@@ -8,7 +8,9 @@ from typing import Any
 
 import yaml
 
+from engine.graph.param_priority import normalize_require_ids
 from engine.executor.functions import get_execution_function
+from engine.equation.sympy_evaluator import evaluate_equation
 from engine.executor.unit_manager import prepare_engineering_input
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
@@ -29,6 +31,10 @@ class DefinitionEquationSpec:
     node_dir: Path
     variables: tuple[str, ...]
     output_keys: tuple[str, ...]
+    sympy_expr: str | None = None
+    display_latex: str | None = None
+    requires_param_nodes: tuple[str, ...] = ()
+    calculates_param_nodes: tuple[str, ...] = ()
 
 
 def has_execution_trace(task: Task) -> bool:
@@ -82,6 +88,25 @@ def try_complete_definition_equations(
         variables, unresolved = _resolve_equation_variables(task, reader, spec)
         if unresolved:
             continue
+        if spec.function_name == "sympy" and spec.sympy_expr:
+            try:
+                result = evaluate_equation(
+                    sympy_expr=spec.sympy_expr,
+                    display_latex=spec.display_latex or spec.sympy_expr,
+                    symbol_values=variables,
+                )
+            except Exception:  # noqa: BLE001
+                continue
+            value = next(iter(result.outputs.values()), None)
+            if value is None:
+                continue
+            unit = "mm"
+            for key in spec.output_keys:
+                task.outputs[key] = float(value)
+                task.outputs[f"{key}_unit"] = unit
+            task.outputs.setdefault("_equation_substitution", result.substitution)
+            changed = True
+            continue
         fn = get_execution_function(spec.function_name)
         if fn is None:
             continue
@@ -116,6 +141,49 @@ def _definition_equation_specs(
         try:
             record = reader.load(node_id)
         except FileNotFoundError:
+            continue
+        if str(record.metadata.get("type", "")) == "equation":
+            sympy_expr = str(record.metadata.get("sympy", "")).strip()
+            if sympy_expr:
+                variables: list[str] = []
+                output_keys: list[str] = []
+                requires_nodes = tuple(normalize_require_ids(record.metadata.get("requires")))
+                calculates_nodes = tuple(str(item) for item in (record.metadata.get("calculates") or []))
+                for param_id in requires_nodes:
+                    try:
+                        param = reader.load(param_id)
+                    except FileNotFoundError:
+                        continue
+                    symbol = str(param.metadata.get("symbol", "")).strip()
+                    if symbol:
+                        variables.append(symbol)
+                for param_id in calculates_nodes:
+                    try:
+                        param = reader.load(param_id)
+                    except FileNotFoundError:
+                        continue
+                    input_id = str(param.metadata.get("input_id", "")).strip()
+                    symbol = str(param.metadata.get("symbol", "")).strip()
+                    if input_id:
+                        output_keys.append(input_id)
+                    if symbol:
+                        output_keys.append(symbol)
+                if not output_keys:
+                    output_keys = ["minimum_required_thickness", "t_m"]
+                specs.append(
+                    DefinitionEquationSpec(
+                        node_id=record.node_id,
+                        equation_id=str(record.metadata.get("equation_id") or record.node_id),
+                        function_name="sympy",
+                        node_dir=record.path.parent,
+                        variables=tuple(variables),
+                        output_keys=tuple(dict.fromkeys(output_keys)),
+                        sympy_expr=sympy_expr,
+                        display_latex=str(record.metadata.get("display_latex") or sympy_expr),
+                        requires_param_nodes=requires_nodes,
+                        calculates_param_nodes=calculates_nodes,
+                    )
+                )
             continue
         if str(record.metadata.get("type", "")) != "definition":
             continue
@@ -174,6 +242,20 @@ def _missing_user_inputs_for_equation(
     spec: DefinitionEquationSpec,
 ) -> list[str]:
     missing: list[str] = []
+    if spec.requires_param_nodes:
+        for param_id in spec.requires_param_nodes:
+            try:
+                param = reader.load(param_id)
+            except FileNotFoundError:
+                continue
+            symbol = str(param.metadata.get("symbol", "")).strip()
+            if symbol and _resolve_output_value(task, symbol) is not None:
+                continue
+            input_id = str(param.metadata.get("input_id", "")).strip()
+            if input_id and not _input_value_ready(task, input_id):
+                missing.append(input_id)
+        return missing
+
     nomenclature = _nomenclature_by_symbol(reader, spec.node_id)
     for symbol in spec.variables:
         if _resolve_output_value(task, symbol) is not None:
@@ -194,6 +276,32 @@ def _resolve_equation_variables(
 ) -> tuple[dict[str, float], list[str]]:
     resolved: dict[str, float] = {}
     unresolved: list[str] = []
+
+    if spec.requires_param_nodes:
+        for param_id in spec.requires_param_nodes:
+            try:
+                param = reader.load(param_id)
+            except FileNotFoundError:
+                unresolved.append(param_id)
+                continue
+            symbol = str(param.metadata.get("symbol", "")).strip()
+            if not symbol:
+                continue
+            output_value = _resolve_output_value(task, symbol)
+            if output_value is not None:
+                resolved[symbol] = float(output_value)
+                continue
+            input_id = str(param.metadata.get("input_id", "")).strip()
+            if not input_id:
+                unresolved.append(symbol)
+                continue
+            if not _input_value_ready(task, input_id):
+                unresolved.append(input_id)
+                continue
+            prepared = prepare_engineering_input(task.inputs[input_id])
+            resolved[symbol] = float(prepared.value)
+        return resolved, unresolved
+
     nomenclature = _nomenclature_by_symbol(reader, spec.node_id)
 
     for symbol in spec.variables:

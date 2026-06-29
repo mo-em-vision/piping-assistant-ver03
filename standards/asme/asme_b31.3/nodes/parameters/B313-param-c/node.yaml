@@ -1,0 +1,16 @@
+---
+id: B313-param-c
+type: parameter
+symbol: c
+input_id: corrosion_allowance
+title: Corrosion allowance
+canonical_unit: UNIT-mm
+description: >
+  Sum of mechanical allowances plus corrosion and erosion allowances.
+question: >
+  For c (mechanical allowances): confirm the corrosion allowance value.
+resolution:
+  method: user_input
+defined_in:
+  - B313-304.1.1
+---

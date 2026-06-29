@@ -29,6 +29,8 @@ outputs:
 
 executor: calculate_minimum_required_thickness
 ---
+status: superseded
+---
 
 # Minimum Required Thickness (eq. 2)
 

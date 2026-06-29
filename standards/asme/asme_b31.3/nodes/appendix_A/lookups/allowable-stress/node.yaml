@@ -1,0 +1,18 @@
+---
+id: B313-lookup-allowable-stress
+type: equation
+kind: lookup
+table_id: asme_b31.3_A-1
+output_param: B313-param-S
+keys:
+  - material
+  - design_temperature
+interpolation: true
+uses_table:
+  - B313-table-A-1-REF
+requires:
+  - B313-param-material
+  - B313-param-design_temperature
+outputs:
+  - B313-param-S
+---

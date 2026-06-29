@@ -15,9 +15,8 @@
     }
   },
   "execution_order": [
-    "B313-table-A-1",
-    "B313-304.1.2"
+    "B313-eq-wall-thickness"
   ],
-  "intermediate_symbols": ["SEW", "PY"],
+  "intermediate_symbols": ["substitution"],
   "source": "Manual verification against thin-wall equation t = PD / 2(SEW + PY)"
 }

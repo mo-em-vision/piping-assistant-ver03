@@ -1,0 +1,26 @@
+---
+description: Agent workflow and coding standards — follow docs/rules.md
+alwaysApply: true
+---
+
+# Agent rules
+
+Read and follow `docs/rules.md` before significant work. That file is the source of truth; do not contradict it.
+
+Apply it when planning, coding, debugging, adding dependencies, writing tests, or editing nodes and workflows.
+
+## Sections (read the full doc for detail)
+
+1. **Read before you write** — inspect target files and existing patterns first.
+2. **Think before you code** — state assumptions and tradeoffs; ask when unclear.
+3. **Simplicity** — minimum code for the current problem; no premature abstraction.
+4. **Surgical changes** — smallest justified diff; match existing style.
+5. **Verifications** — prove fixes with failing tests; test real behavior.
+6. **Goal-driven execution** — define success criteria and plan multi-step work first.
+7. **Debugging** — reproduce, read errors fully, change one thing at a time.
+8. **Dependencies** — prefer stdlib/existing code; justify new packages.
+9. **Communication** — explain what and why; flag uncertainty precisely.
+10. **Common failure modes** — stop if you drift into kitchen-sink refactors or wrong abstractions.
+11. **Node structure** — workflows from root nodes only; graph traversal reads node data; use node templates; confirm template changes with the user.
+
+For node, standards, or workflow work, re-read **§11** in `docs/rules.md` before editing.

@@ -1,0 +1,18 @@
+---
+id: B313-param-Y
+type: parameter
+symbol: Y
+input_id: temperature_coefficient
+title: Temperature coefficient
+canonical_unit: UNIT-dimensionless
+description: >
+  Coefficient from Table 304.1.1.
+question: >
+  Temperature coefficient Y from Table 304.1.1.
+resolution:
+  method: table_lookup
+  table_id: asme_b31.3_table_304_1_1
+  keys: ['design_temperature']
+defined_in:
+  - B313-304.1.1
+---

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from engine.executor.unit_manager import convert_to_si
+from engine.reference.asme_b31_3_table_ids import TABLE_304_1_1
 from engine.reference.material_catalog_db import standards_root_from_pack_root
 from engine.reference.material_resolver import canonical_material_id, resolve_material_table_key
 from engine.reference.pack_tables_db import resolve_pack_tables_db
@@ -28,6 +29,28 @@ class LookupTrace:
 class LookupResult:
     calculation: CalculationResult
     trace: LookupTrace
+
+
+@dataclass(frozen=True)
+class TableLookupValue:
+    value: float
+
+
+def _lookup_inputs_with_units(inputs: dict[str, Any]) -> dict[str, Any]:
+    from engine.executor.unit_manager import prepare_engineering_input
+    from models.input import EngineeringInput
+
+    normalized: dict[str, Any] = {}
+    for key, raw in inputs.items():
+        if isinstance(raw, EngineeringInput):
+            target = "f" if key == "design_temperature" else None
+            prepared = prepare_engineering_input(raw, target_unit=target)
+            normalized[key] = prepared.value
+            if key == "design_temperature":
+                normalized["design_temperature_unit"] = prepared.unit
+        else:
+            normalized[key] = raw
+    return normalized
 
 
 class LookupEngine:
@@ -100,6 +123,44 @@ class LookupEngine:
         )
 
         return LookupResult(calculation=calculation, trace=trace)
+
+    def lookup(self, table_id: str, inputs: dict[str, Any]) -> TableLookupValue:
+        """Resolve a scalar from a registered standards table."""
+        normalized = _lookup_inputs_with_units(inputs)
+        table_ref = table_id.strip()
+
+        if table_ref in {"asme_b31.3_A-1", "A-1"}:
+            result = self.execute_lookup(
+                node_id="inline-stress-lookup",
+                lookup_config={"table_id": table_ref, "interpolation": True},
+                inputs=normalized,
+            )
+            return TableLookupValue(value=float(result.trace.allowable_stress_pa))
+
+        if table_ref in {"asme_b31.3_table_304_1_1", TABLE_304_1_1}:
+            from engine.reference.coefficient_resolver import lookup_y_coefficient
+
+            temp = float(normalized["design_temperature"])
+            temp_unit = str(normalized.get("design_temperature_unit", "F"))
+            value, _ = lookup_y_coefficient(
+                self._pack_root,
+                design_temperature=temp,
+                design_temperature_unit=temp_unit,
+            )
+            return TableLookupValue(value=float(value))
+
+        if table_ref in {"asme_b36.10", "asme_b36.10m"}:
+            from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
+
+            standards_root = standards_root_from_pack_root(self._pack_root)
+            nps = str(normalized.get("nominal_pipe_size", "")).strip()
+            if not nps:
+                raise ValueError("nominal_pipe_size is required for pipe dimension lookup")
+            lookup = PipeDimensionLookup(standards_root)
+            result = lookup.lookup(nps)
+            return TableLookupValue(value=float(result.outside_diameter_mm))
+
+        raise ValueError(f"Unsupported lookup table: {table_ref}")
 
     def _lookup_stress(
         self,

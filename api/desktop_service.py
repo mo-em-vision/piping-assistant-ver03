@@ -10,6 +10,7 @@ from typing import Any
 
 from cli.session_store import new_task_id, _task_from_dict
 from config.loader import CLIConfig
+from engine.graph.graph_engine import GraphEngine
 from engine.reference.standards_reader import StandardsReader
 from engine.router import Router
 from engine.state.state_manager import TaskNotFoundError, TaskStateManager
@@ -85,6 +86,11 @@ class DesktopApiService:
             self._standards_reader = standards_reader_for_config(self.config)
         return self._standards_reader
 
+    def invalidate_standards_cache(self) -> None:
+        """Reload cached standards reader after dev studio graph edits."""
+        if self._standards_reader is not None:
+            self._standards_reader.reload()
+
     def _task_state(self, task, manager) -> dict[str, Any]:
         return task_state(
             task,
@@ -146,7 +152,12 @@ class DesktopApiService:
         self._store_for(session_id).save_state_manager(manager)
 
     def list_workflows(self) -> list[dict[str, Any]]:
-        return workflow_catalog()
+        return workflow_catalog(self._reader())
+
+    def get_graph_neighbors(self, node_id: str, *, depth: int = 1) -> dict[str, Any]:
+        reader = self._reader()
+        levels = GraphEngine().get_neighbors(reader, node_id, depth=depth)
+        return {"node_id": node_id, "depth": depth, "levels": levels}
 
     def list_projects(self) -> list[dict[str, Any]]:
         self._ensure_storage()

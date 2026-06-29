@@ -6,6 +6,7 @@ from dataclasses import asdict
 from typing import Any
 
 from engine.events.event_logger import EventLogger
+from engine.reference.node_types import is_section_node
 from engine.reference.standards_reader import StandardsReader
 from models.event import EventType
 from models.execution import ExecutionPlan
@@ -47,8 +48,8 @@ class ValidationEngine:
         results: list[LayerValidationResult] = [self._conflict.validate_task(task)]
 
         for node_id in plan.execution_order:
-            node_type = str(self._reader.load(node_id).metadata.get("type", ""))
-            if node_type in {"root", "definition"}:
+            record = self._reader.load(node_id)
+            if is_section_node(record.metadata) or str(record.metadata.get("type", "")) in {"root", "definition"}:
                 continue
             results.append(
                 self._input.validate_node_inputs(
@@ -91,7 +92,11 @@ class ValidationEngine:
         overrides: list[str] | None = None,
     ) -> LayerValidationResult:
         """Validate whether a single node execution is allowed."""
-        if str(self._reader.load(node_id).metadata.get("type", "")) in {"root", "definition"}:
+        record = self._reader.load(node_id)
+        if is_section_node(record.metadata) or str(record.metadata.get("type", "")) in {
+            "root",
+            "definition",
+        }:
             return LayerValidationResult(status=ComplianceStatus.PASS)
 
         results = [

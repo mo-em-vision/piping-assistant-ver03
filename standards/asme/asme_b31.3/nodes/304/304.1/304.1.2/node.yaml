@@ -1,0 +1,31 @@
+---
+id: B313-304.1.2
+type: text
+kind: section
+title: Straight Pipe Under Internal Pressure
+paragraph: "304.1.2"
+section: "304 Pressure Design of Components"
+revision_year: 2024
+
+depends_on:
+  - node_id: B313-304.1.1
+    dependency_type: reference
+
+contains:
+  - B313-eq-wall-thickness
+  - B313-eq-wall-thickness-intro
+  - B313-eq-wall-thickness-result
+
+requires:
+  - B313-param-P
+  - B313-param-D
+  - B313-param-S
+  - B313-param-E
+  - B313-param-W
+  - B313-param-Y
+
+calculates:
+  - B313-param-t
+---
+
+# ASME B31.3 §304.1.2

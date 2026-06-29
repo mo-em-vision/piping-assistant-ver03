@@ -1,0 +1,9 @@
+---
+id: UNIT-mm
+type: unit
+symbol: mm
+dimension: length
+description: Millimeter (SI)
+aliases:
+  - MM
+---

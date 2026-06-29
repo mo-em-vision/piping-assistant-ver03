@@ -87,6 +87,7 @@ class GraphTools:
         task_id: str,
         root_id: str,
         inputs: dict[str, EngineeringInput] | None = None,
+        lazy: bool = False,
     ) -> ExecutionPlan:
         slug = normalize_root_id(root_id)
         return self._engine.build_plan(
@@ -94,6 +95,7 @@ class GraphTools:
             root_id=slug,
             inputs=inputs or {},
             reader=self._reader,
+            lazy=lazy,
         )
 
     def pending_decision_interactions_for_root(

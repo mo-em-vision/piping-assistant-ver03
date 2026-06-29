@@ -1,0 +1,27 @@
+---
+id: B313-eq-wall-thickness
+type: equation
+equation_id: wall_thickness
+sympy: "t = P*D / (2*(S*E*W + P*Y))"
+display_latex: "t = PD / (2(SEW + PY))"
+requires:
+  - node_id: B313-param-P
+    priority: 40
+  - node_id: B313-param-D
+    priority: 50
+  - node_id: B313-param-S
+    priority: 60
+  - node_id: B313-param-E
+    priority: 70
+  - node_id: B313-param-W
+    priority: 75
+  - node_id: B313-param-Y
+    priority: 80
+calculates:
+  - B313-param-t
+explains:
+  - B313-eq-wall-thickness-intro
+  - B313-eq-wall-thickness-result
+next_step:
+  - B313-eq-2
+---

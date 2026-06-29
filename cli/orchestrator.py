@@ -20,6 +20,7 @@ from engine.reference.standards_reader import StandardsReader
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
 from engine.graph.navigation_phases import allowed_fields_for_phase
+from engine.graph.workflow_navigation import load_workflow_navigation
 from models.agent import AgentAction, AgentContext
 from models.planning import NavigationPhase
 from models.input import EngineeringInput, InputStatus
@@ -86,7 +87,12 @@ class ChatOrchestrator:
                 active,
                 user_message=message,
             )
-            allowed = allowed_fields_for_phase(navigation_plan.current_phase)
+            workflow_id = navigation_plan.selected_root or self._resolve_workflow(active) or ""
+            nav_config = load_workflow_navigation(self.standards_reader, workflow_id)
+            allowed = allowed_fields_for_phase(
+                navigation_plan.current_phase,
+                config=nav_config,
+            )
             extraction = self._extract_and_store_inputs(
                 active.task_id,
                 message,

@@ -1,0 +1,42 @@
+---
+id: B313-WF-MAWP
+type: workflow
+title: Maximum Allowable Working Pressure (MAWP)
+version: "1.0"
+status: draft
+engineering_intent: mawp_design
+slug: mawp_design
+purpose: >
+  Calculate the maximum allowable working pressure of piping components per ASME B31.3.
+anchors_to: B313-MAWP-SECTION
+goal_output: B313-param-mawp
+requires:
+  - B313-assumption-straight-pipe
+
+navigation:
+  assumption_gate_fields:
+    - straight_pipe_section
+    - geometry_input_mode
+  phases:
+    expansion_assumptions:
+      - straight_pipe_section
+    path_decisions:
+      - geometry_input_mode
+    parameter_gathering:
+      - nominal_pipe_size
+      - pipe_schedule
+      - outside_diameter
+      - actual_wall_thickness
+      - corrosion_allowance
+      - material
+      - design_temperature
+    coefficient_resolution:
+      - joint_category
+      - weld_joint_efficiency
+      - weld_strength_reduction
+      - temperature_coefficient
+    execution_assumptions: []
+    definition_equation_completion: []
+---
+
+Calculate maximum allowable working pressure for piping components.

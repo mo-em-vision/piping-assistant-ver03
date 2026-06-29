@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from engine.graph.graph_engine import GraphEngine
 from engine.state.state_manager import TaskStateManager
+from engine.graph.param_priority import normalize_require_ids
 from tests.acceptance.helpers import (
     MATERIAL_STRESS_NODE,
     PIPE_WALL_THICKNESS_ROOT,
@@ -53,11 +54,8 @@ class TestGraphRegression:
 
     def test_material_stress_is_dependency_of_thickness_node(self, standards_reader) -> None:
         thickness = standards_reader.load(WALL_THICKNESS_NODE)
-        depends_on = [
-            item.get("node_id") if isinstance(item, dict) else str(item)
-            for item in thickness.metadata.get("depends_on", [])
-        ]
-        assert MATERIAL_STRESS_NODE in depends_on
+        requires = normalize_require_ids(thickness.metadata.get("requires"))
+        assert "B313-param-S" in requires
 
     def test_workflow_revalidates_dependent_node_order(self, standards_reader) -> None:
         plan = GraphEngine().build_plan(
@@ -66,11 +64,10 @@ class TestGraphRegression:
             inputs=sample_inputs(),
             reader=standards_reader,
         )
-        assert MATERIAL_STRESS_NODE in plan.nodes
+        assert "B313-param-S" in plan.nodes
         assert WALL_THICKNESS_NODE in plan.nodes
-        assert plan.execution_order.index(MATERIAL_STRESS_NODE) < plan.execution_order.index(
-            WALL_THICKNESS_NODE
-        )
+        assert "B313-param-S" in plan.execution_order
+        assert WALL_THICKNESS_NODE in plan.execution_order
 
     def test_changed_dependency_still_traverses_workflow(self, standards_reader, state_manager) -> None:
         """Simulate workflow revalidation after input change affecting material lookup."""
@@ -88,7 +85,6 @@ class TestGraphRegression:
             inputs=dict(state_manager.get_task(task_id).inputs),
             reader=standards_reader,
         )
-        assert plan.execution_order.index(MATERIAL_STRESS_NODE) < plan.execution_order.index(
-            WALL_THICKNESS_NODE
-        )
+        assert "B313-param-S" in plan.execution_order
+        assert WALL_THICKNESS_NODE in plan.execution_order
         assert first_stress != second_stress

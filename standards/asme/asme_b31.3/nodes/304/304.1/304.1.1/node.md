@@ -7,7 +7,7 @@ id: B313-304.1.1
 type: definition
 title: Required Thickness and Nomenclature for Straight Pipe
 version: "2016"
-status: draft
+status: superseded
 created: "2026-06-17"
 modified: "2026-06-19"
 

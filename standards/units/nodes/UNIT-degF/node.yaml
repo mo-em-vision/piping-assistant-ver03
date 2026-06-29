@@ -1,0 +1,16 @@
+---
+id: UNIT-degF
+type: unit
+symbol: degF
+dimension: temperature
+description: Degrees Fahrenheit
+aliases:
+  - f
+  - F
+  - degf
+  - °f
+converts_to:
+  - node_id: UNIT-K
+    factor: 0.5555555555555556
+    offset: 255.37222222222223
+---

@@ -569,6 +569,17 @@ def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] 
         return None
 
     node_trace = calc_entry.get("trace") if isinstance(calc_entry.get("trace"), dict) else {}
+    substitution = node_trace.get("substitution")
+    if isinstance(substitution, str) and substitution.strip():
+        display = substitution.strip()
+        return {
+            "id": "path-calculation-substituted-equation",
+            "type": "equation",
+            "title": None,
+            "content": display,
+            "display": display,
+        }
+
     calculation = node_trace.get("calculation")
     if not isinstance(calculation, dict):
         return None
@@ -606,7 +617,7 @@ def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] 
 
 
 def _wall_thickness_calculation_trace_entry(trace: list[Any]) -> dict[str, Any] | None:
-    preferred = ("B313-304.1.2", "B313-304.1.3")
+    preferred = ("B313-eq-wall-thickness", "B313-304.1.2", "B313-304.1.3")
     for node_id in preferred:
         for entry in trace:
             if isinstance(entry, dict) and entry.get("node_id") == node_id:
@@ -618,7 +629,7 @@ def _wall_thickness_calculation_trace_entry(trace: list[Any]) -> dict[str, Any] 
         if not isinstance(entry, dict):
             continue
         node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
-        if node_trace.get("calculation"):
+        if node_trace.get("calculation") or node_trace.get("substitution"):
             return entry
     return None
 

@@ -108,6 +108,9 @@ desktopApp/release/
 desktopApp/resources/backend/**
 !desktopApp/resources/backend/.gitkeep
 
+# --- Dev tools ---
+dev/graph_explorer/**/node_modules/
+dev/graph_explorer/node_modules/
 
 # --- git commands ---
 docs/git workflow/

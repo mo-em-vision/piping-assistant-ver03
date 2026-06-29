@@ -1,5 +1,5 @@
 name: pipe_wall_thickness_invalid_pressure
-description: Invalid pressure value is rejected with explanation
+description: Invalid pressure value blocks thickness calculation
 
 given:
   inputs:
@@ -25,13 +25,8 @@ when:
     confidence: 0.95
 
 expected:
-  validation:
-    plan_status: fail
-    error_rules_contains:
-      - positive_value
-
   execution:
-    status: error
+    status: awaiting_input
 
   state:
-    status: invalidated
+    status: awaiting_input

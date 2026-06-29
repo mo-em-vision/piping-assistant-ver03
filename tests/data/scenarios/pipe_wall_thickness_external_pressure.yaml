@@ -1,5 +1,5 @@
 name: pipe_wall_thickness_external_pressure
-description: External pressure routes to the external wall thickness stub node
+description: External pressure routes to the external wall thickness section node
 
 given:
   inputs:
@@ -25,12 +25,11 @@ expected:
   planner:
     selected_root: pipe_wall_thickness_design
     selected_nodes_contains:
-      - B313-table-A-1
+      - B313-param-S
       - B313-304.1.3
-    missing_inputs: []
 
   execution:
-    status: error
+    status: awaiting_input
 
   state:
-    status: invalidated
+    status: awaiting_input

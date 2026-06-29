@@ -51,6 +51,10 @@ export class BackendClient {
     return this.request<T>(path, { ...options, method: 'PATCH', body })
   }
 
+  async put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    return this.request<T>(path, { ...options, method: 'PUT', body })
+  }
+
   async delete<T>(path: string, options?: RequestOptions): Promise<T> {
     return this.request<T>(path, { ...options, method: 'DELETE' })
   }

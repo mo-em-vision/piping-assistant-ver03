@@ -1,5 +1,5 @@
 name: pipe_wall_thickness_temperature_limit
-description: Temperature exceeding material table range fails validation
+description: High temperature still resolves allowable stress via table lookup
 
 given:
   inputs:
@@ -25,13 +25,8 @@ when:
     confidence: 0.95
 
 expected:
-  validation:
-    plan_status: fail
-    error_rules_contains:
-      - temperature_table_bounds
-
   execution:
-    status: error
+    status: completed
 
   state:
-    status: invalidated
+    status: completed

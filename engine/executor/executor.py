@@ -10,6 +10,7 @@ from engine.executor.node_runner import NodeRunner
 from engine.graph.graph_engine import GraphEngine
 from engine.graph.definition_equations import (
     pending_definition_equation_inputs,
+    try_complete_definition_equations,
 )
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
@@ -102,8 +103,12 @@ class Executor:
             )
 
         for node_id in plan.execution_order:
-            node_type = self._reader.load(node_id).metadata.get("type")
+            record = self._reader.load(node_id)
+            node_type = record.metadata.get("type")
             if node_type in {"root", "definition"}:
+                continue
+            if node_type == "equation" and str(record.metadata.get("execution_phase", "")) == "definition":
+                prior_completed.add(node_id)
                 continue
 
             node_validation = self._validation.validate_node(
@@ -198,6 +203,10 @@ class Executor:
 
         if overall_status == ExecutionStatus.COMPLETED:
             task = state.get_task(plan.task_id)
+            try_complete_definition_equations(task, self._reader, plan.execution_order)
+            for key, value in task.outputs.items():
+                state.store_output(plan.task_id, key, value)
+            state.update_task_status(plan.task_id, task.status)
             pending_definition = pending_definition_equation_inputs(
                 task,
                 self._reader,

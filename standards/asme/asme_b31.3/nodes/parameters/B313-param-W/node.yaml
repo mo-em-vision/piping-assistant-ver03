@@ -1,0 +1,17 @@
+---
+id: B313-param-W
+type: parameter
+symbol: W
+input_id: weld_strength_reduction
+title: Weld strength reduction
+canonical_unit: UNIT-dimensionless
+description: >
+  Weld strength reduction factor per para. 302.3.5(e).
+question: >
+  Please confirm the weld strength reduction factor W.
+resolution:
+  method: table_lookup
+  keys: ['material', 'design_temperature', 'joint_category']
+defined_in:
+  - B313-304.1.1
+---

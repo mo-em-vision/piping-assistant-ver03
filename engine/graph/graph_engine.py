@@ -54,8 +54,36 @@ _STUB_ROOTS: tuple[dict[str, str | float | bool], ...] = (
 )
 
 
+from engine.graph.conditions import GraphCycleError, when_clause_matches
+from engine.graph.micro_graph_engine import MicroGraphEngine
+
+
+class GraphTraversalError(Exception):
+    """Raised when a workflow cannot be resolved via the micro-graph."""
+
+
+def legacy_graph_traversal_enabled(reader: StandardsReader) -> bool:
+    """Return True when legacy depends_on traversal is permitted."""
+    import os
+
+    flag = os.environ.get("VER03_LEGACY_GRAPH_TRAVERSAL", "").strip().lower()
+    if flag in ("1", "true", "yes", "on"):
+        return True
+    if flag in ("0", "false", "no", "off"):
+        return False
+    return not reader.graph_store.available
+
+
+# Legacy workflow slug → micro-graph workflow node id (resolved at execution time only)
+_LEGACY_ROOT_ALIASES: dict[str, str] = {
+    "pipe_wall_thickness_design": "B313-WF-PIPE-WALL-THICKNESS",
+    "mawp_design": "B313-WF-MAWP",
+    "B313-PIPE-WALL-THICKNESS-DESIGN": "B313-WF-PIPE-WALL-THICKNESS",
+}
+
+
 def normalize_root_id(root_ref: str) -> str:
-    """Convert root path references to standards slug ids."""
+    """Convert root path references to workflow slug ids."""
     text = root_ref.strip().strip("/")
     if text.endswith("root.md"):
         text = text[: -len("root.md")].strip("/")
@@ -68,30 +96,42 @@ def normalize_root_id(root_ref: str) -> str:
     return text.split("/")[-1]
 
 
-class GraphCycleError(ValueError):
-    """Raised when a dependency cycle is detected."""
-
-
-def when_clause_matches(
-    when: dict[str, Any] | None,
-    inputs: dict[str, EngineeringInput],
-) -> bool:
-    """Return True when a conditional dependency should be expanded."""
-    if not when:
-        return True
-    field_name = str(when.get("field", ""))
-    allowed = when.get("in") or []
-    if not field_name:
-        return True
-    value = field_value(field_name, inputs)
-    if value is None:
-        return False
-    normalized_allowed = {normalize_assumption_value(v) for v in allowed}
-    return value in normalized_allowed
+def resolve_workflow_node_id(root_ref: str) -> str:
+    """Map legacy slug to micro-graph workflow node id when applicable."""
+    slug = normalize_root_id(root_ref)
+    return _LEGACY_ROOT_ALIASES.get(slug, slug)
 
 
 class GraphEngine:
     """Build deterministic execution plans from standards node dependencies."""
+
+    def _micro_engine(self, reader: StandardsReader) -> MicroGraphEngine | None:
+        store = reader.graph_store
+        engine = MicroGraphEngine(store)
+        if engine.available:
+            return engine
+        return None
+
+    def _resolve_micro_root(self, root_id: str, reader: StandardsReader) -> str:
+        slug = normalize_root_id(root_id)
+        micro = self._micro_engine(reader)
+        if micro is None:
+            return resolve_workflow_node_id(slug)
+        resolved_slug = resolve_workflow_node_id(slug)
+        if micro.store.get_node(resolved_slug) is not None:
+            return resolved_slug
+        if micro.store.get_node(slug) is not None:
+            return slug
+        resolved = micro.store.resolve_node_id(resolved_slug)
+        return resolved or resolved_slug
+
+    def uses_micro_graph(self, reader: StandardsReader, root_id: str) -> bool:
+        micro = self._micro_engine(reader)
+        if micro is None:
+            return False
+        resolved = self._resolve_micro_root(root_id, reader)
+        node = micro.store.get_node(resolved)
+        return node is not None and node.node_type == "workflow"
 
     def _resolve_plan(
         self,
@@ -126,15 +166,34 @@ class GraphEngine:
         root_id: str,
         inputs: dict[str, EngineeringInput],
         reader: StandardsReader,
+        lazy: bool = False,
     ) -> ExecutionPlan:
-        root_record = reader.load(root_id)
+        slug = normalize_root_id(root_id)
+        micro = self._micro_engine(reader)
+        if micro is not None and self.uses_micro_graph(reader, slug):
+            resolved = self._resolve_micro_root(slug, reader)
+            return micro.build_plan(
+                task_id=task_id,
+                root_id=resolved,
+                inputs=inputs,
+                lazy=lazy,
+            )
+
+        if not legacy_graph_traversal_enabled(reader):
+            raise GraphTraversalError(
+                f"Workflow '{slug}' was not found in the compiled micro-graph. "
+                "Rebuild graph caches with scripts/build_graph_db.py or set "
+                "VER03_LEGACY_GRAPH_TRAVERSAL=1 for legacy depends_on traversal."
+            )
+
+        root_record = reader.load(slug)
         nodes_set: set[str] = set()
         edges: list[GraphEdge] = []
         node_versions: dict[str, str] = {}
         skipped_nodes: list[dict[str, str]] = []
 
         self._collect_nodes(
-            root_id,
+            slug,
             reader,
             nodes_set,
             edges,
@@ -171,7 +230,11 @@ class GraphEngine:
         workflow: str | None = None,
         keywords: list[str] | None = None,
     ) -> list[WorkflowCandidate]:
-        """Scan standards roots and return workflow candidates ranked by match confidence."""
+        """Scan workflow nodes and return candidates ranked by match confidence."""
+        micro = self._micro_engine(reader)
+        if micro is not None and micro.store.list_workflows():
+            return micro.discover_roots(workflow=workflow, keywords=keywords)
+
         candidates: list[WorkflowCandidate] = []
         keyword_text = " ".join(keywords or []).lower()
 
@@ -227,6 +290,54 @@ class GraphEngine:
         candidates.sort(key=lambda item: item.confidence, reverse=True)
         return candidates
 
+    def list_workflows(self, reader: StandardsReader) -> list[dict[str, Any]]:
+        micro = self._micro_engine(reader)
+        if micro is not None and micro.store.list_workflows():
+            return micro.list_workflows()
+        return []
+
+    def get_neighbors(
+        self,
+        reader: StandardsReader,
+        node_id: str,
+        *,
+        depth: int = 1,
+        edge_types: set[str] | None = None,
+    ) -> dict[int, list[str]]:
+        micro = self._micro_engine(reader)
+        if micro is None:
+            return {0: [node_id]}
+        return micro.get_neighbors(node_id, depth=depth, edge_types=edge_types)
+
+    def resolve_next_step(
+        self,
+        root_id: str,
+        reader: StandardsReader,
+        inputs: dict[str, EngineeringInput],
+    ) -> dict[str, Any] | None:
+        slug = normalize_root_id(root_id)
+        micro = self._micro_engine(reader)
+        if micro is None or not self.uses_micro_graph(reader, slug):
+            return None
+        resolved = self._resolve_micro_root(slug, reader)
+        return micro.resolve_next_step(resolved, inputs)
+
+    def prefetch(
+        self,
+        reader: StandardsReader,
+        *,
+        task_id: str,
+        root_id: str,
+        inputs: dict[str, EngineeringInput],
+        horizon: int = 1,
+    ) -> None:
+        slug = normalize_root_id(root_id)
+        micro = self._micro_engine(reader)
+        if micro is None or not self.uses_micro_graph(reader, slug):
+            return
+        resolved = self._resolve_micro_root(slug, reader)
+        micro.prefetch(task_id=task_id, root_id=resolved, inputs=inputs, horizon=horizon)
+
     def expansion_gate_ready(
         self,
         root_id: str,
@@ -234,7 +345,12 @@ class GraphEngine:
         *,
         existing_inputs: dict[str, EngineeringInput] | None = None,
     ) -> bool:
-        """Return True when expansion assumptions (straight section + pressure case) are satisfied."""
+        """Return True when expansion assumptions are satisfied."""
+        slug = normalize_root_id(root_id)
+        micro = self._micro_engine(reader)
+        if micro is not None and self.uses_micro_graph(reader, slug):
+            resolved = self._resolve_micro_root(slug, reader)
+            return micro.expansion_gate_ready(resolved, existing_inputs or {})
         inputs = existing_inputs or {}
         evaluation = self.evaluate_assumptions(root_id, reader, existing_inputs=inputs)
         if evaluation.is_blocked:
@@ -253,8 +369,14 @@ class GraphEngine:
         *,
         existing_inputs: dict[str, EngineeringInput] | None = None,
     ) -> dict[str, ParameterDescriptor]:
-        """Build parameter registry descriptors from definition-node nomenclature."""
+        """Build parameter registry descriptors from graph parameter nodes."""
         slug = normalize_root_id(root_id)
+        micro = self._micro_engine(reader)
+        if micro is not None and self.uses_micro_graph(reader, slug):
+            resolved = self._resolve_micro_root(slug, reader)
+            return micro.seed_parameter_registry(resolved, existing_inputs or {})
+        if not legacy_graph_traversal_enabled(reader):
+            return {}
         if not self.expansion_gate_ready(slug, reader, existing_inputs=existing_inputs):
             return {}
         plan = self.build_plan(
@@ -280,6 +402,10 @@ class GraphEngine:
     ) -> list[str]:
         """Collect required user-provided inputs for a workflow root (no execution)."""
         slug = normalize_root_id(root_id)
+        micro = self._micro_engine(reader)
+        if micro is not None and self.uses_micro_graph(reader, slug):
+            resolved = self._resolve_micro_root(slug, reader)
+            return micro.required_user_inputs(resolved, task_inputs or {})
         inputs = task_inputs or {}
         if plan is None:
             if not self.expansion_gate_ready(slug, reader, existing_inputs=inputs):
@@ -329,6 +455,10 @@ class GraphEngine:
     ) -> AssumptionEvaluation:
         """Check expansion assumptions along the filtered workflow path."""
         slug = normalize_root_id(root_id)
+        micro = self._micro_engine(reader)
+        if micro is not None and self.uses_micro_graph(reader, slug):
+            resolved = self._resolve_micro_root(slug, reader)
+            return micro.evaluate_assumptions(resolved, existing_inputs or {})
         inputs = existing_inputs or {}
         resolved_plan = self._resolve_plan(
             root_id=slug,

@@ -15,11 +15,23 @@ from tests.acceptance.helpers import (
 
 
 class TestPerformanceTesting:
-    """§21 Performance — graph traversal and execution preparation under 10 seconds."""
+    """Performance — graph traversal and execution preparation."""
+
+    def test_lazy_first_step_under_target(self, standards_reader) -> None:
+        engine = GraphEngine()
+        start = time.perf_counter()
+        step = engine.resolve_next_step(
+            PIPE_WALL_THICKNESS_ROOT,
+            standards_reader,
+            {},
+        )
+        elapsed = time.perf_counter() - start
+        assert step is not None
+        assert elapsed < 1.0, f"First resolve_next_step took {elapsed:.3f}s (target < 1s)"
 
     def test_graph_traversal_under_target(self, standards_reader) -> None:
         average = measure_graph_plan_time(standards_reader, iterations=10)
-        assert average < 10.0, f"Graph plan averaged {average:.3f}s (target < 10s)"
+        assert average < 1.0, f"Graph plan averaged {average:.3f}s (target < 1s)"
 
     def test_dependency_resolution_under_target(self, standards_reader) -> None:
         engine = GraphEngine()
@@ -32,7 +44,7 @@ class TestPerformanceTesting:
                 reader=standards_reader,
             )
         elapsed = time.perf_counter() - start
-        assert elapsed < 10.0, f"20 graph plans took {elapsed:.3f}s"
+        assert elapsed < 7.0, f"20 graph plans took {elapsed:.3f}s"
 
     def test_full_workflow_execution_under_target(self, standards_reader, state_manager) -> None:
         task_id = "pipe-wall-thickness-design-mvp-perf-exec"
@@ -43,5 +55,5 @@ class TestPerformanceTesting:
 
     def test_execution_preparation_is_consistent(self, standards_reader) -> None:
         samples = [measure_graph_plan_time(standards_reader, iterations=3) for _ in range(3)]
-        assert max(samples) < 10.0
-        assert max(samples) - min(samples) < 5.0
+        assert max(samples) < 1.0
+        assert max(samples) - min(samples) < 0.5

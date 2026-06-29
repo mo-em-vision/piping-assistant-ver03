@@ -13,6 +13,7 @@ from enum import Enum
 from typing import Any, Mapping, Sequence
 
 from engine.graph.assumption_checker import field_value, normalize_assumption_value
+from engine.reference.node_types import is_section_node, parameter_input_id
 from engine.reference.nomenclature_resolver import (
     default_question,
     input_applies,
@@ -286,7 +287,8 @@ def load_node_interactions(record: NodeRecord, reader: StandardsReader | None = 
             if isinstance(dep, dict) and dep.get("node_id"):
                 dep_id = str(dep["node_id"])
                 try:
-                    if reader.load(dep_id).metadata.get("type") == "definition":
+                    dep_type = str(reader.load(dep_id).metadata.get("type", ""))
+                    if dep_type in {"definition", "standard_section"}:
                         specs.extend(
                             nomenclature_interactions(
                                 reader,
@@ -303,6 +305,9 @@ def load_node_interactions(record: NodeRecord, reader: StandardsReader | None = 
             bridged = interaction_from_input(merged, record.node_id)
             if bridged is not None:
                 specs.append(bridged)
+
+    if is_section_node(record.metadata) and reader is not None:
+        specs.extend(_micro_graph_interactions(record, reader))
 
     return _dedupe_by_variable(specs)
 
@@ -351,12 +356,113 @@ def collect_path_interactions(
     seen: set[str] = set()
     for node_id in node_ids:
         record = reader.load(node_id)
-        for spec in load_node_interactions(record, reader):
-            if spec.variable in seen:
-                continue
-            seen.add(spec.variable)
-            merged.append(spec)
+    for spec in load_node_interactions(record, reader):
+        if spec.variable in seen:
+            continue
+        seen.add(spec.variable)
+        merged.append(spec)
     return merged
+
+
+def interaction_from_micro_assumption(
+    metadata: dict[str, Any],
+    node_id: str,
+) -> NodeInteractionSpec | None:
+    field_name = parameter_input_id(metadata)
+    if not field_name:
+        return None
+    allowed = tuple(str(v) for v in (metadata.get("allowed_values") or []))
+    return NodeInteractionSpec(
+        variable=field_name,
+        mode=InteractionMode.DECISION if allowed else InteractionMode.VALUE_RESOLUTION,
+        node_id=node_id,
+        required=bool(metadata.get("required_for_expansion", True)),
+        options=allowed,
+        confirmation_required=bool(metadata.get("requires_confirmation", False)),
+        question=str(metadata.get("question") or metadata.get("description") or "") or None,
+    )
+
+
+def interaction_from_parameter(
+    metadata: dict[str, Any],
+    node_id: str,
+) -> NodeInteractionSpec | None:
+    input_id = str(metadata.get("input_id") or "")
+    if not input_id:
+        return None
+    resolution = metadata.get("resolution") or {}
+    method = str(resolution.get("method", ""))
+    if method == "table_lookup":
+        return NodeInteractionSpec(
+            variable=input_id,
+            mode=InteractionMode.VALUE_RESOLUTION,
+            node_id=node_id,
+            required=True,
+            sources=("lookup", "user"),
+            confirmation_required=True,
+            question=str(metadata.get("question") or metadata.get("description") or "") or None,
+            lookup_source="lookup",
+            unit=str(metadata.get("unit", "dimensionless")),
+            symbol=str(metadata.get("symbol") or "") or None,
+        )
+    if method == "user_input":
+        default = resolution.get("default")
+        if isinstance(default, dict) and default.get("requires_confirmation"):
+            return NodeInteractionSpec(
+                variable=input_id,
+                mode=InteractionMode.VALUE_RESOLUTION,
+                node_id=node_id,
+                required=True,
+                sources=("default", "user"),
+                default=default.get("value"),
+                confirmation_required=True,
+                question=str(metadata.get("question") or "") or None,
+                unit=str(default.get("unit") or metadata.get("unit", "dimensionless")),
+                symbol=str(metadata.get("symbol") or "") or None,
+            )
+    return None
+
+
+def _micro_graph_interactions(
+    record: NodeRecord,
+    reader: StandardsReader,
+) -> list[NodeInteractionSpec]:
+    specs: list[NodeInteractionSpec] = []
+    refs: list[str] = []
+    for ref in record.metadata.get("contains", []) or []:
+        refs.append(str(ref))
+    seen_refs: set[str] = set()
+    for ref_id in refs:
+        if ref_id in seen_refs:
+            continue
+        seen_refs.add(ref_id)
+        try:
+            child = reader.load(ref_id)
+        except FileNotFoundError:
+            continue
+        child_type = str(child.metadata.get("type", ""))
+        child_kind = str(child.metadata.get("kind", ""))
+        if child_type == "parameter" and child_kind == "interaction":
+            mapped = dict(child.metadata)
+            mapped.setdefault("variable", parameter_input_id(child.metadata))
+            bridged = _interaction_from_dict(mapped, record.node_id)
+            if bridged is not None:
+                specs.append(bridged)
+        elif child_type == "parameter" and child_kind == "assumption":
+            bridged = interaction_from_micro_assumption(child.metadata, record.node_id)
+            if bridged is not None:
+                specs.append(bridged)
+        elif child_type == "interaction":
+            mapped = dict(child.metadata)
+            mapped.setdefault("variable", child.metadata.get("field"))
+            bridged = _interaction_from_dict(mapped, record.node_id)
+            if bridged is not None:
+                specs.append(bridged)
+        elif child_type == "assumption":
+            bridged = interaction_from_micro_assumption(child.metadata, record.node_id)
+            if bridged is not None:
+                specs.append(bridged)
+    return specs
 
 
 def collect_root_interactions(

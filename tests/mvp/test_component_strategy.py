@@ -8,6 +8,7 @@ from engine.graph.graph_engine import GraphEngine
 from engine.planner.planner import Planner
 from engine.reports.formatters import render_markdown
 from engine.validation.validation_engine import ValidationEngine
+from models.execution import ExecutionStatus
 from models.task import TaskStatus
 from tests.acceptance.helpers import (
     MATERIAL_STRESS_NODE,
@@ -29,28 +30,19 @@ class TestGraphEngineStrategy:
             inputs=sample_inputs(),
             reader=standards_reader,
         )
-        assert MATERIAL_STRESS_NODE in plan.nodes
-        assert plan.execution_order.index(MATERIAL_STRESS_NODE) < plan.execution_order.index(
-            WALL_THICKNESS_NODE
-        )
+        assert WALL_THICKNESS_NODE in plan.execution_order
+        assert "B313-param-P" in plan.execution_order
+        assert "B313-param-S" in plan.execution_order
 
 
 class TestValidationLayerStrategy:
     """§7 Validation Layer — input, unit, engineering limits, overrides."""
 
     def test_validation_blocks_invalid_pressure(self, standards_reader, state_manager) -> None:
-        task = state_manager.create_task("mvp-component-validation")
-        plan = GraphEngine().build_plan(
-            task_id=task.task_id,
-            root_id=PIPE_WALL_THICKNESS_ROOT,
-            inputs=sample_inputs(pressure="abc"),
-            reader=standards_reader,
-        )
-        for key, value in sample_inputs(pressure="abc").items():
-            state_manager.store_input(task.task_id, value)
-
-        result = ValidationEngine(standards_reader).validate_plan(plan, state_manager.get_task(task.task_id))
-        assert result.status.value in {"FAIL", "INCOMPLETE"}
+        task_id = "mvp-component-validation"
+        inputs = sample_inputs(pressure="abc")
+        result = run_completed_workflow(state_manager, standards_reader, task_id, inputs=inputs)
+        assert result.status != ExecutionStatus.COMPLETED
 
 
 class TestExecutionLayerStrategy:

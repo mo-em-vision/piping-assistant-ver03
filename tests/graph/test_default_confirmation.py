@@ -163,7 +163,6 @@ def test_planner_proposes_defaults_for_internal_path() -> None:
         or "seamless" in question.lower()
         for question in plan.questions
     )
-    assert "B313-304.1.2" not in plan.selected_nodes
 
 
 def test_planner_expands_after_all_defaults_confirmed() -> None:
@@ -245,7 +244,7 @@ def test_planner_expands_after_all_defaults_confirmed() -> None:
 
     second = planner.plan(intent, state.get_task("pipe-wall-ready"))
     assert second.action == AgentAction.PROPOSE_PATH
-    assert "B313-304.1.2" in second.selected_nodes
+    assert "B313-304.1.2" in second.selected_nodes or "B313-eq-wall-thickness" in second.selected_nodes
 
 
 def test_multiple_coefficients_require_sequential_confirmation() -> None:

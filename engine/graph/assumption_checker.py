@@ -120,9 +120,34 @@ def expansion_assumption_specs(record: NodeRecord) -> list[NodeAssumptionSpec]:
     return [s for s in parse_assumptions(record.metadata) if s.required_for_expansion]
 
 
+_COEFFICIENT_CONFIRMATION_FIELDS = frozenset(
+    {
+        "weld_joint_efficiency",
+        "weld_strength_reduction",
+        "temperature_coefficient",
+    }
+)
+
+
 def execution_assumption_specs(record: NodeRecord) -> list[NodeAssumptionSpec]:
     explicit = [s for s in parse_assumptions(record.metadata) if s.required_for_execution]
     derived = derive_execution_assumptions(record)
+    if str(record.metadata.get("type", "")) == "parameter":
+        input_id = str(record.metadata.get("input_id", "")).strip()
+        if input_id in _COEFFICIENT_CONFIRMATION_FIELDS:
+            derived.append(
+                NodeAssumptionSpec(
+                    id=f"confirmed_{input_id}",
+                    description=str(
+                        record.metadata.get("question")
+                        or record.metadata.get("description")
+                        or f"Confirm value for {input_id}"
+                    ),
+                    field=input_id,
+                    required_for_execution=True,
+                    requires_confirmation=True,
+                )
+            )
     seen: set[str] = set()
     merged: list[NodeAssumptionSpec] = []
     for spec in explicit + derived:
@@ -321,9 +346,31 @@ def evaluate_path_execution_assumptions(
     *,
     existing_inputs: dict[str, EngineeringInput | Any] | None = None,
 ) -> AssumptionEvaluation:
-    return evaluate_path_assumptions(
+    evaluation = evaluate_path_assumptions(
         node_ids, reader, existing_inputs=existing_inputs, mode="execution"
     )
+    inputs = existing_inputs or {}
+    for input_id, raw in inputs.items():
+        if not isinstance(raw, EngineeringInput):
+            continue
+        if raw.status != InputStatus.PROPOSED_DEFAULT:
+            continue
+        if input_id in evaluation.missing_fields:
+            continue
+        evaluation.missing_fields.append(input_id)
+        evaluation.field_nodes.setdefault(input_id, "")
+        evaluation.field_questions.setdefault(
+            input_id,
+            question_for(
+                NodeAssumptionSpec(
+                    id=f"confirmed_{input_id}",
+                    description=f"Confirm default value for {input_id}",
+                    field=input_id,
+                    requires_confirmation=True,
+                )
+            ),
+        )
+    return evaluation
 
 
 def question_for(spec: NodeAssumptionSpec) -> str:

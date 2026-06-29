@@ -1,0 +1,15 @@
+---
+id: B313-304.1.3
+type: text
+kind: section
+title: Straight Pipe Under External Pressure
+paragraph: "304.1.3"
+section: "304 Pressure Design of Components"
+revision_year: 2024
+requires:
+  - B313-param-P
+calculates:
+  - B313-param-t
+---
+
+# External pressure path (stub — expands when external_pressure selected)

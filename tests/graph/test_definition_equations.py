@@ -12,7 +12,14 @@ from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import TaskStatus
-from tests.acceptance.helpers import run_completed_workflow, sample_inputs
+from tests.acceptance.helpers import (
+    DEFINITION_SECTION_NODE,
+    MATERIAL_STRESS_NODE,
+    PIPE_WALL_THICKNESS_ROOT,
+    WALL_THICKNESS_NODE,
+    run_completed_workflow,
+    sample_inputs,
+)
 
 
 @pytest.fixture
@@ -34,7 +41,12 @@ def test_pending_definition_inputs_after_thickness_without_corrosion(standards_r
     pending = pending_definition_equation_inputs(
         task,
         standards_reader,
-        ("B313-304.1.1", "B313-table-A-1", "B313-304.1.2"),
+        (
+            DEFINITION_SECTION_NODE,
+            MATERIAL_STRESS_NODE,
+            WALL_THICKNESS_NODE,
+            "B313-eq-2",
+        ),
     )
     assert pending == ["corrosion_allowance"]
 
@@ -46,7 +58,12 @@ def test_complete_definition_equation_after_corrosion_input(standards_reader) ->
     del inputs["corrosion_allowance"]
     run_completed_workflow(manager, standards_reader, task_id, inputs=inputs)
     task = manager.get_task(task_id)
-    execution_order = ("B313-304.1.1", "B313-table-A-1", "B313-304.1.2")
+    execution_order = (
+        DEFINITION_SECTION_NODE,
+        MATERIAL_STRESS_NODE,
+        WALL_THICKNESS_NODE,
+        "B313-eq-2",
+    )
 
     task.inputs["corrosion_allowance"] = EngineeringInput(
         input_id="corrosion_allowance",

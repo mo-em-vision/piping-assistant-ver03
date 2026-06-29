@@ -6,6 +6,7 @@ from typing import Any
 
 from engine.graph.assumption_checker import field_value
 from engine.graph.navigation_phases import allowed_fields_for_phase
+from engine.graph.graph_timeline import graph_input_step_order, graph_step_titles
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from models.input import InputStatus
 from models.planning import NavigationPhase
@@ -165,12 +166,15 @@ def revealed_pipe_wall_input_ids(task: Task, planning: dict[str, Any]) -> list[s
     if task.outputs.get("allowable_stress") is not None or task.outputs.get("S") is not None:
         revealed.add("allowable_stress")
 
+    graph_order = planning.get("graph_input_order")
+    step_order = tuple(graph_order) if isinstance(graph_order, list) and graph_order else PIPE_WALL_INPUT_STEP_ORDER
+
     ordered: list[str] = []
-    for step_id in PIPE_WALL_INPUT_STEP_ORDER:
+    for step_id in step_order:
         if step_id in revealed:
             ordered.append(step_id)
 
-    extras = sorted(revealed.difference(PIPE_WALL_INPUT_STEP_ORDER))
+    extras = sorted(revealed.difference(step_order))
     ordered.extend(extras)
     return ordered
 
@@ -273,7 +277,14 @@ def _ordered_submittable_ids(task: Task, candidates: set[str]) -> list[str]:
     return ordered
 
 
-def _phase_allowed_input_ids(task: Task, current_phase: str) -> frozenset[str]:
+def _phase_allowed_input_ids(
+    task: Task,
+    current_phase: str,
+    planning: dict[str, Any] | None = None,
+) -> frozenset[str]:
+    allowlists = (planning or {}).get("phase_allowed_fields")
+    if isinstance(allowlists, dict) and current_phase in allowlists:
+        return frozenset(str(item) for item in allowlists[current_phase] if str(item))
     try:
         workflow = "mawp_design" if is_mawp_task(task) else None
         return allowed_fields_for_phase(NavigationPhase(current_phase), workflow=workflow)
@@ -316,7 +327,7 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
             if str(item) not in hidden and (not is_mawp_task(task) or _mawp_step_applies(task, str(item)))
         ]
         if phase_fields:
-            allowed_ids = _phase_allowed_input_ids(task, current_phase)
+            allowed_ids = _phase_allowed_input_ids(task, current_phase, planning)
             extras = _unconfirmed_proposed_defaults_for_phase(
                 task,
                 allowed_ids=allowed_ids,
@@ -353,7 +364,11 @@ def workflow_step_title(task: Task, step_id: str) -> str:
     return PIPE_WALL_STEP_TITLES.get(step_id, step_id.replace("_", " ").title())
 
 
-def pipe_wall_step_title(step_id: str) -> str:
+def pipe_wall_step_title(step_id: str, planning: dict[str, Any] | None = None) -> str:
+    if planning:
+        graph_titles = planning.get("graph_step_titles")
+        if isinstance(graph_titles, dict) and step_id in graph_titles:
+            return str(graph_titles[step_id])
     return PIPE_WALL_STEP_TITLES.get(step_id, step_id.replace("_", " ").title())
 
 

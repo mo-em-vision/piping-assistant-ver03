@@ -51,17 +51,20 @@ def build_node_calculation_summaries(
         except FileNotFoundError:
             continue
         node_type = str(record.metadata.get("type", ""))
-        if node_type not in {"calculation", "lookup"}:
+        if node_type not in {"calculation", "lookup", "equation"}:
             continue
 
         node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
         outputs = entry.get("outputs") if isinstance(entry.get("outputs"), dict) else {}
         calculation = node_trace.get("calculation")
         lookup = node_trace.get("lookup")
+        substitution = node_trace.get("substitution")
 
         if node_type == "calculation" and not isinstance(calculation, dict):
             continue
         if node_type == "lookup" and not isinstance(lookup, dict):
+            continue
+        if node_type == "equation" and not substitution and not isinstance(calculation, dict):
             continue
 
         primary = _primary_result(outputs)

@@ -1,0 +1,11 @@
+---
+id: B313-table-A-1-REF
+type: text
+kind: table
+table_id: asme_b31.3_A-1
+standard: asme_b31.3
+title: Table A-1 Allowable Stress
+lookup_keys:
+  - material
+  - design_temperature
+---

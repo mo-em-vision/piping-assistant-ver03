@@ -7,6 +7,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from engine.graph.graph_store import GraphStore
+from engine.reference.node_types import is_section_node
+from engine.reference.pack_graph_db import resolve_pack_graph_db
 from engine.reference.pack_nodes_db import resolve_pack_nodes_db
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_markdown import split_frontmatter
@@ -72,8 +75,19 @@ class NodeValidationResult:
     issues: list[ValidationIssue] = field(default_factory=list)
 
 
+_LEGACY_SECTION_ENRICH_KEYS = (
+    "inputs",
+    "equations",
+    "formulas",
+    "subsections",
+    "display_heading",
+    "purpose",
+    "references",
+)
+
+
 class StandardsReader:
-    """Load nodes and roots from compiled SQLite with markdown file fallback."""
+    """Load nodes from compiled pack graph (Markdown/YAML sources) with SQLite caches."""
 
     def __init__(self, standards_root: Path, *, standard: str = "asme_b31.3") -> None:
         self.standards_root = standards_root.resolve()
@@ -88,12 +102,27 @@ class StandardsReader:
             self.tasks_dir = resolve_pack_tasks_dir(self.pack_root)
         self.tables_db_path = resolve_pack_tables_db(self.pack_root)
         self.nodes_db_path = resolve_pack_nodes_db(self.pack_root)
+        self.graph_db_path = resolve_pack_graph_db(self.pack_root)
         self.tasks_db_path = resolve_global_tasks_db(self.standards_root)
         self._tables_db = StandardsTablesDatabase(self.tables_db_path)
         self._nodes_db = StandardsNodesDatabase(self.nodes_db_path)
         self._tasks_db = StandardsTasksDatabase(self.tasks_db_path)
+        self._graph_store: GraphStore | None = None
         self._node_path_cache: dict[str, Path | None] = {}
         self._node_record_cache: dict[str, NodeRecord] = {}
+
+    @property
+    def graph_store(self) -> GraphStore:
+        if self._graph_store is None:
+            self._graph_store = GraphStore(self.pack_root)
+        return self._graph_store
+
+    def reload(self) -> None:
+        """Clear in-memory caches after graph sources or cache files change."""
+        if self._graph_store is not None:
+            self._graph_store.reload()
+        self._node_path_cache.clear()
+        self._node_record_cache.clear()
 
     @property
     def roots_dir(self) -> Path:
@@ -152,7 +181,78 @@ class StandardsReader:
             body=str(data["body"]),
         )
 
+    @property
+    def graph_available(self) -> bool:
+        return self.graph_store.available
+
+    @property
+    def graph_db_available(self) -> bool:
+        """Legacy alias — graph is available when sources compile, not when SQLite exists."""
+        return self.graph_available
+
+    def _record_from_graph_db(self, node_id: str) -> NodeRecord | None:
+        if not self.graph_available:
+            return None
+        store = self.graph_store
+        resolved_id = store.resolve_node_id(node_id) or node_id
+        record = store.get_node(resolved_id)
+        if record is None:
+            return None
+        base = self.pack_root / record.source_rel_path
+        path = base / "node.yaml"
+        if not path.is_file():
+            for name in ("node.yml", "node.md"):
+                candidate = base / name
+                if candidate.is_file():
+                    path = candidate
+                    break
+        metadata = dict(record.metadata)
+        metadata.setdefault("type", record.node_type)
+        return NodeRecord(
+            node_id=record.node_id,
+            path=path,
+            metadata=metadata,
+            body=record.body,
+        )
+
+    def _record_from_nodes_db_only(self, node_id: str) -> NodeRecord | None:
+        if not self.nodes_db_available:
+            return None
+        resolved_id = self._nodes_db.resolve_node_id(node_id) or node_id
+        data = self._nodes_db.get_node(resolved_id)
+        if data is None or str(data["kind"]) == "root":
+            return None
+        path = self._virtual_node_path(str(data["source_rel_path"]), kind=str(data["kind"]))
+        return NodeRecord(
+            node_id=str(data["node_id"]),
+            path=path,
+            metadata=data["metadata"],
+            body=str(data["body"]),
+        )
+
+    def _enrich_standard_section_record(self, record: NodeRecord) -> NodeRecord:
+        if not is_section_node(record.metadata):
+            return record
+        legacy = self._record_from_nodes_db_only(record.node_id)
+        if legacy is None or str(legacy.metadata.get("status", "")).lower() != "superseded":
+            return record
+        metadata = dict(record.metadata)
+        for key in _LEGACY_SECTION_ENRICH_KEYS:
+            legacy_value = legacy.metadata.get(key)
+            if legacy_value and not metadata.get(key):
+                metadata[key] = legacy_value
+        body = legacy.body if len(legacy.body.strip()) > len(record.body.strip()) else record.body
+        return NodeRecord(
+            node_id=record.node_id,
+            path=record.path,
+            metadata=metadata,
+            body=body,
+        )
+
     def _record_from_db(self, node_id: str) -> NodeRecord | None:
+        graph_record = self._record_from_graph_db(node_id)
+        if graph_record is not None:
+            return self._enrich_standard_section_record(graph_record)
         root_record = self._record_from_tasks_db(node_id)
         if root_record is not None:
             return root_record

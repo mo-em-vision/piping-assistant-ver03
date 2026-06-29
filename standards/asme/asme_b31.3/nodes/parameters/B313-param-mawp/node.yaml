@@ -1,0 +1,14 @@
+---
+id: B313-param-mawp
+type: parameter
+symbol: MAWP
+input_id: mawp
+title: Maximum allowable working pressure
+canonical_unit: UNIT-Pa
+description: >
+  Calculated maximum allowable working pressure.
+resolution:
+  method: equation
+defined_in:
+  - B313-304.1.1
+---

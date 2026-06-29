@@ -281,14 +281,18 @@ def propose_coefficient_defaults(
 
     material = existing_inputs.get("material")
     joint_category = existing_inputs.get("joint_category")
-    if material is not None and joint_category is not None:
+    joint_value = "seamless"
+    if joint_category is not None:
+        joint_value = (
+            joint_category.value if hasattr(joint_category, "value") else joint_category
+        )
+    if material is not None:
         mat_value = material.value if hasattr(material, "value") else material
-        cat_value = joint_category.value if hasattr(joint_category, "value") else joint_category
         try:
             e_value = lookup_quality_factor(
                 pack_root,
                 material=str(mat_value),
-                joint_category=str(cat_value),
+                joint_category=str(joint_value),
             )
         except (ValueError, FileNotFoundError):
             e_value = None
@@ -302,18 +306,14 @@ def propose_coefficient_defaults(
                     mat_label = display
             proposed["weld_joint_efficiency"] = (
                 e_value,
-                f"Tables A-1A/A-1B for {mat_label} ({cat_value})",
+                f"Tables A-1A/A-1B for {mat_label} ({joint_value})",
             )
 
     if material is not None and temp is not None:
         mat_value = material.value if hasattr(material, "value") else material
         raw_temp = temp.value if hasattr(temp, "value") else temp
         temp_unit = getattr(temp, "unit", "F") if hasattr(temp, "unit") else "F"
-        cat_value = "seamless"
-        if joint_category is not None:
-            cat_value = (
-                joint_category.value if hasattr(joint_category, "value") else joint_category
-            )
+        cat_value = joint_value
         try:
             w_value = lookup_w_factor(
                 pack_root,

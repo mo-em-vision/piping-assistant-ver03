@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.reference.node_types import is_section_node
 from engine.reference.nomenclature_resolver import input_applies, load_nomenclature_for_node, resolve_input_spec
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
@@ -27,9 +28,12 @@ class InputValidator:
         errors: list[ValidationFinding] = []
         warnings: list[ValidationFinding] = []
         nomenclature = load_nomenclature_for_node(reader, record.metadata)
+        section_node = is_section_node(record.metadata)
 
         for spec in record.metadata.get("inputs", []) or []:
             if not isinstance(spec, dict):
+                continue
+            if section_node and str(spec.get("source", "")) == "node_output":
                 continue
             spec = resolve_input_spec(spec, nomenclature) if nomenclature else spec
             if not input_applies(spec, task_inputs):

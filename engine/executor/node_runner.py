@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
+from engine.equation.sympy_evaluator import evaluate_equation
 from engine.graph.assumption_checker import field_value, evaluate_node_execution_assumptions
+from engine.graph.param_priority import normalize_require_ids
+from engine.reference.node_types import is_lookup_node, is_section_node, is_table_node, is_ui_parameter
 from engine.graph.node_interaction import evaluate_node_interactions
 from engine.executor.functions import get_execution_function
 from engine.executor.lookup_engine import LookupEngine
@@ -45,6 +48,7 @@ class NodeRunner:
     ) -> NodeExecutionResult:
         record = self._reader.load(node_id)
         node_type = str(record.metadata.get("type", ""))
+        metadata = record.metadata
 
         interaction_eval = evaluate_node_interactions(
             record,
@@ -65,6 +69,24 @@ class NodeRunner:
                 },
             )
 
+        if node_type == "equation" and is_lookup_node(metadata, node_type):
+            if metadata.get("output_param"):
+                return self._run_micro_lookup(record, task_inputs=task_inputs)
+            return self._run_lookup(record, task_inputs=task_inputs)
+        if node_type == "equation":
+            return self._run_equation_node(
+                record,
+                task_inputs=task_inputs,
+                dependency_outputs=dependency_outputs,
+            )
+        if node_type in {"workflow", "text", "parameter"} or is_section_node(metadata, node_type) or is_table_node(metadata, node_type) or is_ui_parameter(metadata, node_type):
+            return NodeExecutionResult(
+                node_id=record.node_id,
+                status=NodeExecutionStatus.SKIPPED,
+                trace={"reason": f"{node_type} node — graph reference only"},
+            )
+        if node_type == "lookup" and metadata.get("output_param"):
+            return self._run_micro_lookup(record, task_inputs=task_inputs)
         if node_type == "lookup":
             return self._run_lookup(record, task_inputs=task_inputs)
         if node_type == "calculation":
@@ -579,6 +601,210 @@ class NodeRunner:
         except Exception:  # noqa: BLE001
             return thickness_t + c_value
         return thickness_t + c_value
+
+    _OUTPUT_ALIASES: dict[str, tuple[str, ...]] = {
+        "t": ("t", "required_thickness", "thickness"),
+        "t_m": ("t_m", "minimum_required_thickness"),
+        "S": ("S", "allowable_stress"),
+    }
+
+    def _resolve_parameter_value(
+        self,
+        param_node_id: str,
+        *,
+        task_inputs: dict[str, EngineeringInput],
+        dependency_outputs: dict[str, Any],
+    ) -> float | None:
+        try:
+            param = self._reader.load(param_node_id)
+        except FileNotFoundError:
+            return None
+        symbol = str(param.metadata.get("symbol", ""))
+        input_id = str(param.metadata.get("input_id", ""))
+        for key in self._output_alias_keys(symbol, input_id):
+            if key in dependency_outputs:
+                value = dependency_outputs[key]
+                if value is not None:
+                    return float(value)
+        if input_id and input_id in task_inputs:
+            prepared = prepare_engineering_input(task_inputs[input_id])
+            if prepared.value is not None:
+                try:
+                    return float(prepared.value)
+                except (TypeError, ValueError):
+                    return None
+        if input_id:
+            value = field_value(input_id, task_inputs)
+            if value is not None:
+                return float(value)
+        resolution = param.metadata.get("resolution") or {}
+        if isinstance(resolution, dict) and resolution.get("method") == "table_lookup":
+            return self._resolve_table_lookup_parameter(param, resolution, task_inputs)
+        return None
+
+    def _output_alias_keys(self, symbol: str, input_id: str) -> list[str]:
+        keys: list[str] = []
+        if symbol:
+            keys.extend(self._OUTPUT_ALIASES.get(symbol, (symbol,)))
+        if input_id and input_id not in keys:
+            keys.append(input_id)
+        return keys
+
+    def _resolve_table_lookup_parameter(
+        self,
+        param: NodeRecord,
+        resolution: dict[str, Any],
+        task_inputs: dict[str, EngineeringInput],
+    ) -> float | None:
+        table_id = str(resolution.get("table_id", "")).strip()
+        if not table_id:
+            return None
+        keys = [str(key) for key in (resolution.get("keys") or [])]
+        lookup_inputs: dict[str, Any] = {}
+        for key in keys:
+            if key in task_inputs:
+                lookup_inputs[key] = task_inputs[key]
+            elif field_value(key, task_inputs) is not None:
+                lookup_inputs[key] = field_value(key, task_inputs)
+            else:
+                return None
+        try:
+            lookup_result = self._lookup_engine.lookup(table_id, lookup_inputs)
+        except Exception:  # noqa: BLE001
+            return None
+        return float(lookup_result.value) if lookup_result.value is not None else None
+
+    def _run_equation_node(
+        self,
+        record: NodeRecord,
+        *,
+        task_inputs: dict[str, EngineeringInput],
+        dependency_outputs: dict[str, Any],
+    ) -> NodeExecutionResult:
+        sympy_expr = str(record.metadata.get("sympy", ""))
+        display = str(record.metadata.get("display_latex") or sympy_expr)
+        requires = normalize_require_ids(record.metadata.get("requires"))
+        calculates = record.metadata.get("calculates") or []
+
+        symbol_values: dict[str, float] = {}
+        missing: list[str] = []
+        for param_id in requires:
+            param = self._reader.load(param_id)
+            symbol = str(param.metadata.get("symbol", ""))
+            if not symbol:
+                continue
+            value = self._resolve_parameter_value(
+                param_id,
+                task_inputs=task_inputs,
+                dependency_outputs=dependency_outputs,
+            )
+            if value is None:
+                missing.append(str(param.metadata.get("input_id") or symbol))
+            else:
+                symbol_values[symbol] = value
+
+        if missing:
+            return NodeExecutionResult(
+                node_id=record.node_id,
+                status=NodeExecutionStatus.AWAITING_INPUT,
+                errors=[f"Missing required inputs: {', '.join(missing)}"],
+                trace={"missing_inputs": missing},
+            )
+
+        try:
+            result = evaluate_equation(
+                sympy_expr=sympy_expr,
+                display_latex=display,
+                symbol_values=symbol_values,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return NodeExecutionResult(
+                node_id=record.node_id,
+                status=NodeExecutionStatus.ERROR,
+                errors=[str(exc)],
+            )
+
+        outputs: dict[str, Any] = dict(result.outputs)
+        for symbol, value in symbol_values.items():
+            outputs[symbol] = value
+            for alias in self._OUTPUT_ALIASES.get(symbol, ()):
+                outputs[alias] = value
+        for ref in calculates:
+            param = self._reader.load(str(ref))
+            input_id = str(param.metadata.get("input_id", ""))
+            symbol = str(param.metadata.get("symbol", ""))
+            if symbol in result.outputs:
+                value = result.outputs[symbol]
+                if input_id:
+                    outputs[input_id] = value
+                outputs[symbol] = value
+                for alias in self._OUTPUT_ALIASES.get(symbol, ()):
+                    outputs[alias] = value
+
+        return self._finalize_result(
+            record,
+            status=NodeExecutionStatus.COMPLETED,
+            inputs=symbol_values,
+            outputs=outputs,
+            trace={
+                "substitution": result.substitution,
+                "result_text": result.result_text,
+                "equation": display,
+            },
+        )
+
+    def _run_micro_lookup(
+        self,
+        record: NodeRecord,
+        *,
+        task_inputs: dict[str, EngineeringInput],
+    ) -> NodeExecutionResult:
+        table_id = str(record.metadata.get("table_id", ""))
+        keys = [str(key) for key in (record.metadata.get("keys") or [])]
+        output_param_id = str(record.metadata.get("output_param", ""))
+        missing = [key for key in keys if field_value(key, task_inputs) is None]
+        if missing:
+            return NodeExecutionResult(
+                node_id=record.node_id,
+                status=NodeExecutionStatus.AWAITING_INPUT,
+                errors=[f"Missing required inputs: {', '.join(missing)}"],
+                trace={"missing_inputs": missing},
+            )
+
+        lookup_inputs: dict[str, Any] = {}
+        for key in keys:
+            prepared = prepare_engineering_input(task_inputs[key])
+            lookup_inputs[key] = prepared.value
+
+        try:
+            lookup_result = self._lookup_engine.lookup(table_id, lookup_inputs)
+        except Exception as exc:  # noqa: BLE001
+            return NodeExecutionResult(
+                node_id=record.node_id,
+                status=NodeExecutionStatus.ERROR,
+                errors=[str(exc)],
+            )
+
+        outputs: dict[str, Any] = {"value": lookup_result.value}
+        if output_param_id:
+            try:
+                param = self._reader.load(output_param_id)
+                input_id = str(param.metadata.get("input_id", ""))
+                symbol = str(param.metadata.get("symbol", ""))
+                if input_id:
+                    outputs[input_id] = lookup_result.value
+                if symbol:
+                    outputs[symbol] = lookup_result.value
+            except FileNotFoundError:
+                pass
+
+        return self._finalize_result(
+            record,
+            status=NodeExecutionStatus.COMPLETED,
+            inputs=lookup_inputs,
+            outputs=outputs,
+            trace={"table_id": table_id},
+        )
 
     @staticmethod
     def _symbol_unit_map(record: NodeRecord) -> dict[str, str]:

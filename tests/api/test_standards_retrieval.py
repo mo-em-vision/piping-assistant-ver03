@@ -25,6 +25,7 @@ def test_retrieve_y_coefficient_question_finds_table_304_1_1(reader: StandardsRe
     result = retrieve_standards_context(
         "What are the typical values for the Y coefficient?",
         reader=reader,
+        task_state_payload={"inputs": {"design_temperature": {"value": 200, "unit": "F"}}},
     )
 
     table_ids = {source.table_id for source in result.sources if source.table_id}

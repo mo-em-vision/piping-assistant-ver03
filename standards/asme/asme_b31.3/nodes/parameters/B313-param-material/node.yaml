@@ -1,0 +1,16 @@
+---
+id: B313-param-material
+type: parameter
+symbol: material
+input_id: material
+title: Material
+canonical_unit: UNIT-dimensionless
+description: >
+  Pipe material specification.
+question: >
+  I need the pipe material specification to look up allowable stress.
+resolution:
+  method: user_input
+defined_in:
+  - B313-304.1.1
+---

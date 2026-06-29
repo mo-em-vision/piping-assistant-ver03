@@ -6,9 +6,9 @@ from dataclasses import asdict
 from typing import Any
 
 from engine.events.event_logger import EventLogger
-from engine.graph.navigation_phases import build_phased_navigation
+from engine.graph.navigation_phases import build_workflow_phased_navigation
+from engine.graph.workflow_navigation import load_workflow_navigation
 from engine.graph.assumption_checker import field_value
-from engine.graph.parameter_registry import seed_parameter_registry
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskNotFoundError, TaskStateManager
 from models.agent import AgentAction, IntentResult
@@ -267,7 +267,9 @@ class Planner:
         for field_id, question in execution_eval.field_questions.items():
             question_map.setdefault(field_id, question)
 
-        phased = build_phased_navigation(
+        nav_config = load_workflow_navigation(self._reader, root_slug)
+        phased = build_workflow_phased_navigation(
+            config=nav_config,
             assumption_eval=assumption_eval,
             expansion_eval=expansion_eval,
             user_inputs=missing,

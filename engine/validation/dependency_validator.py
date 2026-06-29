@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.reference.node_types import is_section_node
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput
 from models.validation import ComplianceStatus, LayerValidationResult, ValidationFinding, ValidationSeverity
@@ -37,6 +38,9 @@ class DependencyValidator:
     ) -> LayerValidationResult:
         record = reader.load(node_id)
         errors: list[ValidationFinding] = []
+
+        if is_section_node(record.metadata):
+            return LayerValidationResult(status=ComplianceStatus.PASS)
 
         for dep_id in self._execution_dependencies(record.metadata):
             if dep_id not in prior_nodes_completed and dep_id not in dependency_outputs:
