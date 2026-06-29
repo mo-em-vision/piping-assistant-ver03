@@ -1,0 +1,8 @@
+---
+id: B313-designation-nps
+type: designation
+name: Nominal Pipe Size
+symbol: NPS
+description: >
+  Pipe size designation per ASME B36.10 — not a physical quantity.
+---

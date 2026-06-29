@@ -13,6 +13,7 @@ from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
 from engine.equation.sympy_evaluator import evaluate_equation
 from engine.graph.assumption_checker import field_value, evaluate_node_execution_assumptions
 from engine.graph.param_priority import normalize_require_ids
+from engine.graph.relationship_resolver import resolve_require_bindings
 from engine.reference.node_types import (
     is_designation_node,
     is_lookup_node,
@@ -697,25 +698,24 @@ class NodeRunner:
     ) -> NodeExecutionResult:
         sympy_expr = str(record.metadata.get("sympy", ""))
         display = str(record.metadata.get("display_latex") or sympy_expr)
-        requires = normalize_require_ids(record.metadata.get("requires"))
+        requires = record.metadata.get("requires")
         calculates = record.metadata.get("calculates") or []
+        store = self._reader.graph_store
+        bindings = resolve_require_bindings(store, requires)
 
         symbol_values: dict[str, float] = {}
         missing: list[str] = []
-        for param_id in requires:
-            param = self._reader.load(param_id)
-            symbol = str(param.metadata.get("symbol", ""))
-            if not symbol:
-                continue
+        for binding in bindings:
+            param = self._reader.load(binding.param_id)
             value = self._resolve_parameter_value(
-                param_id,
+                binding.param_id,
                 task_inputs=task_inputs,
                 dependency_outputs=dependency_outputs,
             )
             if value is None:
-                missing.append(str(param.metadata.get("input_id") or symbol))
+                missing.append(str(param.metadata.get("input_id") or binding.sympy_symbol))
             else:
-                symbol_values[symbol] = value
+                symbol_values[binding.sympy_symbol] = value
 
         if missing:
             return NodeExecutionResult(
@@ -764,6 +764,7 @@ class NodeRunner:
                 "substitution": result.substitution,
                 "result_text": result.result_text,
                 "equation": display,
+                "render_steps": asdict(result.render_steps),
             },
         )
 

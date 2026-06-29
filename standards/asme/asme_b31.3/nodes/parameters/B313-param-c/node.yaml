@@ -11,6 +11,8 @@ question: >
   For c (mechanical allowances): confirm the corrosion allowance value.
 resolution:
   method: user_input
+references:
+  - B313-quantity-thickness
 defined_in:
   - B313-304.1.1
 ---

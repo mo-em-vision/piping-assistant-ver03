@@ -1,0 +1,8 @@
+---
+id: B313-quantity-temperature
+type: quantity
+name: Temperature
+dimension: temperature
+description: >
+  Design metal temperature for material property and coefficient lookups.
+---

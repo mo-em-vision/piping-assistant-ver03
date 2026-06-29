@@ -275,6 +275,17 @@ class DesktopApiService:
         self._save_manager(manager, session_id)
         return self._task_state(task, manager)
 
+    def get_workflow_state(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
+        from api.serializers import workflow_state_payload
+
+        store = self._store_for(session_id)
+        manager = store.load_state_manager()
+        try:
+            manager.get_task(task_id)
+        except TaskNotFoundError as exc:
+            raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+        return workflow_state_payload(manager, task_id, reader=self._reader())
+
     def create_task(self, workflow_id: str, session_id: str | None = None) -> dict[str, Any]:
         router = Router()
         if workflow_id not in router.supported_workflows():

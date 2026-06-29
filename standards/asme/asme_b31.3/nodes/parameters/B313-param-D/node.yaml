@@ -13,6 +13,8 @@ resolution:
   method: table_lookup
   table_id: asme_b36.10
   keys: ['nominal_pipe_size']
+references:
+  - B313-quantity-diameter
 defined_in:
   - B313-304.1.1
 ---

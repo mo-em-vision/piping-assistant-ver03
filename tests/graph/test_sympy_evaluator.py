@@ -15,6 +15,8 @@ def test_minimum_required_thickness() -> None:
     )
     assert result.outputs["t_m"] == pytest.approx(5.0)
     assert "t_m" in result.substitution
+    assert result.render_steps.original == "t_m = t + c"
+    assert result.render_steps.evaluated == "t_m = 5"
 
 
 def test_wall_thickness_internal_pressure() -> None:
@@ -32,3 +34,5 @@ def test_wall_thickness_internal_pressure() -> None:
     )
     assert result.outputs["t"] > 0
     assert "t" in result.result_text
+    assert result.render_steps.original == "t = PD / (2(SEW + PY))"
+    assert result.render_steps.evaluated.startswith("t = ")

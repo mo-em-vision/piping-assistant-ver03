@@ -245,6 +245,14 @@ class ApiHandler(BaseHTTPRequestHandler):
                     )
                     return
 
+                if suffix == "workflow-state":
+                    _json_response(
+                        self,
+                        200,
+                        self.service.get_workflow_state(task_id, session_id),
+                    )
+                    return
+
                 if suffix is None:
                     _json_response(self, 200, self.service.get_task(task_id, session_id))
                     return

@@ -1,0 +1,8 @@
+---
+id: B313-designation-joint-category
+type: designation
+name: Joint Category
+symbol: joint
+description: >
+  Weld joint category for quality factor and strength reduction lookups.
+---

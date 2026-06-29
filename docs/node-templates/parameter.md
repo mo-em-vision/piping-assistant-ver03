@@ -56,6 +56,7 @@ defined_in:
 | Field | Description |
 |-------|-------------|
 | `concept_id` | Shared key when multiple parameter nodes represent the same engineering quantity (aliases / alternate symbols) |
+| `references` | List of `quantity` or `designation` node ids this parameter binds to task state for |
 | `question` | Prompt shown in composer |
 | `canonical_unit` | Unit node id (e.g. `UNIT-Pa`) — preferred |
 | `unit` | **Deprecated** — compile-time alias to `canonical_unit`; derived symbol kept for runtime compat |

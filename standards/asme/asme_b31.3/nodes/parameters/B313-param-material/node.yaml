@@ -11,6 +11,8 @@ question: >
   I need the pipe material specification to look up allowable stress.
 resolution:
   method: user_input
+references:
+  - B313-designation-material
 defined_in:
   - B313-304.1.1
 ---

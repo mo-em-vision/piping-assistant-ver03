@@ -23,8 +23,9 @@ CREATE TABLE IF NOT EXISTS graph_edges (
     from_id TEXT NOT NULL,
     to_id TEXT NOT NULL,
     edge_type TEXT NOT NULL,
+    relationship_key TEXT NOT NULL DEFAULT '',
     metadata_json TEXT,
-    UNIQUE (from_id, to_id, edge_type),
+    UNIQUE (from_id, to_id, edge_type, relationship_key),
     FOREIGN KEY (from_id) REFERENCES graph_nodes(node_id) ON DELETE CASCADE,
     FOREIGN KEY (to_id) REFERENCES graph_nodes(node_id) ON DELETE CASCADE
 );
@@ -63,6 +64,45 @@ class GraphEdgeRecord:
     metadata: dict[str, Any]
 
 
+def relationship_key_for_metadata(metadata: dict[str, Any] | None) -> str:
+    if not metadata:
+        return ""
+    alias = metadata.get("alias")
+    if alias is not None and str(alias).strip():
+        return f"alias:{str(alias).strip()}"
+    return ""
+
+
+def _migrate_graph_edges_schema(connection: sqlite3.Connection) -> None:
+    rows = connection.execute("PRAGMA table_info(graph_edges)").fetchall()
+    if not rows:
+        return
+    columns = {str(row[1]) for row in rows}
+    if "relationship_key" in columns:
+        return
+    connection.executescript(
+        """
+        CREATE TABLE graph_edges_v2 (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            from_id TEXT NOT NULL,
+            to_id TEXT NOT NULL,
+            edge_type TEXT NOT NULL,
+            relationship_key TEXT NOT NULL DEFAULT '',
+            metadata_json TEXT,
+            UNIQUE (from_id, to_id, edge_type, relationship_key),
+            FOREIGN KEY (from_id) REFERENCES graph_nodes(node_id) ON DELETE CASCADE,
+            FOREIGN KEY (to_id) REFERENCES graph_nodes(node_id) ON DELETE CASCADE
+        );
+        INSERT INTO graph_edges_v2 (from_id, to_id, edge_type, relationship_key, metadata_json)
+        SELECT from_id, to_id, edge_type, '', metadata_json FROM graph_edges;
+        DROP TABLE graph_edges;
+        ALTER TABLE graph_edges_v2 RENAME TO graph_edges;
+        CREATE INDEX IF NOT EXISTS idx_graph_edges_from ON graph_edges(from_id);
+        CREATE INDEX IF NOT EXISTS idx_graph_edges_to ON graph_edges(to_id);
+        """
+    )
+
+
 @dataclass
 class GraphDatabase:
     """Read and write compiled micro-graph content for one standards pack."""
@@ -88,6 +128,8 @@ class GraphDatabase:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.db_path) as connection:
             connection.executescript(_SCHEMA)
+            _migrate_graph_edges_schema(connection)
+            connection.commit()
 
     def clear_all(self) -> None:
         self.initialize_schema()
@@ -338,19 +380,21 @@ class GraphDatabase:
         metadata: dict[str, Any] | None = None,
     ) -> None:
         self.initialize_schema()
+        rel_key = relationship_key_for_metadata(metadata)
         with sqlite3.connect(self.db_path) as connection:
             connection.execute("PRAGMA foreign_keys = ON")
             connection.execute(
                 """
-                INSERT INTO graph_edges (from_id, to_id, edge_type, metadata_json)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(from_id, to_id, edge_type) DO UPDATE SET
+                INSERT INTO graph_edges (from_id, to_id, edge_type, relationship_key, metadata_json)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(from_id, to_id, edge_type, relationship_key) DO UPDATE SET
                     metadata_json = excluded.metadata_json
                 """,
                 (
                     from_id,
                     to_id,
                     edge_type,
+                    rel_key,
                     json.dumps(metadata, default=str) if metadata else None,
                 ),
             )

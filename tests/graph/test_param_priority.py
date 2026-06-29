@@ -13,6 +13,7 @@ from engine.graph.param_priority import (
     parameter_defined_in,
     require_target_id,
 )
+from engine.graph.relationship_resolver import resolve_priority_target
 from engine.reference.standards_reader import StandardsReader
 
 
@@ -74,7 +75,8 @@ def test_eq2_requires_have_priorities(b313_store: GraphStore) -> None:
     reader = _reader()
     record = reader.load("B313-eq-2")
     requires = record.metadata.get("requires") or []
-    assert normalize_require_ids(requires) == ["B313-param-t", "B313-param-c"]
+    resolved = [resolve_priority_target(b313_store, item) for item in requires]
+    assert resolved == ["B313-param-t", "B313-param-c"]
     priorities = [item["priority"] for item in requires if isinstance(item, dict)]
     assert priorities == [85, 90]
 

@@ -26,6 +26,117 @@ _SUPPORTED_UNITS = {
 }
 
 
+def validate_task_input_units(
+    reader: StandardsReader,
+    task_inputs: dict[str, EngineeringInput],
+) -> LayerValidationResult:
+    """Validate task inputs against micro-graph parameter unit metadata."""
+    from engine.units.unit_registry import get_unit_registry
+
+    store = reader.graph_store
+    errors: list[ValidationFinding] = []
+    warnings: list[ValidationFinding] = []
+    registry = get_unit_registry()
+
+    if not store.available:
+        return LayerValidationResult(
+            status=ComplianceStatus.PASS,
+            errors=[],
+            warnings=[],
+            affected_nodes=[],
+        )
+
+    for node in store.list_nodes(node_type="parameter"):
+        input_id = str(node.metadata.get("input_id", "")).strip()
+        if not input_id or input_id not in task_inputs:
+            continue
+
+        engineering_input = task_inputs[input_id]
+        _, dimension, is_designation = _parameter_concept_for_validation(
+            store,
+            node.node_id,
+        )
+        allowed_symbols = registry.resolve_allowed_unit_symbols(
+            param_meta=node.metadata,
+            quantity_dimension=dimension,
+            is_designation=is_designation,
+        )
+        if not allowed_symbols:
+            continue
+
+        unit = normalize_unit(engineering_input.unit)
+        if unit not in allowed_symbols:
+            convertible = _can_convert(unit, allowed_symbols)
+            if not convertible:
+                errors.append(
+                    ValidationFinding(
+                        rule="unit_incompatible",
+                        message=(
+                            f"Unit '{engineering_input.unit}' is not allowed for {input_id}. "
+                            f"Allowed: {', '.join(sorted(allowed_symbols))}"
+                        ),
+                        severity=ValidationSeverity.ERROR,
+                        input_id=input_id,
+                        node_id=node.node_id,
+                    )
+                )
+            else:
+                warnings.append(
+                    ValidationFinding(
+                        rule="unit_converted",
+                        message=(
+                            f"{input_id} will be converted from {engineering_input.unit} "
+                            "for calculation."
+                        ),
+                        severity=ValidationSeverity.INFO,
+                        input_id=input_id,
+                        node_id=node.node_id,
+                    )
+                )
+
+        if isinstance(engineering_input.value, (int, float)):
+            try:
+                convert_to_si(float(engineering_input.value), engineering_input.unit)
+            except (ValueError, TypeError) as exc:
+                errors.append(
+                    ValidationFinding(
+                        rule="unit_conversion",
+                        message=str(exc),
+                        severity=ValidationSeverity.ERROR,
+                        input_id=input_id,
+                        node_id=node.node_id,
+                    )
+                )
+
+    status = ComplianceStatus.FAIL if errors else (
+        ComplianceStatus.PASS_WITH_WARNING if warnings else ComplianceStatus.PASS
+    )
+    affected = sorted({finding.node_id for finding in errors + warnings if finding.node_id})
+    return LayerValidationResult(
+        status=status,
+        errors=errors,
+        warnings=warnings,
+        affected_nodes=affected,
+    )
+
+
+def _parameter_concept_for_validation(
+    store,
+    param_node_id: str,
+) -> tuple[str | None, str | None, bool]:
+    from engine.reference.node_types import is_designation_node, is_quantity_node
+
+    for edge in store.outgoing(param_node_id, edge_types={"references"}):
+        ref_meta = store.metadata(edge.to_id)
+        ref_type = store.node_type(edge.to_id) or ""
+        if is_quantity_node(ref_meta, ref_type):
+            dimension = str(ref_meta.get("dimension", "")).strip() or None
+            return edge.to_id, dimension, False
+        if is_designation_node(ref_meta, ref_type):
+            return edge.to_id, None, True
+    return None, None, False
+
+
 class UnitValidator:
     """Validate units against node metadata and conversion requirements."""
 

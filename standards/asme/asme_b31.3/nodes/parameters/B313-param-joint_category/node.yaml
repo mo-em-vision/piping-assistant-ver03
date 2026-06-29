@@ -11,6 +11,8 @@ question: >
   Please provide the joint category.
 resolution:
   method: user_input
+references:
+  - B313-designation-joint-category
 defined_in:
   - B313-304.1.1
 ---

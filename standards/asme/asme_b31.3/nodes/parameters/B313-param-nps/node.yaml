@@ -11,6 +11,8 @@ question: >
   Please provide the nominal pipe size (NPS).
 resolution:
   method: user_input
+references:
+  - B313-designation-nps
 defined_in:
   - B313-304.1.1
 ---

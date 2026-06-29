@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 
 from engine.graph.param_priority import normalize_require_ids
+from engine.graph.relationship_resolver import resolve_require_bindings
 from engine.executor.functions import get_execution_function
 from engine.equation.sympy_evaluator import evaluate_equation
 from engine.executor.unit_manager import prepare_engineering_input
@@ -34,6 +35,7 @@ class DefinitionEquationSpec:
     sympy_expr: str | None = None
     display_latex: str | None = None
     requires_param_nodes: tuple[str, ...] = ()
+    require_bindings: tuple[tuple[str, str], ...] = ()
     calculates_param_nodes: tuple[str, ...] = ()
 
 
@@ -148,15 +150,21 @@ def _definition_equation_specs(
                 variables: list[str] = []
                 output_keys: list[str] = []
                 requires_nodes = tuple(normalize_require_ids(record.metadata.get("requires")))
+                store = reader.graph_store
+                bindings = resolve_require_bindings(store, record.metadata.get("requires"))
+                binding_pairs = tuple((b.param_id, b.sympy_symbol) for b in bindings)
+                variables = [symbol for _, symbol in binding_pairs]
+                if not variables:
+                    for param_id in requires_nodes:
+                        try:
+                            param = reader.load(param_id)
+                        except FileNotFoundError:
+                            continue
+                        symbol = str(param.metadata.get("symbol", "")).strip()
+                        if symbol:
+                            variables.append(symbol)
+                            binding_pairs = (*binding_pairs, (param_id, symbol))
                 calculates_nodes = tuple(str(item) for item in (record.metadata.get("calculates") or []))
-                for param_id in requires_nodes:
-                    try:
-                        param = reader.load(param_id)
-                    except FileNotFoundError:
-                        continue
-                    symbol = str(param.metadata.get("symbol", "")).strip()
-                    if symbol:
-                        variables.append(symbol)
                 for param_id in calculates_nodes:
                     try:
                         param = reader.load(param_id)
@@ -181,6 +189,7 @@ def _definition_equation_specs(
                         sympy_expr=sympy_expr,
                         display_latex=str(record.metadata.get("display_latex") or sympy_expr),
                         requires_param_nodes=requires_nodes,
+                        require_bindings=binding_pairs,
                         calculates_param_nodes=calculates_nodes,
                     )
                 )
@@ -242,6 +251,18 @@ def _missing_user_inputs_for_equation(
     spec: DefinitionEquationSpec,
 ) -> list[str]:
     missing: list[str] = []
+    if spec.require_bindings:
+        for param_id, symbol in spec.require_bindings:
+            if symbol and _resolve_output_value(task, symbol) is not None:
+                continue
+            try:
+                param = reader.load(param_id)
+            except FileNotFoundError:
+                continue
+            input_id = str(param.metadata.get("input_id", "")).strip()
+            if input_id and not _input_value_ready(task, input_id):
+                missing.append(input_id)
+        return missing
     if spec.requires_param_nodes:
         for param_id in spec.requires_param_nodes:
             try:
@@ -276,6 +297,28 @@ def _resolve_equation_variables(
 ) -> tuple[dict[str, float], list[str]]:
     resolved: dict[str, float] = {}
     unresolved: list[str] = []
+
+    if spec.require_bindings:
+        for param_id, symbol in spec.require_bindings:
+            output_value = _resolve_output_value(task, symbol)
+            if output_value is not None:
+                resolved[symbol] = float(output_value)
+                continue
+            try:
+                param = reader.load(param_id)
+            except FileNotFoundError:
+                unresolved.append(param_id)
+                continue
+            input_id = str(param.metadata.get("input_id", "")).strip()
+            if not input_id:
+                unresolved.append(symbol)
+                continue
+            if not _input_value_ready(task, input_id):
+                unresolved.append(input_id)
+                continue
+            prepared = prepare_engineering_input(task.inputs[input_id])
+            resolved[symbol] = float(prepared.value)
+        return resolved, unresolved
 
     if spec.requires_param_nodes:
         for param_id in spec.requires_param_nodes:

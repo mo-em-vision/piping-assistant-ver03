@@ -39,7 +39,17 @@ def test_execute_workflow_completes() -> None:
     assert task.outputs.get("required_thickness") is not None
     assert task.outputs.get("allowable_stress") == 193_000_000.0
     assert isinstance(task.outputs.get("_execution_trace"), list)
-    assert len(result.node_results) == 2
+    assert len(result.node_results) >= 2
+    lifecycle = task.outputs.get("_lifecycle_events")
+    assert isinstance(lifecycle, list)
+    assert lifecycle
+    event_names = [item["event"] for item in lifecycle]
+    assert "beforeEnter" in event_names
+    assert "onExecute" in event_names
+    assert "onExit" in event_names
+    assert event_names.index("beforeEnter") < event_names.index("onExecute")
+    assert event_names.index("onExecute") < event_names.index("onExit")
+    assert result.lifecycle_events == lifecycle
 
 
 def test_execute_workflow_pauses_on_missing_input() -> None:
@@ -65,6 +75,14 @@ def test_execute_workflow_pauses_on_missing_input() -> None:
 
     assert result.status == ExecutionStatus.AWAITING_INPUT
     assert manager.get_task(task_id).status == TaskStatus.AWAITING_INPUT
+    lifecycle = manager.get_task(task_id).outputs.get("_lifecycle_events")
+    if isinstance(lifecycle, list) and lifecycle:
+        blocked = lifecycle[-1]["node_id"]
+        node_events = [item for item in lifecycle if item["node_id"] == blocked]
+        names = [item["event"] for item in node_events]
+        assert "beforeEnter" in names
+        assert "onEnter" in names
+        assert "onExit" not in names
 
 
 def test_report_reflects_execution_outputs() -> None:

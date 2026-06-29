@@ -11,6 +11,8 @@ resolution:
   method: table_lookup
   keys: [material, design_temperature]
   table_id: asme_b31.3_A-1
+references:
+  - B313-quantity-stress
 defined_in:
   - B313-304.1.1
 ---

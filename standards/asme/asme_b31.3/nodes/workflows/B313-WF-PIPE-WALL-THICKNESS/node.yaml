@@ -9,6 +9,14 @@ slug: pipe_wall_thickness_design
 purpose: >
   Entry point for designing or verifying required pipe wall thickness under
   internal or external pressure per ASME B31.3 pressure design provisions.
+
+documentation:
+  summary: >
+    Entry point for designing or verifying required pipe wall thickness under
+    internal or external pressure per ASME B31.3 pressure design provisions.
+  report_summary: >
+    Pipe wall thickness design per ASME B31.3 §304.1 for internal or external pressure.
+
 anchors_to: B313-304.1.1
 goal_output: B313-param-t_m
 contains:

@@ -6,6 +6,7 @@ from dataclasses import asdict
 from typing import Any
 
 from engine.events.event_logger import EventLogger
+from engine.execution.lifecycle_emitter import WorkflowLifecycleEmitter, is_executable_node
 from engine.executor.node_runner import NodeRunner
 from engine.graph.graph_engine import GraphEngine
 from engine.graph.definition_equations import (
@@ -58,6 +59,15 @@ class Executor:
         prior_completed: set[str] = set()
         validation_trace: list[dict[str, Any]] = []
         overall_status = ExecutionStatus.COMPLETED
+        store = self._reader.graph_store
+        lifecycle = WorkflowLifecycleEmitter(store) if store.available else None
+
+        def persist_lifecycle() -> list[dict[str, Any]]:
+            if lifecycle is None:
+                return []
+            payload = lifecycle.to_dicts()
+            state.store_output(plan.task_id, "_lifecycle_events", payload)
+            return payload
 
         plan_validation = self._validation.validate_plan(plan, task)
         validation_trace.append(
@@ -73,6 +83,7 @@ class Executor:
                 node_results=node_results,
                 status=ExecutionStatus.ERROR,
                 events=self._events.to_dicts(),
+                lifecycle_events=persist_lifecycle(),
             )
 
         if plan_validation.status == ComplianceStatus.INCOMPLETE:
@@ -83,6 +94,7 @@ class Executor:
                 node_results=node_results,
                 status=ExecutionStatus.AWAITING_INPUT,
                 events=self._events.to_dicts(),
+                lifecycle_events=persist_lifecycle(),
             )
 
         for warning in plan_validation.warnings:
@@ -128,6 +140,7 @@ class Executor:
                 for finding in node_validation.errors:
                     state.add_warning(plan.task_id, finding.message)
                 state.store_output(plan.task_id, "_validation_trace", validation_trace)
+                persist_lifecycle()
                 break
 
             if node_validation.status == ComplianceStatus.INCOMPLETE:
@@ -140,10 +153,19 @@ class Executor:
                     payload={"missing": [finding.input_id for finding in node_validation.errors if finding.input_id]},
                 )
                 state.store_output(plan.task_id, "_validation_trace", validation_trace)
+                persist_lifecycle()
                 break
 
             for warning in node_validation.warnings:
                 state.add_warning(plan.task_id, warning.message)
+
+            if lifecycle is not None:
+                task = state.get_task(plan.task_id)
+                context = WorkflowLifecycleEmitter.build_context(task, inputs=plan.inputs)
+                lifecycle.emit_before_enter(node_id, context=context)
+                lifecycle.emit_on_enter(node_id, context=context)
+                if is_executable_node(record.metadata, str(node_type or "")):
+                    lifecycle.emit_on_execute(node_id, context=context)
 
             self._events.log(EventType.CALCULATION_STARTED, node=node_id)
 
@@ -163,6 +185,7 @@ class Executor:
                     result=result.errors,
                     payload={"missing": result.trace.get("missing_inputs", [])},
                 )
+                persist_lifecycle()
                 break
 
             if result.status == NodeExecutionStatus.ERROR:
@@ -173,6 +196,15 @@ class Executor:
                     node=node_id,
                     result=result.errors,
                 )
+                if lifecycle is not None:
+                    task = state.get_task(plan.task_id)
+                    context = WorkflowLifecycleEmitter.build_context(task, inputs=plan.inputs)
+                    lifecycle.emit_on_error(
+                        node_id,
+                        "; ".join(result.errors),
+                        context=context,
+                    )
+                persist_lifecycle()
                 break
 
             if result.status == NodeExecutionStatus.COMPLETED:
@@ -187,6 +219,10 @@ class Executor:
                     node=node_id,
                     result=result.outputs,
                 )
+                if lifecycle is not None:
+                    task = state.get_task(plan.task_id)
+                    context = WorkflowLifecycleEmitter.build_context(task, inputs=plan.inputs)
+                    lifecycle.emit_on_exit(node_id, context=context)
             elif result.status == NodeExecutionStatus.SKIPPED:
                 prior_completed.add(node_id)
 
@@ -200,6 +236,8 @@ class Executor:
         trace_payload = [asdict(item) for item in node_results]
         state.store_output(plan.task_id, "_execution_trace", trace_payload)
         state.store_output(plan.task_id, "_validation_trace", validation_trace)
+
+        lifecycle_payload = persist_lifecycle()
 
         if overall_status == ExecutionStatus.COMPLETED:
             task = state.get_task(plan.task_id)
@@ -225,6 +263,7 @@ class Executor:
             node_results=node_results,
             status=overall_status,
             events=self._events.to_dicts(),
+            lifecycle_events=lifecycle_payload,
         )
 
 

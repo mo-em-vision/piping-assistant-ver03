@@ -621,7 +621,21 @@ def task_state(
             "available_workflows": [item for item in WORKFLOW_CATALOG if item["available"]],
         },
         "errors": _build_task_errors(task),
+        "workflow_state": workflow_state_payload(
+            manager,
+            task.task_id,
+            reader=resolved_reader,
+        ),
     }
+
+
+def workflow_state_payload(
+    manager: TaskStateManager,
+    task_id: str,
+    *,
+    reader: StandardsReader | None = None,
+) -> dict[str, Any]:
+    return json_safe(manager.get_workflow_state(task_id, reader=reader))
 
 
 def _build_task_errors(task: Task) -> list[dict[str, Any]]:

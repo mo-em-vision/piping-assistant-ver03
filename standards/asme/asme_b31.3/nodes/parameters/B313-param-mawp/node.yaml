@@ -9,6 +9,8 @@ description: >
   Calculated maximum allowable working pressure.
 resolution:
   method: equation
+references:
+  - B313-quantity-pressure
 defined_in:
   - B313-304.1.1
 ---

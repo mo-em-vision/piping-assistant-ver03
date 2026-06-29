@@ -24,9 +24,14 @@ _LEGACY_SYMBOL_TO_UNIT_ID: dict[str, str] = {
 
 _CANONICAL_SI_UNIT_ID: dict[str, str] = {
     "pressure": "UNIT-Pa",
+    "stress": "UNIT-Pa",
     "length": "UNIT-mm",
     "temperature": "UNIT-K",
     "dimensionless": "UNIT-dimensionless",
+}
+
+_DIMENSION_ALIASES: dict[str, str] = {
+    "stress": "pressure",
 }
 
 
@@ -53,5 +58,18 @@ def symbol_from_unit_id(unit_id: str) -> str:
     return unit_id
 
 
+def normalize_dimension(dimension: str | None) -> str | None:
+    """Map quantity dimension keys to registry dimensions."""
+    if dimension is None:
+        return None
+    text = dimension.strip().lower()
+    if not text:
+        return None
+    return _DIMENSION_ALIASES.get(text, text)
+
+
 def canonical_si_unit_id(dimension: str) -> str | None:
-    return _CANONICAL_SI_UNIT_ID.get(dimension.strip().lower())
+    normalized = normalize_dimension(dimension)
+    if normalized is None:
+        return None
+    return _CANONICAL_SI_UNIT_ID.get(normalized)

@@ -10,10 +10,25 @@ from engine.reference.node_types import CANONICAL_NODE_TYPES
 
 _PARAMETER_KINDS = ("assumption", "interaction", "value")
 
+_DOCS_FIELDS = [
+    "documentation",
+    "title",
+    "summary",
+    "description",
+    "before_enter",
+    "after_exit",
+    "instructions",
+    "warnings",
+    "tips",
+    "references",
+    "report_summary",
+]
+
 NODE_TYPE_SCHEMAS: dict[str, dict[str, Any]] = {
     "workflow": {
         "sections": {
             "general": ["id", "type", "title", "slug", "status", "version", "engineering_intent", "purpose"],
+            "docs": _DOCS_FIELDS,
             "navigation": ["navigation"],
             "graph": ["anchors_to", "goal_output", "contains", "requires", "edges"],
         },
@@ -22,6 +37,7 @@ NODE_TYPE_SCHEMAS: dict[str, dict[str, Any]] = {
     "text": {
         "sections": {
             "general": ["id", "type", "kind", "title", "role", "display_order", "paragraph", "section", "topic"],
+            "docs": _DOCS_FIELDS,
             "ui": ["role", "display_order"],
             "graph": ["contains", "defines", "edges"],
             "reference": ["table_id", "standard", "lookup_keys"],
@@ -32,6 +48,7 @@ NODE_TYPE_SCHEMAS: dict[str, dict[str, Any]] = {
     "equation": {
         "sections": {
             "general": ["id", "type", "kind", "title", "equation_id", "execution_phase"],
+            "docs": _DOCS_FIELDS,
             "calculation": ["sympy", "display_latex", "table_id", "output_param", "interpolation"],
             "graph": ["requires", "calculates", "explains", "keys", "uses_table", "outputs", "edges"],
         },
@@ -41,6 +58,7 @@ NODE_TYPE_SCHEMAS: dict[str, dict[str, Any]] = {
     "parameter": {
         "sections": {
             "general": ["id", "type", "kind", "title", "symbol", "input_id", "description", "display"],
+            "docs": _DOCS_FIELDS,
             "engineering": ["canonical_unit", "unit", "allowed_units", "allowed_values", "required_for_expansion"],
             "ui": ["question", "mode", "options", "requires_confirmation", "expansion_block_message"],
             "calculation": ["resolution"],

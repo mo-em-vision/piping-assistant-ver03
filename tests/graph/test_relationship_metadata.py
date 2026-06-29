@@ -75,7 +75,28 @@ def test_explicit_edge_preserves_metadata_without_routing_fields() -> None:
     ]
 
 
-def test_invalid_when_is_not_copied_to_edge_metadata() -> None:
+def test_duplicate_requires_to_same_concept_keep_distinct_aliases() -> None:
+    edges = compile_metadata_edges(
+        "equation_eq_2",
+        {
+            "requires": [
+                {
+                    "node_id": "quantity_thickness",
+                    "alias": "t",
+                    "priority": 85,
+                },
+                {
+                    "node_id": "quantity_thickness",
+                    "alias": "c",
+                    "priority": 90,
+                },
+            ],
+        },
+    )
+
+    assert len(edges) == 2
+    aliases = sorted((edge[3] or {}).get("alias") for edge in edges)
+    assert aliases == ["c", "t"]
     edges = compile_metadata_edges(
         "equation_pipe_thickness",
         {"requires": [{"node_id": "quantity_pressure", "when": "sometimes"}]},

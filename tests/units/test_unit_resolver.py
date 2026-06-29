@@ -70,6 +70,12 @@ def test_parameter_metadata_sets_canonical_unit() -> None:
     assert meta["unit"] == "Pa"
 
 
+def test_convert_to_canonical_si_stress_dimension(resolver: UnitResolver) -> None:
+    value, unit = resolver.convert_to_canonical_si(1.0, "psi", dimension="stress")
+    assert unit == "Pa"
+    assert value == pytest.approx(6894.757293168)
+
+
 def test_unit_pack_compiles() -> None:
     from engine.graph.graph_builder import GraphBuilder
     from pathlib import Path

@@ -54,7 +54,7 @@ def compile_metadata_edges(
 ) -> list[tuple[str, str, str, dict[str, Any] | None]]:
     """Extract edges from metadata fields and explicit edges block."""
     compiled: list[tuple[str, str, str, dict[str, Any] | None]] = []
-    seen: set[tuple[str, str, str]] = set()
+    seen: set[tuple[str, str, str, str | None]] = set()
 
     def add_edge(
         from_id: str,
@@ -62,7 +62,10 @@ def compile_metadata_edges(
         edge_type: str,
         edge_meta: dict[str, Any] | None = None,
     ) -> None:
-        key = (from_id, to_id, edge_type)
+        alias = None
+        if edge_meta and edge_meta.get("alias") is not None:
+            alias = str(edge_meta["alias"])
+        key = (from_id, to_id, edge_type, alias)
         if key in seen:
             return
         seen.add(key)

@@ -35,6 +35,28 @@ def parameter_concept_id(metadata: dict[str, Any]) -> str | None:
     return text or None
 
 
+def normalize_allowed_units(metadata: dict[str, Any]) -> list[str]:
+    """Normalize parameter allowed_units to canonical UNIT-* ids."""
+    raw = metadata.get("allowed_units")
+    if not raw:
+        return []
+    if not isinstance(raw, list):
+        return []
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        if not item:
+            continue
+        text = str(item).strip()
+        if not text:
+            continue
+        unit_id = text if text.startswith("UNIT-") else unit_id_from_legacy_symbol(text)
+        if unit_id and unit_id not in seen:
+            seen.add(unit_id)
+            normalized.append(unit_id)
+    return normalized
+
+
 def prepare_parameter_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     """Normalize parameter node metadata at graph compile time."""
     meta = dict(metadata)

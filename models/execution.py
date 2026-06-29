@@ -77,3 +77,4 @@ class ExecutionResult:
     node_results: list[NodeExecutionResult] = field(default_factory=list)
     status: ExecutionStatus = ExecutionStatus.PENDING
     events: list[dict[str, Any]] = field(default_factory=list)
+    lifecycle_events: list[dict[str, Any]] = field(default_factory=list)

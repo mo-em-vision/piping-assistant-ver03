@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import Any
+
+from engine.reference.standards_reader import StandardsReader
 
 from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
 from models.task import InputConflict, Task, TaskStatus
@@ -185,13 +188,23 @@ class TaskStateManager:
         self.get_task(task_id)
         return list(self._step_progress[task_id].values())
 
-    def get_workflow_state(self, task_id: str) -> WorkflowState:
+    def get_workflow_state(
+        self,
+        task_id: str,
+        *,
+        reader: StandardsReader | None = None,
+    ) -> WorkflowState:
         from engine.state.workflow_state import build_workflow_state
 
         task = self.get_task(task_id)
+        resolved_reader = reader
+        if resolved_reader is None:
+            root = Path(__file__).resolve().parents[2] / "standards"
+            resolved_reader = StandardsReader(root, standard="asme_b31.3")
         return build_workflow_state(
             task,
             step_progress=self.list_step_progress(task_id),
+            reader=resolved_reader,
         )
 
     def compare_inputs(self, task_id: str, other_task_id: str) -> list[InputConflict]:

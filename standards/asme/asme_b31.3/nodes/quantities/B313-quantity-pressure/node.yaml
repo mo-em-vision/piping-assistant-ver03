@@ -1,0 +1,8 @@
+---
+id: B313-quantity-pressure
+type: quantity
+name: Pressure
+dimension: pressure
+description: >
+  Internal or external gage pressure used in pressure design equations.
+---

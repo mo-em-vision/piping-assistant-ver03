@@ -5,18 +5,36 @@ equation_id: mawp
 sympy: "MAWP = S*E*W*t / (D - 2*t*Y)"
 display_latex: "MAWP = SEWt / (D - 2tY)"
 requires:
-  - node_id: B313-param-S
+  - node_id: B313-quantity-stress
     priority: 60
+    alias: S
+    role: Allowable Stress
+    displayName: Allowable stress
   - node_id: B313-param-E
     priority: 70
+    alias: E
+    role: Joint Efficiency
+    displayName: Joint efficiency
   - node_id: B313-param-W
     priority: 75
-  - node_id: B313-param-t
+    alias: W
+    role: Weld Strength Reduction
+    displayName: Weld strength reduction
+  - node_id: B313-quantity-thickness
     priority: 85
-  - node_id: B313-param-D
+    alias: t
+    role: Pressure Design Thickness
+    displayName: Pressure design thickness
+  - node_id: B313-quantity-diameter
     priority: 50
+    alias: D
+    role: Outside Diameter
+    displayName: Outside diameter
   - node_id: B313-param-Y
     priority: 80
+    alias: Y
+    role: Temperature Coefficient
+    displayName: Temperature coefficient
 calculates:
   - B313-param-mawp
 ---

@@ -11,8 +11,16 @@ interpolation: true
 uses_table:
   - B313-table-A-1-REF
 requires:
-  - B313-param-material
-  - B313-param-design_temperature
+  - node_id: B313-designation-material
+    alias: material
+    role: Material Grade
+    displayName: Material
+    required: true
+  - node_id: B313-quantity-temperature
+    alias: T
+    role: Design Temperature
+    displayName: Design temperature
+    required: true
 outputs:
   - B313-param-S
 ---

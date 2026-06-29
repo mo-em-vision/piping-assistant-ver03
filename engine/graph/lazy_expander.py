@@ -7,7 +7,11 @@ from typing import Any
 
 from engine.graph.assumption_checker import field_value
 from engine.graph.graph_store import GraphStore
-from engine.graph.node_behaviors import is_data_parameter
+from engine.graph.node_behaviors import (
+    is_data_parameter,
+    is_reference_designation,
+    is_reference_quantity,
+)
 from engine.graph.param_priority import parameter_collection_priority
 from engine.graph.traversal import dfs_collect, topological_order
 from engine.reference.graph_db import GraphEdgeRecord
@@ -140,7 +144,13 @@ def next_pending_parameter(
     """Return the next unresolved parameter input_id on the active path."""
     for node_id in expansion.active_nodes:
         node = store.get_node(node_id)
-        if node is None or node.node_type != "parameter":
+        if node is None:
+            continue
+        if is_reference_quantity(node.metadata, node.node_type) or is_reference_designation(
+            node.metadata, node.node_type
+        ):
+            continue
+        if node.node_type != "parameter":
             continue
         if is_ui_parameter(node.metadata, node.node_type):
             continue

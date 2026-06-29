@@ -80,6 +80,8 @@ def _priority_from_metadata_requires(
     param_node_id: str,
     active_nodes: set[str],
 ) -> int | None:
+    from engine.graph.relationship_resolver import resolve_priority_target
+
     best: int | None = None
     for node_id in active_nodes:
         if not _is_equation_priority_source(store, node_id):
@@ -88,7 +90,7 @@ def _priority_from_metadata_requires(
         if node is None:
             continue
         for item in node.metadata.get("requires") or []:
-            if require_target_id(item) != param_node_id:
+            if resolve_priority_target(store, item) != param_node_id:
                 continue
             priority = require_entry_priority(item)
             if priority is None:
@@ -97,6 +99,32 @@ def _priority_from_metadata_requires(
                     priority = edge_priority
                 else:
                     continue
+            if best is None or priority < best:
+                best = priority
+    return best
+
+
+def _priority_from_resolved_requires(
+    store: GraphStore,
+    param_node_id: str,
+    active_nodes: set[str],
+) -> int | None:
+    from engine.graph.relationship_resolver import resolve_require_binding
+
+    best: int | None = None
+    for node_id in active_nodes:
+        if not _is_equation_priority_source(store, node_id):
+            continue
+        node = store.get_node(node_id)
+        if node is None:
+            continue
+        for item in node.metadata.get("requires") or []:
+            binding = resolve_require_binding(store, item)
+            if binding is None or binding.param_id != param_node_id:
+                continue
+            priority = require_entry_priority(item)
+            if priority is None:
+                continue
             if best is None or priority < best:
                 best = priority
     return best
@@ -137,6 +165,9 @@ def parameter_collection_priority(
         edge_priority = _priority_from_requires_edges(store, param_node_id, active)
         if edge_priority is not None:
             return edge_priority
+        resolved_priority = _priority_from_resolved_requires(store, param_node_id, active)
+        if resolved_priority is not None:
+            return resolved_priority
         meta_priority = _priority_from_metadata_requires(store, param_node_id, active)
         if meta_priority is not None:
             return meta_priority

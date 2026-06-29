@@ -34,7 +34,8 @@ from .validation import (
     ValidationOverride,
     ValidationSeverity,
 )
-from .workflow_state import WorkflowState
+from .workflow_lifecycle import WorkflowLifecycleEvent, WorkflowLifecycleEventType
+from .workflow_state import WorkflowParameter, WorkflowState
 from .report import (
     ReportData,
     ReportDecision,
@@ -90,6 +91,7 @@ __all__ = [
     "IntentResult",
     "LayerValidationResult",
     "NavigationPlan",
+    "NodeDocumentation",
     "NodeExecutionResult",
     "NodeExecutionStatus",
     "NodeProvidedOutput",
@@ -121,5 +123,8 @@ __all__ = [
     "ValidationResult",
     "ValidationSeverity",
     "WorkflowCandidate",
+    "WorkflowLifecycleEvent",
+    "WorkflowLifecycleEventType",
+    "WorkflowParameter",
     "WorkflowState",
 ]
