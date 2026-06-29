@@ -13,7 +13,7 @@ interface GraphNodeData {
 }
 
 function GraphNodeComponent({ data }: NodeProps) {
-  const nodeData = data as GraphNodeData
+  const nodeData = data as unknown as GraphNodeData
   const style = nodeStyle(nodeData.nodeType, nodeData.kind, nodeData.display)
   const className = [
     'graph-node',

@@ -16,7 +16,7 @@ function GraphEdgeComponent({
   targetPosition,
   data,
 }: EdgeProps) {
-  const edgeData = (data ?? {}) as GraphEdgeData
+  const edgeData = (data ?? {}) as unknown as GraphEdgeData
   const color = edgeColor(edgeData.edgeType ?? 'default')
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,

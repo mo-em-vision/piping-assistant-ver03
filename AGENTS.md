@@ -56,6 +56,19 @@ Isolated graph node CRUD UI for editing YAML sources under `standards/*/nodes/`.
 
 The studio writes YAML and syncs `*_graph.db` incrementally. It is excluded from release builds (`npm run build` does not include `studio.html` unless `VITE_DEV_STUDIO=true`).
 
+## Developer Graph Explorer (development only)
+
+Live React Flow visualization of the **active task subgraph** (`active_nodes` from session state). Separate process — does not affect the desktop app if it crashes.
+
+```bash
+cd dev/graph_explorer
+pip install -r requirements.txt
+npm run install:all
+npm run dev
+```
+
+Open `http://localhost:3000`. Requires the desktop app (or `python -m api.server`) to be running with an active task. See [`dev/graph_explorer/README.md`](dev/graph_explorer/README.md).
+
 ## Key paths
 
 ```

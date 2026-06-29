@@ -7,7 +7,7 @@ from pathlib import Path
 
 import uvicorn
 
-from dev.graph_explorer.server import create_app, on_shutdown, on_startup
+from dev.graph_explorer.server import create_app
 
 
 def main() -> None:
@@ -15,14 +15,6 @@ def main() -> None:
     host = os.environ.get("GRAPH_EXPLORER_HOST", "127.0.0.1")
     port = int(os.environ.get("GRAPH_EXPLORER_PORT", "8765"))
     app = create_app(project_root)
-
-    @app.on_event("startup")
-    async def _startup() -> None:
-        on_startup(app)
-
-    @app.on_event("shutdown")
-    async def _shutdown() -> None:
-        on_shutdown(app)
 
     print(f"Graph explorer API listening on http://{host}:{port}", flush=True)
     uvicorn.run(app, host=host, port=port, log_level="info")

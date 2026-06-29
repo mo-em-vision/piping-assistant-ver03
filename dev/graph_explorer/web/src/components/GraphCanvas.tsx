@@ -5,9 +5,10 @@ import {
   ReactFlow,
   useReactFlow,
   type Node,
+  type OnNodeDrag,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { useCallback, useEffect, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, type MouseEvent } from 'react'
 import GraphNodeComponent from './GraphNode'
 import GraphEdgeComponent from './GraphEdge'
 import { useGraphStore } from '../store/graphStore'
@@ -35,14 +36,14 @@ export default function GraphCanvas({ onSelectNode, fitViewTrigger }: GraphCanva
   }, [fitViewTrigger, fitView, flowNodes.length])
 
   const onNodeClick = useCallback(
-    (_: React.MouseEvent, node: Node) => {
+    (_event: MouseEvent, node: Node) => {
       onSelectNode(node.id)
     },
     [onSelectNode],
   )
 
-  const onNodeDragStop = useCallback(
-    (_: React.MouseEvent, node: Node) => {
+  const onNodeDragStop = useCallback<OnNodeDrag>(
+    (_event, node) => {
       const current = useGraphStore.getState().flowNodes
       updatePositions(
         current.map((item) => (item.id === node.id ? { ...item, position: node.position } : item)),

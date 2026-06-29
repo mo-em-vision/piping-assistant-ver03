@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, AsyncIterator
 
 from starlette.applications import Starlette
 from starlette.requests import Request
@@ -123,6 +123,14 @@ def create_app(project_root: Path | None = None) -> Starlette:
         except WebSocketDisconnect:
             service.unsubscribe(websocket)
 
+    @asynccontextmanager
+    async def lifespan(_app: Starlette) -> AsyncIterator[None]:
+        on_startup(_app)
+        try:
+            yield
+        finally:
+            on_shutdown(_app)
+
     routes = [
         Route("/health", health),
         Route("/api/graph/context", graph_context),
@@ -133,7 +141,7 @@ def create_app(project_root: Path | None = None) -> Starlette:
         WebSocketRoute("/ws/graph", websocket_graph),
     ]
 
-    app = Starlette(routes=routes)
+    app = Starlette(routes=routes, lifespan=lifespan)
     app.state.service = service
     app.state.config = config
     app.state.project_root = root
@@ -147,7 +155,10 @@ def on_startup(app: Starlette) -> None:
     root: Path = app.state.project_root
     session_id: str = app.state.session_id
 
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.get_event_loop()
     service.set_loop(loop)
 
     def trigger_refresh() -> None:

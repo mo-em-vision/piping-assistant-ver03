@@ -115,32 +115,65 @@ export const useGraphStore = create<GraphStoreState>((set, get) => ({
       flowEdges,
       positions: newPositions,
     })
+    get().rebuildFlow()
   },
 
   applyDelta: (payload) => {
     const state = get()
     let nodes = [...state.rawNodes]
     let edges = [...state.rawEdges]
+    let positions = { ...state.positions }
 
     const removeNodeSet = new Set(payload.removed_nodes)
     nodes = nodes.filter((node) => !removeNodeSet.has(node.id))
+    for (const nodeId of payload.removed_nodes) {
+      delete positions[nodeId]
+    }
+
     for (const changed of payload.changed_nodes) {
       const idx = nodes.findIndex((node) => node.id === changed.id)
       if (idx >= 0) nodes[idx] = changed
     }
-    nodes.push(...payload.added_nodes)
+
+    const existingIds = new Set(nodes.map((node) => node.id))
+    let addedIndex = nodes.length
+    for (const added of payload.added_nodes) {
+      if (!existingIds.has(added.id)) {
+        nodes.push(added)
+        if (!positions[added.id]) {
+          positions[added.id] = {
+            x: (addedIndex % 8) * 220,
+            y: Math.floor(addedIndex / 8) * 90,
+          }
+          addedIndex += 1
+        }
+      }
+    }
 
     const removeEdgeSet = new Set(payload.removed_edges)
     edges = edges.filter((edge) => !removeEdgeSet.has(edge.id))
     edges.push(...payload.added_edges)
 
-    state.setSnapshot(nodes, edges, state.context ?? {
+    const context = state.context ?? {
       task_id: null,
       workflow_id: null,
       session_id: 'default',
       node_count: nodes.length,
       edge_count: edges.length,
-    }, payload.revision)
+    }
+
+    set({
+      revision: payload.revision,
+      context: {
+        ...context,
+        node_count: nodes.length,
+        edge_count: edges.length,
+      },
+      rawNodes: nodes,
+      rawEdges: edges,
+      positions,
+    })
+    get().rebuildFlow()
   },
 
   setSelectedNodeId: (id) => {
