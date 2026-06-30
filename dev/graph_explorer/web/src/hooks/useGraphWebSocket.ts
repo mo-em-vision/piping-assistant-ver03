@@ -33,11 +33,20 @@ export function useGraphWebSocket() {
     try {
       const query = revisionRef.current ? `?revision=${encodeURIComponent(revisionRef.current)}` : ''
       const response = await fetch(`/api/graph/snapshot${query}`)
+      // #region agent log
+      fetch('http://127.0.0.1:7445/ingest/50b71ef1-acb8-48e4-9a72-8a7cf07970d2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b5dce6'},body:JSON.stringify({sessionId:'b5dce6',location:'useGraphWebSocket.ts:pollSnapshot',message:'snapshot fetch',data:{ok:response.ok,status:response.status},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       if (!response.ok) return
       const data = await response.json()
+      // #region agent log
+      fetch('http://127.0.0.1:7445/ingest/50b71ef1-acb8-48e4-9a72-8a7cf07970d2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b5dce6'},body:JSON.stringify({sessionId:'b5dce6',location:'useGraphWebSocket.ts:pollSnapshot',message:'snapshot data',data:{nodeCount:data?.context?.node_count,taskId:data?.context?.task_id,message:data?.context?.message},timestamp:Date.now(),hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       if (data.unchanged) return
       setSnapshot(data.nodes, data.edges, data.context, data.revision)
-    } catch {
+    } catch (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7445/ingest/50b71ef1-acb8-48e4-9a72-8a7cf07970d2',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b5dce6'},body:JSON.stringify({sessionId:'b5dce6',location:'useGraphWebSocket.ts:pollSnapshot',message:'snapshot fetch failed',data:{error:String(error)},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       setConnected(false)
     }
   }, [setConnected, setSnapshot])

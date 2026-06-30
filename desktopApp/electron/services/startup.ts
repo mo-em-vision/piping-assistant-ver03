@@ -23,6 +23,7 @@ export async function runStartup(
     resolveRepoRoot(),
     resolveBackendUrl(),
     app.getPath('userData'),
+    !app.isPackaged,
   )
 
   backendService.onStatusChange(onStatusChange)

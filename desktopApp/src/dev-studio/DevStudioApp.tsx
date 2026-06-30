@@ -24,6 +24,10 @@ export function DevStudioApp() {
   const setTypeFilter = useDevStudioStore((s) => s.setTypeFilter)
   const setSearchQuery = useDevStudioStore((s) => s.setSearchQuery)
   const createNode = useDevStudioStore((s) => s.createNode)
+  const selectedId = useDevStudioStore((s) => s.selectedId)
+  const loadNode = useDevStudioStore((s) => s.loadNode)
+  const duplicateNode = useDevStudioStore((s) => s.duplicateNode)
+  const deleteSelectedNode = useDevStudioStore((s) => s.deleteSelectedNode)
 
   const debouncedSearch = useDebouncedValue(searchQuery, 250)
 
@@ -38,6 +42,12 @@ export function DevStudioApp() {
   }, [pack, typeFilter, debouncedSearch, refreshNodes])
 
   useEffect(() => {
+    const isEditable = (target: EventTarget | null) => {
+      if (!(target instanceof HTMLElement)) return false
+      const tag = target.tagName
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
+    }
+
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
         e.preventDefault()
@@ -54,10 +64,26 @@ export function DevStudioApp() {
           description: 'New node',
         })
       }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'd' && selectedId) {
+        e.preventDefault()
+        const newId = window.prompt('New node ID for duplicate:', `${selectedId}-copy`)
+        if (newId) void duplicateNode(newId)
+      }
+      if (e.key === 'Delete' && selectedId && !isEditable(e.target)) {
+        e.preventDefault()
+        if (window.confirm(`Delete ${selectedId}?`)) void deleteSelectedNode()
+      }
+      if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !isEditable(e.target) && nodes.length) {
+        e.preventDefault()
+        const idx = nodes.findIndex((n) => n.id === selectedId)
+        const start = idx < 0 ? 0 : idx
+        const next = e.key === 'ArrowDown' ? Math.min(start + 1, nodes.length - 1) : Math.max(start - 1, 0)
+        if (nodes[next]) void loadNode(nodes[next].id)
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [createNode])
+  }, [createNode, selectedId, duplicateNode, deleteSelectedNode, loadNode, nodes])
 
   return (
     <div className="dev-studio">

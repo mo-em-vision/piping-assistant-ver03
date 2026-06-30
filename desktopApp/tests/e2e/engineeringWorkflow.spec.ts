@@ -13,7 +13,7 @@ test.describe('engineering workflow (mock mode)', () => {
     await npsField.fill('6')
     await page.getByRole('button', { name: 'Submit' }).click()
 
-    await expect(page.getByPlaceholder('Waiting for the next workflow step…')).toBeVisible()
+    await expect(page.getByPlaceholder('Complete the fields below to continue.')).toBeVisible()
 
     await expect(page.getByRole('heading', { name: 'Engineering report' })).toHaveCount(0)
   })

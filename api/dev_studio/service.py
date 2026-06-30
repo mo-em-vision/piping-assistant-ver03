@@ -24,6 +24,7 @@ from engine.equation.sympy_evaluator import evaluate_equation
 from engine.reference.graph_db import GraphDatabase
 from engine.reference.node_types import is_section_node
 from engine.reference.pack_graph_db import resolve_pack_graph_db
+from engine.reference.standards_markdown import split_frontmatter
 
 
 @dataclass
@@ -495,29 +496,138 @@ class DevStudioService:
             for item in items:
                 if not isinstance(item, dict):
                     continue
-                meta = dict(item.get("metadata") or item)
-                body = str(item.get("body") or "")
-                node_id = str(meta.get("id") or "")
-                rel = item.get("source_rel_path")
-                try:
-                    if self._repo.get_node(pack, node_id):
-                        self.update_node(
-                            pack,
-                            node_id,
-                            {"metadata": meta, "body": body, "source_rel_path": rel},
-                        )
-                        updated.append(node_id)
-                    else:
-                        self.create_node(
-                            pack,
-                            {"metadata": meta, "body": body, "source_rel_path": rel},
-                        )
-                        created.append(node_id)
-                except ApiError as exc:
-                    errors.append({"id": node_id, "message": exc.message})
+                self._import_item(pack, item, created, updated, errors)
+            return {"created": created, "updated": updated, "errors": errors}
+
+        if fmt == "markdown":
+            items = self._parse_markdown_import(payload)
+            for item in items:
+                self._import_item(pack, item, created, updated, errors)
+            return {"created": created, "updated": updated, "errors": errors}
+
+        if fmt == "csv":
+            content = str(payload.get("content") or "")
+            if not content.strip():
+                raise ApiError("invalid_request", "CSV content is required", status=400)
+            items = self._parse_csv_import(content)
+            for item in items:
+                self._import_item(pack, item, created, updated, errors)
             return {"created": created, "updated": updated, "errors": errors}
 
         raise ApiError("invalid_request", f"Unsupported import format: {fmt}", status=400)
+
+    def _import_item(
+        self,
+        pack: str,
+        item: dict[str, Any],
+        created: list[str],
+        updated: list[str],
+        errors: list[dict[str, str]],
+    ) -> None:
+        meta = dict(item.get("metadata") or item)
+        body = str(item.get("body") or "")
+        node_id = str(meta.get("id") or "")
+        if not node_id:
+            errors.append({"id": "", "message": "Missing node id"})
+            return
+        rel = item.get("source_rel_path")
+        try:
+            if self._repo.get_node(pack, node_id):
+                self.update_node(
+                    pack,
+                    node_id,
+                    {"metadata": meta, "body": body, "source_rel_path": rel},
+                )
+                updated.append(node_id)
+            else:
+                self.create_node(
+                    pack,
+                    {"metadata": meta, "body": body, "source_rel_path": rel},
+                )
+                created.append(node_id)
+        except ApiError as exc:
+            errors.append({"id": node_id, "message": exc.message})
+
+    def _parse_markdown_import(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
+        items: list[dict[str, Any]] = []
+        files = payload.get("files")
+        if isinstance(files, list):
+            for entry in files:
+                if not isinstance(entry, dict):
+                    continue
+                content = str(entry.get("content") or "")
+                path = str(entry.get("path") or "")
+                metadata, body = split_frontmatter(content)
+                rel = path.replace("/node.yaml", "").replace("/node.yml", "").replace("/node.md", "")
+                items.append(
+                    {
+                        "metadata": metadata,
+                        "body": body,
+                        "source_rel_path": rel or None,
+                    }
+                )
+            return items
+
+        content = str(payload.get("content") or "")
+        if not content.strip():
+            raise ApiError("invalid_request", "Markdown content is required", status=400)
+
+        chunks = content.split("\n---\n\n# ")
+        if len(chunks) == 1:
+            metadata, body = split_frontmatter(content)
+            return [{"metadata": metadata, "body": body}]
+        for index, chunk in enumerate(chunks):
+            text = chunk if index == 0 else f"# {chunk}"
+            if index > 0 and not text.startswith("---"):
+                lines = text.split("\n", 1)
+                header = lines[0].strip()
+                rest = lines[1] if len(lines) > 1 else ""
+                text = f"---\n{rest}" if rest.startswith("---") else rest
+                if not text.startswith("---"):
+                    metadata, body = split_frontmatter(f"---\n{text}")
+                    rel = header.replace("/node.yaml", "")
+                    items.append({"metadata": metadata, "body": body, "source_rel_path": rel})
+                    continue
+            metadata, body = split_frontmatter(text)
+            items.append({"metadata": metadata, "body": body})
+        return items
+
+    def _parse_csv_import(self, content: str) -> list[dict[str, Any]]:
+        reader = csv.DictReader(io.StringIO(content))
+        items: list[dict[str, Any]] = []
+        for row in reader:
+            node_id = str(row.get("id") or "").strip()
+            node_type = str(row.get("type") or "parameter").strip()
+            if not node_id:
+                continue
+            metadata_raw = row.get("metadata")
+            if metadata_raw:
+                try:
+                    meta = json.loads(str(metadata_raw))
+                    if not isinstance(meta, dict):
+                        meta = {}
+                except json.JSONDecodeError:
+                    meta = {}
+            else:
+                meta = {
+                    "id": node_id,
+                    "type": node_type,
+                    "title": str(row.get("title") or node_id),
+                    "description": str(row.get("description") or ""),
+                }
+                if node_type == "parameter":
+                    meta.setdefault("symbol", node_id.split("-")[-1])
+                    meta.setdefault("input_id", meta["symbol"])
+            meta.setdefault("id", node_id)
+            meta.setdefault("type", node_type)
+            items.append(
+                {
+                    "metadata": meta,
+                    "body": str(row.get("body") or ""),
+                    "source_rel_path": row.get("source_rel_path") or None,
+                }
+            )
+        return items
 
     def _find_references(self, pack: str, node_id: str) -> list[str]:
         refs: list[str] = []

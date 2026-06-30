@@ -21,39 +21,14 @@ export const FORMULA_INPUT_STEP_IDS = new Set([
   'temperature_coefficient',
 ])
 
+export const USER_INPUT_STEP_PROMPT = 'Complete the fields below to continue.'
+
 export function isHiddenWorkflowStep(stepId: string): boolean {
   return HIDDEN_STEP_IDS.has(stepId)
 }
 
-export const PIPE_MATERIAL_PROMPT =
-  'Select the pipe material. (start typing to see the available options)'
-
-export function parameterNextStepPrompt(parameter: ParameterDefinitionDto): string {
-  switch (parameter.name) {
-    case 'pressure_loading':
-      return 'Specify whether the pipe is internally or externally pressurized.'
-    case 'material':
-      return PIPE_MATERIAL_PROMPT
-    case 'design_pressure':
-      return 'Enter the design pressure for the pipe.'
-    case 'design_temperature':
-      return 'Enter the design temperature for the pipe.'
-    case 'nominal_pipe_size':
-      return 'Enter the nominal pipe size.'
-    case 'pipe_schedule':
-      return 'Enter the pipe schedule (for example 40, 80, or STD).'
-    case 'actual_wall_thickness':
-      return 'Enter the actual or ordered wall thickness of the pipe.'
-    case 'outside_diameter':
-      return 'Enter the outside diameter of the pipe.'
-    case 'corrosion_allowance':
-      return 'Enter the corrosion allowance for the pressure design thickness calculation (t = t_actual - c).'
-    default:
-      if (parameter.type === 'material') {
-        return PIPE_MATERIAL_PROMPT
-      }
-      return `Enter ${parameter.label.toLowerCase()}.`
-  }
+export function parameterNextStepPrompt(_parameter: ParameterDefinitionDto): string {
+  return USER_INPUT_STEP_PROMPT
 }
 
 export function getNextStepPrompt(
@@ -78,7 +53,7 @@ export function getNextStepPrompt(
     return null
   }
 
-  return activeStepPrompt(activeStep).body
+  return USER_INPUT_STEP_PROMPT
 }
 
 export function completedStepStatement(step: TimelineStepViewModel): string | null {
@@ -109,35 +84,5 @@ export function completedStepStatement(step: TimelineStepViewModel): string | nu
       return `Maximum Allowable Working Pressure (MAWP): ${step.displayValue}.`
     default:
       return `${step.title}: ${step.displayValue}.`
-  }
-}
-
-export function activeStepPrompt(step: TimelineStepViewModel): { body: string; hint?: string | null } {
-  switch (step.id) {
-    case 'pressure_loading':
-      return {
-        body: 'Specify whether the pipe is internally or externally pressurized.',
-        hint: step.hint,
-      }
-    case 'material':
-      return {
-        body: PIPE_MATERIAL_PROMPT,
-        hint: step.hint,
-      }
-    case 'design_pressure':
-      return {
-        body: 'Enter the design pressure for the pipe.',
-        hint: step.hint,
-      }
-    case 'design_temperature':
-      return {
-        body: 'Enter the design temperature for the pipe.',
-        hint: step.hint,
-      }
-    default:
-      return {
-        body: step.hint ?? step.title,
-        hint: null,
-      }
   }
 }

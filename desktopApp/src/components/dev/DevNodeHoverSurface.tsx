@@ -39,8 +39,19 @@ export function DevNodeHoverSurface({
     hover.hideHover()
   }
 
+  const handleClick = (event: MouseEvent<HTMLElement>) => {
+    const target = event.target as HTMLElement
+    if (target.closest('a, button, input, textarea, select, [role="button"]')) {
+      return
+    }
+    hover.openNodeEdit(resolved)
+  }
+
   if (isValidElement(children)) {
-    const child = children as ReactElement<{ className?: string }>
+    const child = children as ReactElement<{
+      className?: string
+      onClick?: (event: MouseEvent<HTMLElement>) => void
+    }>
     const mergedClassName = [child.props.className, 'dev-node-hover-surface--interactive', className]
       .filter(Boolean)
       .join(' ')
@@ -50,6 +61,12 @@ export function DevNodeHoverSurface({
       onMouseEnter: handleMouseEnter,
       onMouseMove: handleMouseMove,
       onMouseLeave: handleMouseLeave,
+      onClick: (event: MouseEvent<HTMLElement>) => {
+        child.props.onClick?.(event)
+        if (!event.defaultPrevented) {
+          handleClick(event)
+        }
+      },
     })
   }
 
@@ -61,6 +78,7 @@ export function DevNodeHoverSurface({
       onMouseEnter={handleMouseEnter}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
     >
       {children}
     </span>

@@ -681,25 +681,20 @@ def _planning_status_block(task: Task, planning: dict[str, Any]) -> dict[str, An
     if not action and task.status != TaskStatus.AWAITING_INPUT:
         return None
 
-    missing_inputs = planning.get("missing_inputs") or []
-    missing_assumptions = planning.get("missing_assumptions") or []
+    if action == "request_input" or task.status == TaskStatus.AWAITING_INPUT:
+        return {
+            "id": "planning-status",
+            "type": "text",
+            "title": "Task status:",
+            "content": "Complete the fields below to continue.",
+            "variant": "body",
+        }
+
     parts: list[str] = []
-
-    goal = planning.get("goal")
-    if goal:
-        parts.append(f"Goal: {goal}.")
-
-    if action == "request_input":
-        if missing_inputs:
-            parts.append(f"Waiting for inputs: {', '.join(str(item) for item in missing_inputs)}.")
-        if missing_assumptions:
-            parts.append(f"Waiting for assumptions: {', '.join(str(item) for item in missing_assumptions)}.")
-    elif action:
+    if action:
         parts.append(f"Planner action: {action}.")
     elif task.status == TaskStatus.COMPLETED:
         parts.append("Calculation workflow completed.")
-    elif task.status == TaskStatus.AWAITING_INPUT:
-        parts.append("Task is waiting for engineering inputs.")
 
     if not parts:
         return None
@@ -707,7 +702,7 @@ def _planning_status_block(task: Task, planning: dict[str, Any]) -> dict[str, An
     return {
         "id": "planning-status",
         "type": "text",
-        "title": "Task status",
+        "title": "Task status:",
         "content": " ".join(parts),
         "variant": "body",
     }

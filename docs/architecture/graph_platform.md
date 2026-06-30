@@ -104,7 +104,7 @@ The compile step sets `unit` (display symbol) from the canonical unit node for b
 - **Node behavior registry** (`engine/graph/node_behaviors.py`): `(type, kind)` predicates for expansion, execution, display
 - **Display metadata** (optional YAML `display:` block): Dev Studio and Graph Explorer styling
 - **Workflow navigation** (`navigation:` on workflow nodes): phased field order for parameter gathering
-- **Dev Studio** (`api/dev_studio/`): authoring API and schemas
+- **Dev Studio** (`api/dev_studio/`): authoring API and schemas — see [`docs/node_dev_studio.md`](../node_dev_studio.md)
 
 ### Workflow navigation metadata
 

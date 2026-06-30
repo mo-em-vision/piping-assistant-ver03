@@ -39,7 +39,22 @@ describe('DevNodeTooltip click-to-edit', () => {
 
     expect(screen.getByRole('tooltip')).toHaveTextContent('B313-304.1.1')
     expect(screen.getByRole('tooltip')).toHaveTextContent('purpose')
-    expect(screen.getByRole('tooltip')).toHaveTextContent('Click to edit node')
+  })
+
+  it('opens node edit tab when provenance text is clicked', () => {
+    render(
+      <DevNodeHoverProvider>
+        <DevNodeHoverSurface provenance={mockProvenance}>
+          <p>Node text</p>
+        </DevNodeHoverSurface>
+      </DevNodeHoverProvider>,
+    )
+
+    fireEvent.click(screen.getByText('Node text'))
+
+    const state = useRightPanelStore.getState()
+    expect(state.activeTabId).toBe('edit-node-B313-304.1.1')
+    expect(useUiStore.getState().rightCollapsed).toBe(false)
   })
 
   it('opens node edit tab when tooltip is clicked', () => {

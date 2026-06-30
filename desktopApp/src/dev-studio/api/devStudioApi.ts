@@ -152,7 +152,7 @@ export const devStudioApi = {
     )
   },
 
-  importNodes(pack: string, payload: { format: string; nodes: unknown[] }) {
+  importNodes(pack: string, payload: { format: string; nodes?: unknown[]; content?: string }) {
     return backendClient.post<{ created: string[]; updated: string[]; errors: Array<{ id: string; message: string }> }>(
       `/api/v1/dev/import?${packQuery(pack)}`,
       payload,

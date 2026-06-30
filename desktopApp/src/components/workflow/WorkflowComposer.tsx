@@ -5,7 +5,7 @@ import { useTaskStore } from '@/store/taskStore'
 
 import type { NodeProvenanceDto } from '@/types/backend/api'
 import type { ParameterDefinitionDto } from '@/types/backend/parameters'
-
+import { USER_INPUT_STEP_PROMPT } from './workflowReport'
 import { ComposerInput } from './ComposerInput'
 import { ComposerInlineInput } from './ComposerInlineInput'
 import { MaterialSearchInput } from './MaterialSearchInput'
@@ -43,7 +43,7 @@ function initialUnit(parameter: ParameterDefinitionDto): string {
 
 function composerPlaceholder(parameter: ParameterDefinitionDto | null): string {
   if (!parameter) {
-    return 'Waiting for the next workflow step…'
+    return USER_INPUT_STEP_PROMPT
   }
 
   if (parameter.type === 'material') {

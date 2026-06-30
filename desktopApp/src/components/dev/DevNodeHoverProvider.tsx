@@ -25,6 +25,7 @@ interface HoverState {
 interface DevNodeHoverContextValue {
   showHover: (provenance: NodeProvenanceDto, x: number, y: number) => void
   hideHover: () => void
+  openNodeEdit: (provenance: NodeProvenanceDto) => void
 }
 
 const DevNodeHoverContext = createContext<DevNodeHoverContextValue | null>(null)
@@ -71,8 +72,9 @@ export function DevNodeHoverProvider({ children }: { children: ReactNode }) {
     () => ({
       showHover,
       hideHover,
+      openNodeEdit,
     }),
-    [showHover, hideHover],
+    [showHover, hideHover, openNodeEdit],
   )
 
   return (

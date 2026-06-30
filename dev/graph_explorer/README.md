@@ -2,6 +2,8 @@
 
 Live visualization of the **active task subgraph** for debugging the engineering knowledge graph. This is a development-only tool — it does not ship with the desktop application UI.
 
+**Full documentation:** [`docs/developer_graph_explorer.md`](../../docs/developer_graph_explorer.md)
+
 ## Architecture
 
 ```
@@ -42,7 +44,9 @@ npm run install:all
 npm run dev
 ```
 
-Open **http://localhost:3000** in your browser.
+Open **http://localhost:3000** in your browser (also works at http://127.0.0.1:3000).
+
+`npm run dev` automatically frees ports **3000** and **8765** from stale explorer processes before starting.
 
 ## Environment variables
 
@@ -51,7 +55,7 @@ Open **http://localhost:3000** in your browser.
 | `PROJECT_ROOT` | repo root | Path to Ver03 project root |
 | `GRAPH_EXPLORER_HOST` | `127.0.0.1` | Dev server bind address |
 | `GRAPH_EXPLORER_PORT` | `8765` | Dev server port |
-| `GRAPH_EXPLORER_SESSION` | `default` | Session / project id to read |
+| `GRAPH_EXPLORER_SESSION` | `auto` | Session / project id (`auto` picks the desktop project with an active task) |
 | `GRAPH_EXPLORER_AUTO_REBUILD` | `0` | Set to `1` to rebuild graph DB when node YAML changes |
 
 ## Live updates

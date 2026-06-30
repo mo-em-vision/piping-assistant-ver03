@@ -43,6 +43,8 @@ Structure → data flow → backend connection → visualization → interaction
 
 Isolated graph node CRUD UI for editing YAML sources under `standards/*/nodes/`.
 
+**Full documentation:** [`docs/node_dev_studio.md`](docs/node_dev_studio.md)
+
 1. Start backend with dev studio enabled:
    ```bash
    set DEV_STUDIO_ENABLED=1
@@ -67,7 +69,7 @@ npm run install:all
 npm run dev
 ```
 
-Open `http://localhost:3000`. Requires the desktop app (or `python -m api.server`) to be running with an active task. See [`dev/graph_explorer/README.md`](dev/graph_explorer/README.md).
+Open `http://localhost:3000`. Requires the desktop app (or `python -m api.server`) to be running with an active task. See [`docs/developer_graph_explorer.md`](docs/developer_graph_explorer.md).
 
 ## Key paths
 

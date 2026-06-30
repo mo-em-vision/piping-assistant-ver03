@@ -3,7 +3,7 @@
 }
 
 .dev-node-hover-surface--interactive {
-  cursor: help;
+  cursor: pointer;
 }
 
 .dev-node-tooltip {

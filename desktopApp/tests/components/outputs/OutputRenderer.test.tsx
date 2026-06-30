@@ -14,8 +14,8 @@ describe('TextOutput', () => {
 
     render(<TextOutput block={block} />)
 
-    expect(screen.getByRole('heading', { name: 'Task status' })).toBeInTheDocument()
-    expect(screen.getByText(/Waiting for inputs: nominal_pipe_size/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Task status:' })).toBeInTheDocument()
+    expect(screen.getByText(/Complete the fields below to continue/)).toBeInTheDocument()
   })
 
   it('renders inline reference links inside the paragraph', () => {
@@ -50,7 +50,7 @@ describe('OutputRenderer', () => {
   it('renders mixed engineering output blocks', () => {
     render(<OutputRenderer blocks={mockTaskState.display_outputs} />)
 
-    expect(screen.getByText('Task status')).toBeInTheDocument()
+    expect(screen.getByText('Task status:')).toBeInTheDocument()
     expect(screen.getByText('Governing equation')).toBeInTheDocument()
     expect(
       screen.getByText(/minimum required wall thickness for straight pipe under internal pressure/i),

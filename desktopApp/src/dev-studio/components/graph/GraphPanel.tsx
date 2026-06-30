@@ -1,10 +1,13 @@
 import { useDevStudioStore } from '@/dev-studio/store/devStudioStore'
 
+import { MiniDependencyGraph } from './MiniDependencyGraph'
+
 export function GraphPanel() {
   const relationships = useDevStudioStore((s) => s.relationships)
+  const selectedId = useDevStudioStore((s) => s.selectedId)
   const loadNode = useDevStudioStore((s) => s.loadNode)
 
-  if (!relationships) {
+  if (!relationships || !selectedId) {
     return <div className="dev-studio__empty">Select a node to view graph context.</div>
   }
 
@@ -33,6 +36,11 @@ export function GraphPanel() {
 
   return (
     <div className="dev-studio__list">
+      <MiniDependencyGraph
+        nodeId={selectedId}
+        relationships={relationships}
+        onSelectNode={(id) => void loadNode(id)}
+      />
       {renderGroup('Incoming', relationships.incoming)}
       {renderGroup('Outgoing', relationships.outgoing)}
       <div className="dev-studio__graph-section">

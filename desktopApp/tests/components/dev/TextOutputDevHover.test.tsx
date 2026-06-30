@@ -37,6 +37,5 @@ describe('TextOutput dev hover', () => {
     })
 
     expect(screen.getByRole('tooltip')).toHaveTextContent('B313-304.1.2')
-    expect(screen.getByRole('tooltip')).toHaveTextContent(/minimum required wall thickness/i)
   })
 })

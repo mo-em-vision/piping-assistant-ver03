@@ -18,6 +18,8 @@ from storage.migrate_legacy_sessions import migrate_legacy_sessions
 from storage.project_repository import ProjectRepository
 from storage.project_session_store import ProjectSessionStore, get_database_for_config
 
+from dev.graph_explorer.explorer_config import debug_log
+
 from dev.graph_explorer.serializer import (
     EdgeRefDto,
     GraphContextDto,
@@ -94,7 +96,22 @@ class TaskContextReader:
             repository.ensure_project(self.session_id)
         store = ProjectSessionStore(database, self.config.sessions_dir, session_id=self.session_id)
         manager = store.load_state_manager()
-        return self._context_from_manager(manager)
+        ctx = self._context_from_manager(manager)
+        # #region agent log
+        debug_log(
+            "D",
+            "task context read",
+            {
+                "session_id": self.session_id,
+                "sessions_dir": str(self.config.sessions_dir),
+                "task_id": ctx.task_id,
+                "active_nodes_count": len(ctx.active_nodes),
+                "active_nodes_sample": ctx.active_nodes[:5],
+                "workflow_id": ctx.workflow_id,
+            },
+        )
+        # #endregion
+        return ctx
 
     def _context_from_manager(self, manager: TaskStateManager) -> TaskContext:
         active = manager.get_active_task()

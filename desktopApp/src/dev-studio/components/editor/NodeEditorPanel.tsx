@@ -8,6 +8,7 @@ import {
   ValidationBanner,
 } from '@/dev-studio/components/fields/FieldComponents'
 import { EquationEditor } from '@/dev-studio/components/equation/EquationEditor'
+import { RelationshipEditor } from '@/dev-studio/components/relationships/RelationshipEditor'
 import { useDevStudioStore } from '@/dev-studio/store/devStudioStore'
 
 const SECTION_LABELS: Record<string, string> = {
@@ -127,7 +128,9 @@ export function NodeEditorPanel() {
     }
     if (
       Array.isArray(value) &&
-      (value.every((v) => typeof v === 'string') || schema?.graph_fields.includes(key))
+      value.every((v) => typeof v === 'string') &&
+      key !== 'tags' &&
+      !schema?.graph_fields.includes(key)
     ) {
       const selected = value.map(String)
       return (
@@ -243,11 +246,20 @@ export function NodeEditorPanel() {
       </CollapsibleSection>
 
       {schema?.sections &&
-        Object.entries(schema.sections).map(([sectionKey, fields]) => (
+        Object.entries(schema.sections)
+          .filter(([sectionKey]) => sectionKey !== 'graph')
+          .map(([sectionKey, fields]) => (
           <CollapsibleSection key={sectionKey} title={SECTION_LABELS[sectionKey] ?? sectionKey}>
             {fields.filter((f) => f !== 'id' && f !== 'type').map((f) => renderField(f))}
           </CollapsibleSection>
         ))}
+
+      <RelationshipEditor
+        metadata={metadata}
+        schema={schema}
+        allNodeIds={allNodeIds}
+        onChange={updateMeta}
+      />
 
       {selectedNode.type === 'equation' && (
         <EquationEditor

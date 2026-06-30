@@ -92,9 +92,8 @@ export const mockTaskState: TaskStateDto = {
     {
       id: 'planning-status',
       type: 'text',
-      title: 'Task status',
-      content:
-        'Goal: pipe wall thickness design. Waiting for inputs: nominal_pipe_size.',
+      title: 'Task status:',
+      content: 'Complete the fields below to continue.',
       variant: 'body',
     },
     {

@@ -81,6 +81,8 @@ export class BackendProcessService {
 
     private readonly userDataPath?: string,
 
+    private readonly enableDevStudio = false,
+
   ) {}
 
 
@@ -150,6 +152,8 @@ export class BackendProcessService {
         PROJECT_ROOT: this.repoRoot,
 
         ...(this.userDataPath ? { DESKTOP_USER_DATA: this.userDataPath } : {}),
+
+        ...(this.enableDevStudio ? { DEV_STUDIO_ENABLED: '1' } : {}),
 
       },
 

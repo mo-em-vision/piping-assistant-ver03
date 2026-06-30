@@ -15,6 +15,7 @@ from starlette.routing import Route, WebSocketRoute
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from config.loader import CLIConfig
+from dev.graph_explorer.explorer_config import apply_desktop_user_data_env, debug_log, resolve_session_id
 from dev.graph_explorer.adapter import GraphExplorerAdapter
 from dev.graph_explorer.analysis import analyze_graph
 from dev.graph_explorer.delta import compute_delta
@@ -71,8 +72,22 @@ class GraphExplorerService:
 
 def create_app(project_root: Path | None = None) -> Starlette:
     root = project_root or Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parents[2]))
-    session_id = os.environ.get("GRAPH_EXPLORER_SESSION", "default")
+    user_data = apply_desktop_user_data_env(root)
     config = CLIConfig.load(project_root=root)
+    requested_session = os.environ.get("GRAPH_EXPLORER_SESSION", "auto")
+    session_id = resolve_session_id(config, requested_session)
+    debug_log(
+        "A",
+        "graph explorer config resolved",
+        {
+            "project_root": str(root),
+            "desktop_user_data": str(user_data) if user_data else None,
+            "sessions_dir": str(config.sessions_dir),
+            "db_path": str(config.sessions_dir.parent / "data" / "desktop.db"),
+            "session_id": session_id,
+            "requested_session": requested_session,
+        },
+    )
     adapter = GraphExplorerAdapter(config, session_id)
     service = GraphExplorerService(adapter)
 

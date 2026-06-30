@@ -83,7 +83,9 @@ export function NodeEditTab({ nodeId, pack, sourceField }: NodeEditTabProps) {
       setOpenSections(nextOpen)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load node'
-      if (message.includes('404')) {
+      if (message.toLowerCase().includes('dev studio')) {
+        setError('Dev Studio is disabled. Restart the app in dev mode or set DEV_STUDIO_ENABLED=1 on the backend.')
+      } else if (message.includes('404')) {
         setError('Dev Studio API is unavailable. Set DEV_STUDIO_ENABLED=1 on the backend.')
       } else {
         setError(message)

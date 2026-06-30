@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 
-import { completedStepStatement, parameterNextStepPrompt, PIPE_MATERIAL_PROMPT } from '@/components/workflow/workflowReport'
+import {
+  completedStepStatement,
+  parameterNextStepPrompt,
+  USER_INPUT_STEP_PROMPT,
+} from '@/components/workflow/workflowReport'
 
 describe('workflowReport', () => {
-  it('uses the pipe material prompt for the material step', () => {
+  it('uses the shared prompt for user input steps', () => {
     expect(
       parameterNextStepPrompt({
         name: 'material',
@@ -19,7 +23,7 @@ describe('workflowReport', () => {
         status: 'pending',
         requires_confirmation: false,
       }),
-    ).toBe(PIPE_MATERIAL_PROMPT)
+    ).toBe(USER_INPUT_STEP_PROMPT)
   })
 
   it('does not emit a separate statement for joint category', () => {

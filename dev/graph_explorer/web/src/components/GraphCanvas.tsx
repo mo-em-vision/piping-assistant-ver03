@@ -70,8 +70,15 @@ export default function GraphCanvas({ onSelectNode, fitViewTrigger }: GraphCanva
         <div>
           <p>{context?.message ?? 'No graph data available.'}</p>
           <p style={{ marginTop: 8 }}>
-            Start the desktop app and create or activate an engineering task.
+            {context
+              ? 'The active task has no nodes in its subgraph yet.'
+              : 'Start the graph explorer backend (npm run dev in dev/graph_explorer) and ensure the desktop app has an active task.'}
           </p>
+          {context && (
+            <p style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>
+              Session: {context.session_id} · Task: {context.task_id ?? 'none'}
+            </p>
+          )}
         </div>
       </div>
     )
