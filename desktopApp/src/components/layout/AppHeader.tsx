@@ -1,6 +1,7 @@
 import type { BackendStatusPayload } from '@/config/constants'
 import { constants } from '@/config/constants'
 import { env } from '@/config/env'
+import { useInspectorStore } from '@/components/dev/inspector/inspectorStore'
 
 import './AppHeader.css'
 
@@ -24,11 +25,19 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ backendStatus, isRetrying, onRetry }: AppHeaderProps) {
+  const inspectorOpen = useInspectorStore((state) => state.open)
+  const toggleInspector = useInspectorStore((state) => state.toggleOpen)
+
   return (
     <header className="app-header">
       <div className="app-header__brand">
         <span className="app-header__name">{env.appName || constants.appName}</span>
         {env.devMode ? <span className="app-header__badge">Dev</span> : null}
+        {env.devMode ? (
+          <button type="button" className="app-header__inspector-toggle" onClick={toggleInspector}>
+            {inspectorOpen ? 'Hide Inspector' : 'Inspector'}
+          </button>
+        ) : null}
       </div>
 
       <div className="app-header__status">

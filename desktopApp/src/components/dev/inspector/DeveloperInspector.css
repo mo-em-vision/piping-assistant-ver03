@@ -1,0 +1,57 @@
+.developer-inspector {
+  border-top: 1px solid var(--border-subtle, #d0d4dc);
+  background: var(--surface-elevated, #f8f9fb);
+  display: flex;
+  flex-direction: column;
+  min-height: 160px;
+}
+
+.developer-inspector__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle, #d0d4dc);
+  overflow-x: auto;
+}
+
+.developer-inspector__tabs {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.developer-inspector__header button {
+  border: 1px solid transparent;
+  background: transparent;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.developer-inspector__tab--active {
+  border-color: var(--border-subtle, #c5cad3) !important;
+  background: #fff !important;
+}
+
+.developer-inspector__body {
+  flex: 1;
+  overflow: auto;
+  padding: 0.5rem 0.75rem;
+}
+
+.developer-inspector__error {
+  color: #b42318;
+  font-size: 0.75rem;
+}
+
+.workspace__inspector-host {
+  flex-shrink: 0;
+}
+
+.app-header__inspector-toggle {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+}

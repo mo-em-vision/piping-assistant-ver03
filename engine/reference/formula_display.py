@@ -9,6 +9,7 @@ from typing import Any
 import yaml
 
 from engine.graph.param_priority import require_target_id
+from engine.reference.embedded_nodes import find_embedded_body
 from engine.reference.node_types import is_section_node
 from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.standards_reader import StandardsReader
@@ -23,6 +24,10 @@ def load_formula_display(reader: StandardsReader, node_id: str) -> str | None:
             display = _display_from_equation(reader, node, str(equation["file"]))
             if display:
                 return display
+    primary = _primary_equation_data(reader, node_id)
+    if primary:
+        display = str(primary.get("display", "")).strip().strip('"')
+        return display or None
     return None
 
 
@@ -59,6 +64,15 @@ def load_equation_context(reader: StandardsReader, node_id: str) -> dict[str, An
 
     if not display:
         display = load_formula_display(reader, node_id)
+
+    if not display or not variables:
+        primary = _primary_equation_data(reader, resolved_id)
+        if primary:
+            display = display or str(primary.get("display", "")).strip().strip('"') or None
+            name = name or str(primary.get("name", "")).strip() or None
+            var_block = primary.get("variables") or {}
+            if isinstance(var_block, dict) and not variables:
+                variables = list(var_block.keys())
 
     if not variables:
         for spec in node.metadata.get("inputs", []) or []:
@@ -210,16 +224,34 @@ def _primary_equation_data(reader: StandardsReader, node_id: str) -> dict[str, A
     node = reader.load(resolved_id)
     if str(node.metadata.get("type", "")) == "equation":
         return _micro_equation_display_data(reader, node)
+    for child_id in node.metadata.get("contains", []) or []:
+        child = str(child_id).strip()
+        if "eq" not in child.lower():
+            continue
+        body = find_embedded_body(node.metadata, child)
+        if body is None:
+            slug = child.split("B313-eq-", 1)[-1].replace("-", "_") if "B313-eq-" in child else child
+            body = find_embedded_body(node.metadata, f"equations/{slug}.md")
+        if body is None:
+            continue
+        metadata, _ = split_frontmatter(body)
+        if isinstance(metadata, dict) and metadata:
+            return metadata
     equations = node.metadata.get("equations", []) or node.metadata.get("formulas", []) or []
     for equation in equations:
-        if not isinstance(equation, dict) or not equation.get("file"):
+        if not isinstance(equation, dict):
             continue
-        path = node.path.parent / str(equation["file"])
-        if not path.exists():
-            continue
-        data = _parse_equation_frontmatter(path)
-        if data:
-            return data
+        file_ref = str(equation.get("file") or "").strip()
+        if file_ref:
+            text = reader.read_asset_text(node, file_ref)
+            if text:
+                metadata, _ = split_frontmatter(text)
+                if isinstance(metadata, dict) and metadata:
+                    return metadata
+        if equation.get("source"):
+            metadata, _ = split_frontmatter(str(equation["source"]))
+            if isinstance(metadata, dict) and metadata:
+                return metadata
     return {}
 
 
@@ -270,14 +302,19 @@ def _micro_equation_display_data(reader: StandardsReader, node: Any) -> dict[str
 
 def _section_for_equation(reader: StandardsReader, equation_id: str) -> str | None:
     equation = reader.load(equation_id)
-    parent_path = equation.path.parent.parent.parent
-    section_yaml = parent_path / "node.yaml"
-    if section_yaml.is_file():
+    node_dir = equation.path.parent
+    if node_dir.name == "equations":
+        node_dir = node_dir.parent
+    for name in ("node.yaml", "node.yml", "node.md"):
+        candidate = node_dir / name
+        if not candidate.is_file():
+            continue
         from engine.reference.standards_markdown import split_frontmatter
 
-        metadata, _ = split_frontmatter(section_yaml.read_text(encoding="utf-8"))
-        if isinstance(metadata, dict) and is_section_node(metadata):
-            return str(metadata.get("id") or "")
+        metadata, _ = split_frontmatter(candidate.read_text(encoding="utf-8"))
+        section_id = str(metadata.get("id") or "").strip()
+        if section_id:
+            return section_id
     return None
 
 

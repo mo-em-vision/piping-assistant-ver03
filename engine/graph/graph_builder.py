@@ -13,10 +13,11 @@ from engine.reference.graph_compile import (
     is_micro_graph_node,
     node_aliases,
 )
+from engine.reference.embedded_nodes import iter_embedded_node_sources
 from engine.reference.parameter_metadata import prepare_parameter_metadata
 from engine.reference.node_types import normalize_node_metadata
 from engine.reference.graph_db import GraphEdgeRecord, GraphNodeRecord
-from engine.reference.standards_markdown import split_frontmatter
+from engine.reference.standards_markdown import merge_dual_node_frontmatter, split_frontmatter
 
 
 _NODE_PATTERNS = ("node.yaml", "node.yml", "node.md")
@@ -29,6 +30,7 @@ class _DiscoveredSourceNode:
     metadata: dict[str, Any]
     body: str
     source_rel_path: str
+    source_path: Path
 
 
 def compute_source_fingerprint(pack_root: Path) -> str:
@@ -84,12 +86,64 @@ def discover_micro_graph_sources(pack_root: Path) -> list[_DiscoveredSourceNode]
                     metadata=metadata,
                     body=body,
                     source_rel_path=source_rel_path,
+                    source_path=path,
                 )
             )
 
     by_id: dict[str, _DiscoveredSourceNode] = {}
     for item in discovered:
+        existing = by_id.get(item.node_id)
+        if existing is None:
+            by_id[item.node_id] = item
+            continue
+        existing_prefers_yaml = existing.source_path.suffix.lower() in {".yaml", ".yml"}
+        incoming_prefers_yaml = item.source_path.suffix.lower() in {".yaml", ".yml"}
+        if existing_prefers_yaml and not incoming_prefers_yaml:
+            continue
+        if incoming_prefers_yaml and not existing_prefers_yaml:
+            by_id[item.node_id] = item
+            continue
         by_id[item.node_id] = item
+
+    merged_by_id: dict[str, _DiscoveredSourceNode] = {}
+    for item in by_id.values():
+        metadata, body = merge_dual_node_frontmatter(
+            item.source_path.parent,
+            item.metadata,
+            item.body,
+            primary_path=item.source_path,
+        )
+        merged_by_id[item.node_id] = _DiscoveredSourceNode(
+            node_id=item.node_id,
+            node_type=item.node_type,
+            metadata=metadata,
+            body=body,
+            source_rel_path=item.source_rel_path,
+            source_path=item.source_path,
+        )
+    by_id = merged_by_id
+
+    for item in list(by_id.values()):
+        text = item.source_path.read_text(encoding="utf-8")
+        metadata, body = split_frontmatter(text)
+        for embedded in iter_embedded_node_sources(
+            parent_id=item.node_id,
+            parent_source_rel_path=item.source_rel_path,
+            metadata=metadata,
+        ):
+            if not is_micro_graph_node(embedded.metadata, embedded.node_type):
+                continue
+            existing = by_id.get(embedded.node_id)
+            if existing is not None and existing.source_path.parent.name == embedded.node_id:
+                continue
+            by_id[embedded.node_id] = _DiscoveredSourceNode(
+                node_id=embedded.node_id,
+                node_type=embedded.node_type,
+                metadata=embedded.metadata,
+                body=embedded.body,
+                source_rel_path=embedded.source_rel_path,
+                source_path=item.source_path,
+            )
     return list(by_id.values())
 
 

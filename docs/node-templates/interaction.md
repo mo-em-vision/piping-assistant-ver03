@@ -2,11 +2,16 @@
 
 Path decisions that control conditional graph expansion.
 
+**Preferred:** embed in a parent `definition` node under `interactions:` (see [`embedded_source.md`](embedded_source.md)).
+
+Standalone folder (legacy):
+
 ```yaml
 ---
 id: B313-interaction-pressure-loading
-type: interaction
-field: pressure_loading
+type: parameter
+kind: interaction
+input_id: pressure_loading
 mode: decision
 title: Pressure loading case
 
@@ -37,13 +42,36 @@ edges:
       in: [external_pressure]
 ```
 
+Embedded in parent `node.yaml`:
+
+```yaml
+interactions:
+  - id: B313-interaction-pressure-loading
+    type: parameter
+    kind: interaction
+    input_id: pressure_loading
+    mode: decision
+    required_for_expansion: true
+    options: [internal_pressure, external_pressure]
+    question: >
+      Is the pipe subjected to internal or external pressure?
+    edges:
+      - to: B313-304.1.2
+        type: next_step
+        when: {field: pressure_loading, in: [internal_pressure]}
+      - to: B313-304.1.3
+        type: next_step
+        when: {field: pressure_loading, in: [external_pressure]}
+```
+
 ## Required fields
 
 | Field | Description |
 |-------|-------------|
 | `id` | Unique node id |
-| `type` | Must be `interaction` |
-| `field` | Task state field name |
+| `type` | `parameter` (canonical); legacy `interaction` normalizes to this |
+| `kind` | Must be `interaction` |
+| `input_id` | Task state field name (legacy `field` also accepted) |
 | `mode` | `decision` for branching |
 | `options` | Allowed values |
 | `question` | User prompt |

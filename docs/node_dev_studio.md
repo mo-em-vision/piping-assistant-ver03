@@ -17,7 +17,7 @@ Node Dev Studio helps developers and AI-assisted workflows maintain the engineer
 - Bulk tag, delete, import, and export nodes (JSON, Markdown, CSV)
 - Auto-refresh when the graph database changes (e.g. desktop app or another editor session)
 
-**Source of truth:** `standards/{pack}/nodes/**/node.yaml`  
+**Source of truth:** `standards/{pack}/nodes/**/node.yaml` (and companion `node.md` for section paragraph trace)  
 **Runtime cache:** `{pack}_graph.db` (incrementally updated on each save)
 
 ---
@@ -56,7 +56,7 @@ Desktop app / task engine reads same graph DB without restart
 ### Write pipeline
 
 1. Validate payload (required fields, unique IDs, SymPy syntax, broken refs, cycles)
-2. Serialize metadata + markdown body → `node.yaml` via `compose_frontmatter()`
+2. Serialize metadata + markdown body → `node.yaml` via `compose_frontmatter()` (section nodes may also have a companion `node.md` for paragraph content and embedded `source:` blocks)
 3. Incremental graph sync: `upsert_node` + rebuild edges for that node only
 4. Bump pack revision hash; invalidate cached `StandardsReader`
 

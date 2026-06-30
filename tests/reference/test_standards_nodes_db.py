@@ -28,13 +28,14 @@ def test_b313_nodes_db_contains_wall_thickness_node(b313_nodes_db: StandardsNode
     data = b313_nodes_db.get_node("B313-304.1.1")
     assert data is not None
     assert data["kind"] == "node"
-    assert data["metadata"]["type"] == "definition"
+    assert data["metadata"]["type"] in {"definition", "text"}
     assert "304.1.1" in str(data["metadata"].get("paragraph", ""))
     assert data["body"].strip()
-    assert "304/304.1.1" in data["source_rel_path"]
+    assert "B313-304.1.1" in data["source_rel_path"]
 
 
 def test_b313_nodes_db_resolves_legacy_alias(b313_nodes_db: StandardsNodesDatabase) -> None:
+    assert b313_nodes_db.get_node("B313-304.1.1") is not None
     resolved = b313_nodes_db.resolve_node_id("nodes/B313-304.1.1")
     assert resolved == "B313-304.1.1"
 
@@ -42,8 +43,11 @@ def test_b313_nodes_db_resolves_legacy_alias(b313_nodes_db: StandardsNodesDataba
 def test_b313_nodes_db_has_equation_assets(b313_nodes_db: StandardsNodesDatabase) -> None:
     assets = b313_nodes_db.get_assets("B313-304.1.1", asset_type="equation")
     assert assets
-    assert any("minimum_required_thickness" in asset.relative_path for asset in assets)
+    assert any("eq_2" in asset.relative_path or "minimum_required_thickness" in asset.relative_path for asset in assets)
     assert any(asset.body.strip() for asset in assets)
+
+    wall_assets = b313_nodes_db.get_assets("B313-304.1.2", asset_type="equation")
+    assert any("wall_thickness" in asset.relative_path for asset in wall_assets)
 
 
 def test_nodes_db_roundtrip_upsert(tmp_path: Path) -> None:

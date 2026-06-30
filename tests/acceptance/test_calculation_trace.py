@@ -66,8 +66,8 @@ class TestFormulaAcceptance:
         standards_reader,
     ) -> None:
         node = standards_reader.load(WALL_THICKNESS_NODE)
-        equation_path = node.path.parent / "equations" / "wall_thickness.md"
-        text = equation_path.read_text(encoding="utf-8")
+        text = standards_reader.read_asset_text(node, "equations/wall_thickness.md")
+        assert text is not None
 
         assert "display:" in text
         assert "steps:" in text

@@ -1,29 +1,50 @@
 # B31.3 micro-graph node move map
 
-Relocates `graph/nodes/*` into the hierarchical `nodes/` tree. Section ids drop the `-SECTION` suffix.
+Historical relocations from `graph/nodes/*` into the `nodes/` tree. **Current layout (2026):** flat `nodes/{node_id}/` folders — see [`b313_folder_flatten_summary.md`](b313_folder_flatten_summary.md).
 
-| Source (`graph/nodes/`) | Target (`nodes/`) | Canonical id |
+## Flat target paths (current)
+
+| Canonical id | Target (`nodes/`) | Notes |
 | --- | --- | --- |
-| `B313-WF-PIPE-WALL-THICKNESS` | `workflows/B313-WF-PIPE-WALL-THICKNESS/` | unchanged |
-| `B313-WF-MAWP` | `workflows/B313-WF-MAWP/` | unchanged |
-| `B313-304.1.1-SECTION` | `304/304.1/304.1.1/` | `B313-304.1.1` |
-| `B313-304.1.2-SECTION` | `304/304.1/304.1.2/` | `B313-304.1.2` |
-| `B313-304.1.3-SECTION` | `304/304.1/304.1.3/` | `B313-304.1.3` |
-| `B313-MAWP-SECTION` | `304/304.1/mawp_definition/` | unchanged |
-| `B313-304.1.1-init-text` | `304/304.1/304.1.1/text/initiation/` | unchanged |
-| `B313-assumption-straight-pipe` | `304/304.1/304.1.1/assumptions/straight-pipe/` | unchanged |
-| `B313-interaction-pressure-loading` | `304/304.1/304.1.1/interactions/pressure-loading/` | unchanged |
-| `B313-eq-2` | `304/304.1/304.1.1/equations/eq-2/` | unchanged |
-| `B313-eq-2-intro` | `304/304.1/304.1.1/equations/eq-2-intro/` | unchanged |
-| `B313-eq-2-result` | `304/304.1/304.1.1/equations/eq-2-result/` | unchanged |
-| `B313-eq-wall-thickness` | `304/304.1/304.1.2/equations/wall-thickness/` | unchanged |
-| `B313-eq-wall-thickness-intro` | `304/304.1/304.1.2/equations/wall-thickness-intro/` | unchanged |
-| `B313-eq-wall-thickness-result` | `304/304.1/304.1.2/equations/wall-thickness-result/` | unchanged |
-| `B313-eq-mawp` | `304/304.1/mawp_definition/equations/mawp/` | unchanged |
-| `B313-lookup-allowable-stress` | `appendix_A/lookups/allowable-stress/` | unchanged |
-| `B313-table-A-1-REF` | `appendix_A/tables/B313-table-A-1-ref/` | unchanged |
-| `B313-param-*` | `parameters/B313-param-*/` | unchanged; `located_in: B313-304.1.1` |
+| `B313-WF-PIPE-WALL-THICKNESS` | `B313-WF-PIPE-WALL-THICKNESS/` | workflow root |
+| `B313-WF-MAWP` | `B313-WF-MAWP/` | workflow root |
+| `B313-304.1.1` | `B313-304.1.1/` | definition; was `304/304.1/304.1.1/` |
+| `B313-304.1.2` | `B313-304.1.2/` | calculation |
+| `B313-304.1.3` | `B313-304.1.3/` | calculation stub |
+| `B313-MAWP-SECTION` | `B313-MAWP-SECTION/` | MAWP definition (yaml id); was `304/304.1/mawp_definition/` |
+| `B313-MAWP-CALCULATION` | `B313-MAWP-CALCULATION/` | MAWP calculation |
+| `B313-302.3.3` | `B313-302.3.3/` | was `302/302.3.3/B313-302.3.3/` |
+| `B313-302.3.5` | `B313-302.3.5/` | was `302/302.3.5/B313-302.3.5/` |
+| `B313-table-*` | `B313-table-*/` | was under `appendix_A/tables/` or section `tables/` |
+| `B313-note-*` | `B313-note-*/` | table footnotes |
+| `B313-param-*` | `B313-param-*/` | was `parameters/B313-param-*/` |
+| `B313-quantity-*` | `B313-quantity-*/` | was `quantities/` |
+| `B313-designation-*` | `B313-designation-*/` | was `designations/` |
+| `B313-lookup-allowable-stress` | `B313-lookup-allowable-stress/` | was `appendix_A/lookups/allowable-stress/` |
+| `B313-table-A-1-REF` | `B313-table-A-1-REF/` | was `appendix_A/tables/B313-table-A-1-ref/` |
 
-Legacy browse `node.md` files at section paths are marked `status: superseded`. Legacy equation markdown under `equations/*.md` is superseded by sympy `node.yaml` children.
+Embedded children (compiled from parent metadata, no standalone folder):
 
-Graph DB aliases: `B313-304.1.{1,2,3}-SECTION` → canonical section ids.
+| Id | Parent folder | Container |
+| --- | --- | --- |
+| `B313-304.1.1-init-text` | `B313-304.1.1/` | `texts` |
+| `B313-assumption-straight-pipe` | `B313-304.1.1/` | `assumptions` |
+| `B313-interaction-pressure-loading` | `B313-304.1.1/` | `interactions` |
+| `B313-eq-2` | `B313-304.1.1/` | `equations` |
+| `B313-eq-wall-thickness` | `B313-304.1.2/` | `equations` |
+| `B313-eq-mawp` | `B313-MAWP-SECTION/` | `equations` |
+
+## Authoring layout (current)
+
+Section nodes use a **single `node.yaml`** (frontmatter + optional markdown body):
+
+- Frontmatter — `type`, `contains`, `requires`, `assumptions`, `interactions`, `equations`, `nomenclature`, embedded `source:` blocks
+- Body — standard paragraph text and LaTeX after the closing `---`
+
+Dual `node.yaml` + `node.md` pairs were merged in 2026-06-30 (`scripts/merge_b313_node_sources.py`). Table and note nodes may still use `node.md` only.
+
+Child nodes listed above are compiled from parent metadata containers via `engine/reference/embedded_nodes.py`. Redundant per-child folders were removed during flatten migration; `file:` paths remain as graph aliases.
+
+Graph DB aliases: `B313-304.1.{1,2,3}-SECTION` → canonical section ids; `nodes/B313-304.1.1` → `B313-304.1.1`.
+
+See also: [`embedded_source.md`](../node-templates/embedded_source.md).

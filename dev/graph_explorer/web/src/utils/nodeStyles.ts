@@ -99,6 +99,17 @@ export function nodeStyle(
   return style
 }
 
-export function edgeColor(edgeType: string): string {
-  return EDGE_TYPE_COLORS[edgeType] ?? EDGE_TYPE_COLORS.default
+export const EXECUTION_STATE_COLORS: Record<string, { bg: string; border: string }> = {
+  pending: { bg: '#2a2a2a', border: '#737373' },
+  active: { bg: '#1e3a5f', border: '#3b82f6' },
+  success: { bg: '#1a3d2e', border: '#22c55e' },
+  skipped: { bg: '#3d2f14', border: '#f59e0b' },
+  failed: { bg: '#4a1f1f', border: '#ef4444' },
+}
+
+export function executionStateStyle(state?: string | null): { bg: string; border: string } | null {
+  if (!state) {
+    return null
+  }
+  return EXECUTION_STATE_COLORS[state] ?? null
 }

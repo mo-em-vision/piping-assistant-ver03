@@ -5,20 +5,20 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-import yaml
-
 from engine.executor.expression_evaluator import evaluate_expression
+from engine.reference.standards_markdown import split_frontmatter
 from models.calculation import CalculationResult, CalculationStatus, CalculationStep, QuantityResult
 
 
+def load_formula_text(text: str) -> dict[str, Any]:
+    if not text.strip():
+        return {}
+    metadata, _ = split_frontmatter(text)
+    return metadata if isinstance(metadata, dict) else {}
+
+
 def load_formula_file(path: Path) -> dict[str, Any]:
-    text = path.read_text(encoding="utf-8")
-    if not text.startswith("---"):
-        return {}
-    parts = text.split("---", 2)
-    if len(parts) < 3:
-        return {}
-    return yaml.safe_load(parts[1]) or {}
+    return load_formula_text(path.read_text(encoding="utf-8"))
 
 
 class CalculationEngine:
@@ -84,6 +84,20 @@ class CalculationEngine:
         variables: dict[str, float],
     ) -> CalculationResult:
         formula_data = load_formula_file(formula_path)
+        return self.execute_from_text(
+            calculation_id=calculation_id,
+            formula_text=formula_path.read_text(encoding="utf-8"),
+            variables=variables,
+        )
+
+    def execute_from_text(
+        self,
+        *,
+        calculation_id: str,
+        formula_text: str,
+        variables: dict[str, float],
+    ) -> CalculationResult:
+        formula_data = load_formula_text(formula_text)
         return self.execute_formula_steps(
             calculation_id=calculation_id,
             formula_data=formula_data,

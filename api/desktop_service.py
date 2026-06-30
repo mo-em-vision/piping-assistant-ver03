@@ -286,6 +286,42 @@ class DesktopApiService:
             raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
         return workflow_state_payload(manager, task_id, reader=self._reader())
 
+    def get_inspection(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
+        from api.inspection import get_inspection_payload
+
+        store = self._store_for(session_id)
+        manager = store.load_state_manager()
+        try:
+            manager.get_task(task_id)
+        except TaskNotFoundError as exc:
+            raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+        return get_inspection_payload(manager, task_id, reader=self._reader())
+
+    def set_inspection_breakpoint(
+        self,
+        task_id: str,
+        *,
+        session_id: str | None = None,
+        paused: bool = False,
+        step: bool = False,
+    ) -> dict[str, Any]:
+        from api.inspection import set_breakpoint
+
+        store = self._store_for(session_id)
+        manager = store.load_state_manager()
+        try:
+            manager.get_task(task_id)
+        except TaskNotFoundError as exc:
+            raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+        payload = set_breakpoint(manager, task_id, paused=paused, step=step)
+        self._save_manager(manager, session_id)
+        return payload
+
+    def run_inspection_integrity(self, session_id: str | None = None) -> dict[str, Any]:
+        from api.inspection import run_integrity
+
+        return run_integrity(self._reader())
+
     def create_task(self, workflow_id: str, session_id: str | None = None) -> dict[str, Any]:
         router = Router()
         if workflow_id not in router.supported_workflows():

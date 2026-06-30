@@ -2,6 +2,10 @@
 
 Pure math node. Execution uses sympy only — no `execution_function`.
 
+**Preferred:** embed in a parent `definition` / `calculation` node under `equations:` with a `source:` block (see [`embedded_source.md`](embedded_source.md)).
+
+Standalone folder:
+
 ```yaml
 ---
 id: B313-eq-2
@@ -38,6 +42,32 @@ edges:
   - to: B313-eq-2-result
     type: explains
 ```
+
+Embedded in parent metadata:
+
+```yaml
+equations:
+  - id: B313-eq-2
+    type: equation
+    equation_id: eq-2
+    file: equations/eq_2_minimum_required_thickness.md
+    display: "t_m = t + c"
+    sympy: "t_m = t + c"
+    requires: [...]
+    calculates: [B313-param-t_m]
+    explains: [B313-eq-2-intro, B313-eq-2-result]
+    source: |
+      ---
+      equation_id: eq-2
+      sympy: "t_m = t + c"
+      display_latex: "t_m = t + c"
+      requires: [...]
+      calculates: [B313-param-t_m]
+      ---
+      # Minimum Required Thickness (eq. 2)
+```
+
+The `file:` path is kept as a graph alias; runtime resolves embedded `source` when the external file is absent.
 
 ## Required fields
 

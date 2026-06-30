@@ -14,6 +14,7 @@ from engine.reference.formula_display import (
     resolve_equation_display_variables,
 )
 from engine.reference.node_types import is_section_node
+from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.standards_reader import StandardsReader
 
 
@@ -62,6 +63,7 @@ def build_activated_node_blocks(
                     "paragraph": paragraph,
                 }
             blocks.append(block)
+        blocks.extend(_equation_blocks(reader, record, metadata, node_id))
         return blocks
 
     if node_type != "definition":
@@ -82,7 +84,7 @@ def build_activated_node_blocks(
             }
         )
 
-    blocks.extend(_equation_blocks(reader, record.path.parent, metadata, node_id))
+    blocks.extend(_equation_blocks(reader, record, metadata, node_id))
 
     return blocks
 
@@ -183,7 +185,7 @@ def _calculation_summary(metadata: dict[str, Any]) -> str:
 
 def _equation_blocks(
     reader: StandardsReader,
-    node_dir: Path,
+    record,
     metadata: dict[str, Any],
     node_id: str,
 ) -> list[dict[str, Any]]:
@@ -204,10 +206,24 @@ def _equation_blocks(
 
     for index, equation in enumerate(equation_entries):
         file_rel = equation.get("file")
-        if not file_rel:
+        data: dict[str, Any] = {}
+        if file_rel:
+            path = record.path.parent / str(file_rel)
+            if path.exists():
+                data = _parse_equation_frontmatter(path)
+            else:
+                text = reader.read_asset_text(record, str(file_rel))
+                data, _ = split_frontmatter(text) if text else ({}, "")
+        elif equation.get("source"):
+            data, _ = split_frontmatter(str(equation["source"]))
+        elif equation.get("display"):
+            data = dict(equation)
+        else:
             continue
-        path = node_dir / str(file_rel)
-        data = _parse_equation_frontmatter(path)
+        if isinstance(data, dict):
+            merged = dict(equation)
+            merged.update(data)
+            data = merged
         display = str(data.get("display") or equation.get("display") or "").strip().strip('"')
         if not display or display in seen_displays:
             continue

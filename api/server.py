@@ -253,6 +253,22 @@ class ApiHandler(BaseHTTPRequestHandler):
                     )
                     return
 
+                if suffix == "inspection":
+                    _json_response(
+                        self,
+                        200,
+                        self.service.get_inspection(task_id, session_id),
+                    )
+                    return
+
+                if suffix == "inspection/integrity":
+                    _json_response(
+                        self,
+                        200,
+                        self.service.run_inspection_integrity(session_id),
+                    )
+                    return
+
                 if suffix is None:
                     _json_response(self, 200, self.service.get_task(task_id, session_id))
                     return
@@ -342,6 +358,20 @@ class ApiHandler(BaseHTTPRequestHandler):
             task_route = _parse_task_route(path)
             if task_route:
                 task_id, suffix = task_route
+                if suffix == "inspection/breakpoint":
+                    body = _read_json_body(self)
+                    _json_response(
+                        self,
+                        200,
+                        self.service.set_inspection_breakpoint(
+                            task_id,
+                            session_id=session_id,
+                            paused=bool(body.get("paused")),
+                            step=bool(body.get("step")),
+                        ),
+                    )
+                    return
+
                 if suffix and suffix.startswith("inputs/") and suffix.endswith("/edit"):
                     parameter = suffix.removeprefix("inputs/").removesuffix("/edit")
                     if not parameter:

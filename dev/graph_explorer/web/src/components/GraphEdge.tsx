@@ -4,6 +4,7 @@ import { edgeColor } from '../utils/nodeStyles'
 
 interface GraphEdgeData {
   edgeType: string
+  traversed?: boolean
 }
 
 function GraphEdgeComponent({
@@ -18,6 +19,8 @@ function GraphEdgeComponent({
 }: EdgeProps) {
   const edgeData = (data ?? {}) as unknown as GraphEdgeData
   const color = edgeColor(edgeData.edgeType ?? 'default')
+  const strokeWidth = edgeData.traversed ? 2.5 : 1.5
+  const strokeDasharray = edgeData.traversed ? undefined : undefined
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -29,7 +32,16 @@ function GraphEdgeComponent({
 
   return (
     <>
-      <BaseEdge id={id} path={edgePath} style={{ stroke: color, strokeWidth: 1.5 }} />
+      <BaseEdge
+        id={id}
+        path={edgePath}
+        style={{
+          stroke: color,
+          strokeWidth,
+          strokeDasharray,
+          animation: edgeData.traversed ? 'graph-edge-flow 1.2s linear infinite' : undefined,
+        }}
+      />
       <EdgeLabelRenderer>
         <div
           style={{

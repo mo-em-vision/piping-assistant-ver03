@@ -153,7 +153,7 @@ export class BackendProcessService {
 
         ...(this.userDataPath ? { DESKTOP_USER_DATA: this.userDataPath } : {}),
 
-        ...(this.enableDevStudio ? { DEV_STUDIO_ENABLED: '1' } : {}),
+        ...(this.enableDevStudio ? { DEV_STUDIO_ENABLED: '1', DEV_INSPECTION_ENABLED: '1' } : {}),
 
       },
 

@@ -27,6 +27,8 @@ from engine.executor.functions import get_execution_function
 from engine.executor.lookup_engine import LookupEngine
 from engine.executor.unit_manager import prepare_engineering_input, prepare_symbol_map
 from engine.reference.nomenclature_resolver import input_applies, load_nomenclature_for_node, resolve_input_spec
+from engine.reference.standards_markdown import split_frontmatter
+from engine.reference.embedded_nodes import find_embedded_body
 from engine.reference.standards_reader import NodeRecord, StandardsReader
 from engine.rules.rule_engine import RuleEngine
 from models.execution import NodeExecutionResult, NodeExecutionStatus
@@ -261,16 +263,17 @@ class NodeRunner:
         unit_map = self._symbol_unit_map(record)
         variables = prepare_symbol_map(resolved, unit_map)
 
-        equations = record.metadata.get("equations", []) or record.metadata.get("formulas", []) or []
-        if not equations:
+        equation_meta = self._primary_equation_meta(record)
+        if not equation_meta:
             return NodeExecutionResult(
                 node_id=record.node_id,
                 status=NodeExecutionStatus.ERROR,
                 errors=["No equation configuration found"],
             )
 
-        equation_meta = equations[0] if isinstance(equations[0], dict) else {}
-        function_name = str(equation_meta.get("execution_function", ""))
+        function_name = str(
+            equation_meta.get("execution_function") or equation_meta.get("executor", "")
+        ).strip()
         fn = get_execution_function(function_name)
         if fn is None:
             return NodeExecutionResult(
@@ -280,7 +283,13 @@ class NodeRunner:
             )
 
         try:
-            calculation = fn(node_dir=record.path.parent, variables=variables)
+            calculation = fn(
+                node_dir=record.path.parent,
+                variables=variables,
+                reader=self._reader,
+                record=record,
+                equation_meta=equation_meta,
+            )
         except Exception as exc:  # noqa: BLE001 — surface execution errors to task state
             return NodeExecutionResult(
                 node_id=record.node_id,
@@ -320,7 +329,13 @@ class NodeRunner:
                     variables["Y"] = thick_y
                     resolved["Y"] = thick_y
                     try:
-                        calculation = fn(node_dir=record.path.parent, variables=variables)
+                        calculation = fn(
+                            node_dir=record.path.parent,
+                            variables=variables,
+                            reader=self._reader,
+                            record=record,
+                            equation_meta=equation_meta,
+                        )
                     except Exception as exc:  # noqa: BLE001
                         return NodeExecutionResult(
                             node_id=record.node_id,
@@ -390,6 +405,14 @@ class NodeRunner:
         if output_symbol == "MAWP":
             outputs["mawp"] = final.value if final else None
         outputs["thin_wall"] = thin_wall_valid
+        for symbol, value in resolved.items():
+            if str(symbol).endswith("_unit"):
+                continue
+            if not isinstance(value, (int, float)):
+                continue
+            outputs[str(symbol)] = float(value)
+            for alias in self._OUTPUT_ALIASES.get(str(symbol), ()):
+                outputs[alias] = float(value)
 
         tm_value = self._compute_minimum_required_thickness(
             record,
@@ -427,6 +450,39 @@ class NodeRunner:
         task_inputs: dict[str, EngineeringInput],
         dependency_outputs: dict[str, Any],
     ) -> tuple[dict[str, Any], list[str]]:
+        legacy_inputs = record.metadata.get("inputs", []) or []
+        requires = record.metadata.get("requires")
+        if requires and not legacy_inputs:
+            resolved: dict[str, Any] = {}
+            missing: list[str] = []
+            bindings = resolve_require_bindings(self._reader.graph_store, requires)
+            for binding in bindings:
+                value = self._resolve_parameter_value(
+                    binding.param_id,
+                    task_inputs=task_inputs,
+                    dependency_outputs=dependency_outputs,
+                )
+                if value is None:
+                    try:
+                        param = self._reader.load(binding.param_id)
+                        missing.append(
+                            str(param.metadata.get("input_id") or binding.sympy_symbol)
+                        )
+                    except FileNotFoundError:
+                        missing.append(binding.sympy_symbol)
+                else:
+                    resolved[binding.sympy_symbol] = value
+            d_error = self._resolve_outside_diameter(
+                record,
+                task_inputs=task_inputs,
+                resolved=resolved,
+                missing=missing,
+                nomenclature={},
+            )
+            if d_error and d_error not in missing:
+                missing.append(d_error)
+            return resolved, missing
+
         resolved: dict[str, Any] = {}
         missing: list[str] = []
 
@@ -517,6 +573,42 @@ class NodeRunner:
             resolved[symbol] = value
 
         return resolved, missing
+
+    @staticmethod
+    def _primary_equation_meta(record: NodeRecord) -> dict[str, Any] | None:
+        for child_id in record.metadata.get("contains", []) or []:
+            child = str(child_id).strip()
+            if "eq" not in child.lower():
+                continue
+            body = find_embedded_body(record.metadata, child)
+            if body is None:
+                slug = (
+                    child.split("B313-eq-", 1)[-1].replace("-", "_")
+                    if "B313-eq-" in child
+                    else child
+                )
+                body = find_embedded_body(record.metadata, f"equations/{slug}.md")
+            if body is None:
+                continue
+            metadata, _ = split_frontmatter(body)
+            if metadata.get("executor") or metadata.get("execution_function"):
+                return metadata
+
+        equations = record.metadata.get("equations", []) or record.metadata.get("formulas", []) or []
+        for equation in equations:
+            if not isinstance(equation, dict):
+                continue
+            if equation.get("execution_function") or equation.get("executor"):
+                return equation
+            if equation.get("source"):
+                parsed_meta, _ = split_frontmatter(str(equation["source"]))
+                if isinstance(parsed_meta, dict) and (
+                    parsed_meta.get("executor") or parsed_meta.get("execution_function")
+                ):
+                    merged = dict(equation)
+                    merged.update(parsed_meta)
+                    return merged
+        return None
 
     def _resolve_outside_diameter(
         self,
@@ -696,7 +788,17 @@ class NodeRunner:
         task_inputs: dict[str, EngineeringInput],
         dependency_outputs: dict[str, Any],
     ) -> NodeExecutionResult:
-        sympy_expr = str(record.metadata.get("sympy", ""))
+        sympy_expr = str(record.metadata.get("sympy", "")).strip()
+        if not sympy_expr:
+            store = self._reader.graph_store
+            for edge in store.incoming(record.node_id, edge_types={"contains"}):
+                parent = store.get_node(edge.from_id)
+                if parent is not None and parent.node_type == "calculation":
+                    return NodeExecutionResult(
+                        node_id=record.node_id,
+                        status=NodeExecutionStatus.SKIPPED,
+                        trace={"reason": f"executed via parent calculation node {edge.from_id}"},
+                    )
         display = str(record.metadata.get("display_latex") or sympy_expr)
         requires = record.metadata.get("requires")
         calculates = record.metadata.get("calculates") or []
@@ -788,8 +890,11 @@ class NodeRunner:
 
         lookup_inputs: dict[str, Any] = {}
         for key in keys:
-            prepared = prepare_engineering_input(task_inputs[key])
+            target_unit = "f" if key == "design_temperature" else None
+            prepared = prepare_engineering_input(task_inputs[key], target_unit=target_unit)
             lookup_inputs[key] = prepared.value
+            if key == "design_temperature":
+                lookup_inputs["design_temperature_unit"] = prepared.unit
 
         try:
             lookup_result = self._lookup_engine.lookup(table_id, lookup_inputs)

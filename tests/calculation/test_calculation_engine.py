@@ -6,19 +6,17 @@ from pathlib import Path
 
 from engine.executor.calculation_engine import CalculationEngine
 from engine.executor.unit_manager import convert_to_si
-from engine.reference.standards_paths import resolve_standard_pack
 
 
-def _equation_path() -> Path:
+def _wall_thickness_formula_text() -> str:
+    from engine.reference.standards_reader import StandardsReader
+
     root = Path(__file__).resolve().parents[2]
-    pack = resolve_standard_pack(root / "standards", "asme_b31.3")
-    return (
-        pack
-        / "nodes"
-        / "B313-304.1.2"
-        / "equations"
-        / "wall_thickness.md"
-    )
+    reader = StandardsReader(root / "standards")
+    node = reader.load("B313-304.1.2")
+    text = reader.read_asset_text(node, "equations/wall_thickness.md")
+    assert text is not None
+    return text
 
 
 def test_wall_thickness_formula_known_values() -> None:
@@ -27,9 +25,9 @@ def test_wall_thickness_formula_known_values() -> None:
     s_pa = 193_000_000.0
     variables = {"P": p_pa, "D": d_mm, "S": s_pa, "E": 1.0, "W": 1.0, "Y": 0.4}
 
-    result = CalculationEngine().execute_from_file(
+    result = CalculationEngine().execute_from_text(
         calculation_id="test-wall-thickness",
-        formula_path=_equation_path(),
+        formula_text=_wall_thickness_formula_text(),
         variables=variables,
     )
 

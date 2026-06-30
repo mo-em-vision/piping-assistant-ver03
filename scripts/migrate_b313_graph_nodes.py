@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""One-time migration: graph/nodes → hierarchical nodes/ tree for ASME B31.3."""
+"""One-time migration: graph/nodes → hierarchical nodes/ tree for ASME B31.3.
+
+Historical script. Current layout is flat ``nodes/{node_id}/`` — see ``scripts/flatten_b313_nodes.py``.
+"""
 
 from __future__ import annotations
 
@@ -19,33 +22,33 @@ SECTION_ID_REPLACEMENTS = {
 }
 
 MOVE_MAP: dict[str, str] = {
-    "B313-WF-PIPE-WALL-THICKNESS": "workflows/B313-WF-PIPE-WALL-THICKNESS",
-    "B313-WF-MAWP": "workflows/B313-WF-MAWP",
-    "B313-304.1.1-SECTION": "304/304.1/304.1.1",
-    "B313-304.1.2-SECTION": "304/304.1/304.1.2",
-    "B313-304.1.3-SECTION": "304/304.1/304.1.3",
-    "B313-MAWP-SECTION": "304/304.1/mawp_definition",
-    "B313-304.1.1-init-text": "304/304.1/304.1.1/text/initiation",
-    "B313-assumption-straight-pipe": "304/304.1/304.1.1/assumptions/straight-pipe",
-    "B313-interaction-pressure-loading": "304/304.1/304.1.1/interactions/pressure-loading",
-    "B313-eq-2": "304/304.1/304.1.1/equations/eq-2",
-    "B313-eq-2-intro": "304/304.1/304.1.1/equations/eq-2-intro",
-    "B313-eq-2-result": "304/304.1/304.1.1/equations/eq-2-result",
-    "B313-eq-wall-thickness": "304/304.1/304.1.2/equations/wall-thickness",
-    "B313-eq-wall-thickness-intro": "304/304.1/304.1.2/equations/wall-thickness-intro",
-    "B313-eq-wall-thickness-result": "304/304.1/304.1.2/equations/wall-thickness-result",
-    "B313-eq-mawp": "304/304.1/mawp_definition/equations/mawp",
-    "B313-lookup-allowable-stress": "appendix_A/lookups/allowable-stress",
-    "B313-table-A-1-REF": "appendix_A/tables/B313-table-A-1-ref",
+    "B313-WF-PIPE-WALL-THICKNESS": "B313-WF-PIPE-WALL-THICKNESS",
+    "B313-WF-MAWP": "B313-WF-MAWP",
+    "B313-304.1.1-SECTION": "B313-304.1.1",
+    "B313-304.1.2-SECTION": "B313-304.1.2",
+    "B313-304.1.3-SECTION": "B313-304.1.3",
+    "B313-MAWP-SECTION": "B313-MAWP-SECTION",
+    "B313-304.1.1-init-text": "B313-304.1.1-init-text",
+    "B313-assumption-straight-pipe": "B313-assumption-straight-pipe",
+    "B313-interaction-pressure-loading": "B313-interaction-pressure-loading",
+    "B313-eq-2": "B313-eq-2",
+    "B313-eq-2-intro": "B313-eq-2-intro",
+    "B313-eq-2-result": "B313-eq-2-result",
+    "B313-eq-wall-thickness": "B313-eq-wall-thickness",
+    "B313-eq-wall-thickness-intro": "B313-eq-wall-thickness-intro",
+    "B313-eq-wall-thickness-result": "B313-eq-wall-thickness-result",
+    "B313-eq-mawp": "B313-eq-mawp",
+    "B313-lookup-allowable-stress": "B313-lookup-allowable-stress",
+    "B313-table-A-1-REF": "B313-table-A-1-REF",
 }
 
 PARAM_PREFIX = "B313-param-"
 
 LEGACY_SUPERSEDE = [
-    NODES / "304" / "304.1" / "304.1.1" / "node.md",
-    NODES / "304" / "304.1" / "304.1.2" / "node.md",
-    NODES / "304" / "304.1" / "304.1.3" / "node.md",
-    NODES / "304" / "304.1" / "304.1.1" / "equations" / "eq_2_minimum_required_thickness.md",
+    NODES / "B313-304.1.1" / "node.md",
+    NODES / "B313-304.1.2" / "node.md",
+    NODES / "B313-304.1.3" / "node.md",
+    NODES / "B313-304.1.1" / "equations" / "eq_2_minimum_required_thickness.md",
 ]
 
 
@@ -117,7 +120,7 @@ def migrate() -> None:
         name = entry.name
         if name in MOVE_MAP or not name.startswith(PARAM_PREFIX):
             continue
-        rel_target = f"parameters/{name}"
+        rel_target = name
         src = entry / "node.yaml"
         if not src.is_file():
             continue

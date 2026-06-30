@@ -65,6 +65,8 @@ function toFlowNodes(
           ? (node.metadata.display as { color?: string; label?: string })
           : undefined,
       description: node.description,
+      executionState:
+        typeof node.metadata?.execution_state === 'string' ? node.metadata.execution_state : null,
       highlighted: matchSet.has(node.id),
       selected: selectedNodeId === node.id,
     },
@@ -77,8 +79,11 @@ function toFlowEdges(edges: GraphEdgeData[]): Edge[] {
     source: edge.source,
     target: edge.target,
     type: 'graphEdge',
-    data: { edgeType: edge.edge_type },
-    animated: edge.edge_type === 'next_step',
+    data: {
+      edgeType: edge.edge_type,
+      traversed: edge.metadata?.traversed === true,
+    },
+    animated: edge.metadata?.traversed === true || edge.edge_type === 'next_step',
   }))
 }
 

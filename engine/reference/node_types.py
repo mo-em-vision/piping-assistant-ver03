@@ -19,7 +19,9 @@ _LEGACY_TYPE_KIND: dict[str, tuple[str, str]] = {
 }
 
 # Accept canonical types and legacy aliases when discovering sources.
-MICRO_GRAPH_TYPES = CANONICAL_NODE_TYPES | frozenset(_LEGACY_TYPE_KIND.keys())
+MICRO_GRAPH_TYPES = CANONICAL_NODE_TYPES | frozenset(_LEGACY_TYPE_KIND.keys()) | frozenset(
+    {"definition", "calculation"}
+)
 
 
 def normalize_node_metadata(

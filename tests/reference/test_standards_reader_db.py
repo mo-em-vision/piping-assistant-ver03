@@ -22,9 +22,9 @@ def test_reader_loads_node_from_db(standards_reader: StandardsReader) -> None:
     assert standards_reader.nodes_db_available
     record = standards_reader.load("B313-304.1.1")
     assert record.node_id == "B313-304.1.1"
-    assert record.metadata.get("type") == "definition"
+    assert record.metadata.get("type") in {"definition", "text"}
     assert record.body.strip()
-    assert record.path.as_posix().endswith("304/304.1.1/node.md")
+    assert record.path.as_posix().endswith("B313-304.1.1/node.yaml")
 
 
 def test_reader_read_asset_text_from_db(standards_reader: StandardsReader) -> None:
@@ -42,4 +42,4 @@ def test_reader_validate_passes_for_wall_thickness(standards_reader: StandardsRe
 def test_reader_nested_note_path(standards_reader: StandardsReader) -> None:
     path = standards_reader.find_node_path("B313-note-302-3-3C-1")
     assert path is not None
-    assert "302/302.3.3/tables/B313-note-302-3-3C-1" in path.as_posix()
+    assert "B313-note-302-3-3C-1" in path.as_posix()

@@ -116,6 +116,8 @@ export interface NodeProvenanceDto {
   paragraph?: string | null
   hover_excerpt: string
   source_field?: string | null
+  generated_by?: string | null
+  consumed_by?: string[]
 }
 
 export interface NodeSourceDto {

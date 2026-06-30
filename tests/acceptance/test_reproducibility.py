@@ -56,6 +56,28 @@ class TestReproducibilityAcceptance:
         assert "B313-304.1.1" in graph_version.get("nodes", [])
         assert "B313-304.1.2" in graph_version.get("nodes", [])
 
+    def test_replay_frames_are_deterministic(self, standards_reader) -> None:
+        import os
+
+        os.environ["DEV_INSPECTION_ENABLED"] = "1"
+        try:
+            first_manager = TaskStateManager()
+            second_manager = TaskStateManager()
+            run_completed_workflow(first_manager, standards_reader, "pipe-wall-replay-a")
+            run_completed_workflow(second_manager, standards_reader, "pipe-wall-replay-b")
+
+            first_snapshot = first_manager.get_task("pipe-wall-replay-a").outputs.get("_replay_snapshot")
+            second_snapshot = second_manager.get_task("pipe-wall-replay-b").outputs.get("_replay_snapshot")
+            assert isinstance(first_snapshot, dict)
+            assert isinstance(second_snapshot, dict)
+            assert first_snapshot.get("frame_count") == second_snapshot.get("frame_count")
+            if first_snapshot.get("frame_count", 0) > 0:
+                first_frame = first_snapshot["frames"][0]
+                second_frame = second_snapshot["frames"][0]
+                assert first_frame.get("outputs") == second_frame.get("outputs")
+        finally:
+            os.environ.pop("DEV_INSPECTION_ENABLED", None)
+
 
 class TestPerformanceAcceptance:
     """§19 Performance — reasonable response time."""

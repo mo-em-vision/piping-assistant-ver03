@@ -1,0 +1,118 @@
+---
+id: B313-304.3.2
+type: requirement
+title: Strength of Branch Connections
+version: '2026'
+status: draft
+created: '2026-06-28'
+modified: '2026-06-28'
+paragraph: 304.3.2
+section: 304 Pressure Design of Components
+topic: branch_connections
+revision_year: 2024
+purpose: 'Establish when branch connections require reinforcement calculation and
+  when adequate strength may be assumed without calculation.
+
+  '
+engineering_intent: branch_connection_design
+depends_on:
+- node_id: B313-304.3.1
+  dependency_type: reference
+- node_id: B313-304.3.3
+  dependency_type: calculation
+references:
+- node_id: B313-304.3.3
+  reason: Reinforcement amount is determined per §304.3.3 when calculation is required.
+- node_id: B313-303
+  reason: Listed branch fittings per §303.
+- node_id: B313-328.5.4
+  reason: Welded coupling branch connections.
+- node_id: B313-300.2
+  reason: Unlisted branch connection fittings.
+- node_id: B313-304.7.2
+  reason: Qualification of unlisted fittings under subsection (c).
+subsections:
+- id: intro
+  label: ''
+  text: 'A branch opening weakens the run pipe; added reinforcement may be required
+    unless wall thickness is sufficient or an exception in (a)–(c) applies.
+
+    '
+- id: a
+  label: (a)
+  text: 'Listed branch type fittings (ASME B16.9, B16.11, MSS SP-97) may be assumed
+    adequate without calculation.
+
+    '
+- id: b
+  label: (b)
+  text: 'Listed threaded or socket welding couplings welded per §328.5.4 may be assumed
+    adequate when branch size and coupling class limits are satisfied.
+
+    '
+- id: c
+  label: (c)
+  text: 'Unlisted branch connection fittings require material listing and qualification
+    per §304.7.2.
+
+    '
+trace:
+  capture:
+  - paragraph_text
+  - decisions
+report:
+  section_title: Strength of Branch Connections — §304.3.2
+  include:
+  - node_reference
+  - paragraph_text
+  - decisions
+  explanation_required: true
+ai_hints:
+  explanation_focus: 'Distinguish branch connections that may be assumed adequate
+    from those requiring reinforcement calculation per §304.3.3.
+
+    '
+  common_questions:
+  - When can a tee be used without reinforcement calculation?
+  - What are the size limits for welded couplings under (b)?
+  avoid:
+  - Do not skip §304.3.3 calculation when none of (a)–(c) apply.
+---
+
+# ASME B31.3 §304.3.2 — Strength of Branch Connections
+
+## Paragraph Text
+
+A pipe having a branch connection is weakened by the opening made in it and, unless the wall thickness of the pipe is sufficiently in excess of that required to sustain the pressure, it is necessary to provide added reinforcement.
+
+The amount of reinforcement required to sustain the pressure shall be determined in accordance with para. [304.3.3](node:B313-304.3.3) or [para. 304.3.4](node:B313-304.3.4). There are, however, certain branch connections that have adequate pressure strength or reinforcement as constructed. It may be assumed without calculation that a branch connection has adequate strength to sustain the internal and external pressure that will be applied to it if
+
+**(a)** the branch connection is made with a listed branch type fitting such as an ASME B16.9 or ASME B16.11 tee, or MSS SP-97 branch connection fitting. See para. [303](node:B313-303).
+
+**(b)** the branch connection is made by welding a listed threaded or socket welding coupling or listed half coupling directly to the run in accordance with para. [328.5.4](node:B313-328.5.4), provided the size of the branch does not exceed DN 50 (NPS 2) nor one-fourth the nominal size of the run. The minimum wall thickness of the coupling anywhere in the reinforcement zone (if threads are in the zone, wall thickness is measured from root of thread to minimum outside diameter) shall be not less than that of the unthreaded branch pipe. In no case shall a coupling or half coupling have a rating less than Class 3000 in accordance with ASME B16.11.
+
+**(c)** the branch connection utilizes an unlisted branch connection fitting (see para. [300.2](node:B313-300.2)), provided the fitting is made from materials listed in [Table A-1](table:asme_b31.3_A-1) (Table A-1C) and provided that the branch connection is qualified as required by para. [304.7.2](node:B313-304.7.2).
+
+---
+
+# Engineering Explanation
+
+This node separates branch connections that are inherently adequate from those requiring explicit reinforcement area calculation. When no exception in (a)–(c) applies, proceed to §304.3.3 for welded branch reinforcement or §304.3.4 for other branch types.
+
+---
+
+# Decision Logic
+
+This node applies when:
+
+- A branch connection is subject to internal or external pressure design under §304.3.
+
+Reinforcement calculation is required when:
+
+- Run pipe wall thickness is not sufficiently in excess of pressure design thickness, and
+- None of the assumed-adequate cases in (a)–(c) apply.
+
+Calculation may be omitted when:
+
+- A listed fitting or qualifying coupling arrangement in (a) or (b) is used, or
+- An unlisted fitting in (c) is qualified per §304.7.2.

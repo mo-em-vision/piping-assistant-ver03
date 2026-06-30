@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 from engine.executor.calculation_engine import CalculationEngine
+from engine.executor.formula_loader import read_formula_text
 from engine.executor.standards_equation import execute_standards_equation
+from engine.reference.standards_reader import NodeRecord, StandardsReader
 from models.calculation import CalculationResult
 
 CalculationFn = Callable[..., CalculationResult]
@@ -14,16 +16,52 @@ CalculationFn = Callable[..., CalculationResult]
 _calculation_engine = CalculationEngine()
 
 
+def _run_formula(
+    *,
+    calculation_id: str,
+    node_dir: Path,
+    variables: dict[str, float],
+    reader: StandardsReader | None = None,
+    record: NodeRecord | None = None,
+    equation_meta: dict[str, Any] | None = None,
+    file_ref: str | None = None,
+    fallback_node_id: str | None = None,
+) -> CalculationResult:
+    formula_text = read_formula_text(
+        reader=reader,
+        record=record,
+        file_ref=file_ref,
+        equation_meta=equation_meta,
+        fallback_node_id=fallback_node_id,
+        node_dir=node_dir,
+    )
+    if not formula_text:
+        raise FileNotFoundError(f"Missing formula definition for {calculation_id}")
+    return _calculation_engine.execute_from_text(
+        calculation_id=calculation_id,
+        formula_text=formula_text,
+        variables=variables,
+    )
+
+
 def calculate_wall_thickness(
     *,
     node_dir: Path,
     variables: dict[str, float],
+    reader: StandardsReader | None = None,
+    record: NodeRecord | None = None,
+    equation_meta: dict[str, Any] | None = None,
+    **_: Any,
 ) -> CalculationResult:
-    formula_path = node_dir / "equations" / "wall_thickness.md"
-    return _calculation_engine.execute_from_file(
+    return _run_formula(
         calculation_id="B313-304.1.2:wall_thickness",
-        formula_path=formula_path,
+        node_dir=node_dir,
         variables=variables,
+        reader=reader,
+        record=record,
+        equation_meta=equation_meta,
+        file_ref="equations/wall_thickness.md",
+        fallback_node_id="B313-304.1.2",
     )
 
 
@@ -31,6 +69,10 @@ def calculate_allowable_displacement_stress_range(
     *,
     node_dir: Path,
     variables: dict[str, float],
+    reader: StandardsReader | None = None,
+    record: NodeRecord | None = None,
+    equation_meta: dict[str, Any] | None = None,
+    **_: Any,
 ) -> CalculationResult:
     return execute_standards_equation(
         node_dir=node_dir,
@@ -38,6 +80,9 @@ def calculate_allowable_displacement_stress_range(
         md_filename="eq_1a_allowable_displacement_stress_range.md",
         calculation_id="B313-302.3.5:eq-1a",
         variables=variables,
+        reader=reader,
+        record=record,
+        equation_meta=equation_meta,
     )
 
 
@@ -45,6 +90,10 @@ def calculate_allowable_displacement_stress_range_with_margin(
     *,
     node_dir: Path,
     variables: dict[str, float],
+    reader: StandardsReader | None = None,
+    record: NodeRecord | None = None,
+    equation_meta: dict[str, Any] | None = None,
+    **_: Any,
 ) -> CalculationResult:
     return execute_standards_equation(
         node_dir=node_dir,
@@ -52,6 +101,9 @@ def calculate_allowable_displacement_stress_range_with_margin(
         md_filename="eq_1b_allowable_displacement_stress_range_with_margin.md",
         calculation_id="B313-302.3.5:eq-1b",
         variables=variables,
+        reader=reader,
+        record=record,
+        equation_meta=equation_meta,
     )
 
 
@@ -59,6 +111,10 @@ def calculate_stress_range_factor(
     *,
     node_dir: Path,
     variables: dict[str, float],
+    reader: StandardsReader | None = None,
+    record: NodeRecord | None = None,
+    equation_meta: dict[str, Any] | None = None,
+    **_: Any,
 ) -> CalculationResult:
     return execute_standards_equation(
         node_dir=node_dir,
@@ -66,6 +122,9 @@ def calculate_stress_range_factor(
         md_filename="eq_1c_stress_range_factor.md",
         calculation_id="B313-302.3.5:eq-1c",
         variables=variables,
+        reader=reader,
+        record=record,
+        equation_meta=equation_meta,
     )
 
 
@@ -73,12 +132,20 @@ def calculate_minimum_required_thickness(
     *,
     node_dir: Path,
     variables: dict[str, float],
+    reader: StandardsReader | None = None,
+    record: NodeRecord | None = None,
+    equation_meta: dict[str, Any] | None = None,
+    **_: Any,
 ) -> CalculationResult:
-    formula_path = node_dir / "equations" / "eq_2_minimum_required_thickness.md"
-    return _calculation_engine.execute_from_file(
+    return _run_formula(
         calculation_id="B313-304.1.1:eq-2",
-        formula_path=formula_path,
+        node_dir=node_dir,
         variables=variables,
+        reader=reader,
+        record=record,
+        equation_meta=equation_meta,
+        file_ref="equations/eq_2_minimum_required_thickness.md",
+        fallback_node_id="B313-304.1.1",
     )
 
 
@@ -86,12 +153,20 @@ def calculate_pressure_design_thickness(
     *,
     node_dir: Path,
     variables: dict[str, float],
+    reader: StandardsReader | None = None,
+    record: NodeRecord | None = None,
+    equation_meta: dict[str, Any] | None = None,
+    **_: Any,
 ) -> CalculationResult:
-    formula_path = node_dir.parent / "mawp_definition" / "equations" / "pressure_design_thickness.md"
-    return _calculation_engine.execute_from_file(
+    return _run_formula(
         calculation_id="B313-MAWP-PRESSURE-DESIGN:pressure_design_thickness",
-        formula_path=formula_path,
+        node_dir=node_dir,
         variables=variables,
+        reader=reader,
+        record=record,
+        equation_meta=equation_meta,
+        file_ref="equations/pressure_design_thickness.md",
+        fallback_node_id="B313-MAWP-SECTION",
     )
 
 
@@ -99,12 +174,20 @@ def calculate_mawp(
     *,
     node_dir: Path,
     variables: dict[str, float],
+    reader: StandardsReader | None = None,
+    record: NodeRecord | None = None,
+    equation_meta: dict[str, Any] | None = None,
+    **_: Any,
 ) -> CalculationResult:
-    formula_path = node_dir.parent / "304.1.2" / "equations" / "mawp_pressure.md"
-    return _calculation_engine.execute_from_file(
+    return _run_formula(
         calculation_id="B313-MAWP-CALCULATION:mawp_pressure",
-        formula_path=formula_path,
+        node_dir=node_dir,
         variables=variables,
+        reader=reader,
+        record=record,
+        equation_meta=equation_meta,
+        file_ref="equations/mawp_pressure.md",
+        fallback_node_id="B313-304.1.2",
     )
 
 

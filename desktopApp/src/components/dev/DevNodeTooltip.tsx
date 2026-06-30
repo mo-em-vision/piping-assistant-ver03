@@ -37,6 +37,12 @@ export function DevNodeTooltip({
     >
       <p className="dev-node-tooltip__id">{provenance.node_id}</p>
       <p className="dev-node-tooltip__field">{sourceField}</p>
+      {provenance.generated_by ? (
+        <p className="dev-node-tooltip__field">from: {provenance.generated_by}</p>
+      ) : null}
+      {provenance.consumed_by?.length ? (
+        <p className="dev-node-tooltip__field">to: {provenance.consumed_by.join(', ')}</p>
+      ) : null}
     </button>
   )
 }

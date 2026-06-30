@@ -12,6 +12,11 @@ LEGACY_SECTION_ALIASES = {
     "B313-304.1.3": "B313-304.1.3-SECTION",
 }
 
+# Flattened node ids that retain legacy references in nomenclature_ref fields.
+LEGACY_NODE_ID_ALIASES = {
+    "B313-MAWP-DEFINITION": "B313-MAWP-SECTION",
+}
+
 EDGE_LIST_KEYS = (
     "requires",
     "calculates",
@@ -136,4 +141,7 @@ def node_aliases(node_id: str, metadata: dict[str, Any]) -> list[str]:
     for item in metadata.get("aliases", []) or []:
         if isinstance(item, str) and item.strip() and item.strip() != node_id:
             aliases.append(item.strip())
+    for legacy_id, target_id in LEGACY_NODE_ID_ALIASES.items():
+        if node_id == target_id:
+            aliases.append(legacy_id)
     return aliases

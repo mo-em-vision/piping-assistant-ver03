@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import asdict
 from typing import Any
 
@@ -13,6 +14,9 @@ from engine.graph.definition_equations import (
     pending_definition_equation_inputs,
     try_complete_definition_equations,
 )
+from engine.inspection.dev_guard import inspection_enabled
+from engine.inspection.models import GraphEdgeRef
+from engine.inspection.trace import enrich_execution_result_trace, persist_plan_metadata
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from engine.validation.validation_engine import ValidationEngine
@@ -105,16 +109,43 @@ class Executor:
             state.store_output(plan.task_id, "workflow", plan.root)
         state.store_output(plan.task_id, "graph_root", plan.root)
         if plan.graph_version:
+            graph_payload: dict[str, Any] = {
+                "graph_id": plan.graph_version.graph_id,
+                "nodes": list(plan.graph_version.nodes),
+            }
+            if inspection_enabled():
+                graph_payload["edges"] = [
+                    {
+                        "from_node": edge.from_node,
+                        "to_node": edge.to_node,
+                        "type": edge.type.value if hasattr(edge.type, "value") else str(edge.type),
+                    }
+                    for edge in plan.graph_version.edges
+                ]
             state.store_output(
                 plan.task_id,
                 "graph_version",
-                {
-                    "graph_id": plan.graph_version.graph_id,
-                    "nodes": list(plan.graph_version.nodes),
-                },
+                graph_payload,
             )
 
+        if inspection_enabled():
+            task = state.get_task(plan.task_id)
+            outputs = dict(task.outputs)
+            persist_plan_metadata(outputs, plan)
+            for key, value in outputs.items():
+                if key.startswith("_"):
+                    state.store_output(plan.task_id, key, value)
+
+        plan_edges = _plan_edge_refs(plan)
+        step_index = 0
+        step_durations: dict[str, float] = {}
+
         for node_id in plan.execution_order:
+            if inspection_enabled() and _should_pause(state, plan.task_id):
+                overall_status = ExecutionStatus.AWAITING_INPUT
+                state.update_task_status(plan.task_id, TaskStatus.AWAITING_INPUT)
+                break
+
             record = self._reader.load(node_id)
             node_type = record.metadata.get("type")
             if node_type in {"root", "definition"}:
@@ -169,12 +200,42 @@ class Executor:
 
             self._events.log(EventType.CALCULATION_STARTED, node=node_id)
 
+            started = time.perf_counter()
             result = self._runner.run(
                 node_id,
                 task_inputs=plan.inputs,
                 dependency_outputs=dependency_outputs,
             )
+            duration_ms = (time.perf_counter() - started) * 1000.0
+            step_durations[node_id] = duration_ms
             node_results.append(result)
+
+            if inspection_enabled():
+                incoming, outgoing = _edges_for_node(node_id, plan_edges)
+                result_payload = enrich_execution_result_trace(
+                    asdict(result),
+                    step_index=step_index,
+                    workflow_id=plan.root,
+                    node_type=str(node_type or ""),
+                    duration_ms=duration_ms,
+                    incoming_edge=incoming,
+                    outgoing_edge=outgoing,
+                    selection_reason=_selection_reason(plan, node_id),
+                )
+                state.store_step_progress(
+                    plan.task_id,
+                    node_id,
+                    result.status.value,
+                    result=result_payload,
+                )
+                step_index += 1
+            else:
+                state.store_step_progress(
+                    plan.task_id,
+                    node_id,
+                    result.status.value,
+                    result=asdict(result),
+                )
 
             if result.status == NodeExecutionStatus.AWAITING_INPUT:
                 overall_status = ExecutionStatus.AWAITING_INPUT
@@ -226,14 +287,22 @@ class Executor:
             elif result.status == NodeExecutionStatus.SKIPPED:
                 prior_completed.add(node_id)
 
-            state.store_step_progress(
-                plan.task_id,
-                node_id,
-                result.status.value,
-                result=asdict(result),
-            )
-
-        trace_payload = [asdict(item) for item in node_results]
+        trace_payload = []
+        for item in node_results:
+            payload = asdict(item)
+            if inspection_enabled():
+                incoming, outgoing = _edges_for_node(item.node_id, plan_edges)
+                payload = enrich_execution_result_trace(
+                    payload,
+                    step_index=trace_payload.__len__(),
+                    workflow_id=plan.root,
+                    node_type=_node_type_for(self._reader, item.node_id),
+                    duration_ms=step_durations.get(item.node_id, 0.0),
+                    incoming_edge=incoming,
+                    outgoing_edge=outgoing,
+                    selection_reason=_selection_reason(plan, item.node_id),
+                )
+            trace_payload.append(payload)
         state.store_output(plan.task_id, "_execution_trace", trace_payload)
         state.store_output(plan.task_id, "_validation_trace", validation_trace)
 
@@ -257,6 +326,13 @@ class Executor:
                 state.update_task_status(plan.task_id, TaskStatus.COMPLETED)
         elif overall_status == ExecutionStatus.AWAITING_INPUT:
             state.update_task_status(plan.task_id, TaskStatus.AWAITING_INPUT)
+
+        if inspection_enabled():
+            state.store_output(plan.task_id, "_execution_events", self._events.to_dicts())
+            from api.inspection import persist_replay_snapshot
+
+            task = state.get_task(plan.task_id)
+            persist_replay_snapshot(task, state, self._reader)
 
         return ExecutionResult(
             plan=plan,
@@ -285,3 +361,58 @@ def execute_workflow(
     )
     executor = Executor(reader, events=events)
     return executor.execute_plan(plan, state=state)
+
+
+def _plan_edge_refs(plan: ExecutionPlan) -> list[GraphEdgeRef]:
+    edges: list[GraphEdgeRef] = []
+    source = list(plan.dependencies)
+    if plan.graph_version and plan.graph_version.edges:
+        source = list(plan.graph_version.edges)
+    for edge in source:
+        edge_type = edge.type.value if hasattr(edge.type, "value") else str(edge.type)
+        edges.append(
+            GraphEdgeRef(
+                from_node=edge.from_node,
+                to_node=edge.to_node,
+                edge_type=edge_type,
+            )
+        )
+    return edges
+
+
+def _edges_for_node(
+    node_id: str,
+    edges: list[GraphEdgeRef],
+) -> tuple[GraphEdgeRef | None, GraphEdgeRef | None]:
+    incoming = next((edge for edge in edges if edge.to_node == node_id), None)
+    outgoing = next((edge for edge in edges if edge.from_node == node_id), None)
+    return incoming, outgoing
+
+
+def _selection_reason(plan: ExecutionPlan, node_id: str) -> str:
+    for item in plan.skipped_nodes:
+        if str(item.get("node_id")) == node_id:
+            return str(item.get("reason", "skipped"))
+    return "dependency_satisfied"
+
+
+def _node_type_for(reader: StandardsReader, node_id: str) -> str:
+    try:
+        return str(reader.load(node_id).metadata.get("type", ""))
+    except FileNotFoundError:
+        return ""
+
+
+def _should_pause(state: TaskStateManager, task_id: str) -> bool:
+    task = state.get_task(task_id)
+    bp = task.outputs.get("_inspection_breakpoint")
+    if not isinstance(bp, dict):
+        return False
+    if bp.get("step_once"):
+        state.store_output(
+            task_id,
+            "_inspection_breakpoint",
+            {**bp, "step_once": False, "paused": True},
+        )
+        return False
+    return bool(bp.get("paused"))

@@ -1,6 +1,6 @@
 import { memo } from 'react'
 import { Handle, Position, type NodeProps } from '@xyflow/react'
-import { nodeStyle } from '../utils/nodeStyles'
+import { executionStateStyle, nodeStyle } from '../utils/nodeStyles'
 
 interface GraphNodeData {
   label: string
@@ -8,6 +8,7 @@ interface GraphNodeData {
   kind?: string | null
   display?: { color?: string; label?: string }
   description?: string
+  executionState?: string | null
   highlighted?: boolean
   selected?: boolean
 }
@@ -15,6 +16,8 @@ interface GraphNodeData {
 function GraphNodeComponent({ data }: NodeProps) {
   const nodeData = data as unknown as GraphNodeData
   const style = nodeStyle(nodeData.nodeType, nodeData.kind, nodeData.display)
+  const executionPalette = executionStateStyle(nodeData.executionState)
+  const palette = executionPalette ?? { bg: style.bg, border: style.border }
   const className = [
     'graph-node',
     nodeData.highlighted ? 'highlighted' : '',
@@ -26,7 +29,7 @@ function GraphNodeComponent({ data }: NodeProps) {
   return (
     <div
       className={className}
-      style={{ background: style.bg, borderColor: style.border, color: '#f8fafc' }}
+      style={{ background: palette.bg, borderColor: palette.border, color: '#f8fafc' }}
     >
       <Handle type="target" position={Position.Top} />
       <div className="graph-node-title">{nodeData.label}</div>

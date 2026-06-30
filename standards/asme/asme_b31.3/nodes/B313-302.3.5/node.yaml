@@ -1,0 +1,331 @@
+---
+id: B313-302.3.5
+type: definition
+title: Limits of Calculated Stresses Due to Sustained Loads and Displacement Strains
+version: '2026'
+status: draft
+created: 2026-06-19
+modified: 2026-06-19
+paragraph: 302.3.5
+section: 302.3 Allowable Stresses and Other Stress Limits
+topic: stress_limits
+revision_year: 2024
+purpose: 'Define limits for calculated stresses due to sustained loads and displacement
+  strains, including the weld joint strength reduction factor W in subsection (e).
+
+  '
+engineering_intent: pipe_stress_calculation
+depends_on: []
+subsections:
+- id: a
+  label: (a)
+  paragraph: 302.3.5(a)
+  title: Internal Pressure Stresses
+  purpose: 'Establish that internal pressure stresses are safe when the piping component
+    wall thickness, including reinforcement, satisfies para. 304.
+
+    '
+  applies_to: internal_pressure
+  required: true
+  references:
+  - paragraph: '304'
+- id: b
+  label: (b)
+  paragraph: 302.3.5(b)
+  title: External Pressure Stresses
+  purpose: 'Establish that external pressure stresses are safe when wall thickness
+    and stiffening satisfy para. 304.
+
+    '
+  applies_to: external_pressure
+  required: true
+  references:
+  - paragraph: '304'
+- id: c
+  label: (c)
+  paragraph: 302.3.5(c)
+  title: Stresses Due to Sustained Loads
+  purpose: 'Limit the sum of longitudinal sustained-load stresses S_L to the basic
+    allowable stress S_h from Table A-1 at operating metal temperature.
+
+    '
+  applies_to: sustained_loads
+  required: true
+  condition: S_L <= S_h
+  nomenclature:
+  - symbol: S_L
+    description: Sum of longitudinal stresses due to sustained loads.
+    required: true
+  - symbol: S_h
+    description: Basic allowable stress at the metal temperature of the operating
+      condition.
+    required: true
+    references:
+    - table: Table A-1
+      table_id: asme_b31.3_A-1
+      node_id: B313-table-A-1
+- id: d
+  label: (d)
+  paragraph: 302.3.5(d)
+  title: Allowable Displacement Stress Range
+  purpose: 'Limit computed displacement stress range S_E to allowable displacement
+    stress range S_A.
+
+    '
+  applies_to: displacement_stress_range
+  required: true
+  condition: S_E <= S_A
+  equations:
+  - id: eq-1a
+    name: allowable_displacement_stress_range
+    display: S_A = f * (1.25*S_c + 0.25*S_h)
+    calculation_module: eq_1a_allowable_displacement_stress_range.py
+    execution_function: calculate_allowable_displacement_stress_range
+    applies_when: standard allowable displacement stress range calculation
+    source: "---\nequation_id: eq-1a\nname: Allowable Displacement Stress Range\n\
+      display: \"S_A = f * (1.25*S_c + 0.25*S_h)\"\nparagraph: \"302.3.5(d)\"\napplies_when:\
+      \ standard allowable displacement stress range calculation\n\nvariables:\n \
+      \ f:\n    symbol: f\n    description: Stress range factor from eq. (1c)\n  \
+      \  unit: dimensionless\n  S_c:\n    symbol: S_c\n    description: Basic allowable\
+      \ stress at minimum metal temperature during displacement cycle analysis\n \
+      \   unit: Pa\n  S_h:\n    symbol: S_h\n    description: Basic allowable stress\
+      \ at maximum metal temperature during displacement cycle analysis\n    unit:\
+      \ Pa\n\noutputs:\n  - symbol: S_A\n    name: allowable_displacement_stress_range\n\
+      \    unit: Pa\n    type: quantity\n\nexecutor: calculate_allowable_displacement_stress_range\n\
+      calculation_module: eq_1a_allowable_displacement_stress_range.py\n---\n\n# Eq.\
+      \ (1a) — Allowable Displacement Stress Range\n\n```\nS_A = f * (1.25*S_c + 0.25*S_h)\n\
+      ```\n\nUse when the standard displacement stress range limit applies without\
+      \ adding the\n`S_h - S_L` margin to the `0.25*S_h` term.\n"
+  - id: eq-1b
+    name: allowable_displacement_stress_range_with_sustained_stress_margin
+    display: S_A = f * (1.25*(S_c + S_h) - S_L)
+    calculation_module: eq_1b_allowable_displacement_stress_range_with_margin.py
+    execution_function: calculate_allowable_displacement_stress_range_with_margin
+    applies_when: S_h > S_L and the difference is added to 0.25*S_h
+    source: "---\nequation_id: eq-1b\nname: Allowable Displacement Stress Range with\
+      \ Sustained Stress Margin\ndisplay: \"S_A = f * (1.25*(S_c + S_h) - S_L)\"\n\
+      paragraph: \"302.3.5(d)\"\napplies_when: \"S_h > S_L and the difference is added\
+      \ to 0.25*S_h\"\n\nvariables:\n  f:\n    symbol: f\n    description: Stress\
+      \ range factor from eq. (1c)\n    unit: dimensionless\n  S_c:\n    symbol: S_c\n\
+      \    description: Basic allowable stress at minimum metal temperature during\
+      \ displacement cycle analysis\n    unit: Pa\n  S_h:\n    symbol: S_h\n    description:\
+      \ Basic allowable stress at maximum metal temperature during displacement cycle\
+      \ analysis\n    unit: Pa\n  S_L:\n    symbol: S_L\n    description: Stress due\
+      \ to sustained loads\n    unit: Pa\n\noutputs:\n  - symbol: S_A\n    name: allowable_displacement_stress_range\n\
+      \    unit: Pa\n    type: quantity\n\nexecutor: calculate_allowable_displacement_stress_range_with_margin\n\
+      calculation_module: eq_1b_allowable_displacement_stress_range_with_margin.py\n\
+      ---\n\n# Eq. (1b) — Allowable Displacement Stress Range with Sustained Stress\
+      \ Margin\n\n```\nS_A = f * (1.25*(S_c + S_h) - S_L)\n```\n\nUse when `S_h >\
+      \ S_L` and the difference between them is added to the `0.25*S_h`\nterm in eq.\
+      \ (1a).\n"
+  - id: eq-1c
+    name: stress_range_factor
+    display: f = min(6.0*N^(-0.2), f_m)
+    calculation_module: eq_1c_stress_range_factor.py
+    execution_function: calculate_stress_range_factor
+    source: "---\nequation_id: eq-1c\nname: Stress Range Factor\ndisplay: \"f = min(6.0*N^(-0.2),\
+      \ f_m)\"\nparagraph: \"302.3.5(d)\"\n\nvariables:\n  N:\n    symbol: N\n   \
+      \ description: Equivalent number of full displacement cycles during expected\
+      \ service life\n    unit: dimensionless\n  f_m:\n    symbol: f_m\n    description:\
+      \ Maximum value of stress range factor\n    unit: dimensionless\n\noutputs:\n\
+      \  - symbol: f\n    name: stress_range_factor\n    unit: dimensionless\n   \
+      \ type: quantity\n\nexecutor: calculate_stress_range_factor\ncalculation_module:\
+      \ eq_1c_stress_range_factor.py\n---\n\n# Eq. (1c) — Stress Range Factor\n\n\
+      ```\nf = min(6.0*N^(-0.2), f_m)\n```\n\n`f_m` is 1.2 for ferrous materials with\
+      \ specified minimum tensile strengths\n≤ 517 MPa (75 ksi) at metal temperatures\
+      \ ≤ 371°C (700°F); otherwise `f_m = 1.0`.\n"
+  - id: eq-1d
+    name: equivalent_full_displacement_cycles
+    display: N = N_E + sum(r_i^5*N_i)
+  nomenclature:
+  - symbol: S_A
+    description: Allowable displacement stress range.
+    required: true
+  - symbol: S_E
+    description: Greatest computed displacement stress range.
+    required: true
+  - symbol: S_c
+    description: Basic allowable stress at minimum metal temperature expected during
+      displacement cycle analysis.
+    required: true
+  - symbol: S_h
+    description: Basic allowable stress at maximum metal temperature expected during
+      displacement cycle analysis.
+    required: true
+  - symbol: S_L
+    description: Stress due to sustained loads.
+    required: true
+  - symbol: f
+    description: Stress range factor.
+    required: true
+  - symbol: f_m
+    description: Maximum value of stress range factor.
+    required: true
+  - symbol: N
+    description: Equivalent number of full displacement cycles during expected service
+      life.
+    required: true
+  - symbol: N_E
+    description: Number of cycles of maximum computed displacement stress range S_E.
+    required: false
+  - symbol: N_i
+    description: Number of cycles associated with displacement stress range S_i.
+    required: false
+  - symbol: r_i
+    description: Ratio S_i/S_E.
+    required: false
+  - symbol: S_i
+    description: Any computed displacement stress range smaller than S_E.
+    required: false
+- id: e
+  label: (e)
+  paragraph: 302.3.5(e)
+  title: Weld Joint Strength Reduction Factor
+  purpose: 'Define when the weld joint strength reduction factor W modifies allowable
+    stress and weld quality factor products for internal pressure design.
+
+    '
+  applies_to: weld_joint_strength_reduction
+  required: true
+  output:
+    id: weld_strength_reduction
+    symbol: W
+    description: Weld joint strength reduction factor.
+    unit: dimensionless
+    used_by:
+    - B313-304.1.2
+  required_for:
+  - Internal pressure wall thickness at applicable longitudinal or spiral welded locations.
+  not_required_for:
+  - Occasional loads such as wind and earthquake.
+  - Permissible variations in accordance with para. 302.2.4.
+  - Allowable displacement stress range S_A in para. 302.3.5(d).
+  references:
+  - table: Table 302.3.5
+    table_id: asme_b31.3_302.3.5
+    node_id: B313-table-302-3-5
+  - paragraph: '304'
+  - paragraph: 302.2.4
+  - subsection: d
+  nomenclature:
+  - symbol: W
+    description: Weld joint strength reduction factor.
+    required: true
+  - symbol: S_E
+    description: Product of allowable stress and applicable weld quality factor in
+      subsection (e) text.
+    required: true
+- id: f
+  label: (f)
+  paragraph: 302.3.5(f)
+  title: Unlisted Weld Strength Reduction Factors
+  purpose: 'Define criteria for using a weld strength reduction factor other than
+    values listed in Table 302.3.5.
+
+    '
+  applies_to: unlisted_weld_strength_reduction_factor
+  required: false
+  criteria:
+  - Creep test data may be used subject to the limits stated in subsection (f).
+  - Owner-approved successful experience may justify W above Table 302.3.5 values.
+equations:
+- id: eq-1a
+  execution_function: calculate_allowable_displacement_stress_range
+  source: "---\nequation_id: eq-1a\nname: Allowable Displacement Stress Range\ndisplay:\
+    \ \"S_A = f * (1.25*S_c + 0.25*S_h)\"\nparagraph: \"302.3.5(d)\"\napplies_when:\
+    \ standard allowable displacement stress range calculation\n\nvariables:\n  f:\n\
+    \    symbol: f\n    description: Stress range factor from eq. (1c)\n    unit:\
+    \ dimensionless\n  S_c:\n    symbol: S_c\n    description: Basic allowable stress\
+    \ at minimum metal temperature during displacement cycle analysis\n    unit: Pa\n\
+    \  S_h:\n    symbol: S_h\n    description: Basic allowable stress at maximum metal\
+    \ temperature during displacement cycle analysis\n    unit: Pa\n\noutputs:\n \
+    \ - symbol: S_A\n    name: allowable_displacement_stress_range\n    unit: Pa\n\
+    \    type: quantity\n\nexecutor: calculate_allowable_displacement_stress_range\n\
+    calculation_module: eq_1a_allowable_displacement_stress_range.py\n---\n\n# Eq.\
+    \ (1a) — Allowable Displacement Stress Range\n\n```\nS_A = f * (1.25*S_c + 0.25*S_h)\n\
+    ```\n\nUse when the standard displacement stress range limit applies without adding\
+    \ the\n`S_h - S_L` margin to the `0.25*S_h` term.\n"
+- id: eq-1b
+  execution_function: calculate_allowable_displacement_stress_range_with_margin
+  source: "---\nequation_id: eq-1b\nname: Allowable Displacement Stress Range with\
+    \ Sustained Stress Margin\ndisplay: \"S_A = f * (1.25*(S_c + S_h) - S_L)\"\nparagraph:\
+    \ \"302.3.5(d)\"\napplies_when: \"S_h > S_L and the difference is added to 0.25*S_h\"\
+    \n\nvariables:\n  f:\n    symbol: f\n    description: Stress range factor from\
+    \ eq. (1c)\n    unit: dimensionless\n  S_c:\n    symbol: S_c\n    description:\
+    \ Basic allowable stress at minimum metal temperature during displacement cycle\
+    \ analysis\n    unit: Pa\n  S_h:\n    symbol: S_h\n    description: Basic allowable\
+    \ stress at maximum metal temperature during displacement cycle analysis\n   \
+    \ unit: Pa\n  S_L:\n    symbol: S_L\n    description: Stress due to sustained\
+    \ loads\n    unit: Pa\n\noutputs:\n  - symbol: S_A\n    name: allowable_displacement_stress_range\n\
+    \    unit: Pa\n    type: quantity\n\nexecutor: calculate_allowable_displacement_stress_range_with_margin\n\
+    calculation_module: eq_1b_allowable_displacement_stress_range_with_margin.py\n\
+    ---\n\n# Eq. (1b) — Allowable Displacement Stress Range with Sustained Stress\
+    \ Margin\n\n```\nS_A = f * (1.25*(S_c + S_h) - S_L)\n```\n\nUse when `S_h > S_L`\
+    \ and the difference between them is added to the `0.25*S_h`\nterm in eq. (1a).\n"
+- id: eq-1c
+  execution_function: calculate_stress_range_factor
+  source: "---\nequation_id: eq-1c\nname: Stress Range Factor\ndisplay: \"f = min(6.0*N^(-0.2),\
+    \ f_m)\"\nparagraph: \"302.3.5(d)\"\n\nvariables:\n  N:\n    symbol: N\n    description:\
+    \ Equivalent number of full displacement cycles during expected service life\n\
+    \    unit: dimensionless\n  f_m:\n    symbol: f_m\n    description: Maximum value\
+    \ of stress range factor\n    unit: dimensionless\n\noutputs:\n  - symbol: f\n\
+    \    name: stress_range_factor\n    unit: dimensionless\n    type: quantity\n\n\
+    executor: calculate_stress_range_factor\ncalculation_module: eq_1c_stress_range_factor.py\n\
+    ---\n\n# Eq. (1c) — Stress Range Factor\n\n```\nf = min(6.0*N^(-0.2), f_m)\n```\n\
+    \n`f_m` is 1.2 for ferrous materials with specified minimum tensile strengths\n\
+    ≤ 517 MPa (75 ksi) at metal temperatures ≤ 371°C (700°F); otherwise `f_m = 1.0`.\n"
+trace:
+  capture:
+  - subsections
+  - equations
+  - nomenclature
+  - warnings
+report:
+  section_title: Stress Limits — §302.3.5
+  include:
+  - paragraph_text
+  - subsections
+  - equations
+  - nomenclature
+---
+
+# Limits of Calculated Stresses Due to Sustained Loads and Displacement Strains 
+
+
+**a) Internal Pressure Stresses.** Stresses due to internal pressure shall be considered safe when the wall thickness of the piping component, including any reinforcement, meets the requirements of para. 304.
+
+**b) External Pressure Stresses.** Stresses due to external pressure shall be considered safe when the wall thickness of the piping component, and its means of stiffening,
+meet the requirements of para. 304.
+
+**c) Stresses Due to Sustained Loads, S_L**. The sum of the longitudinal stresses due to sustained loads, S_L, e.g., the pressure and weight in any component in a piping system (see para. 320), shall not exceed S_h, where S_h is taken from Table A-1 at the metal temperature of the operating condition being considered.
+
+**d) Allowable Displacement Stress Range, S_A.** The computed displacement stress range, S_E, in a piping system (see para. 319.4.4) shall not exceed the allowable displacement stress range, S_A (see paras. 319.2.3 and 319.3.4), calculated by equation (1a): S_A= f*(1.25*S_c + 0.25*S_h) When S_h is greater than S_L, the difference between them may be added to the term 0.25*S_h in the previous equation (1a). In that case, the allowable stress range is calculated by equation (1b): S_A= f *(1.25*(S_c + S_h) − S_L).
+For equations. (1a) and (1b): 
+	**f:** stress range factor,  calculated by eq. (1c): f=6.0*(N)^(-0.2) <= f_m
+	**f_m:** maximum value of stress range factor; 1.2 for ferrous materials with specified minimum tensile strengths ≤ 517 MPa (75 ksi) and at metal temperatures ≤ 371°C (700°F); otherwise f_m = 1.0.
+	**N:** equivalent number of full displacement cycles during the expected service life of the piping system.
+	**S_c:** basic allowable stress at minimum metal temperature expected during the displacement cycle under analysis (= 138 MPa (20 ksi) maximum) 
+	**S_h:** basic allowable stress at maximum metal temperature expected during the displacement cycle under analysis (=138 MPa (20 ksi) maximum)
+	**S_L:** stress due to sustained loads; in systems where supports may be active in some conditions and inactive in others, the maximum value of sustained stress, considering all support conditions, shall be used.
+
+When the computed stress range varies, whether from thermal expansion or other conditions, S_E is defined as the greatest computed displacement stress range. The
+value of N in such cases can be calculated by eq. (1d): N =N_E + sum(r_i^5*N_i) for i =1, 2, . . ., n
+
+where: 
+- **N_E**: number of cycles of maximum computed displacement
+stress range, S_E
+- **N_i:** number of cycles associated with displacement
+stress range, S_i
+- **r_i** = S_i/S_E
+- **S_i**: any computed displacement stress range smaller than S_E
+
+**e) Weld Joint Strength Reduction Factor,W.** At elevated temperatures, the long-term strength of weld joints may be lower than the long-term strength of the base material. For longitudinal or spiral (helical seam) welded piping components, the product of the allowable stress and the applicable weld quality factor, S_E, shall be
+multiplied by the weld joint strength reduction factor, W, when determining the required wall thickness for internal pressure in accordance with para. 304. The
+designer is responsible for the application of weld joint strength reduction factors to welds other than longitudinal and spiral (helical seam) (e.g., circumferential). The weld joint strength reduction factor, W, is equal to 1.0 when evaluating occasional loads such as wind and earthquake, or when evaluating permissible variations in accordance with para. 302.2.4. The pressure rating or allowable stress for the occasional load or variation condition is not required to be reduced by the weld joint
+strength reduction factor. It is also not required when calculating the allowable stress range for displacement stresses, S_A, in para. 302.3.5(d). The weld joint strength
+reduction factor only applies at weld locations. The weld joint strength reduction factor is the ratio of the nominal stress to cause failure of the weld joint to that of the
+base material for the same duration. Except as provided in (f) below, the weld joint strength reduction factor, W, shall be in accordance with Table 302.3.5.
+
+**f) Unlisted Weld Strength Reduction Factors.** A weld strength reduction factor other than that listed in Table 302.3.5 may be used in accordance with one of the following criteria:
+	1) Creep test data may be used to determine the weld joint strength reduction factor, W. However, the use of creep test data to increase the factor W above that shown in Table 302.3.5 is not permitted for the CrMo and Creep Strength Enhanced Ferritic (CSEF) steels materials, as defined in Table 302.3.5. Creep testing of weld joints to determine weld joint strength reduction factors, when permitted, should be full thickness cross weld specimens with test durations of at least 1000 hours. Full thickness tests shall be used unless the designer otherwise considers effects such as stress redistribution across the weld.
+2) With the owner’s approval, extensive successful experience may be used to justify the factor W above that shown in Table 302.3.5. Successful experience must include same or like material, weld metal composition, and welding process under equivalent, or more severe, sustained operating conditions.

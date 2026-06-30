@@ -279,7 +279,31 @@ npm run build
 
 ---
 
-## 11. Related documentation
+## 12. Execution overlay (Developer Inspection Framework)
+
+When a task has an `_execution_trace`, the Graph Explorer annotates the active subgraph:
+
+| Node `metadata.execution_state` | Meaning |
+|-------------------------------|---------|
+| `pending` | Not yet executed (grey styling) |
+| `active` | Currently executing / awaiting input (blue) |
+| `success` | Completed (green) |
+| `skipped` | Skipped by planner (orange) |
+| `failed` | Execution error (red) |
+
+Edges traversed during execution carry `metadata.traversed: true` and animate in the canvas.
+
+Revision hashes include execution state so WebSocket snapshots update as the task runs.
+
+Open the desktop **Developer Inspector** Graph tab and use **Open in Graph Explorer** for deep inspection on `http://localhost:3000`.
+
+See [`docs/developer_inspection_framework.md`](developer_inspection_framework.md) for the full inspection UI, API, and replay documentation.
+
+Requires `DEV_INSPECTION_ENABLED=1` on the backend for full trace metadata; execution-state overlay works from persisted `_execution_trace` on any running task.
+
+---
+
+## 13. Related documentation
 
 - [Graph platform architecture](architecture/graph_platform.md) — compile-time graph pipeline
 - [Graph engine design](core/14.%20graph_engine_design.md) — traversal and execution plans

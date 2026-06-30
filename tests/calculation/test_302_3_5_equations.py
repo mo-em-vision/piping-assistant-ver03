@@ -79,12 +79,13 @@ def test_eq_1c_stress_range_factor(
 
 
 def test_b313_302_3_5_equation_files_exist(node_dir: Path) -> None:
+    record_path = node_dir / "node.yaml"
+    text = record_path.read_text(encoding="utf-8")
     for name in (
-        "eq_1a_allowable_displacement_stress_range.md",
         "eq_1a_allowable_displacement_stress_range.py",
-        "eq_1b_allowable_displacement_stress_range_with_margin.md",
         "eq_1b_allowable_displacement_stress_range_with_margin.py",
-        "eq_1c_stress_range_factor.md",
         "eq_1c_stress_range_factor.py",
     ):
-        assert (node_dir / "equations" / name).exists()
+        assert (node_dir / name).is_file()
+    for token in ("eq-1a", "eq-1b", "eq-1c", "calculate_allowable_displacement_stress_range"):
+        assert token in text

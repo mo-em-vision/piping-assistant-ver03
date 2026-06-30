@@ -174,11 +174,7 @@ class NodeRepository:
     def _default_rel_path(self, node_id: str, node_type: str, metadata: dict[str, Any] | None = None) -> str:
         meta = metadata or {}
         kind = node_kind(meta)
-        if kind and kind in _KIND_PATHS:
-            base = _KIND_PATHS[kind]
-        else:
-            base = _DEFAULT_TYPE_PATHS.get(node_type, "misc")
-        return f"nodes/{base}/{node_id}"
+        return f"nodes/{node_id}"
 
     def _load_file(self, pack_root: Path, path: Path) -> StoredNode | None:
         text = path.read_text(encoding="utf-8")

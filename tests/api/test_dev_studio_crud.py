@@ -59,7 +59,7 @@ def test_create_update_delete_round_trip(dev_pack: tuple[DevStudioService, str])
                 "description": "Another parameter",
             },
             "body": "Body text",
-            "source_rel_path": "nodes/parameters/TEST-param-y",
+            "source_rel_path": "nodes/TEST-param-y",
         },
     )
     assert created["id"] == "TEST-param-y"

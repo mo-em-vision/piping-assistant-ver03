@@ -383,9 +383,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "table_b31_3_A1",
 
-            "nodes/appendix_A/tables/A-1.yaml",
+            "nodes/B313-table-A-1/tables/A-1.yaml",
 
-            "nodes/appendix_A/tables/A-1",
+            "nodes/B313-table-A-1/tables/A-1",
 
             "material_allowable_stress",
 
@@ -423,9 +423,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "table_b31_3_A-1A",
 
-            "nodes/appendix_A/tables/A-1A.yaml",
+            "nodes/B313-table-A-1A/tables/A-1A.yaml",
 
-            "nodes/appendix_A/tables/A-1A",
+            "nodes/B313-table-A-1A/tables/A-1A",
 
         ],
 
@@ -475,9 +475,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "table_b31_3_A_1B",
 
-            "nodes/appendix_A/tables/A-1B.yaml",
+            "nodes/B313-table-A-1B/tables/A-1B.yaml",
 
-            "nodes/appendix_A/tables/A-1B",
+            "nodes/B313-table-A-1B/tables/A-1B",
 
         ],
 
@@ -575,9 +575,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "table_304_1_1",
 
-            "nodes/304/304.1.1/tables/table_304_1_1.yaml",
+            "nodes/B313-table-304-1-1/tables/table_304_1_1.yaml",
 
-            "nodes/304/304.1.1/tables/table_304_1_1",
+            "nodes/B313-table-304-1-1/tables/table_304_1_1",
 
             "asme_table_304_1_1",
 
@@ -613,9 +613,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "302.3.5",
 
-            "nodes/302/302.3.5/tables/302.3.5.yaml",
+            "nodes/B313-table-302-3-5/tables/302.3.5.yaml",
 
-            "nodes/302/302.3.5/tables/302.3.5",
+            "nodes/B313-table-302-3-5/tables/302.3.5",
 
         ],
 
@@ -647,9 +647,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "table_302_3_3C",
 
-            "nodes/302/302.3.3/tables/302.3.3C.yaml",
+            "nodes/B313-table-302-3-3C/tables/302.3.3C.yaml",
 
-            "nodes/302/302.3.3/tables/302.3.3C",
+            "nodes/B313-table-302-3-3C/tables/302.3.3C",
 
         ],
 

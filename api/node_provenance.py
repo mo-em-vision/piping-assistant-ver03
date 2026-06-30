@@ -44,7 +44,23 @@ def provenance_for_node(
     }
     if source_field:
         payload["source_field"] = source_field
+
+    upstream, downstream = _graph_neighbors(reader, node_id)
+    if upstream:
+        payload["generated_by"] = upstream[0]
+    if downstream:
+        payload["consumed_by"] = downstream
     return payload
+
+
+def _graph_neighbors(reader: StandardsReader, node_id: str) -> tuple[list[str], list[str]]:
+    store = reader.graph_store
+    if not store.available:
+        return [], []
+    store.load()
+    upstream = [edge.from_id for edge in store.incoming(node_id)]
+    downstream = [edge.to_id for edge in store.outgoing(node_id)]
+    return upstream, downstream
 
 
 def attach_provenance(

@@ -509,7 +509,10 @@ def question_for_interaction(
             )
     if spec.question:
         if spec.default is not None and condition_text:
-            return spec.question
+            return (
+                f"For {label}: the default is {spec.default} {spec.unit} when "
+                f"{condition_text}. Confirm or enter another value."
+            )
         return spec.question
     if spec.mode == InteractionMode.DECISION and spec.options:
         return (

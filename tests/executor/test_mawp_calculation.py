@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 
 def test_calculate_pressure_design_thickness() -> None:
-    node_dir = PROJECT_ROOT / "standards/asme/asme_b31.3/nodes/304/304.1/mawp_pressure_design"
+    node_dir = PROJECT_ROOT / "standards/asme/asme_b31.3/nodes/B313-MAWP-PRESSURE-DESIGN"
     result = calculate_pressure_design_thickness(
         node_dir=node_dir,
         variables={"t_actual": 6.35, "c": 0.5},
@@ -22,7 +22,7 @@ def test_calculate_pressure_design_thickness() -> None:
 
 
 def test_calculate_mawp_thin_wall() -> None:
-    node_dir = PROJECT_ROOT / "standards/asme/asme_b31.3/nodes/304/304.1/mawp_calculation"
+    node_dir = PROJECT_ROOT / "standards/asme/asme_b31.3/nodes/B313-MAWP-CALCULATION"
     # SI units: S in Pa, t and D in mm
     s = 137_900_000.0
     t = 5.85

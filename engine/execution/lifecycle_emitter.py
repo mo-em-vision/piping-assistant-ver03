@@ -18,7 +18,10 @@ from models.workflow_lifecycle import WorkflowLifecycleEvent, WorkflowLifecycleE
 
 def is_executable_node(metadata: dict[str, Any], node_type: str | None = None) -> bool:
     """True when the node runs calculations or lookups (not reference-only)."""
-    return is_executable_equation(metadata, node_type)
+    if is_executable_equation(metadata, node_type):
+        return True
+    raw = node_type if node_type is not None else str(metadata.get("type", ""))
+    return canonical_type(metadata, raw) in {"calculation", "lookup"}
 
 
 def _should_emit_lifecycle(metadata: dict[str, Any], node_type: str | None) -> bool:

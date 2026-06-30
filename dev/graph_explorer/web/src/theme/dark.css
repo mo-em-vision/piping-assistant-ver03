@@ -232,3 +232,16 @@ body {
 .context-meta strong {
   color: #e2e8f0;
 }
+
+@keyframes graph-edge-flow {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.react-flow__edge-path {
+  stroke-dasharray: 8 4;
+}

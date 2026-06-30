@@ -9,10 +9,12 @@ from typing import Any
 
 from engine.graph.graph_store import GraphStore
 from engine.reference.node_types import is_section_node
+from engine.reference.graph_compile import LEGACY_NODE_ID_ALIASES
+from engine.reference.embedded_nodes import find_embedded_body, iter_embedded_node_sources
 from engine.reference.pack_graph_db import resolve_pack_graph_db
 from engine.reference.pack_nodes_db import resolve_pack_nodes_db
 from engine.reference.pack_tables_db import resolve_pack_tables_db
-from engine.reference.standards_markdown import split_frontmatter
+from engine.reference.standards_markdown import compose_frontmatter, merge_dual_node_frontmatter, split_frontmatter
 from engine.reference.standards_nodes import StandardsNodesDatabase
 from engine.reference.standards_paths import (
     list_standard_packs,
@@ -83,6 +85,8 @@ _LEGACY_SECTION_ENRICH_KEYS = (
     "display_heading",
     "purpose",
     "references",
+    "nomenclature",
+    "interactions",
 )
 
 
@@ -161,10 +165,14 @@ class StandardsReader:
         )
 
     def _virtual_node_path(self, source_rel_path: str, *, kind: str) -> Path:
-        filename = "root.md" if kind == "root" else "node.md"
         if kind == "root":
-            return self.standards_root / "tasks" / source_rel_path / filename
-        return self.pack_root / source_rel_path / filename
+            return self.standards_root / "tasks" / source_rel_path / "root.md"
+        base = self.pack_root / source_rel_path
+        for name in ("node.yaml", "node.yml", "node.md"):
+            candidate = base / name
+            if candidate.is_file():
+                return candidate
+        return base / "node.md"
 
     def _record_from_tasks_db(self, node_id: str) -> NodeRecord | None:
         if not self.tasks_db_available:
@@ -199,20 +207,33 @@ class StandardsReader:
         if record is None:
             return None
         base = self.pack_root / record.source_rel_path
-        path = base / "node.yaml"
-        if not path.is_file():
-            for name in ("node.yml", "node.md"):
-                candidate = base / name
-                if candidate.is_file():
-                    path = candidate
-                    break
+        path = None
+        for name in ("node.md", "node.yaml", "node.yml"):
+            candidate = base / name
+            if candidate.is_file():
+                path = candidate
+                break
+        if path is None:
+            path = base / "node.yaml"
         metadata = dict(record.metadata)
         metadata.setdefault("type", record.node_type)
+        body = record.body
+        markdown_path = base / "node.md"
+        if markdown_path.is_file():
+            markdown_record = self.load_file(markdown_path)
+            metadata, body = merge_dual_node_frontmatter(
+                base,
+                metadata,
+                body,
+                primary_path=path if path.suffix in {".yaml", ".yml"} else markdown_path,
+            )
+            if len(markdown_record.body.strip()) >= len(body.strip()):
+                body = markdown_record.body
         return NodeRecord(
             node_id=record.node_id,
             path=path,
             metadata=metadata,
-            body=record.body,
+            body=body,
         )
 
     def _record_from_nodes_db_only(self, node_id: str) -> NodeRecord | None:
@@ -223,12 +244,57 @@ class StandardsReader:
         if data is None or str(data["kind"]) == "root":
             return None
         path = self._virtual_node_path(str(data["source_rel_path"]), kind=str(data["kind"]))
+        markdown_path = path if path.suffix == ".md" else path.with_suffix(".md")
+        body = str(data["body"])
+        if markdown_path.is_file():
+            markdown_record = self.load_file(markdown_path)
+            if len(markdown_record.body.strip()) >= len(body.strip()):
+                body = markdown_record.body
         return NodeRecord(
             node_id=str(data["node_id"]),
             path=path,
             metadata=data["metadata"],
-            body=str(data["body"]),
+            body=body,
         )
+
+    def _record_from_embedded_source(self, node_id: str) -> NodeRecord | None:
+        if not self.nodes_dir.is_dir():
+            return None
+        for path in self.nodes_dir.rglob("node.md"):
+            record = self.load_file(path)
+            if record.node_id == node_id:
+                return record
+            metadata, body = split_frontmatter(path.read_text(encoding="utf-8"))
+            for embedded in iter_embedded_node_sources(
+                parent_id=record.node_id,
+                parent_source_rel_path=str(path.parent.relative_to(self.pack_root).as_posix()),
+                metadata=metadata,
+            ):
+                if embedded.node_id == node_id:
+                    return NodeRecord(
+                        node_id=embedded.node_id,
+                        path=path,
+                        metadata=embedded.metadata,
+                        body=embedded.body or body,
+                    )
+        for path in self.nodes_dir.rglob("node.yaml"):
+            record = self.load_file(path)
+            if record.node_id == node_id:
+                return record
+            metadata, body = split_frontmatter(path.read_text(encoding="utf-8"))
+            for embedded in iter_embedded_node_sources(
+                parent_id=record.node_id,
+                parent_source_rel_path=str(path.parent.relative_to(self.pack_root).as_posix()),
+                metadata=metadata,
+            ):
+                if embedded.node_id == node_id:
+                    return NodeRecord(
+                        node_id=embedded.node_id,
+                        path=path,
+                        metadata=embedded.metadata,
+                        body=embedded.body or body,
+                    )
+        return None
 
     def _enrich_standard_section_record(self, record: NodeRecord) -> NodeRecord:
         if not is_section_node(record.metadata):
@@ -250,27 +316,16 @@ class StandardsReader:
         )
 
     def _record_from_db(self, node_id: str) -> NodeRecord | None:
-        graph_record = self._record_from_graph_db(node_id)
-        if graph_record is not None:
-            return self._enrich_standard_section_record(graph_record)
         root_record = self._record_from_tasks_db(node_id)
         if root_record is not None:
             return root_record
-        if not self.nodes_db_available:
-            return None
-        resolved_id = self._nodes_db.resolve_node_id(node_id) or node_id
-        data = self._nodes_db.get_node(resolved_id)
-        if data is None:
-            return None
-        if str(data["kind"]) == "root":
-            return self._record_from_tasks_db(str(data["node_id"]))
-        path = self._virtual_node_path(str(data["source_rel_path"]), kind=str(data["kind"]))
-        return NodeRecord(
-            node_id=str(data["node_id"]),
-            path=path,
-            metadata=data["metadata"],
-            body=str(data["body"]),
-        )
+        nodes_record = self._record_from_nodes_db_only(node_id)
+        if nodes_record is not None:
+            return nodes_record
+        graph_record = self._record_from_graph_db(node_id)
+        if graph_record is not None:
+            return self._enrich_standard_section_record(graph_record)
+        return None
 
     def load_table(self, table_ref: str) -> dict[str, Any]:
         """Load a lookup table from the pack SQLite database."""
@@ -328,16 +383,22 @@ class StandardsReader:
                 resolved = candidate
 
         if resolved is None and self.nodes_dir.is_dir():
-            direct = self.nodes_dir / node_id / "node.md"
-            if direct.exists():
-                resolved = direct
-            else:
+            for name in ("node.yaml", "node.yml", "node.md"):
+                direct = self.nodes_dir / node_id / name
+                if direct.is_file():
+                    resolved = direct
+                    break
+            if resolved is None:
                 self._warn_missing_nodes_db_once()
                 for path in self.nodes_dir.rglob("node.md"):
                     record = self.load_file(path)
                     if record.node_id == node_id:
                         resolved = path
                         break
+                if resolved is None:
+                    embedded = self._record_from_embedded_source(node_id)
+                    if embedded is not None:
+                        resolved = embedded.path
 
         if resolved is None and self.tasks_dir.is_dir():
             self._warn_missing_nodes_db_once()
@@ -351,6 +412,7 @@ class StandardsReader:
         return resolved
 
     def load(self, node_id: str) -> NodeRecord:
+        node_id = LEGACY_NODE_ID_ALIASES.get(node_id, node_id)
         if node_id in self._node_record_cache:
             return self._node_record_cache[node_id]
 
@@ -358,11 +420,22 @@ class StandardsReader:
         if record is None:
             path = self.find_node_path(node_id)
             if path is None:
-                raise FileNotFoundError(f"Node not found in standards pack: {node_id}")
-            if path.is_file():
+                embedded = self._record_from_embedded_source(node_id)
+                if embedded is None:
+                    raise FileNotFoundError(f"Node not found in standards pack: {node_id}")
+                record = embedded
+            elif path.is_file():
                 record = self.load_file(path)
+                if record.node_id != node_id:
+                    embedded = self._record_from_embedded_source(node_id)
+                    if embedded is not None:
+                        record = embedded
             else:
-                raise FileNotFoundError(f"Node not found in standards pack: {node_id}")
+                embedded = self._record_from_embedded_source(node_id)
+                if embedded is not None:
+                    record = embedded
+                else:
+                    raise FileNotFoundError(f"Node not found in standards pack: {node_id}")
 
         self._node_record_cache[node_id] = record
         return record
@@ -413,23 +486,43 @@ class StandardsReader:
         return candidate if candidate.is_file() else None
 
     def read_asset_text(self, record: NodeRecord, file_ref: str) -> str | None:
+        embedded_body = find_embedded_body(record.metadata, file_ref)
+        if embedded_body is not None:
+            return embedded_body
+
+        relative = str(file_ref).replace("\\", "/").lstrip("/")
+        if relative.startswith("nodes/"):
+            parts = relative.split("/")
+            if len(parts) >= 3:
+                other_node_id = parts[1]
+                other_path = "/".join(parts[2:])
+                if self.nodes_db_available:
+                    other_asset = self._nodes_db.get_asset_by_relative_path(other_node_id, other_path)
+                    if other_asset is not None:
+                        if other_asset.metadata:
+                            return compose_frontmatter(other_asset.metadata, other_asset.body)
+                        if other_asset.body:
+                            return other_asset.body
+                try:
+                    other_record = self.load(other_node_id)
+                except FileNotFoundError:
+                    other_record = None
+                if other_record is not None:
+                    nested = find_embedded_body(other_record.metadata, other_path)
+                    if nested is not None:
+                        return nested
+
         if self.nodes_db_available:
-            relative = str(file_ref).replace("\\", "/").lstrip("/")
             if not relative.startswith(("equations/", "conditions/", "notes/", "references/")):
                 if "/" not in relative:
                     relative = f"equations/{relative}"
             asset = self._nodes_db.get_asset_by_relative_path(record.node_id, relative)
-            if asset is not None and asset.body:
-                return asset.body
-            other_node_id = None
-            if relative.startswith("nodes/"):
-                parts = relative.split("/")
-                if len(parts) >= 2:
-                    other_node_id = parts[1]
-            if other_node_id:
-                other = self._nodes_db.get_asset_by_relative_path(other_node_id, "/".join(parts[2:]))
-                if other is not None:
-                    return other.body
+            if asset is not None:
+                if asset.metadata:
+                    return compose_frontmatter(asset.metadata, asset.body)
+                if asset.body:
+                    return asset.body
+
         path = self.resolve_asset_path(record, file_ref)
         if path is None or not path.is_file():
             return None

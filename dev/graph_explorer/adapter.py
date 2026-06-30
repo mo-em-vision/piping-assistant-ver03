@@ -39,6 +39,7 @@ class TaskContext:
     workflow_id: str | None
     active_nodes: list[str]
     session_id: str
+    execution_states: dict[str, str]
 
 
 class GraphViewProvider(Protocol):
@@ -123,16 +124,40 @@ class TaskContextReader:
                     workflow_id=None,
                     active_nodes=[],
                     session_id=self.session_id,
+                    execution_states={},
                 )
             active = tasks[-1]
 
         workflow_id = _workflow_id_from_task(active)
+        execution_states = _execution_states_from_task(active)
         return TaskContext(
             task_id=active.task_id,
             workflow_id=workflow_id,
             active_nodes=list(active.active_nodes),
             session_id=self.session_id,
+            execution_states=execution_states,
         )
+
+
+def _execution_states_from_task(task: Task) -> dict[str, str]:
+    states: dict[str, str] = {}
+    raw_trace = task.outputs.get("_execution_trace")
+    if not isinstance(raw_trace, list):
+        return states
+    status_map = {
+        "completed": "success",
+        "error": "failed",
+        "skipped": "skipped",
+        "awaiting_input": "active",
+    }
+    for item in raw_trace:
+        if not isinstance(item, dict):
+            continue
+        node_id = str(item.get("node_id", ""))
+        if not node_id:
+            continue
+        states[node_id] = status_map.get(str(item.get("status", "")), "pending")
+    return states
 
 
 class GraphExplorerAdapter:
@@ -163,7 +188,7 @@ class GraphExplorerAdapter:
 
     def get_context(self) -> GraphContextDto:
         ctx = self._context_reader.read()
-        snapshot = self._build_subgraph(ctx.active_nodes)
+        snapshot = self._build_subgraph(ctx.active_nodes, ctx.execution_states)
         message = None
         if not ctx.task_id:
             message = "No active task. Create or activate a task in the desktop app."
@@ -180,7 +205,7 @@ class GraphExplorerAdapter:
 
     def get_snapshot(self) -> GraphSnapshotDto:
         ctx = self._context_reader.read()
-        nodes, edges = self._build_subgraph(ctx.active_nodes)
+        nodes, edges = self._build_subgraph(ctx.active_nodes, ctx.execution_states)
         revision = self._compute_revision(ctx, nodes, edges)
         context = GraphContextDto(
             task_id=ctx.task_id,
@@ -281,6 +306,7 @@ class GraphExplorerAdapter:
     def _build_subgraph(
         self,
         active_nodes: list[str],
+        execution_states: dict[str, str] | None = None,
     ) -> tuple[list[GraphNodeDto], list[GraphEdgeDto]]:
         if not active_nodes:
             return [], []
@@ -305,6 +331,9 @@ class GraphExplorerAdapter:
                 )
                 continue
             slug = self._node_pack.get(node_id, "")
+            metadata = dict(record.metadata)
+            if execution_states:
+                metadata["execution_state"] = execution_states.get(node_id, "pending")
             node_dtos.append(
                 GraphNodeDto(
                     id=record.node_id,
@@ -312,7 +341,7 @@ class GraphExplorerAdapter:
                     name=_node_name(record),
                     description=_node_description(record),
                     pack=slug,
-                    metadata=dict(record.metadata),
+                    metadata=metadata,
                 )
             )
 
@@ -328,7 +357,7 @@ class GraphExplorerAdapter:
                 if key in seen_edges:
                     continue
                 seen_edges.add(key)
-                edge_dtos.append(self._edge_to_dto(edge))
+                edge_dtos.append(self._edge_to_dto(edge, execution_states))
             for edge in store.incoming(node_id):
                 if edge.from_id not in active_set:
                     continue
@@ -336,19 +365,27 @@ class GraphExplorerAdapter:
                 if key in seen_edges:
                     continue
                 seen_edges.add(key)
-                edge_dtos.append(self._edge_to_dto(edge))
+                edge_dtos.append(self._edge_to_dto(edge, execution_states))
 
         return node_dtos, edge_dtos
 
     @staticmethod
-    def _edge_to_dto(edge: GraphEdgeRecord) -> GraphEdgeDto:
+    def _edge_to_dto(
+        edge: GraphEdgeRecord,
+        execution_states: dict[str, str] | None = None,
+    ) -> GraphEdgeDto:
         edge_id = f"{edge.from_id}|{edge.edge_type}|{edge.to_id}"
+        metadata = dict(edge.metadata)
+        if execution_states:
+            source_state = execution_states.get(edge.from_id)
+            if source_state in {"success", "active"}:
+                metadata["traversed"] = True
         return GraphEdgeDto(
             id=edge_id,
             source=edge.from_id,
             target=edge.to_id,
             edge_type=edge.edge_type,
-            metadata=dict(edge.metadata),
+            metadata=metadata,
         )
 
     def _compute_revision(
@@ -371,6 +408,7 @@ class GraphExplorerAdapter:
         payload = {
             "task_id": ctx.task_id,
             "active_nodes": sorted(ctx.active_nodes),
+            "execution_states": dict(sorted(ctx.execution_states.items())),
             "node_count": len(nodes),
             "edge_count": len(edges),
             "db_mtimes": sorted(db_mtimes),

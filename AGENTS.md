@@ -22,10 +22,11 @@ Do **not** move engineering rules, formulas, or workflow logic into the frontend
 
 Standards micro-graph nodes follow: **Markdown/YAML → GraphBuilder → PackGraph → SQLite cache**.
 
-- Source of truth: `standards/*/nodes/**/node.{yaml,yml,md}`
+- Source of truth: `standards/*/nodes/**/node.{yaml,md}` — section nodes use `node.yaml` (structure) plus optional `node.md` (paragraph trace and embedded child `source:` blocks)
+- Embedded children in metadata containers (`equations`, `assumptions`, `texts`, …) compile as first-class nodes via `engine/reference/embedded_nodes.py`
 - Runtime: `GraphStore` / `build_or_load_graph()` compile sources into a `PackGraph` in memory
 - SQLite (`*_graph.db`) is an optional performance cache only; rebuild with `python scripts/build_graph_db.py`
-- Canonical node types: `workflow`, `equation`, `parameter`, `text` — use `kind` metadata for variants (e.g. `parameter` + `kind: assumption`)
+- Canonical node types: `workflow`, `definition`, `calculation`, `equation`, `parameter`, `quantity`, `designation`, `text`, `unit` — use `kind` metadata for variants (e.g. `parameter` + `kind: assumption`)
 
 ## Development order
 
@@ -70,6 +71,25 @@ npm run dev
 ```
 
 Open `http://localhost:3000`. Requires the desktop app (or `python -m api.server`) to be running with an active task. See [`docs/developer_graph_explorer.md`](docs/developer_graph_explorer.md).
+
+## Developer Inspector (development only)
+
+Centralized debugging panel in the desktop app for execution trace, provenance, planner decisions, replay, and graph integrity checks.
+
+**Full documentation:** [`docs/developer_inspection_framework.md`](docs/developer_inspection_framework.md)
+
+1. Start backend with inspection enabled:
+   ```bash
+   set DEV_INSPECTION_ENABLED=1
+   python -m api.server
+   ```
+   (Unpackaged Electron builds set this automatically with `DEV_STUDIO_ENABLED`.)
+
+2. Run the desktop app in dev mode (`npm run dev` in `desktopApp/`).
+
+3. Click **Inspector** in the app header when a task is active.
+
+For deep graph visualization with execution-state overlay, also run the [Developer Graph Explorer](#developer-graph-explorer-development-only).
 
 ## Key paths
 

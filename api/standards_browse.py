@@ -77,6 +77,26 @@ def _top_section_folder(source_rel_path: str) -> str | None:
     return parts[0] if parts else None
 
 
+def _workflow_group_key(summary: dict[str, Any]) -> str | None:
+    paragraph = str(summary.get("paragraph") or "").strip()
+    if paragraph and paragraph[0].isdigit():
+        return paragraph.split(".", 1)[0]
+    node_id = str(summary.get("node_id") or "")
+    if node_id.startswith("B313-table-") or node_id.startswith("B313-lookup-"):
+        return "appendix_A"
+    return _top_section_folder(str(summary.get("source_rel_path") or ""))
+
+
+def _flat_layout_subgroup(leaf: dict[str, Any]) -> str | None:
+    content_kind = str(leaf.get("content_kind") or "")
+    if content_kind == "table":
+        return "tables"
+    node_id = str(leaf.get("node_id") or "")
+    if node_id.startswith("B313-lookup-"):
+        return "lookups"
+    return None
+
+
 def _workflow_summary(workflow_id: str) -> dict[str, Any]:
     meta = _workflow_meta(workflow_id)
     return {
@@ -143,12 +163,12 @@ def _build_node_workflow_map(
             summary = summaries.get(node_id)
             if summary is None:
                 continue
-            top_folder = _top_section_folder(str(summary.get("source_rel_path") or ""))
+            top_folder = _workflow_group_key(summary)
             if top_folder:
                 folder_workflows[top_folder].append(workflow)
 
     for node_id, summary in summaries.items():
-        top_folder = _top_section_folder(str(summary.get("source_rel_path") or ""))
+        top_folder = _workflow_group_key(summary)
         if not top_folder:
             continue
         node_workflows[node_id].extend(folder_workflows.get(top_folder, []))
@@ -324,6 +344,14 @@ def _insert_leaf(
         return
 
     folder_parts = _folder_parts_after_section_root(parts[:-1], section_label)
+    if not folder_parts and len(parts) <= 1:
+        subgroup = _flat_layout_subgroup(leaf)
+        if subgroup:
+            group_id = f"group:{section_key}/{subgroup}"
+            group = _ensure_group(section_children, group_id=group_id, label=subgroup)
+            group.setdefault("children", []).append(leaf)
+            return
+
     current_children = section_children
     path_prefix = section_key
 

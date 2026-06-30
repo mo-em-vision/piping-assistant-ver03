@@ -1,98 +1,49 @@
 # ASME B31.3 — Master Index
 
-
-
-Navigation only. Paragraph content lives in node folders under `nodes/` grouped by section.
-
-
+Navigation only. Paragraph content lives in node folders under `nodes/` (flat `nodes/{node_id}/` layout).
 
 ## Analysis entry points
 
-
-
 | Analysis | Root |
-
 |----------|------|
-
 | Pipe Wall Thickness Design | [../../tasks/asme_b31.3/pipe_wall_thickness_design/root.md](../../tasks/asme_b31.3/pipe_wall_thickness_design/root.md) |
-
 | Maximum Allowable Working Pressure (MAWP) | [../../tasks/asme_b31.3/mawp_design/root.md](../../tasks/asme_b31.3/mawp_design/root.md) |
-
-
 
 ## Section 302 — Allowable stresses
 
-
-
 | Node ID | Path | Description |
-
 |---------|------|-------------|
-
-| B313-302.3.3 | `nodes/302/302.3.3/` | Quality factor determination (Tables A-1A, A-1B, 302.3.3C) |
-
-| B313-302.3.5 | `nodes/302/302.3.5/` | Limits of calculated stresses, including W in subsection (e) |
-
-| B313-table-302-3-3C | `nodes/302/302.3.3/tables/` | Table 302.3.3C increased casting quality factors |
-
-| B313-table-302-3-5 | `nodes/302/302.3.5/tables/` | Table 302.3.5 weld strength reduction lookup |
-
-
+| B313-302.3.3 | `nodes/B313-302.3.3/` | Quality factor determination (Tables A-1A, A-1B, 302.3.3C) |
+| B313-302.3.5 | `nodes/B313-302.3.5/` | Limits of calculated stresses, including W in subsection (e) |
+| B313-table-302-3-3C | `nodes/B313-table-302-3-3C/` | Table 302.3.3C increased casting quality factors |
+| B313-table-302-3-5 | `nodes/B313-table-302-3-5/` | Table 302.3.5 weld strength reduction lookup |
 
 ### Table 302.3.3C notes
 
-
-
-| Node ID | Description |
-
-|---------|-------------|
-
-| B313-note-302-3-3C-1 | Note (1) — machine all surfaces |
-
-| B313-note-302-3-3C-2a | Note (2)(a) — magnetic particle examination |
-
-| B313-note-302-3-3C-2b | Note (2)(b) — liquid penetrant examination |
-
-| B313-note-302-3-3C-3a | Note (3)(a) — ultrasonic examination |
-
-| B313-note-302-3-3C-3b | Note (3)(b) — radiographic examination |
-
-
+| Node ID | Path | Description |
+|---------|------|-------------|
+| B313-note-302-3-3C-1 | `nodes/B313-note-302-3-3C-1/` | Note (1) — machine all surfaces |
+| B313-note-302-3-3C-2a | `nodes/B313-note-302-3-3C-2a/` | Note (2)(a) — magnetic particle examination |
+| B313-note-302-3-3C-2b | `nodes/B313-note-302-3-3C-2b/` | Note (2)(b) — liquid penetrant examination |
+| B313-note-302-3-3C-3a | `nodes/B313-note-302-3-3C-3a/` | Note (3)(a) — ultrasonic examination |
+| B313-note-302-3-3C-3b | `nodes/B313-note-302-3-3C-3b/` | Note (3)(b) — radiographic examination |
 
 ## Section 304 — Pressure design
 
-
-
 | Node ID | Path | Description |
-
 |---------|------|-------------|
-
-| B313-304.1.1 | `nodes/304/` | Required thickness relationship and nomenclature (eq. 2, symbols) |
-
-| B313-304.1.2 | `nodes/304/` | Internal pressure wall thickness calculation (thin-wall) |
-
-| B313-304.1.3 | `nodes/304/` | External pressure wall thickness (stub) |
-
-| B313-table-304-1-1 | `nodes/304/304.1.1/tables/` | Table 304.1.1 coefficient Y lookup |
-
-| B313-304.3.1 | `nodes/304/304.3/` | Branch connections — general applicability and limits |
-
-| B313-304.3.2 | `nodes/304/304.3/` | Branch connections — strength and assumed-adequate cases |
-
-| B313-304.3.3 | `nodes/304/304.3/` | Welded branch reinforcement — nomenclature and area equations |
-
-
+| B313-304.1.1 | `nodes/B313-304.1.1/` | Required thickness relationship and nomenclature (eq. 2, symbols) |
+| B313-304.1.2 | `nodes/B313-304.1.2/` | Internal pressure wall thickness calculation (thin-wall) |
+| B313-304.1.3 | `nodes/B313-304.1.3/` | External pressure wall thickness (stub) |
+| B313-table-304-1-1 | `nodes/B313-table-304-1-1/` | Table 304.1.1 coefficient Y lookup |
+| B313-304.3.1 | `nodes/B313-304.3.1/` | Branch connections — general applicability and limits |
+| B313-304.3.2 | `nodes/B313-304.3.2/` | Branch connections — strength and assumed-adequate cases |
+| B313-304.3.3 | `nodes/B313-304.3.3/` | Welded branch reinforcement — nomenclature and area equations |
 
 ## Appendix A — Tables
 
-
-
 | Node ID | Path | Description |
-
 |---------|------|-------------|
-
-| B313-table-A-1 | `nodes/appendix_A/tables/` | Table A-1 allowable stress lookup |
-
-| B313-table-A-1A | `nodes/appendix_A/tables/` | Table A-1A basic casting quality factor lookup |
-
-| B313-table-A-1B | `nodes/appendix_A/tables/` | Table A-1B quality factor lookup |
-
+| B313-table-A-1 | `nodes/B313-table-A-1/` | Table A-1 allowable stress lookup |
+| B313-table-A-1A | `nodes/B313-table-A-1A/` | Table A-1A basic casting quality factor lookup |
+| B313-table-A-1B | `nodes/B313-table-A-1B/` | Table A-1B quality factor lookup |

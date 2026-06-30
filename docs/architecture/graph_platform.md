@@ -5,7 +5,7 @@ Ver03 treats engineering standards as a **static micro-graph** compiled from Mar
 ## Pipeline
 
 ```
-standards/*/nodes/**/node.yaml  →  GraphBuilder  →  PackGraph  →  optional SQLite cache
+standards/*/nodes/**/node.{yaml,md}  →  GraphBuilder  →  PackGraph  →  optional SQLite cache
                                                               ↓
                                                          GraphStore
                                                               ↓
@@ -18,7 +18,9 @@ standards/*/nodes/**/node.yaml  →  GraphBuilder  →  PackGraph  →  optional
                                               display_emitter / API / Report generator
 ```
 
-Sources are authoritative. SQLite (`*_graph.db`) is a performance cache only; rebuild with `python scripts/build_graph_db.py`.
+Sources are authoritative. Section nodes use a **single `node.yaml`** (YAML frontmatter + optional markdown body). Legacy table/note nodes may use `node.md` only. Embedded children in metadata containers compile as first-class nodes via `engine/reference/embedded_nodes.py`.
+
+SQLite (`*_graph.db`) is a performance cache only; rebuild with `python scripts/build_graph_db.py`.
 
 `WorkflowState` (`models/workflow_state.py`) is built from `Task` via `TaskStateManager.get_workflow_state()` — a read-only runtime boundary for serialization and future presentation/report cutover. Execution still mutates `Task` directly today.
 
@@ -49,16 +51,18 @@ The graph is never mutated during execution.
 | Type | Role |
 |------|------|
 | `workflow` | Root orchestration; anchors sections and goal outputs |
+| `definition` | Standard paragraph anchor; nomenclature, expansion gates, child references |
+| `calculation` | Executable section; parameter refs, equations, conditions |
 | `quantity` | Physical engineering quantity (pressure, diameter, stress) — no runtime values |
 | `designation` | Engineering designation (NPS, schedule, flange rating) — not a quantity |
 | `parameter` | Task-state binding; `input_id` maps to Workflow State; `references` → quantity/designation |
 | `equation` | Calculations and table lookups (`kind: calculation` or `lookup`) |
-| `text` | Sections, tables, explanatory content (`kind: section`, `table`, `content`) |
+| `text` | Sections, tables, explanatory content (`kind: section`, `table`, `content`, `note`) |
 | `unit` | Global unit ontology (pack: `standards/units/`) |
 
 Legacy on-disk types (`assumption`, `interaction`, `lookup`, `table`, `standard_section`) normalize at compile time via `engine/reference/node_types.py`.
 
-Authoring templates: [`quantity.md`](../node-templates/quantity.md), [`designation.md`](../node-templates/designation.md).
+Authoring templates: [`quantity.md`](../node-templates/quantity.md), [`designation.md`](../node-templates/designation.md), [`embedded_source.md`](../node-templates/embedded_source.md).
 
 ## Implicit ports (current)
 
@@ -264,17 +268,20 @@ Version `"6"` when `node_outputs` is non-empty. Outputs feed downstream executio
 
 ## Content audit (B31.3 micro-graph)
 
-| `type` | Count (yaml) | Notes |
-|--------|--------------|-------|
-| `parameter` | 16 | Includes assumption/interaction kinds |
-| `equation` | 5 | Includes lookup kind |
-| `quantity` | 5 | Shared catalog (pressure, diameter, stress, temperature, thickness) |
-| `designation` | 3 | NPS, material grade, joint category |
-| `workflow` | 2 | Pipe wall + MAWP |
-| `text` | 8+ | Sections, intros, results |
+| `type` | Notes |
+|--------|-------|
+| `definition` | Section anchors (e.g. `B313-304.1.1`); child assumptions, interactions, equations, texts embedded in `node.yaml` |
+| `calculation` | Executable sections (e.g. `B313-304.1.2`); embedded equations, conditions, notes |
+| `parameter` | Includes `kind: assumption` and `kind: interaction` (embedded or standalone) |
+| `equation` | Sympy calculations and `kind: lookup`; often embedded under parent `equations:` with `source:` |
+| `quantity` | Shared catalog (pressure, diameter, stress, temperature, thickness) |
+| `designation` | NPS, material grade, joint category |
+| `workflow` | Pipe wall + MAWP |
+| `text` | Initiation, equation intros, notes (`texts:` container on parents) |
 
-- No `value`, `user_input`, or `runtime_unit` fields in YAML node sources (runtime fields appear only in legacy `node.md` prose blocks).
-- Inline `type: quantity` in markdown equation outputs remains to migrate in later batches.
+- Section nodes use single-file authoring: `node.yaml` (structure + paragraph trace).
+- Embedded `source:` blocks are the preferred child-node form; legacy `equations/*.md` files remain as `file:` aliases.
+- No `value`, `user_input`, or `runtime_unit` fields in YAML node sources.
 
 ## Related docs
 
