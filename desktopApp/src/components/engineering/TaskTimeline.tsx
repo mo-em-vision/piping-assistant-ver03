@@ -29,6 +29,7 @@ export function TaskTimeline({
             hint={step.hint}
             isLast={index === steps.length - 1}
             editable={step.editable}
+            provenance={step.provenance}
             onEdit={step.editable && onEditStep ? () => onEditStep(step.id) : undefined}
           />
         </div>

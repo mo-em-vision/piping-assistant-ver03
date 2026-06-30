@@ -14,6 +14,7 @@ from api.equation_inputs_display import (
 from api.json_encoding import dumps as json_dumps, json_safe
 from api.node_calculation_summaries import build_node_calculation_summaries
 from api.node_context import active_node_context_for_task
+from api.node_provenance import step_provenance
 from api.output_blocks import build_display_outputs
 from api.parameter_definitions import build_parameter_definitions
 from api.workflow_timeline import (
@@ -203,8 +204,9 @@ def _step(
     display_value: str | None = None,
     hint: str | None = None,
     editable: bool = False,
+    provenance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    payload = {
         "id": step_id,
         "title": title,
         "status": status,
@@ -214,6 +216,9 @@ def _step(
         "hint": hint,
         "editable": editable,
     }
+    if provenance:
+        payload["provenance"] = provenance
+    return payload
 
 
 def _mawp_step_display_value(task: Task, mawp_pa: float) -> str:
@@ -227,7 +232,6 @@ def _build_mawp_timeline(
     standards_root: Path | None = None,
     reader: StandardsReader | None = None,
 ) -> list[dict[str, Any]]:
-    del reader
     phase_missing = planning.get("phase_missing") or {}
     phase_questions = planning.get("phase_questions") or {}
     current_phase = str(planning.get("current_phase") or "")
@@ -315,6 +319,7 @@ def _build_mawp_timeline(
                     and is_timeline_parameter_editable(task, step_id)
                     and step_id != editing_parameter
                 ),
+                provenance=step_provenance(reader, task, step_id, planning) if reader else None,
             )
         )
 
@@ -437,6 +442,7 @@ def _build_pipe_wall_timeline(
                     and is_timeline_parameter_editable(task, step_id)
                     and step_id != editing_parameter
                 ),
+                provenance=step_provenance(reader, task, step_id, planning) if reader else None,
             )
         )
 
@@ -510,6 +516,7 @@ def _build_progress_steps(
                 value=engineering_input.value,
                 unit=engineering_input.unit,
                 display_value=_format_display_value(engineering_input.value, engineering_input.unit),
+                provenance=step_provenance(reader, task, input_id, planning) if reader else None,
             )
         )
 
@@ -609,7 +616,7 @@ def task_state(
         "inputs": {key: _input_to_dict(value) for key, value in task.inputs.items()},
         "outputs": json_safe(dict(task.outputs)),
         "warnings": list(task.warnings),
-        "parameters": build_parameter_definitions(task),
+        "parameters": build_parameter_definitions(task, reader=resolved_reader),
         "node_calculations": build_node_calculation_summaries(task, resolved_reader),
         "display_outputs": build_display_outputs(
             task,

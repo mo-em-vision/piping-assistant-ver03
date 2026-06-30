@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 
+import { DevNodeHoverSurface } from '@/components/dev/DevNodeHoverSurface'
 import { useTaskStore } from '@/store/taskStore'
 
+import type { NodeProvenanceDto } from '@/types/backend/api'
 import type { ParameterDefinitionDto } from '@/types/backend/parameters'
 
 import { ComposerInput } from './ComposerInput'
@@ -16,6 +18,7 @@ interface WorkflowComposerProps {
   parameter: ParameterDefinitionDto | null
   nextStepPrompt?: string | null
   disabled?: boolean
+  fallbackProvenance?: NodeProvenanceDto | null
 }
 
 function initialValue(parameter: ParameterDefinitionDto): unknown {
@@ -129,7 +132,12 @@ function renderInlineComposerInput({
   )
 }
 
-export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: WorkflowComposerProps) {
+export function WorkflowComposer({
+  parameter,
+  nextStepPrompt,
+  disabled,
+  fallbackProvenance,
+}: WorkflowComposerProps) {
   const submitParameter = useTaskStore((state) => state.submitParameter)
 
   const [value, setValue] = useState<unknown>(() => (parameter ? initialValue(parameter) : ''))
@@ -186,6 +194,7 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
 
   const textValue = value == null ? '' : String(value)
   const inlineComposerRow = usesInlineComposerRow(parameter)
+  const composerProvenance = parameter?.provenance ?? fallbackProvenance ?? null
 
   return (
     <div className="workflow-panel__composer">
@@ -204,7 +213,9 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
           {inlineComposerRow && parameter ? (
             <div className="workflow-panel__next-step-inline">
               {nextStepPrompt ? (
-                <span className="workflow-panel__next-step-text">{nextStepPrompt}</span>
+                <DevNodeHoverSurface provenance={composerProvenance} fallbackProvenance={fallbackProvenance}>
+                  <span className="workflow-panel__next-step-text">{nextStepPrompt}</span>
+                </DevNodeHoverSurface>
               ) : null}
               {renderInlineComposerInput({
                 parameter,
@@ -219,7 +230,9 @@ export function WorkflowComposer({ parameter, nextStepPrompt, disabled }: Workfl
               })}
             </div>
           ) : nextStepPrompt ? (
-            <span className="workflow-panel__next-step-text">{nextStepPrompt}</span>
+            <DevNodeHoverSurface provenance={composerProvenance} fallbackProvenance={fallbackProvenance}>
+              <span className="workflow-panel__next-step-text">{nextStepPrompt}</span>
+            </DevNodeHoverSurface>
           ) : null}
         </div>
       ) : null}

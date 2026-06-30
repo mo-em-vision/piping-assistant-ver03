@@ -1,3 +1,4 @@
+import { DevNodeHoverSurface } from '@/components/dev/DevNodeHoverSurface'
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 import { EngineeringMathText } from '@/components/math/engineeringMath'
 
@@ -59,18 +60,20 @@ export function TextOutput({ block }: TextOutputProps) {
   return (
     <article className="output-block">
       {block.title ? <h4 className="output-block__title">{block.title}</h4> : null}
-      <p className={variantClass}>
-        {block.variant === 'assumption' ? (
-          <>
-            <strong className="output-text__assumption-label">Assumptions:</strong>{' '}
-          </>
-        ) : null}
-        <EngineeringMathText text={block.content} />
-        {inlineReferences && block.reference_links?.length ? (
-          <InlineReferenceLinks links={block.reference_links} />
-        ) : null}
-        {block.content_suffix ? <EngineeringMathText text={block.content_suffix} /> : null}
-      </p>
+      <DevNodeHoverSurface provenance={block.provenance}>
+        <p className={variantClass}>
+          {block.variant === 'assumption' ? (
+            <>
+              <strong className="output-text__assumption-label">Assumptions:</strong>{' '}
+            </>
+          ) : null}
+          <EngineeringMathText text={block.content} />
+          {inlineReferences && block.reference_links?.length ? (
+            <InlineReferenceLinks links={block.reference_links} />
+          ) : null}
+          {block.content_suffix ? <EngineeringMathText text={block.content_suffix} /> : null}
+        </p>
+      </DevNodeHoverSurface>
       {!inlineReferences && block.reference_links?.length ? (
         <ReferenceLinkList links={block.reference_links} />
       ) : null}

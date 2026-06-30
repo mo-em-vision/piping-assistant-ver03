@@ -153,6 +153,13 @@ def subsection_source_payload(
     }
 
 
+def active_context_source_field(metadata: dict[str, Any]) -> str:
+    explicit = str(metadata.get("display_heading", "")).strip()
+    if explicit:
+        return "display_heading"
+    return "purpose"
+
+
 def active_node_context_for_task(
     task: Task,
     reader: StandardsReader,
@@ -190,4 +197,5 @@ def active_node_context_for_task(
         "paragraph": paragraph,
         "display_heading": display_heading_for_node(metadata),
         "hover_excerpt": hover_excerpt_for_node(record),
+        "source_field": active_context_source_field(metadata),
     }

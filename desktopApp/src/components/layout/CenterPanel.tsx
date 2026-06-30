@@ -19,6 +19,7 @@ import { useChatStore } from '@/store/chatStore'
 import { isTaskCompleted } from '@/store/taskStateManager'
 import { useTaskStore } from '@/store/taskStore'
 import { getSelectedText, isSelectionAskAiEligible } from '@/utils/centerPanelSelection'
+import { activeContextToProvenance } from '@/utils/nodeProvenance'
 
 import './CenterPanel.css'
 
@@ -60,6 +61,10 @@ export function CenterPanel() {
   }, [viewModel, currentParameter])
 
   const showCompletionNextSteps = isTaskCompleted(activeTaskState) && !currentParameter
+  const fallbackProvenance = useMemo(
+    () => activeContextToProvenance(activeTaskState?.active_node_context),
+    [activeTaskState?.active_node_context],
+  )
 
   const handleContextMenu = (event: MouseEvent<HTMLElement>) => {
     const container = panelRef.current
@@ -143,6 +148,7 @@ export function CenterPanel() {
             parameter={currentParameter}
             nextStepPrompt={nextStepPrompt}
             disabled={!viewModel || (loading && !activeTaskState)}
+            fallbackProvenance={fallbackProvenance}
           />
         )}
       </div>

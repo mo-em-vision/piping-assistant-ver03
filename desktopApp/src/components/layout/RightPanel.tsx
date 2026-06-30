@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react'
 
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { ParameterEditDialog } from '@/components/engineering/ParameterEditDialog'
@@ -7,6 +7,7 @@ import { MaterialReferenceTab } from '@/components/standards/MaterialReferenceTa
 import { NodeReferenceTab } from '@/components/standards/NodeReferenceTab'
 import { StandardsBrowserTab } from '@/components/standards/StandardsBrowserTab'
 import { TableReferenceTab } from '@/components/standards/TableReferenceTab'
+import { env } from '@/config/env'
 import { useActiveTaskViewModel } from '@/hooks/useActiveTaskViewModel'
 import { useRightPanelStore } from '@/store/rightPanelStore'
 import { isReportSectionVisible } from '@/store/taskStateManager'
@@ -22,6 +23,13 @@ import { TaskTimeline } from '@/components/engineering/TaskTimeline'
 import { ChatTabIcon, pinnedTabAriaLabel, StandardsTabIcon, TaskTabIcon } from './RightPanelTabIcon'
 import { PanelSection } from './PanelSection'
 import './SidePanel.css'
+
+const NodeEditTab = env.devMode
+  ? lazy(async () => {
+      const module = await import('@/components/dev/NodeEditTab')
+      return { default: module.NodeEditTab }
+    })
+  : null
 
 const TAB_SCROLL_INTO_VIEW_OPTIONS: ScrollIntoViewOptions = {
   block: 'nearest',
@@ -286,6 +294,17 @@ export function RightPanel() {
         {activeTab?.kind === 'material' ? (
           <div className="side-panel__tab-body side-panel__tab-body--reference">
             <MaterialReferenceTab materialId={activeTab.materialId} />
+          </div>
+        ) : null}
+        {activeTab?.kind === 'node-edit' && NodeEditTab ? (
+          <div className="side-panel__tab-body side-panel__tab-body--reference">
+            <Suspense fallback={<p className="node-edit-tab__hint">Loading node editor…</p>}>
+              <NodeEditTab
+                nodeId={activeTab.nodeId}
+                pack={activeTab.pack}
+                sourceField={activeTab.sourceField}
+              />
+            </Suspense>
           </div>
         ) : null}
       </div>

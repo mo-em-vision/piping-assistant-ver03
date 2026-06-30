@@ -26,6 +26,7 @@ function mapStepDto(step: ProgressStepDto): TimelineStepViewModel {
     displayValue: displayValue ?? null,
     hint: step.hint ?? null,
     editable: Boolean(step.editable),
+    provenance: step.provenance,
   }
 }
 

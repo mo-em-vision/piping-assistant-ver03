@@ -1,3 +1,5 @@
+import type { NodeProvenanceDto } from '@/types/backend/api'
+
 export type OutputBlockType = 'text' | 'equation' | 'table' | 'graph' | 'reference' | 'result'
 
 export type TextVariant = 'body' | 'caption' | 'warning' | 'assumption'
@@ -6,6 +8,7 @@ export interface OutputBlockBase {
   id: string
   type: OutputBlockType
   title?: string
+  provenance?: NodeProvenanceDto
 }
 
 export interface ReferenceLinkDto {

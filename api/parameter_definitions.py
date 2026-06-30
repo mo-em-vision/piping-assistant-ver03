@@ -23,6 +23,8 @@ from models.task import Task
 
 from api.parameter_edit import active_edit_parameter, clear_edit_session
 from api.workflow_timeline import is_mawp_task, is_pipe_wall_thickness_task, revealed_input_ids, revealed_pipe_wall_input_ids, submittable_parameter_ids
+from api.node_provenance import param_node_index, provenance_for_node
+from engine.reference.standards_reader import StandardsReader
 
 _PARAMETER_SPECS: dict[str, dict[str, Any]] = {
     "material": {
@@ -204,13 +206,18 @@ def _current_value(task: Task, parameter_id: str) -> Any:
     return existing.value
 
 
-def build_parameter_definitions(task: Task) -> list[dict[str, Any]]:
+def build_parameter_definitions(
+    task: Task,
+    *,
+    reader: StandardsReader | None = None,
+) -> list[dict[str, Any]]:
     planning = task.outputs.get("planning_summary") or {}
     if not isinstance(planning, dict):
         planning = {}
 
     requested_ids = _requested_parameter_ids(task, planning)
     submittable_ids = set(submittable_parameter_ids(task, planning))
+    param_index = param_node_index(reader, task) if reader is not None else {}
 
     parameters: list[dict[str, Any]] = []
     editing = active_edit_parameter(task)
@@ -218,25 +225,32 @@ def build_parameter_definitions(task: Task) -> list[dict[str, Any]]:
         spec = _base_spec(parameter_id)
         options = spec.get("options") or _INTERACTION_OPTIONS.get(parameter_id)
         existing = task.inputs.get(parameter_id)
-        parameters.append(
-            {
-                "name": parameter_id,
-                "label": spec["label"],
-                "type": spec["type"],
-                "required": True,
-                "units": list(spec.get("units") or []),
-                "default_unit": spec.get("default_unit", "dimensionless"),
-                "default_value": existing.default if existing and existing.default is not None else spec.get("default_value"),
-                "value": _current_value(task, parameter_id),
-                "options": options,
-                "validation": spec.get("validation"),
-                "status": _parameter_status(task, parameter_id),
-                "requires_confirmation": bool(existing.requires_confirmation) if existing else False,
-                "guidance": _parameter_guidance(planning, parameter_id),
-                "editing": editing == parameter_id,
-                "submittable": parameter_id in submittable_ids,
-            }
-        )
+        payload: dict[str, Any] = {
+            "name": parameter_id,
+            "label": spec["label"],
+            "type": spec["type"],
+            "required": True,
+            "units": list(spec.get("units") or []),
+            "default_unit": spec.get("default_unit", "dimensionless"),
+            "default_value": existing.default if existing and existing.default is not None else spec.get("default_value"),
+            "value": _current_value(task, parameter_id),
+            "options": options,
+            "validation": spec.get("validation"),
+            "status": _parameter_status(task, parameter_id),
+            "requires_confirmation": bool(existing.requires_confirmation) if existing else False,
+            "guidance": _parameter_guidance(planning, parameter_id),
+            "editing": editing == parameter_id,
+            "submittable": parameter_id in submittable_ids,
+        }
+        if reader is not None:
+            param_node_id = param_index.get(parameter_id)
+            if param_node_id:
+                guidance = payload.get("guidance")
+                source_field = "question" if guidance else "title"
+                provenance = provenance_for_node(reader, param_node_id, source_field=source_field)
+                if provenance:
+                    payload["provenance"] = provenance
+        parameters.append(payload)
 
     return parameters
 

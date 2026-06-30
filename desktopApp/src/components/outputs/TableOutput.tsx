@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 
+import { DevNodeHoverSurface } from '@/components/dev/DevNodeHoverSurface'
 import { EngineeringMathText, InlineMath, isEngineeringSymbol } from '@/components/math/engineeringMath'
 
 import type { TableOutputBlock } from '@/types/backend/outputs'
@@ -74,7 +75,8 @@ export function TableOutput({ block }: TableOutputProps) {
           />
         </div>
       ) : null}
-      <table className="output-table">
+      <DevNodeHoverSurface provenance={block.provenance}>
+        <table className="output-table">
         <thead>
           <tr>
             {block.columns.map((column) => (
@@ -100,7 +102,8 @@ export function TableOutput({ block }: TableOutputProps) {
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </DevNodeHoverSurface>
     </article>
   )
 }

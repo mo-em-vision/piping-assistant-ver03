@@ -82,6 +82,7 @@ export interface ProgressStepDto {
   display_value?: string | null
   hint?: string | null
   editable?: boolean
+  provenance?: import('@/types/backend/api').NodeProvenanceDto
 }
 
 export interface ParameterEditImpactDto {
@@ -105,6 +106,16 @@ export interface ActiveNodeContextDto {
   paragraph?: string | null
   display_heading: string
   hover_excerpt: string
+  source_field?: string | null
+}
+
+export interface NodeProvenanceDto {
+  node_id: string
+  title?: string | null
+  standard?: string
+  paragraph?: string | null
+  hover_excerpt: string
+  source_field?: string | null
 }
 
 export interface NodeSourceDto {

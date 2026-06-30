@@ -1,3 +1,5 @@
+import type { NodeProvenanceDto } from '@/types/backend/api'
+
 export type ParameterType =
   | 'number'
   | 'text'
@@ -35,6 +37,7 @@ export interface ParameterDefinitionDto {
   guidance?: string | null
   editing?: boolean
   submittable?: boolean
+  provenance?: NodeProvenanceDto
 }
 
 export interface SubmitInputPayload {

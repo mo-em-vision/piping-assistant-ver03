@@ -17,6 +17,7 @@ from api.equation_inputs_display import (
     primary_formula_inputs_complete,
 )
 from api.node_display import build_activated_node_blocks
+from api.node_provenance import definition_node_id_for_task, enrich_display_blocks_provenance
 from api.workflow_bootstrap import resolve_activated_definition_node
 from api.workflow_timeline import is_mawp_task, is_pipe_wall_thickness_task
 from engine.reference.formula_display import (
@@ -113,7 +114,7 @@ def build_display_outputs(
     if status_block:
         blocks.append(status_block)
 
-    return _dedupe_blocks_by_id(blocks)
+    return _finalize_display_blocks(blocks, resolved_reader, task=task, planning=planning)
 
 
 def _dedupe_blocks_by_id(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -127,6 +128,20 @@ def _dedupe_blocks_by_id(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
             seen.add(block_id)
         deduped.append(block)
     return deduped
+
+
+def _finalize_display_blocks(
+    blocks: list[dict[str, Any]],
+    reader: StandardsReader,
+    *,
+    task: Task | None = None,
+    planning: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    default_node_id = None
+    if task is not None:
+        default_node_id = definition_node_id_for_task(task, reader, planning)
+    enrich_display_blocks_provenance(blocks, reader, default_node_id=default_node_id)
+    return _dedupe_blocks_by_id(blocks)
 
 
 def _reader_for(standards_root: Path | None) -> StandardsReader:
@@ -247,14 +262,14 @@ def _build_mawp_display_outputs(
         conclusion = _mawp_conclusion_block(task)
         if conclusion:
             blocks.append(conclusion)
-        return _dedupe_blocks_by_id(blocks)
+        return _finalize_display_blocks(blocks, reader, task=task, planning=planning)
 
     blocks.extend(_activated_definition_blocks(task, planning, reader))
     blocks.extend(_mawp_equation_preview_blocks(task, reader))
     status_block = _planning_status_block(task, planning)
     if status_block:
         blocks.append(status_block)
-    return _dedupe_blocks_by_id(blocks)
+    return _finalize_display_blocks(blocks, reader, task=task, planning=planning)
 
 
 def _mawp_calculated(task: Task, *, has_trace: bool) -> bool:
@@ -375,14 +390,14 @@ def _build_pipe_wall_display_outputs(
         schedule = _pipe_schedule_recommendation_block(task, standards_root)
         if schedule:
             blocks.append(schedule)
-        return _dedupe_blocks_by_id(blocks)
+        return _finalize_display_blocks(blocks, reader, task=task, planning=planning)
 
     blocks.extend(_activated_definition_blocks(task, planning, reader))
     blocks.extend(_path_calculation_preview_blocks(task, planning, reader, trace=trace))
     status_block = _planning_status_block(task, planning)
     if status_block:
         blocks.append(status_block)
-    return _dedupe_blocks_by_id(blocks)
+    return _finalize_display_blocks(blocks, reader, task=task, planning=planning)
 
 
 def _pipe_wall_t_calculated(task: Task, *, has_trace: bool) -> bool:

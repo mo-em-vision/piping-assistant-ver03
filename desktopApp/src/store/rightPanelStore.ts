@@ -32,6 +32,14 @@ export type RightPanelTab =
       title: string
       materialId: string
     }
+  | {
+      id: string
+      kind: 'node-edit'
+      title: string
+      nodeId: string
+      pack: string
+      sourceField?: string | null
+    }
 
 const TASK_TAB: RightPanelTab = { id: 'task', kind: 'task', title: 'Task' }
 const CHAT_TAB: RightPanelTab = { id: 'chat', kind: 'chat', title: 'Chat' }
@@ -53,6 +61,13 @@ export interface OpenReferenceTabOptions {
 
 export type OpenMaterialTabOptions = OpenReferenceTabOptions
 
+export interface OpenNodeEditTabOptions {
+  pack?: string
+  sourceField?: string | null
+  title?: string
+  activate?: boolean
+}
+
 interface RightPanelState {
   tabs: RightPanelTab[]
   activeTabId: string
@@ -64,6 +79,7 @@ interface RightPanelState {
     options?: OpenReferenceTabOptions,
   ) => void
   openMaterialTab: (materialId: string, title: string, options?: OpenMaterialTabOptions) => void
+  openNodeEditTab: (nodeId: string, options?: OpenNodeEditTabOptions) => void
   closeTab: (id: string) => void
   setActiveTab: (id: string) => void
   reset: (hasTask?: boolean) => void
@@ -72,6 +88,10 @@ interface RightPanelState {
 
 function materialTabId(materialId: string): string {
   return `material-${materialId}`
+}
+
+function nodeEditTabId(nodeId: string): string {
+  return `edit-node-${nodeId}`
 }
 
 function referenceTabId(
@@ -204,6 +224,46 @@ export const useRightPanelStore = create<RightPanelState>((set, get) => ({
     }))
   },
 
+  openNodeEditTab: (nodeId, options) => {
+    const pack = options?.pack ?? 'asme_b31.3'
+    const activate = options?.activate ?? true
+    const title = options?.title ? `Edit: ${options.title}` : `Edit: ${nodeId}`
+    const id = nodeEditTabId(nodeId)
+    const existing = get().tabs.find((tab) => tab.kind === 'node-edit' && tab.nodeId === nodeId)
+
+    if (existing) {
+      set((state) => ({
+        activeTabId: activate ? existing.id : state.activeTabId,
+        tabs: state.tabs.map((tab) =>
+          tab.id === existing.id && tab.kind === 'node-edit'
+            ? {
+                ...tab,
+                title,
+                pack,
+                sourceField: options?.sourceField ?? tab.sourceField ?? null,
+              }
+            : tab,
+        ),
+      }))
+      return
+    }
+
+    set((state) => ({
+      tabs: [
+        ...state.tabs,
+        {
+          id,
+          kind: 'node-edit',
+          title,
+          nodeId,
+          pack,
+          sourceField: options?.sourceField ?? null,
+        },
+      ],
+      activeTabId: activate ? id : state.activeTabId,
+    }))
+  },
+
   closeTab: (id) => {
     if (id === 'task' || id === 'chat' || id === 'standards') {
       return
@@ -227,7 +287,7 @@ export const useRightPanelStore = create<RightPanelState>((set, get) => ({
   syncForActiveTask: (hasTask) => {
     set((state) => {
       const dynamicTabs = state.tabs.filter(
-        (tab) => tab.kind === 'reference' || tab.kind === 'material',
+        (tab) => tab.kind === 'reference' || tab.kind === 'material' || tab.kind === 'node-edit',
       )
       const pinnedTabs = pinnedTabsForActiveTask(hasTask)
       const tabs = [...pinnedTabs, ...dynamicTabs]

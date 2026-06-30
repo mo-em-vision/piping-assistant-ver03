@@ -9,6 +9,7 @@ export interface TimelineStepViewModel {
   displayValue: string | null
   hint: string | null
   editable: boolean
+  provenance?: import('@/types/backend/api').NodeProvenanceDto
 }
 
 export interface TaskStateViewModel {

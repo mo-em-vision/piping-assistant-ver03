@@ -83,6 +83,15 @@ class RetrievedSource:
             payload["node_id"] = self.node_id
         if self.table_id:
             payload["table_id"] = self.table_id
+        if self.kind == "node" and self.node_id and self.excerpt:
+            payload["provenance"] = {
+                "node_id": self.node_id,
+                "title": None,
+                "standard": self.standard,
+                "paragraph": self.paragraph,
+                "hover_excerpt": self.excerpt,
+                "source_field": "body",
+            }
         return payload
 
 

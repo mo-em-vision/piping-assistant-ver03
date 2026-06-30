@@ -1,3 +1,5 @@
+import type { NodeProvenanceDto } from '@/types/backend/api'
+
 export type ChatRole = 'user' | 'assistant'
 
 export type ChatSourceKind = 'node' | 'table' | 'lookup_result'
@@ -10,6 +12,7 @@ export interface ChatSource {
   paragraph?: string
   node_id?: string
   table_id?: string
+  provenance?: NodeProvenanceDto
 }
 
 export interface ChatMessageDto {

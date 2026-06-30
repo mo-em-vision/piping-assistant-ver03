@@ -1,3 +1,4 @@
+import { DevNodeHoverSurface } from '@/components/dev/DevNodeHoverSurface'
 import { DisplayMath, EngineeringMathText, InlineMath, isEngineeringSymbol } from '@/components/math/engineeringMath'
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 
@@ -33,9 +34,11 @@ export function EquationOutput({ block }: EquationOutputProps) {
   return (
     <article className="output-block output-equation">
       {block.title ? <h4 className="output-block__title">{block.title}</h4> : null}
-      <div className="output-equation__math-row">
-        <DisplayMath expression={block.content} className="output-equation__math" />
-      </div>
+      <DevNodeHoverSurface provenance={block.provenance}>
+        <div className="output-equation__math-row">
+          <DisplayMath expression={block.content} className="output-equation__math" />
+        </div>
+      </DevNodeHoverSurface>
       {block.input_table ? (
         <div className="output-equation__input-table">
           <table className="output-table">
