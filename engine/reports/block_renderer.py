@@ -15,8 +15,8 @@ _INPUT_LABELS: dict[str, str] = {
     "design_temperature": "Design temperature",
     "corrosion_allowance": "Corrosion allowance",
     "weld_joint_efficiency": "Weld joint efficiency (E)",
-    "weld_strength_reduction": "Weld strength reduction (W)",
-    "temperature_coefficient": "Temperature coefficient (Y)",
+    "weld_joint_strength_reduction_factor_W": "Weld strength reduction (W)",
+    "temperature_coefficient_Y": "Temperature coefficient (Y)",
     "pressure_loading": "Pressure loading",
     "straight_pipe_section": "Straight pipe section",
 }

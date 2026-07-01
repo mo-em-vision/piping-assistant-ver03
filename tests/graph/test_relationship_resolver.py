@@ -15,7 +15,7 @@ from engine.reference.standards_reader import StandardsReader
 
 def _reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[2]
-    return StandardsReader(root / "standards", standard="asme_b31.3")
+    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_wall_thickness_requires_quantity_concepts() -> None:

@@ -138,14 +138,14 @@ def calculate_minimum_required_thickness(
     **_: Any,
 ) -> CalculationResult:
     return _run_formula(
-        calculation_id="B313-304.1.1:eq-2",
+        calculation_id="304.1.1:eq-2",
         node_dir=node_dir,
         variables=variables,
         reader=reader,
         record=record,
         equation_meta=equation_meta,
-        file_ref="equations/eq_2_minimum_required_thickness.md",
-        fallback_node_id="B313-304.1.1",
+        file_ref="304.1.1/equations/eq-2.md",
+        fallback_node_id="304.1.1",
     )
 
 

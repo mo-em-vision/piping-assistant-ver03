@@ -22,7 +22,7 @@ from models.task import TaskStatus
 
 @pytest.fixture
 def standards_reader(project_root: Path) -> StandardsReader:
-    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+    return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_provenance_for_node_shape(standards_reader: StandardsReader) -> None:

@@ -20,7 +20,7 @@ from scripts.build_standards_tasks_db import build_all as build_tasks
 
 
 def build_all(*, standards_root: Path | None = None, rebuild_astm: bool = True) -> None:
-    root = (standards_root or (_ROOT / "standards")).resolve()
+    root = (standards_root or (_ROOT / "knowledge" / "standards")).resolve()
     print("Building ASME B31.3 lookup tables...")
     build_b313_tables()
     print("Building ASTM pack lookup tables...")

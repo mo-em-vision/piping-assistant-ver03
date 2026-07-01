@@ -90,6 +90,29 @@ def resolve_require_binding(
     return RequireBinding(target_id, target_id, sympy_symbol, edge_meta)
 
 
+def node_requires_items(store: GraphStore, node_id: str) -> list[dict[str, Any]]:
+    """Return requires entries from compiled ``requires`` edges on a node."""
+    items: list[dict[str, Any]] = []
+    for edge in store.outgoing(node_id, edge_types={"requires"}):
+        item: dict[str, Any] = {"target": edge.to_id, "node_id": edge.to_id}
+        if edge.metadata:
+            item.update(edge.metadata)
+        items.append(item)
+    return items
+
+
+def resolve_requires_for_node(
+    store: GraphStore,
+    node_id: str,
+    metadata: dict[str, Any] | None = None,
+) -> list[RequireBinding]:
+    meta = metadata if metadata is not None else store.metadata(node_id)
+    requires = meta.get("requires")
+    if not requires:
+        requires = node_requires_items(store, node_id)
+    return resolve_require_bindings(store, requires)
+
+
 def resolve_require_bindings(store: GraphStore, requires: Any) -> list[RequireBinding]:
     if not requires:
         return []

@@ -18,8 +18,8 @@ from engine.reference.pipe_dimensions_registry import (
 from engine.reference.standards_paths import resolve_standard_pack
 
 B36_10_SLUG = "asme_b36.10"
-DEFAULT_TABLE = "welded_seamless_pipe_dimensions"
-DEFAULT_TABLE_YAML = "tables/welded_seamless_pipe_dimensions.yaml"
+DEFAULT_TABLE = "table-2-1"
+DEFAULT_TABLE_YAML = "tables/B3610-table-2-1.yaml"
 
 
 @dataclass(frozen=True)

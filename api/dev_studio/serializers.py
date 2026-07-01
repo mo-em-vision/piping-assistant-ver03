@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from engine.reference.graph_compile import EDGE_LIST_KEYS, MICRO_GRAPH_TYPES
+from engine.reference.graph_edge_schema import CANONICAL_EDGE_TYPES, STORED_EDGE_TYPES
 from engine.reference.graph_db import GraphEdgeRecord, GraphNodeRecord
 from engine.reference.node_types import CANONICAL_NODE_TYPES
 
@@ -30,16 +30,16 @@ NODE_TYPE_SCHEMAS: dict[str, dict[str, Any]] = {
             "general": ["id", "type", "title", "slug", "status", "version", "engineering_intent", "purpose"],
             "docs": _DOCS_FIELDS,
             "navigation": ["navigation"],
-            "graph": ["anchors_to", "goal_output", "contains", "requires", "edges"],
+            "graph": ["goal_output", "edges"],
         },
-        "required": ["id", "type", "title", "anchors_to", "goal_output"],
+        "required": ["id", "type", "title", "goal_output", "edges"],
     },
     "text": {
         "sections": {
             "general": ["id", "type", "kind", "title", "role", "display_order", "paragraph", "section", "topic"],
             "docs": _DOCS_FIELDS,
             "ui": ["role", "display_order"],
-            "graph": ["contains", "defines", "edges"],
+            "graph": ["edges"],
             "reference": ["table_id", "standard", "lookup_keys"],
         },
         "required": ["id", "type"],
@@ -50,7 +50,7 @@ NODE_TYPE_SCHEMAS: dict[str, dict[str, Any]] = {
             "general": ["id", "type", "kind", "title", "equation_id", "execution_phase"],
             "docs": _DOCS_FIELDS,
             "calculation": ["sympy", "display_latex", "table_id", "output_param", "interpolation"],
-            "graph": ["requires", "calculates", "explains", "keys", "uses_table", "outputs", "edges"],
+            "graph": ["edges"],
         },
         "required": ["id", "type"],
         "kinds": ["calculation", "lookup"],
@@ -62,8 +62,8 @@ NODE_TYPE_SCHEMAS: dict[str, dict[str, Any]] = {
             "engineering": ["canonical_unit", "unit", "allowed_units", "allowed_values", "required_for_expansion"],
             "ui": ["question", "mode", "options", "requires_confirmation", "expansion_block_message"],
             "calculation": ["resolution"],
-            "metadata": ["defined_in", "concept_id", "references", "located_in", "blocks_expansion_on"],
-            "graph": ["edges", "next_step"],
+            "metadata": ["defined_in", "concept_id", "citations", "located_in", "blocks_expansion_on"],
+            "graph": ["edges"],
         },
         "required": ["id", "type", "input_id"],
         "kinds": list(_PARAMETER_KINDS),
@@ -71,13 +71,14 @@ NODE_TYPE_SCHEMAS: dict[str, dict[str, Any]] = {
     "unit": {
         "sections": {
             "general": ["id", "type", "symbol", "dimension", "description", "aliases", "display"],
-            "graph": ["converts_to", "edges"],
+            "graph": ["edges"],
         },
         "required": ["id", "type", "symbol", "dimension"],
     },
 }
 
-GRAPH_EDGE_FIELDS = list(EDGE_LIST_KEYS) + ["edges", "anchors_to"]
+GRAPH_EDGE_FIELDS = ["edges"]
+CANONICAL_EDGE_TYPE_LIST = sorted(STORED_EDGE_TYPES)
 
 
 def node_summary(record: GraphNodeRecord) -> dict[str, Any]:

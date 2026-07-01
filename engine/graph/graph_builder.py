@@ -17,10 +17,9 @@ from engine.reference.embedded_nodes import iter_embedded_node_sources
 from engine.reference.parameter_metadata import prepare_parameter_metadata
 from engine.reference.node_types import normalize_node_metadata
 from engine.reference.graph_db import GraphEdgeRecord, GraphNodeRecord
+from engine.reference.node_sources import iter_node_source_paths, source_rel_path
+from engine.reference.nomenclature_parameters import iter_nomenclature_parameters
 from engine.reference.standards_markdown import merge_dual_node_frontmatter, split_frontmatter
-
-
-_NODE_PATTERNS = ("node.yaml", "node.yml", "node.md")
 
 
 @dataclass
@@ -41,15 +40,10 @@ def compute_source_fingerprint(pack_root: Path) -> str:
         return hashlib.sha256(b"empty").hexdigest()
 
     parts: list[str] = []
-    seen: set[Path] = set()
-    for pattern in _NODE_PATTERNS:
-        for path in sorted(nodes_dir.rglob(pattern)):
-            if path in seen:
-                continue
-            seen.add(path)
-            stat = path.stat()
-            rel = path.relative_to(pack_root).as_posix()
-            parts.append(f"{rel}:{stat.st_mtime_ns}:{stat.st_size}")
+    for path in iter_node_source_paths(nodes_dir):
+        stat = path.stat()
+        rel = path.relative_to(pack_root).as_posix()
+        parts.append(f"{rel}:{stat.st_mtime_ns}:{stat.st_size}")
 
     payload = "\n".join(parts).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
@@ -64,31 +58,26 @@ def discover_micro_graph_sources(pack_root: Path) -> list[_DiscoveredSourceNode]
         return discovered
 
     seen_paths: set[Path] = set()
-    for pattern in _NODE_PATTERNS:
-        for path in sorted(nodes_dir.rglob(pattern)):
-            if path in seen_paths:
-                continue
-            seen_paths.add(path)
-            text = path.read_text(encoding="utf-8")
-            metadata, body = split_frontmatter(text)
-            node_id = str(metadata.get("id") or path.parent.name).strip()
-            node_type = str(metadata.get("type") or "node").strip()
-            if not node_id or not is_micro_graph_node(metadata, node_type):
-                continue
-            try:
-                source_rel_path = path.parent.relative_to(pack_root).as_posix()
-            except ValueError:
-                source_rel_path = path.parent.as_posix()
-            discovered.append(
-                _DiscoveredSourceNode(
-                    node_id=node_id,
-                    node_type=node_type,
-                    metadata=metadata,
-                    body=body,
-                    source_rel_path=source_rel_path,
-                    source_path=path,
-                )
+    for path in iter_node_source_paths(nodes_dir):
+        if path in seen_paths:
+            continue
+        seen_paths.add(path)
+        text = path.read_text(encoding="utf-8")
+        metadata, body = split_frontmatter(text)
+        node_id = str(metadata.get("id") or path.stem).strip()
+        node_type = str(metadata.get("type") or "node").strip()
+        if not node_id or not is_micro_graph_node(metadata, node_type):
+            continue
+        discovered.append(
+            _DiscoveredSourceNode(
+                node_id=node_id,
+                node_type=node_type,
+                metadata=metadata,
+                body=body,
+                source_rel_path=source_rel_path(pack_root, path),
+                source_path=path,
             )
+        )
 
     by_id: dict[str, _DiscoveredSourceNode] = {}
     for item in discovered:
@@ -134,14 +123,31 @@ def discover_micro_graph_sources(pack_root: Path) -> list[_DiscoveredSourceNode]
             if not is_micro_graph_node(embedded.metadata, embedded.node_type):
                 continue
             existing = by_id.get(embedded.node_id)
-            if existing is not None and existing.source_path.parent.name == embedded.node_id:
-                continue
+            if existing is not None and existing.source_path != item.source_path:
+                if existing.source_path.parent.name == embedded.node_id:
+                    continue
             by_id[embedded.node_id] = _DiscoveredSourceNode(
                 node_id=embedded.node_id,
                 node_type=embedded.node_type,
                 metadata=embedded.metadata,
                 body=embedded.body,
                 source_rel_path=embedded.source_rel_path,
+                source_path=item.source_path,
+            )
+    # Virtual parameter nodes from nomenclature on paragraph/workflow sources.
+    for item in list(by_id.values()):
+        node_type, meta = normalize_node_metadata(dict(item.metadata), item.node_type)
+        if node_type not in {"paragraph", "workflow"}:
+            continue
+        for param_id, param_meta in iter_nomenclature_parameters(item.node_id, meta):
+            if param_id in by_id:
+                continue
+            by_id[param_id] = _DiscoveredSourceNode(
+                node_id=param_id,
+                node_type="parameter",
+                metadata=param_meta,
+                body="",
+                source_rel_path=item.source_rel_path,
                 source_path=item.source_path,
             )
     return list(by_id.values())

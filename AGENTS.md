@@ -22,7 +22,8 @@ Do **not** move engineering rules, formulas, or workflow logic into the frontend
 
 Standards micro-graph nodes follow: **Markdown/YAML → GraphBuilder → PackGraph → SQLite cache**.
 
-- Source of truth: `standards/*/nodes/**/node.{yaml,md}` — section nodes use `node.yaml` (structure) plus optional `node.md` (paragraph trace and embedded child `source:` blocks)
+- Source of truth: `knowledge/standards/*/nodes/**/node.{yaml,md}` — section nodes use `node.yaml` (structure) plus optional `node.md` (paragraph trace and embedded child `source:` blocks)
+- **Graph relationships:** every node uses `edges: [{type, target}]` only (outgoing). See [`docs/node-templates/_relationship_schema.md`](docs/node-templates/_relationship_schema.md). Nomenclature prose traces use `citations`.
 - Embedded children in metadata containers (`equations`, `assumptions`, `texts`, …) compile as first-class nodes via `engine/reference/embedded_nodes.py`
 - Runtime: `GraphStore` / `build_or_load_graph()` compile sources into a `PackGraph` in memory
 - SQLite (`*_graph.db`) is an optional performance cache only; rebuild with `python scripts/build_graph_db.py`
@@ -99,7 +100,17 @@ desktopApp/electron/       # Main process, backend child process
 desktopApp/src/store/      # Zustand state
 desktopApp/src/services/api/  # Backend client
 docs/desktopApp/           # Product and architecture docs
+docs/audit/                # Living architecture audit (INDEX, MAINTENANCE, DUPLICATES, traces)
+**/README.md               # Per-folder audit docs (see docs/audit/INDEX.md)
 ```
+
+## Architecture audit (living documentation)
+
+Per-folder audit READMEs describe **current implementation** (not design intent). When you change code, update the matching audit sections in the same task — see [docs/audit/MAINTENANCE.md](docs/audit/MAINTENANCE.md).
+
+- **Index:** [docs/audit/INDEX.md](docs/audit/INDEX.md) — all audit paths and section anchors
+- **Cite a section:** `@audit cli/README.md#execution-traces` or markdown `#anchor` links
+- **Cross-cutting:** [docs/audit/DUPLICATES.md](docs/audit/DUPLICATES.md), [docs/audit/EXECUTION_TRACES.md](docs/audit/EXECUTION_TRACES.md)
 
 ## After coding
 

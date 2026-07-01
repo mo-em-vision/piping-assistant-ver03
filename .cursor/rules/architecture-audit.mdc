@@ -1,0 +1,31 @@
+---
+description: Architecture Audit Mode — documentation workflow and living sync with code changes
+globs:
+alwaysApply: false
+---
+
+# Architecture Audit Mode
+
+## Living sync (default during implementation)
+
+When the user edits code, **update affected audit documentation in the same task**:
+
+1. Find the audit doc via [docs/audit/INDEX.md](docs/audit/INDEX.md).
+2. Update only impacted sections per [docs/audit/MAINTENANCE.md](docs/audit/MAINTENANCE.md).
+3. If the user cites `@audit path#section`, edit that section first.
+
+Cross-cutting updates when relevant: `docs/audit/DUPLICATES.md`, `docs/audit/EXECUTION_TRACES.md`.
+
+## Audit-only pass (explicit request)
+
+When the user asks for an architecture **audit** (not a feature), follow [docs/todo/Architecture Audit Mode.md](docs/todo/Architecture Audit Mode.md):
+
+- DO NOT modify application code.
+- Document the code as it exists today.
+- If uncertain: **Unknown from static analysis.**
+
+## Standard README sections
+
+Purpose, Files, Entry Points, Dependencies, Runtime Usage, Possible Dead Code, Notes, Per-file inventory, Execution traces.
+
+Accuracy over speed in audit-only mode; surgical section updates in living sync mode.

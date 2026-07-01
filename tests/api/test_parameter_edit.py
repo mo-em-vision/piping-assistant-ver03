@@ -101,7 +101,7 @@ def test_desktop_service_preview_parameter_edit(tmp_path, project_root) -> None:
         language="english",
         default_standard="ASME_B31.3",
         sessions_dir=tmp_path / "sessions",
-        standards_root=project_root / "standards",
+        standards_root=project_root / "knowledge" / "standards",
         openai_api_key=None,
         openai_model="gpt-4o-mini",
         openai_base_url=None,

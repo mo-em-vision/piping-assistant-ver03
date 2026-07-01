@@ -143,8 +143,8 @@ def test_task_state_timeline_includes_coefficient_parameters() -> None:
                 "coefficient_resolution": [
                     "joint_category",
                     "weld_joint_efficiency",
-                    "weld_strength_reduction",
-                    "temperature_coefficient",
+                    "weld_joint_strength_reduction_factor_W",
+                    "temperature_coefficient_Y",
                 ],
             },
         },

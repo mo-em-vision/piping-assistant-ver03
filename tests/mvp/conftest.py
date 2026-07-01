@@ -19,7 +19,7 @@ def project_root() -> Path:
 
 @pytest.fixture
 def standards_reader(project_root: Path) -> StandardsReader:
-    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+    return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 @pytest.fixture
@@ -52,7 +52,7 @@ def scenario_runner(standards_reader: StandardsReader):
 @pytest.fixture
 def mvp_service(tmp_path: Path, project_root: Path) -> DesktopApiService:
     sessions_dir = tmp_path / "sessions"
-    standards_root = project_root / "standards"
+    standards_root = project_root / "knowledge" / "standards"
     config = CLIConfig(
         report_format="html",
         language="english",

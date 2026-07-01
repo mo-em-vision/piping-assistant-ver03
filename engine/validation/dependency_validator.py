@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.reference.graph_compile import parse_dependency_node_ref
 from engine.reference.node_types import is_section_node
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput
@@ -22,9 +23,11 @@ class DependencyValidator:
                     continue
                 node_id = item.get("node_id")
                 if node_id:
-                    deps.append(str(node_id))
+                    base_id, _ = parse_dependency_node_ref(str(node_id))
+                    deps.append(base_id)
             elif isinstance(item, str):
-                deps.append(item)
+                base_id, _ = parse_dependency_node_ref(item)
+                deps.append(base_id)
         return deps
 
     def validate_node(

@@ -29,7 +29,7 @@ from tests.acceptance.helpers import internal_pressure_assumption, straight_sect
 
 def _reader() -> StandardsReader:
     project_root = Path(__file__).resolve().parents[2]
-    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+    return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def _coefficient_spec(
@@ -229,7 +229,7 @@ def test_planner_expands_after_all_defaults_confirmed() -> None:
     assert first.action == AgentAction.REQUEST_INPUT
 
     task = state.get_task("pipe-wall-ready")
-    for input_id in ("weld_joint_efficiency", "weld_strength_reduction", "temperature_coefficient"):
+    for input_id in ("weld_joint_efficiency", "weld_joint_strength_reduction_factor_W", "temperature_coefficient_Y"):
         proposed = task.inputs[input_id]
         state.store_input(
             "pipe-wall-ready",

@@ -1,27 +1,7 @@
 import type { NodeTypeSchema } from '@/dev-studio/api/devStudioApi'
 import { CollapsibleSection, NodeMultiSelect } from '@/dev-studio/components/fields/FieldComponents'
 
-const GRAPH_FIELDS = new Set([
-  'requires',
-  'calculates',
-  'defines',
-  'explains',
-  'outputs',
-  'contains',
-  'anchors_to',
-  'uses_table',
-  'next_step',
-  'validates',
-  'located_in',
-  'defined_by',
-  'related_to',
-  'references',
-  'uses',
-  'accepts',
-  'depends_on',
-  'edges',
-  'goal_output',
-])
+const GRAPH_FIELDS = new Set(['edges', 'goal_output'])
 
 interface RelationshipEditorProps {
   metadata: Record<string, unknown>

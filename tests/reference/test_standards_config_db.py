@@ -14,7 +14,7 @@ from scripts.build_standards_registry_db import build_all as build_registry
 
 @pytest.fixture
 def standards_root(project_root: Path) -> Path:
-    return project_root / "standards"
+    return project_root / "knowledge" / "standards"
 
 
 def test_build_registry_roundtrip(standards_root: Path) -> None:
@@ -36,7 +36,6 @@ def test_loaders_prefer_config_db(standards_root: Path) -> None:
         "astm_a53",
         "astm_a106",
         "astm_a312",
-        "astm_stainless_castings",
     }
     supplemental = load_supplemental_materials(standards_root)
     assert supplemental

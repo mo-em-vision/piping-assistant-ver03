@@ -26,7 +26,9 @@ class PipeDimensionSourceSpec:
 
 
 def pipe_dimensions_registry_path(standards_root: Path) -> Path:
-    return standards_root / "pipe_dimensions" / "registry.yaml"
+    from engine.reference.knowledge_paths import dimensions_registry_path
+
+    return dimensions_registry_path(standards_root_override=standards_root)
 
 
 def load_pipe_dimensions_registry(standards_root: Path) -> tuple[str | None, list[PipeDimensionSourceSpec]]:

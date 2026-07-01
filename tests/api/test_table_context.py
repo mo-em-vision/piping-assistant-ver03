@@ -7,20 +7,20 @@ from pathlib import Path
 import pytest
 
 from api.table_context import table_source_payload
-from engine.reference.asme_b31_3_table_ids import TABLE_302_3_3C, TABLE_304_1_1, TABLE_A_1A, TABLE_A_1B
+from engine.reference.asme_b31_3_table_ids import TABLE_302_3_3C, TABLE_304_1_1, TABLE_A_2, TABLE_A_3, TABLE_A_1A, TABLE_A_1B
 from engine.reference.standards_reader import StandardsReader
 
 
 @pytest.fixture
 def standards_reader(project_root: Path) -> StandardsReader:
-    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+    return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_table_source_payload_for_appendix_a_1a(standards_reader: StandardsReader) -> None:
     payload = table_source_payload(standards_reader, "A-1A")
 
-    assert payload["table_id"] == TABLE_A_1A
-    assert "Table A-1A" in payload["title"]
+    assert payload["table_id"] == TABLE_A_2
+    assert "Table A-2" in payload["title"]
     assert payload["description"]
     assert "302.3.3(b)" in payload["description"]
     assert "node:B313-302.3.3/b" in payload["description"]
@@ -55,7 +55,9 @@ def test_table_source_payload_for_table_302_3_3c(standards_reader: StandardsRead
 def test_table_source_payload_accepts_file_stem_alias(standards_reader: StandardsReader) -> None:
     payload = table_source_payload(standards_reader, "A-1B")
 
-    assert payload["table_id"] == TABLE_A_1B
+    assert payload["table_id"] == TABLE_A_3
+    assert TABLE_A_1B == TABLE_A_3
+    assert "Table A-3" in payload["title"]
     assert payload["rows"]
 
 

@@ -14,7 +14,7 @@ from tests.acceptance.helpers import sample_inputs
 
 
 def _reader(project_root: Path) -> StandardsReader:
-    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+    return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 @pytest.mark.parametrize("inspection_enabled", [False, True])

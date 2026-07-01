@@ -19,7 +19,7 @@ from models.input import EngineeringInput, InputSource, InputStatus
 @pytest.fixture
 def standards_reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[2]
-    return StandardsReader(root / "standards", standard="asme_b31.3")
+    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_legacy_lowering_maps_question_to_instructions() -> None:

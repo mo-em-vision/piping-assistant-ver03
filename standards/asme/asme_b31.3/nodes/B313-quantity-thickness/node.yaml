@@ -1,8 +1,0 @@
----
-id: B313-quantity-thickness
-type: quantity
-name: Thickness
-dimension: length
-description: >
-  Pipe wall thickness including pressure design thickness, allowances, and minimum required thickness.
----

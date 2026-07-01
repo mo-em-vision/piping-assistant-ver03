@@ -15,7 +15,7 @@ from tests.acceptance.helpers import sample_inputs
 
 def _reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[2]
-    return StandardsReader(root / "standards", standard="asme_b31.3")
+    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_workflow_state_is_serializable_runtime_data() -> None:

@@ -12,7 +12,7 @@ from scripts.build_standards_nodes_db import build_pack
 
 def test_build_pack_dedupes_flat_path_over_nested_duplicate(tmp_path: Path, project_root: Path) -> None:
     pack = tmp_path / "asme_b31.3"
-    shutil.copytree(project_root / "standards" / "asme" / "asme_b31.3" / "nodes", pack / "nodes")
+    shutil.copytree(project_root / "knowledge" / "standards" / "asme" / "asme_b31.3" / "nodes", pack / "nodes")
     flat = pack / "nodes" / "B313-304.1.1"
     nested = pack / "nodes" / "304" / "304.1" / "304.1.1"
     assert flat.is_dir()
@@ -32,7 +32,7 @@ def test_build_pack_dedupes_flat_path_over_nested_duplicate(tmp_path: Path, proj
 
 
 def test_build_b313_pack_node_count(project_root: Path) -> None:
-    pack = project_root / "standards" / "asme" / "asme_b31.3"
+    pack = project_root / "knowledge" / "standards" / "asme" / "asme_b31.3"
     db_path = build_pack(pack)
     assert db_path is not None
     count = len(StandardsNodesDatabase(db_path).list_node_ids())

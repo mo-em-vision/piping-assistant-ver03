@@ -137,7 +137,7 @@ class LookupEngine:
             )
             return TableLookupValue(value=float(result.trace.allowable_stress_pa))
 
-        if table_ref in {"asme_b31.3_table_304_1_1", TABLE_304_1_1}:
+        if table_ref in {"asme_b31.3_table_304_1_1_1", "asme_b31.3_table_304_1_1", TABLE_304_1_1}:
             from engine.reference.coefficient_resolver import lookup_y_coefficient
 
             temp = float(normalized["design_temperature"])

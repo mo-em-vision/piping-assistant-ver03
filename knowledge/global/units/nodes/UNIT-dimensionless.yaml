@@ -1,0 +1,11 @@
+---
+id: UNIT-dimensionless
+type: unit
+symbol: dimensionless
+dimension: dimensionless
+description: Dimensionless quantity
+aliases:
+- '1'
+- ''
+edges: []
+---

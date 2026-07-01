@@ -1,0 +1,166 @@
+---
+id: 302.3.3
+type: paragraph
+title: Casting Quality Factor, E_c
+version: '2026'
+status: draft
+topic: quality_factor
+revision_year: 2024
+purpose: 'Define casting quality factor E_c for components without pressure-temperature
+  ratings from Table 326.1, including basic factors in Table A-2 and increased factors
+  in Table 302.3.3C.
+
+  '
+subsections:
+- id: a
+  label: (a)
+  paragraph: 302.3.3(a)
+  title: General
+  applies_to: casting_components_without_pt_ratings
+  required: true
+  text: 'The casting quality factors, E_c, defined herein shall be used for cast components
+    not having pressure-temperature ratings established by standards in Table 326.1.
+
+    '
+  references:
+  - table: Table 326.1
+  nomenclature:
+  - symbol: E_c
+    description: 'Casting quality factor for cast components without pressure-temperature
+      ratings from Table 326.1.
+
+      '
+    required: true
+- id: b
+  label: (b)
+  paragraph: 302.3.3(b)
+  title: Basic Quality Factors
+  applies_to: basic_casting_quality_factor
+  required: true
+  text: 'Castings of gray and malleable iron, conforming to listed specifications,
+    are assigned a basic casting quality factor, E_c, of 1.00 (due to their conservative
+    allowable stress basis). For most other metals, static castings that conform to
+    the material specification and have been visually examined as required by MSS
+    SP-55, Quality Standard for Steel Castings for Valves, Flanges and Fittings and
+    Other Piping Components — Visual Method, are assigned a basic casting quality
+    factor, E_c, of 0.80. Centrifugal castings that meet specification requirements
+    only for chemical analysis, tensile, hydrostatic, and flattening tests, and visual
+    examination are assigned a basic casting quality factor of 0.80. Basic casting
+    quality factors are tabulated for listed specifications in Table A-2.
+
+    '
+  references:
+  - table: Table A-2
+    table_id: asme_b31.3_A-2
+    node_id: B313-table-A-2
+  output:
+    id: casting_quality_factor
+    symbol: E_c
+    description: Basic casting quality factor from Table A-2.
+    unit: dimensionless
+  nomenclature:
+  - symbol: E_c
+    description: 'Basic casting quality factor; 1.00 for gray and malleable iron,
+      0.80 for most other static or centrifugal castings per MSS SP-55 visual examination
+      unless otherwise tabulated in Table A-2.
+
+      '
+    required: true
+- id: c
+  label: (c)
+  paragraph: 302.3.3(c)
+  title: Increased Quality Factors
+  applies_to: increased_casting_quality_factor
+  required: false
+  text: 'Casting quality factors may be increased when supplementary examinations
+    are performed on each casting. Table 302.3.3C states the increased casting quality
+    factors, E_c, that may be used for various combinations of supplementary examination.
+    Table 302.3.3D states the acceptance criteria for the examination methods specified
+    in the Notes to Table 302.3.3C. Quality factors higher than those shown in Table
+    302.3.3C do not result from combining tests (2)(a) and (2)(b), or (3)(a) and (3)(b).
+    In no case shall the quality factor exceed 1.00. Several of the specifications
+    in Appendix A require machining of all surfaces and/or one or more of these supplementary
+    examinations. In such cases, the appropriate increased quality factor is shown
+    in Table A-2.
+
+    '
+  references:
+  - table: Table 302.3.3C
+    table_id: asme_b31.3_table_302_3_3C
+    node_id: B313-table-302-3-3C
+  - table: Table 302.3.3D
+  - table: Table A-2
+    table_id: asme_b31.3_A-2
+    node_id: B313-table-A-2
+  - subsection: b
+  - note: Note (1)
+    node_id: B313-note-302-3-3C-1
+  - note: Note (2)(a)
+    node_id: B313-note-302-3-3C-2a
+  - note: Note (2)(b)
+    node_id: B313-note-302-3-3C-2b
+  - note: Note (3)(a)
+    node_id: B313-note-302-3-3C-3a
+  - note: Note (3)(b)
+    node_id: B313-note-302-3-3C-3b
+  nomenclature:
+  - symbol: E_c
+    description: 'Increased casting quality factor when supplementary examinations
+      are performed; shall not exceed 1.00.
+
+      '
+    required: true
+nomenclature:
+- symbol: E_c
+  input_id: casting_quality_factor
+  introduced_here: true
+  description: 'Casting quality factor for cast components not having pressure-temperature
+    ratings established by standards in Table 326.1.
+
+    '
+  resolution:
+  - method: table_lookup
+    keys:
+    - material_id
+    - base_metal_group
+    table_id: asme_b31.3_A-2
+    node_id: B313-table-A-2
+    subsection: b
+  - method: table_lookup
+    keys:
+    - note_1_machining
+    - note_2_surface_exam
+    - note_3_volume_exam
+    table_id: asme_b31.3_table_302_3_3C
+    node_id: B313-table-302-3-3C
+    subsection: c
+  citations:
+  - paragraph: 302.3.3(a)
+    subsection: a
+  - paragraph: 302.3.3(b)
+    subsection: b
+  - table: Table A-2
+    table_id: asme_b31.3_A-2
+    node_id: B313-table-A-2
+  - paragraph: 302.3.3(c)
+    subsection: c
+  - table: Table 302.3.3C
+    table_id: asme_b31.3_table_302_3_3C
+    node_id: B313-table-302-3-3C
+kind: definition
+edges:
+- type: parent
+  target: '302.3'
+- type: parent
+  target: '302'
+---
+
+# 302.3.3 Casting Quality Factor, Ec
+
+**a) General**. The casting quality factors, E_c, defined herein shall be used for cast components not having pressure–temperature ratings established by standards in Table 326.1.
+
+**b) Basic Quality Factors**. Castings of gray and malleable iron, conforming to listed specifications, are assigned a basic casting quality factor, E_c, of 1.00 (due to their conservative allowable stress basis). For most other metals, static castings that conform to the material specification and have been visually examined as required by MSS SP-55, Quality Standard for Steel Castings for Valves, Flanges and Fittings and Other Piping Components — Visual Method, are assigned a basic casting quality factor, E_c, of 0.80. Centrifugal castings that meet specification requirements only for chemical analysis, tensile, hydrostatic, and flattening tests, and visual examination are assigned a basic casting quality factor of 0.80. Basic casting quality factors are tabulated for listed specifications in [Table A-2](table:asme_b31.3_A-2).
+
+**c) Increased Quality Factors.** Casting quality factors may be increased when supplementary examinations are performed on each casting. [Table 302.3.3C](table:asme_b31.3_table_302_3_3C) states the increased casting quality factors, E_c, that may be used for various combinations of supplementary examination. Table 302.3.3D states the acceptance criteria for the examination methods specified in the [Notes to Table 302.3.3C](node:B313-table-302-3-3C). Quality factors higher than those shown in Table 302.3.3C do not result from combining tests [(2)(a)](node:B313-note-302-3-3C-2a) and [(2)(b)](node:B313-note-302-3-3C-2b), or [(3)(a)](node:B313-note-302-3-3C-3a) and [(3)(b)](node:B313-note-302-3-3C-3b). In no case shall the quality factor exceed 1.00.
+
+Several of the specifications in Appendix A require machining of all surfaces and/or one or more of these supplementary examinations. In such cases, the appropriate increased quality factor is shown in [Table A-2](table:asme_b31.3_A-2).

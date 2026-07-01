@@ -17,7 +17,7 @@ from models.task import TaskStatus
 
 
 def test_recommend_next_schedule_for_nps_2(project_root: Path) -> None:
-    standards_root = project_root / "standards"
+    standards_root = project_root / "knowledge" / "standards"
     recommendation = recommend_pipe_schedule(
         nps="2",
         minimum_required_thickness_mm=2.752,
@@ -30,7 +30,7 @@ def test_recommend_next_schedule_for_nps_2(project_root: Path) -> None:
 
 
 def test_recommend_schedule_40_when_between_schedules(project_root: Path) -> None:
-    standards_root = project_root / "standards"
+    standards_root = project_root / "knowledge" / "standards"
     recommendation = recommend_pipe_schedule(
         nps="2",
         minimum_required_thickness_mm=3.0,
@@ -42,7 +42,7 @@ def test_recommend_schedule_40_when_between_schedules(project_root: Path) -> Non
 
 
 def test_recommend_schedule_prefers_numeric_alias(project_root: Path) -> None:
-    standards_root = project_root / "standards"
+    standards_root = project_root / "knowledge" / "standards"
     recommendation = recommend_pipe_schedule(
         nps="2",
         minimum_required_thickness_mm=3.2,
@@ -54,7 +54,7 @@ def test_recommend_schedule_prefers_numeric_alias(project_root: Path) -> None:
 
 
 def test_format_schedule_recommendation_text(project_root: Path) -> None:
-    standards_root = project_root / "standards"
+    standards_root = project_root / "knowledge" / "standards"
     recommendation = recommend_pipe_schedule(
         nps="2",
         minimum_required_thickness_mm=0.13,
@@ -69,7 +69,7 @@ def test_format_schedule_recommendation_text(project_root: Path) -> None:
 
 
 def test_resolve_task_nps_from_nominal_pipe_size(project_root: Path) -> None:
-    standards_root = project_root / "standards"
+    standards_root = project_root / "knowledge" / "standards"
     manager = TaskStateManager()
     task = manager.create_task("schedule-nps-from-input", status=TaskStatus.COMPLETED)
     task.inputs["nominal_pipe_size"] = EngineeringInput(
@@ -83,7 +83,7 @@ def test_resolve_task_nps_from_nominal_pipe_size(project_root: Path) -> None:
 
 
 def test_resolve_task_nps_from_outside_diameter_lookup(project_root: Path) -> None:
-    standards_root = project_root / "standards"
+    standards_root = project_root / "knowledge" / "standards"
     manager = TaskStateManager()
     task = manager.create_task("schedule-nps-from-lookup", status=TaskStatus.COMPLETED)
     task.outputs["outside_diameter_lookup"] = {
@@ -94,7 +94,7 @@ def test_resolve_task_nps_from_outside_diameter_lookup(project_root: Path) -> No
 
 
 def test_resolve_task_nps_from_matching_outside_diameter(project_root: Path) -> None:
-    standards_root = project_root / "standards"
+    standards_root = project_root / "knowledge" / "standards"
     manager = TaskStateManager()
     task = manager.create_task("schedule-nps-from-od", status=TaskStatus.COMPLETED)
     task.inputs["outside_diameter"] = EngineeringInput(
@@ -108,7 +108,7 @@ def test_resolve_task_nps_from_matching_outside_diameter(project_root: Path) -> 
 
 
 def test_no_recommendation_when_thickness_exceeds_all_schedules(project_root: Path) -> None:
-    standards_root = project_root / "standards"
+    standards_root = project_root / "knowledge" / "standards"
     recommendation = recommend_pipe_schedule(
         nps="1/8",
         minimum_required_thickness_mm=10.0,

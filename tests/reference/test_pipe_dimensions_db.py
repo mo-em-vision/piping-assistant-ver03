@@ -22,20 +22,20 @@ def project_root() -> Path:
 
 @pytest.fixture(scope="module")
 def built_db(project_root: Path) -> Path:
-    build_all(standards_root=project_root / "standards")
-    return project_root / "standards" / "asme" / "asme_b36.10" / "pipe_dimensions.db"
+    build_all(standards_root=project_root / "knowledge" / "standards")
+    return project_root / "knowledge" / "standards" / "asme" / "asme_b36.10" / "pipe_dimensions.db"
 
 
 def test_registry_lists_asme_b36_10(project_root: Path) -> None:
-    default_standard, sources = load_pipe_dimensions_registry(project_root / "standards")
+    default_standard, sources = load_pipe_dimensions_registry(project_root / "knowledge" / "standards")
     assert default_standard == "asme_b36.10"
     assert len(sources) == 1
-    assert sources[0].table_id == "welded_seamless_pipe_dimensions"
+    assert sources[0].table_id == "table-2-1"
 
 
 def test_database_lookup_nps_2_schedule_40(built_db: Path) -> None:
     database = PipeDimensionsDatabase(built_db)
-    row = database.lookup("welded_seamless_pipe_dimensions", "2", schedule="40")
+    row = database.lookup("table-2-1", "2", schedule="40")
     assert row.nps == "2"
     assert row.schedule == "40"
     assert row.outside_diameter_in == pytest.approx(2.375)
@@ -45,20 +45,20 @@ def test_database_lookup_nps_2_schedule_40(built_db: Path) -> None:
 
 def test_database_lookup_std_schedule_alias(built_db: Path) -> None:
     database = PipeDimensionsDatabase(built_db)
-    row = database.lookup("welded_seamless_pipe_dimensions", '2"', schedule="STD")
+    row = database.lookup("table-2-1", '2"', schedule="STD")
     assert row.schedule == "40"
     assert row.wall_thickness_in == pytest.approx(0.154)
 
 
 def test_pipe_dimension_lookup_uses_database(project_root: Path, built_db: Path) -> None:
     assert built_db.is_file()
-    lookup = PipeDimensionLookup(project_root / "standards")
+    lookup = PipeDimensionLookup(project_root / "knowledge" / "standards")
     result = lookup.lookup("4")
     assert result.outside_diameter_in == pytest.approx(4.500)
     assert result.standard_slug == "asme_b36.10"
-    assert result.table_id == "welded_seamless_pipe_dimensions"
+    assert result.table_id == "table-2-1"
 
 
 def test_resolve_pipe_dimension_db_path(project_root: Path, built_db: Path) -> None:
-    path = resolve_pipe_dimension_db_path(project_root / "standards", "asme_b36.10")
+    path = resolve_pipe_dimension_db_path(project_root / "knowledge" / "standards", "asme_b36.10")
     assert path == built_db

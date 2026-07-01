@@ -199,7 +199,7 @@ class TaskStateManager:
         task = self.get_task(task_id)
         resolved_reader = reader
         if resolved_reader is None:
-            root = Path(__file__).resolve().parents[2] / "standards"
+            root = Path(__file__).resolve().parents[2] / "knowledge" / "standards"
             resolved_reader = StandardsReader(root, standard="asme_b31.3")
         return build_workflow_state(
             task,

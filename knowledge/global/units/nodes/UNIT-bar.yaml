@@ -1,0 +1,13 @@
+---
+id: UNIT-bar
+type: unit
+symbol: bar
+dimension: pressure
+description: Bar
+aliases:
+- BAR
+edges:
+- type: derived_from
+  target: UNIT-Pa
+  factor: 100000.0
+---

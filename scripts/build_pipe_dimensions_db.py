@@ -16,10 +16,12 @@ from engine.reference.standards_paths import resolve_standard_pack
 
 
 def build_all(*, standards_root: Path | None = None) -> list[Path]:
-    root = (standards_root or (_ROOT / "standards")).resolve()
+    root = (standards_root or (_ROOT / "knowledge" / "standards")).resolve()
     _, sources = load_pipe_dimensions_registry(root)
     if not sources:
-        raise FileNotFoundError(f"No pipe dimension sources in {root / 'pipe_dimensions' / 'registry.yaml'}")
+        from engine.reference.knowledge_paths import dimensions_registry_path
+
+        raise FileNotFoundError(f"No pipe dimension sources in {dimensions_registry_path()}")
 
     built: list[Path] = []
     for source in sources:
@@ -45,7 +47,7 @@ def build_all(*, standards_root: Path | None = None) -> list[Path]:
 
 
 def build_pack(standard: str, *, standards_root: Path | None = None) -> Path:
-    root = (standards_root or (_ROOT / "standards")).resolve()
+    root = (standards_root or (_ROOT / "knowledge" / "standards")).resolve()
     _, sources = load_pipe_dimensions_registry(root)
     for source in sources:
         if source.standard != standard:

@@ -18,7 +18,7 @@ from engine.reference.standards_paths import resolve_standard_pack
 
 def _pack_root() -> Path:
     root = Path(__file__).resolve().parents[2]
-    return resolve_standard_pack(root / "standards", "asme_b31.3")
+    return resolve_standard_pack(root / "knowledge" / "standards", "asme_b31.3")
 
 
 def test_interpolate_y_table_at_300f() -> None:
@@ -106,5 +106,5 @@ def test_propose_coefficient_defaults_with_temperature() -> None:
             ),
         },
     )
-    assert proposed["temperature_coefficient"][0] == 0.4
+    assert proposed["temperature_coefficient_Y"][0] == 0.4
     assert proposed["weld_joint_efficiency"][0] == 1.0

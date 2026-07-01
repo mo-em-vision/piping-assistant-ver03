@@ -1,0 +1,11 @@
+---
+id: UNIT-MPa
+type: unit
+symbol: MPa
+dimension: pressure
+description: Megapascal
+edges:
+- type: derived_from
+  target: UNIT-Pa
+  factor: 1000000.0
+---

@@ -19,6 +19,7 @@ from engine.graph.param_priority import parameter_collection_priority, parameter
 from engine.graph.prefetch import prefetch_async
 from engine.reference.node_types import is_ui_parameter, parameter_input_id
 from engine.graph.traversal import bfs_neighbors, topological_order
+from engine.reference.graph_edge_schema import workflow_anchor_target
 from engine.reference.graph_db import GraphEdgeRecord
 from models.execution import ExecutionPlan
 from models.graph import EdgeType, GraphEdge, GraphVersion
@@ -180,7 +181,7 @@ class MicroGraphEngine:
             for edge in self._store.outgoing(root_id, edge_types={"requires", "contains"}):
                 if edge.to_id not in scan_ids:
                     scan_ids.append(edge.to_id)
-            anchors = wf.metadata.get("anchors_to")
+            anchors = workflow_anchor_target(wf.metadata)
             if isinstance(anchors, str):
                 for edge in self._store.outgoing(anchors, edge_types={"contains"}):
                     if edge.to_id not in scan_ids:

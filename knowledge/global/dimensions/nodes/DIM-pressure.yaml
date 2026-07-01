@@ -1,0 +1,19 @@
+---
+id: DIM-pressure
+type: dimension
+key: pressure
+name: Pressure
+canonical_unit: UNIT-Pa
+description: Force per unit area. Stress quantities share this dimension.
+aliases:
+- stress
+edges:
+- type: references
+  target: UNIT-Pa
+- type: references
+  target: UNIT-MPa
+- type: references
+  target: UNIT-psi
+- type: references
+  target: UNIT-bar
+---

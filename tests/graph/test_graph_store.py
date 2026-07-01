@@ -14,7 +14,7 @@ from tests.acceptance.helpers import internal_pressure_assumption, straight_sect
 
 def _reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[2]
-    return StandardsReader(root / "standards", standard="asme_b31.3")
+    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_graph_store_loads_workflows() -> None:
@@ -23,7 +23,7 @@ def test_graph_store_loads_workflows() -> None:
     assert store.available
     workflows = store.list_workflows()
     ids = {wf.node_id for wf in workflows}
-    assert "B313-WF-PIPE-WALL-THICKNESS" in ids
+    assert "WF-PIPE-WALL-THICKNESS" in ids
 
 
 def test_micro_graph_build_plan_internal_pressure() -> None:
@@ -46,9 +46,9 @@ def test_micro_graph_build_plan_internal_pressure() -> None:
 
 def test_get_neighbors() -> None:
     reader = _reader()
-    levels = GraphEngine().get_neighbors(reader, "B313-WF-PIPE-WALL-THICKNESS", depth=1)
+    levels = GraphEngine().get_neighbors(reader, "WF-PIPE-WALL-THICKNESS", depth=1)
     assert 0 in levels
-    assert "B313-WF-PIPE-WALL-THICKNESS" in levels[0]
+    assert "WF-PIPE-WALL-THICKNESS" in levels[0]
 
 
 def test_graph_store_builds_from_sources_without_sqlite_cache(tmp_path: Path) -> None:
@@ -56,7 +56,7 @@ def test_graph_store_builds_from_sources_without_sqlite_cache(tmp_path: Path) ->
     import shutil
 
     root = Path(__file__).resolve().parents[2]
-    pack_src = root / "standards" / "asme" / "asme_b31.3"
+    pack_src = root / "knowledge" / "standards" / "asme" / "asme_b31.3"
     standards_root = tmp_path / "standards"
     pack_dst = standards_root / "asme" / "asme_b31.3"
     pack_dst.parent.mkdir(parents=True, exist_ok=True)

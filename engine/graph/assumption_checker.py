@@ -123,8 +123,8 @@ def expansion_assumption_specs(record: NodeRecord) -> list[NodeAssumptionSpec]:
 _COEFFICIENT_CONFIRMATION_FIELDS = frozenset(
     {
         "weld_joint_efficiency",
-        "weld_strength_reduction",
-        "temperature_coefficient",
+        "weld_joint_strength_reduction_factor_W",
+        "temperature_coefficient_Y",
     }
 )
 
@@ -390,12 +390,12 @@ def question_for(spec: NodeAssumptionSpec) -> str:
             "Please confirm the weld joint quality factor E = 1.0 "
             "(default for seamless pipe), or provide a different value."
         )
-    if spec.id == "confirmed_weld_strength_reduction":
+    if spec.id == "confirmed_weld_joint_strength_reduction_factor_W":
         return (
             "Please confirm the weld strength reduction factor W = 1.0, "
             "or provide a different value."
         )
-    if spec.id == "confirmed_temperature_coefficient":
+    if spec.id == "confirmed_temperature_coefficient_Y":
         return (
             "Please confirm the temperature coefficient Y = 0.4, "
             "or provide a different value."

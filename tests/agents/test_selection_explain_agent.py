@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from ai.agents.selection_explain_agent import SelectionExplainAgent
 from ai.client import MissingAPIKeyError
-from engine.reference.asme_b31_3_table_ids import TABLE_304_1_1, TABLE_A_1A
+from engine.reference.asme_b31_3_table_ids import TABLE_304_1_1, TABLE_A_2
 from tests.agents.conftest import FakeLLMClient
 
 
@@ -65,15 +65,15 @@ def test_selection_explain_agent_falls_back_to_retrieval_sources() -> None:
     fallback = [
         {
             "kind": "table",
-            "id": TABLE_A_1A,
-            "label": "Table A-1A — Quality Factors",
-            "table_id": TABLE_A_1A,
+            "id": TABLE_A_2,
+            "label": "Table A-2 — Quality Factors",
+            "table_id": TABLE_A_2,
         }
     ]
     agent = SelectionExplainAgent(
         client=FakeLLMClient(
             {
-                "explanation": "Quality factor E is listed in Table A-1A.",
+                "explanation": "Quality factor E is listed in Table A-2.",
             }
         ),
     )

@@ -16,6 +16,8 @@ from engine.graph.node_behaviors import (
 from engine.graph.param_priority import parameter_collection_priority
 from engine.graph.traversal import dfs_collect, topological_order
 from engine.reference.graph_db import GraphEdgeRecord
+from engine.reference.graph_compile import parse_dependency_node_ref
+from engine.reference.graph_edge_schema import workflow_anchor_target
 from engine.reference.node_types import (
     expansion_priority_order,
     is_ui_parameter,
@@ -55,7 +57,7 @@ def _collect_expansion_assumptions(
     """Assumption and interaction nodes directly linked from workflow root."""
     fields: list[str] = []
     for edge in store.outgoing(root_id):
-        if edge.edge_type not in {"contains", "anchors_to"}:
+        if edge.edge_type not in {"contains", "references"}:
             continue
         node = store.get_node(edge.to_id)
         if node is None:
@@ -64,7 +66,7 @@ def _collect_expansion_assumptions(
             field_name = parameter_input_id(node.metadata)
             if field_name:
                 fields.append(field_name)
-    anchored = store.metadata(root_id).get("anchors_to")
+    anchored = workflow_anchor_target(store.metadata(root_id))
     if isinstance(anchored, str):
         for edge in store.outgoing(anchored, edge_types={"contains"}):
             node = store.get_node(edge.to_id)
@@ -94,42 +96,33 @@ def _expand_metadata_dependencies(
     inputs: dict[str, EngineeringInput],
     skipped_nodes: list[dict[str, Any]],
 ) -> None:
-    """Include conditional ``depends_on`` targets declared on active nodes."""
+    """Include conditional dependency targets from stored ``edges`` on active nodes."""
     queue = list(order)
     while queue:
         node_id = queue.pop(0)
-        for item in store.metadata(node_id).get("depends_on", []) or []:
-            if isinstance(item, dict):
-                dep_id = str(item.get("node_id", "")).strip()
-                if not dep_id:
-                    continue
-                when = item.get("when") if isinstance(item.get("when"), dict) else None
-                if not when_clause_matches(when, inputs):
-                    reason = "conditional dependency not active"
-                    pending = False
-                    if when:
-                        field_name = str(when.get("field", ""))
-                        if field_name and field_value(field_name, inputs) is None:
-                            pending = True
-                            reason = f"when {field_name} in {when.get('in')} not satisfied (field missing)"
-                        else:
-                            reason = (
-                                f"when {when.get('field')} in {when.get('in')} not satisfied"
-                            )
-                    skipped_nodes.append(
-                        {
-                            "node_id": dep_id,
-                            "reason": reason,
-                            "field": str(when.get("field", "")) if when else "",
-                            "pending": pending,
-                        }
-                    )
-                    continue
-                dep_type = str(item.get("dependency_type") or "dependency")
-            elif isinstance(item, str) and item.strip():
-                dep_id = item.strip()
-                dep_type = "dependency"
-            else:
+        for edge in store.outgoing(
+            node_id,
+            edge_types={"depends_on", "references", "table", "uses"},
+        ):
+            dep_id = edge.to_id
+            when = edge.metadata.get("when") if edge.metadata else None
+            if when and isinstance(when, dict) and not when_clause_matches(when, inputs):
+                reason = "conditional dependency not active"
+                pending = False
+                field_name = str(when.get("field", ""))
+                if field_name and field_value(field_name, inputs) is None:
+                    pending = True
+                    reason = f"when {field_name} in {when.get('in')} not satisfied (field missing)"
+                else:
+                    reason = f"when {when.get('field')} in {when.get('in')} not satisfied"
+                skipped_nodes.append(
+                    {
+                        "node_id": dep_id,
+                        "reason": reason,
+                        "field": field_name,
+                        "pending": pending,
+                    }
+                )
                 continue
 
             if dep_id in node_set:
@@ -140,12 +133,12 @@ def _expand_metadata_dependencies(
                     node_set.add(dep_node_id)
                     order.append(dep_node_id)
                     queue.append(dep_node_id)
-            for edge in dep_edges:
-                edges.append(edge)
-                if edge.to_id not in node_set:
-                    node_set.add(edge.to_id)
-                    order.append(edge.to_id)
-                    queue.append(edge.to_id)
+            for dep_edge in dep_edges:
+                edges.append(dep_edge)
+                if dep_edge.to_id not in node_set:
+                    node_set.add(dep_edge.to_id)
+                    order.append(dep_edge.to_id)
+                    queue.append(dep_edge.to_id)
             node_set.add(dep_id)
             if dep_id not in order:
                 order.append(dep_id)
@@ -163,7 +156,7 @@ def _expand_output_producers(
     queue = [node_id for node_id in order if store.node_type(node_id) == "parameter"]
     while queue:
         param_id = queue.pop(0)
-        for edge in store.incoming(param_id, edge_types={"outputs"}):
+        for edge in store.incoming(param_id, edge_types={"implements", "parameter", "outputs"}):
             producer_id = edge.from_id
             if producer_id in node_set:
                 continue
@@ -225,7 +218,7 @@ def expand_workflow(
 
     if lazy and not expansion_gate_ready(store, root_id, inputs):
         state.active_nodes = [root_id]
-        anchors = root.metadata.get("anchors_to")
+        anchors = workflow_anchor_target(root.metadata)
         if isinstance(anchors, str):
             state.active_nodes.append(anchors)
         for field_name in _collect_expansion_assumptions(store, root_id):
@@ -240,7 +233,7 @@ def expand_workflow(
             node_set.add(edge.to_id)
             order.append(edge.to_id)
 
-    anchors = root.metadata.get("anchors_to")
+    anchors = workflow_anchor_target(root.metadata)
     if isinstance(anchors, str) and anchors not in node_set:
         anchor_order, anchor_edges = dfs_collect(store, anchors, inputs=inputs)
         for node_id in anchor_order:
@@ -257,7 +250,7 @@ def expand_workflow(
             continue
         for req_edge in store.outgoing(calc_id, edge_types={"requires"}):
             param_id = req_edge.to_id
-            for prod_edge in store.incoming(param_id, edge_types={"outputs"}):
+            for prod_edge in store.incoming(param_id, edge_types={"implements", "parameter"}):
                 producer_id = prod_edge.from_id
                 if producer_id not in node_set:
                     continue

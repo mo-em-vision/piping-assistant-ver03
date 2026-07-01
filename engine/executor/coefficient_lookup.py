@@ -24,18 +24,18 @@ from models.task import Task
 from engine.reference.asme_b31_3_table_ids import (
     TABLE_302_3_5,
     TABLE_304_1_1,
-    TABLE_A_1A,
+    TABLE_A_2,
 )
 
 B31_3_SLUG = "asme_b31.3"
-A1_TABLE_REF = f"{B31_3_SLUG}/{TABLE_A_1A}"
+A2_TABLE_REF = f"{B31_3_SLUG}/{TABLE_A_2}"
 W_TABLE_REF = f"{B31_3_SLUG}/{TABLE_302_3_5}"
 Y_TABLE_REF = f"{B31_3_SLUG}/{TABLE_304_1_1}"
 
 _COEFFICIENT_FIELDS = (
     "weld_joint_efficiency",
-    "weld_strength_reduction",
-    "temperature_coefficient",
+    "weld_joint_strength_reduction_factor_W",
+    "temperature_coefficient_Y",
 )
 
 
@@ -141,13 +141,13 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
                     symbol="E",
                     value=e_value,
                     description=(
-                        f"Quality factor from Tables A-1A/A-1B for {material} ({joint_category})"
+                        f"Quality factor from Tables A-2/A-3 for {material} ({joint_category})"
                     ),
-                    table_ref=A1_TABLE_REF,
+                    table_ref=A2_TABLE_REF,
                 )
 
     if material_ready and joint_ready and temperature_ready:
-        existing = task.inputs.get("weld_strength_reduction")
+        existing = task.inputs.get("weld_joint_strength_reduction_factor_W")
         if _should_auto_apply(existing):
             try:
                 w_value = lookup_w_factor(
@@ -162,15 +162,15 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
             if w_value is not None:
                 _set_table_coefficient(
                     task,
-                    input_id="weld_strength_reduction",
+                    input_id="weld_joint_strength_reduction_factor_W",
                     symbol="W",
                     value=w_value,
-                    description="Weld strength reduction factor from Table 302.3.5",
+                    description="Weld strength reduction factor from Table 302.3.5-1",
                     table_ref=W_TABLE_REF,
                 )
 
     if temperature_ready and _thin_wall_assumed(existing_inputs):
-        existing = task.inputs.get("temperature_coefficient")
+        existing = task.inputs.get("temperature_coefficient_Y")
         if _should_auto_apply(existing):
             try:
                 y_value, _ = lookup_y_coefficient(
@@ -184,9 +184,9 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
             if y_value is not None:
                 _set_table_coefficient(
                     task,
-                    input_id="temperature_coefficient",
+                    input_id="temperature_coefficient_Y",
                     symbol="Y",
                     value=y_value,
-                    description="Temperature coefficient from Table 304.1.1",
+                    description="Temperature coefficient from Table 304.1.1-1",
                     table_ref=Y_TABLE_REF,
                 )

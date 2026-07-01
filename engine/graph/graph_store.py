@@ -9,7 +9,16 @@ from typing import Any
 from engine.graph.pack_graph import PackGraph
 from engine.reference.graph_cache import build_or_load_graph
 from engine.reference.graph_db import GraphEdgeRecord, GraphNodeRecord
+from engine.reference.graph_edge_schema import REVERSE_EDGE_TYPE, expand_incoming_edge_types
 from engine.reference.pack_graph_db import resolve_pack_graph_db
+
+
+def _matches_incoming_type(edge: GraphEdgeRecord, edge_types: set[str]) -> bool:
+    stored_type = edge.edge_type
+    if stored_type in edge_types:
+        return True
+    reverse_type = REVERSE_EDGE_TYPE.get(stored_type)
+    return bool(reverse_type and reverse_type in edge_types)
 
 
 @dataclass
@@ -96,7 +105,8 @@ class GraphStore:
             return []
         edges = list(self._outgoing.get(resolved, []))
         if edge_types:
-            edges = [edge for edge in edges if edge.edge_type in edge_types]
+            expanded = expand_incoming_edge_types(edge_types) or edge_types
+            edges = [edge for edge in edges if edge.edge_type in expanded]
         return edges
 
     def incoming(
@@ -111,7 +121,7 @@ class GraphStore:
             return []
         edges = list(self._incoming.get(resolved, []))
         if edge_types:
-            edges = [edge for edge in edges if edge.edge_type in edge_types]
+            edges = [edge for edge in edges if _matches_incoming_type(edge, edge_types)]
         return edges
 
     def metadata(self, node_id: str) -> dict[str, Any]:

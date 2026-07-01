@@ -1,0 +1,39 @@
+"""Tests for global physical dimension ontology nodes."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from engine.reference.standards_markdown import split_frontmatter
+
+
+def _project_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def _unit_ids() -> set[str]:
+    units_dir = _project_root() / "knowledge" / "global" / "units" / "nodes"
+    return {path.stem for path in units_dir.glob("UNIT-*.yaml")}
+
+
+def test_physical_dimension_nodes_reference_existing_units() -> None:
+    dims_dir = _project_root() / "knowledge" / "global" / "dimensions" / "nodes"
+    unit_ids = _unit_ids()
+    for path in sorted(dims_dir.glob("DIM-*.yaml")):
+        meta, _body = split_frontmatter(path.read_text(encoding="utf-8"))
+        assert meta["type"] == "dimension"
+        assert meta["canonical_unit"] in unit_ids
+        for unit_id in meta.get("references", []):
+            assert unit_id in unit_ids, f"{path.name} references unknown unit {unit_id!r}"
+
+
+def test_velocity_units_compile_and_convert() -> None:
+    from engine.units.unit_resolver import UnitResolver, reset_unit_resolver
+
+    reset_unit_resolver()
+    resolver = UnitResolver.default()
+    value, unit = resolver.convert_value(1.0, "ft/s", "m/s")
+    assert unit == "m/s"
+    assert value == pytest.approx(0.3048)

@@ -9,7 +9,7 @@ from cli.standards_reader import StandardsReader
 
 def test_load_wall_thickness_node() -> None:
     root = Path(__file__).resolve().parents[2]
-    reader = StandardsReader(root / "standards", standard="asme_b31.3")
+    reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
     record = reader.load("B313-304.1.2")
 
     assert record.node_id == "B313-304.1.2"
@@ -19,7 +19,7 @@ def test_load_wall_thickness_node() -> None:
 
 def test_validate_resolves_material_stress_dependency() -> None:
     root = Path(__file__).resolve().parents[2]
-    reader = StandardsReader(root / "standards", standard="asme_b31.3")
+    reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
     result = reader.validate("B313-304.1.2")
 
     assert result.passed is True
@@ -29,7 +29,7 @@ def test_validate_resolves_material_stress_dependency() -> None:
 
 def test_dependency_tree_includes_children() -> None:
     root = Path(__file__).resolve().parents[2]
-    reader = StandardsReader(root / "standards", standard="asme_b31.3")
+    reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
     tree = reader.dependency_tree("pipe_wall_thickness_design")
 
     assert tree["id"] == "B313-PIPE-WALL-THICKNESS-DESIGN"
@@ -43,7 +43,7 @@ def test_dependency_tree_includes_children() -> None:
 
 def test_load_subsection_returns_only_requested_302_3_5_section() -> None:
     root = Path(__file__).resolve().parents[2]
-    reader = StandardsReader(root / "standards", standard="asme_b31.3")
+    reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
     subsection = reader.load_subsection("B313-302.3.5", "e")
 

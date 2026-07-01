@@ -18,7 +18,7 @@ from models.workflow_lifecycle import WorkflowLifecycleEventType
 @pytest.fixture
 def standards_reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[2]
-    return StandardsReader(root / "standards", standard="asme_b31.3")
+    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_lifecycle_event_type_values() -> None:

@@ -231,7 +231,7 @@ def test_weld_joint_efficiency_includes_joint_category_in_table() -> None:
     assert rows[5] == {
         "symbol": "E",
         "definition": "Joint efficiency",
-        "value": "1.0 (ASME B31.3 Tables A-1A/A-1B, seamless)",
+        "value": "1.0 (ASME B31.3 Tables A-2/A-3, seamless)",
     }
 
 
@@ -284,15 +284,15 @@ def test_build_formula_inputs_table_rows_include_coefficients() -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-        "weld_strength_reduction": EngineeringInput(
-            input_id="weld_strength_reduction",
+        "weld_joint_strength_reduction_factor_W": EngineeringInput(
+            input_id="weld_joint_strength_reduction_factor_W",
             value=1.0,
             unit="dimensionless",
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-        "temperature_coefficient": EngineeringInput(
-            input_id="temperature_coefficient",
+        "temperature_coefficient_Y": EngineeringInput(
+            input_id="temperature_coefficient_Y",
             value=0.4,
             unit="dimensionless",
             source=InputSource.USER,

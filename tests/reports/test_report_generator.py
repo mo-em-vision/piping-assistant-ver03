@@ -15,7 +15,7 @@ from models.task import Task, TaskStatus
 
 def _reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[2]
-    return StandardsReader(root / "standards", standard="asme_b31.3")
+    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_build_pipe_wall_thickness_report_incomplete() -> None:
@@ -60,7 +60,7 @@ def test_generator_writes_outputs(tmp_path) -> None:
     manager = TaskStateManager()
     manager.create_task("pipe-wall-thickness-design-gen", status=TaskStatus.AWAITING_INPUT)
 
-    generator = ReportGenerator(root / "standards")
+    generator = ReportGenerator(root / "knowledge" / "standards")
     report = generator.build("pipe-wall-thickness-design-gen", manager)
     storage = generator.generate(report, tmp_path, formats=("markdown", "html", "json"))
 

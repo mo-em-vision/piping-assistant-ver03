@@ -1,0 +1,13 @@
+---
+id: UNIT-in
+type: unit
+symbol: in
+dimension: length
+description: Inch
+aliases:
+- inch
+edges:
+- type: derived_from
+  target: UNIT-mm
+  factor: 25.4
+---

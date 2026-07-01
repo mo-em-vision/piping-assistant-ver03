@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parents[1]
-PACK = _ROOT / "standards" / "asme" / "asme_b31.3"
+PACK = _ROOT / "knowledge" / "standards" / "asme" / "asme_b31.3"
 GRAPH = PACK / "graph" / "nodes"
 NODES = PACK / "nodes"
 

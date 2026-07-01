@@ -9,6 +9,7 @@ from typing import Any
 
 from engine.reference.material_catalog_db import resolve_material_id, standards_root_from_pack_root
 from engine.reference.material_ids import is_material_id
+from engine.reference.material_catalog_db import load_material_registry
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_paths import resolve_standard_pack
 from engine.reference.standards_tables import StandardsTablesDatabase
@@ -21,6 +22,13 @@ _DEFAULT_TABLE_IDS = {
     A106_SLUG: "astm_a106_material_properties",
     A312_SLUG: "astm_a312_material_properties",
 }
+
+
+def _resolve_material_tables_db(standards_root: Path, standard: str, pack_root: Path) -> Path:
+    for source in load_material_registry(standards_root):
+        if source.standard == standard:
+            return standards_root.resolve() / source.db_relative_path
+    return resolve_pack_tables_db(pack_root)
 
 
 @dataclass(frozen=True)
@@ -61,7 +69,7 @@ class MaterialPropertiesLookup:
     ) -> None:
         self._standard = standard
         self._pack_root = resolve_standard_pack(standards_root, standard)
-        self._tables_db_path = resolve_pack_tables_db(self._pack_root)
+        self._tables_db_path = _resolve_material_tables_db(standards_root, standard, self._pack_root)
         self._tables_db = StandardsTablesDatabase(self._tables_db_path)
         table_ref = table_id or table_rel or _DEFAULT_TABLE_IDS.get(standard, "material_properties")
         table_data = self._tables_db.get_table(table_ref)

@@ -19,10 +19,18 @@ def local_table_id(table_id: str) -> str:
 
 
 TABLE_A_1 = asme_b31_3_table_id("A-1")
-TABLE_A_1A = asme_b31_3_table_id("A-1A")
-TABLE_A_1B = asme_b31_3_table_id("A-1B")
-TABLE_304_1_1 = asme_b31_3_table_id("table_304_1_1")
-TABLE_302_3_5 = asme_b31_3_table_id("302.3.5")
+TABLE_A_2 = asme_b31_3_table_id("A-2")
+TABLE_A_3 = asme_b31_3_table_id("A-3")
+# 2024 revision renamed Table A-1B to Table A-3.
+TABLE_A_1B = TABLE_A_3
+# 2024 revision renamed Table A-1A to Table A-2.
+TABLE_A_1A = TABLE_A_2
+TABLE_304_1_1_1 = asme_b31_3_table_id("table_304_1_1_1")
+# 2024 revision renamed Table 304.1.1 to Table 304.1.1-1.
+TABLE_304_1_1 = TABLE_304_1_1_1
+TABLE_302_3_5_1 = asme_b31_3_table_id("302.3.5-1")
+# 2024 revision renamed Table 302.3.5 to Table 302.3.5-1.
+TABLE_302_3_5 = TABLE_302_3_5_1
 TABLE_302_3_3C = asme_b31_3_table_id("table_302_3_3C")
 # Legacy alias; canonical id is TABLE_A_1.
 TABLE_MATERIAL_ALLOWABLE_STRESS = TABLE_A_1

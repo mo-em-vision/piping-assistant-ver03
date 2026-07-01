@@ -39,7 +39,7 @@ def test_pipe_schedule_lookup_sets_od_and_thickness() -> None:
         status=InputStatus.CONFIRMED,
     )
 
-    apply_pipe_schedule_lookup(task, PROJECT_ROOT / "standards")
+    apply_pipe_schedule_lookup(task, PROJECT_ROOT / "knowledge" / "standards")
 
     od = task.inputs["outside_diameter"]
     thickness = task.inputs["actual_wall_thickness"]

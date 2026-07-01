@@ -33,8 +33,8 @@ PIPE_WALL_INPUT_STEP_ORDER: tuple[str, ...] = (
     "joint_category",
     "allowable_stress",
     "weld_joint_efficiency",
-    "weld_strength_reduction",
-    "temperature_coefficient",
+    "weld_joint_strength_reduction_factor_W",
+    "temperature_coefficient_Y",
     "corrosion_allowance",
 )
 
@@ -49,8 +49,8 @@ PIPE_WALL_STEP_TITLES: dict[str, str] = {
     "joint_category": "Joint category",
     "allowable_stress": "Allowable stress (S)",
     "weld_joint_efficiency": "Joint efficiency (E)",
-    "weld_strength_reduction": "Weld strength reduction (W)",
-    "temperature_coefficient": "Temperature coefficient (Y)",
+    "weld_joint_strength_reduction_factor_W": "Weld strength reduction (W)",
+    "temperature_coefficient_Y": "Temperature coefficient (Y)",
     "corrosion_allowance": "Corrosion allowance",
     "thickness": "Thickness",
     "report": "Report",
@@ -81,8 +81,8 @@ MAWP_INPUT_STEP_ORDER: tuple[str, ...] = (
     "joint_category",
     "allowable_stress",
     "weld_joint_efficiency",
-    "weld_strength_reduction",
-    "temperature_coefficient",
+    "weld_joint_strength_reduction_factor_W",
+    "temperature_coefficient_Y",
 )
 
 MAWP_STEP_TITLES: dict[str, str] = {
@@ -97,8 +97,8 @@ MAWP_STEP_TITLES: dict[str, str] = {
     "joint_category": "Joint category",
     "allowable_stress": "Allowable stress (S)",
     "weld_joint_efficiency": "Joint quality factor (E)",
-    "weld_strength_reduction": "Weld strength reduction (W)",
-    "temperature_coefficient": "Coefficient Y",
+    "weld_joint_strength_reduction_factor_W": "Weld strength reduction (W)",
+    "temperature_coefficient_Y": "Coefficient Y",
     "mawp": "Maximum Allowable Working Pressure (MAWP)",
     "report": "Report",
 }

@@ -74,16 +74,16 @@ _INPUT_QUESTIONS: dict[str, str] = {
         "Please confirm the weld joint quality factor E = 1.0 "
         "(default for seamless pipe), or provide a different value."
     ),
-    "weld_strength_reduction": (
+    "weld_joint_strength_reduction_factor_W": (
         "Please confirm the weld strength reduction factor W = 1.0, "
         "or provide a different value."
     ),
-    "temperature_coefficient": (
+    "temperature_coefficient_Y": (
         "Please confirm the temperature coefficient Y = 0.4, "
         "or provide a different value."
     ),
     "joint_category": (
-        "Confirm the pipe/joint category for quality factor E lookup (Tables A-1A and A-1B). "
+        "Confirm the pipe/joint category for quality factor E lookup (Tables A-2 and A-3). "
         "Default is seamless pipe."
     ),
     "geometry_input_mode": (

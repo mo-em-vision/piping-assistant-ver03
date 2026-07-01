@@ -14,7 +14,6 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from engine.reference.material_ids import make_material_id
-from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_tables import StandardsTablesDatabase
 
 _METADATA_KEYS = (
@@ -24,6 +23,8 @@ _METADATA_KEYS = (
     "stress_unit",
     "aliases",
 )
+
+ASTM_PACK = _ROOT / "knowledge" / "standards" / "astm"
 
 
 def _metadata_from_table(data: dict[str, Any]) -> dict[str, Any]:
@@ -53,6 +54,7 @@ def import_material_properties_pack(
     *,
     source_node: str,
     standard_slug: str,
+    db_file: str,
     seed_yaml: Path | None = None,
 ) -> StandardsTablesDatabase:
     yaml_path = seed_yaml or (pack_root / "tables" / "material_properties.yaml")
@@ -64,7 +66,7 @@ def import_material_properties_pack(
         raise ValueError(f"Invalid material properties table: {yaml_path}")
 
     table_id = str(data.get("table_id", "material_properties"))
-    db_path = resolve_pack_tables_db(pack_root)
+    db_path = pack_root / db_file
     if db_path.exists():
         db_path.unlink()
 
@@ -94,42 +96,37 @@ def import_material_properties_pack(
 def build_all() -> list[Path]:
     packs = [
         (
-            _ROOT / "standards" / "astm" / "astm_a53",
             "astm_a53",
-            "ASTM-a53-material-properties",
+            "A53",
+            "astm_a53_tables.db",
             _ROOT / "scripts" / "seeds" / "astm_a53_material_properties.yaml",
         ),
         (
-            _ROOT / "standards" / "astm" / "astm_a106",
             "astm_a106",
-            "ASTM-a106-material-properties",
+            "A106",
+            "astm_a106.db",
             _ROOT / "scripts" / "seeds" / "astm_a106_material_properties.yaml",
         ),
         (
-            _ROOT / "standards" / "astm" / "astm_a312",
             "astm_a312",
-            "ASTM-a312-material-properties",
+            "A312",
+            "astm_a312.db",
             _ROOT / "scripts" / "seeds" / "astm_a312_material_properties.yaml",
         ),
         (
-            _ROOT / "standards" / "astm" / "astm_stainless_castings",
-            "astm_stainless_castings",
-            "ASTM-stainless-castings-material-properties",
-            _ROOT / "scripts" / "seeds" / "astm_stainless_castings_material_properties.yaml",
-        ),
-        (
-            _ROOT / "standards" / "astm" / "a_105",
             "a_105",
-            "ASTM-a105-material-properties",
+            "A105",
+            "a_105_tables.db",
             _ROOT / "scripts" / "seeds" / "astm_a105_material_properties.yaml",
         ),
     ]
     built: list[Path] = []
-    for pack_root, standard_slug, source_node, seed_yaml in packs:
+    for standard_slug, source_node, db_file, seed_yaml in packs:
         database = import_material_properties_pack(
-            pack_root,
+            ASTM_PACK,
             source_node=source_node,
             standard_slug=standard_slug,
+            db_file=db_file,
             seed_yaml=seed_yaml,
         )
         built.append(database.db_path)

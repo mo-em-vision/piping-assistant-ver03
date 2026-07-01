@@ -1,0 +1,17 @@
+---
+id: UNIT-degC
+type: unit
+symbol: degC
+dimension: temperature
+description: Degrees Celsius
+aliases:
+- c
+- C
+- degc
+- °c
+edges:
+- type: derived_from
+  target: UNIT-K
+  factor: 1.0
+  offset: 273.15
+---

@@ -10,13 +10,16 @@ from typing import Any, Callable
 from engine.reference.node_types import node_kind
 from engine.reference.graph_compile import is_micro_graph_node
 from engine.reference.standards_markdown import compose_frontmatter, split_frontmatter
+from engine.reference.node_sources import iter_node_source_paths, source_rel_path
 from engine.reference.standards_paths import list_standard_packs, resolve_standard_pack
 
 _DEFAULT_TYPE_PATHS: dict[str, str] = {
-    "workflow": "workflows",
-    "parameter": "parameters",
-    "text": "text",
-    "equation": "equations",
+    "workflow": "nodes/workflows",
+    "paragraph": "nodes/paragraph",
+    "parameter": "nodes/parameters",
+    "text": "nodes/text",
+    "equation": "nodes/equations",
+    "lookup": "nodes/tables",
 }
 
 _KIND_PATHS: dict[str, str] = {
@@ -64,14 +67,12 @@ class NodeRepository:
             return []
         discovered: list[StoredNode] = []
         seen_ids: set[str] = set()
-        patterns = ("node.yaml", "node.yml", "node.md")
         seen_paths: set[Path] = set()
-        for pattern in patterns:
-            for path in sorted(nodes_dir.rglob(pattern)):
-                if path in seen_paths:
-                    continue
-                seen_paths.add(path)
-                stored = self._load_file(pack_root, path)
+        for path in iter_node_source_paths(nodes_dir):
+            if path in seen_paths:
+                continue
+            seen_paths.add(path)
+            stored = self._load_file(pack_root, path)
                 if stored is None or stored.node_id in seen_ids:
                     continue
                 seen_ids.add(stored.node_id)
@@ -101,9 +102,8 @@ class NodeRepository:
             raise ValueError(f"Unsupported node type: {node_type}")
 
         rel_path = source_rel_path or self._default_rel_path(node_id, node_type, metadata)
-        folder = pack_root / rel_path
-        folder.mkdir(parents=True, exist_ok=True)
-        file_path = folder / "node.yaml"
+        file_path = pack_root / rel_path
+        file_path.parent.mkdir(parents=True, exist_ok=True)
         file_path.write_text(compose_frontmatter(metadata, body), encoding="utf-8")
         return StoredNode(
             node_id=node_id,
@@ -118,9 +118,11 @@ class NodeRepository:
         stored = self.get_node(pack, node_id)
         if stored is None:
             return False
-        folder = stored.source_file.parent
-        if folder.is_dir():
-            shutil.rmtree(folder)
+        if stored.source_file.is_file():
+            stored.source_file.unlink()
+        parent = stored.source_file.parent
+        if parent.is_dir() and not any(parent.iterdir()):
+            parent.rmdir()
         return True
 
     def duplicate_node(
@@ -174,19 +176,21 @@ class NodeRepository:
     def _default_rel_path(self, node_id: str, node_type: str, metadata: dict[str, Any] | None = None) -> str:
         meta = metadata or {}
         kind = node_kind(meta)
-        return f"nodes/{node_id}"
+        folder = _DEFAULT_TYPE_PATHS.get(node_type)
+        if folder is None and kind:
+            folder = _KIND_PATHS.get(kind)
+        if folder is None:
+            folder = f"nodes/{node_type}s" if node_type else "nodes"
+        return f"{folder}/{node_id}.yaml"
 
     def _load_file(self, pack_root: Path, path: Path) -> StoredNode | None:
         text = path.read_text(encoding="utf-8")
         metadata, body = split_frontmatter(text)
-        node_id = str(metadata.get("id") or path.parent.name).strip()
+        node_id = str(metadata.get("id") or path.stem).strip()
         node_type = str(metadata.get("type") or "node").strip()
         if not node_id or not is_micro_graph_node(metadata, node_type):
             return None
-        try:
-            rel = path.parent.relative_to(pack_root).as_posix()
-        except ValueError:
-            rel = path.parent.as_posix()
+        rel = source_rel_path(pack_root, path)
         return StoredNode(
             node_id=node_id,
             node_type=node_type,

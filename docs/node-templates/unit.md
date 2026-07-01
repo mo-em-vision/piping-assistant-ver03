@@ -52,7 +52,9 @@ Conversion formula: `target = source * factor + offset` (default `offset: 0`).
 |-----------|----------------|
 | pressure | `UNIT-Pa` |
 | length | `UNIT-mm` |
+| *(also)* | `UNIT-m` (converts to mm) |
 | temperature | `UNIT-K` |
+| velocity | `UNIT-m_s` |
 | dimensionless | `UNIT-dimensionless` |
 
 Parameters reference units via `canonical_unit: UNIT-Pa`, not inline `unit:` strings.

@@ -49,7 +49,7 @@ class ChatOrchestrator:
 
         project_root = Path(__file__).resolve().parents[1]
         reader = StandardsReader(
-            standards_root or project_root / "standards",
+            standards_root or project_root / "knowledge" / "standards",
             standard="asme_b31.3",
         )
 

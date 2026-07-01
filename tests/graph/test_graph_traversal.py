@@ -12,7 +12,7 @@ from engine.reference.standards_reader import StandardsReader
 
 @pytest.fixture
 def reader() -> StandardsReader:
-    root = Path(__file__).resolve().parents[2] / "standards"
+    root = Path(__file__).resolve().parents[2] / "knowledge" / "standards"
     return StandardsReader(root, standard="asme_b31.3")
 
 

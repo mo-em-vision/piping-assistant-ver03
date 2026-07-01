@@ -59,4 +59,4 @@ materials:
       thermal_expansion_coefficient_per_f: 6.5e-6
     notes:
       - Minimum mechanical properties for longitudinal tension test at room temperature per ASTM A105/A105M.
-      - Refer to B31.3 Table A-1B for quality factor E for forgings.
+      - Refer to B31.3 Table A-3 for quality factor E for forgings.

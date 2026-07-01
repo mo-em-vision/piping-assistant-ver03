@@ -16,7 +16,7 @@ def _service(project_root: Path, tmp_path: Path) -> DesktopApiService:
         language="english",
         default_standard="ASME_B31.3",
         sessions_dir=tmp_path / "sessions",
-        standards_root=project_root / "standards",
+        standards_root=project_root / "knowledge" / "standards",
         openai_api_key=None,
         openai_model="gpt-4o-mini",
         openai_base_url=None,
@@ -61,7 +61,7 @@ def _find_group_by_label(tree: list[dict], label: str) -> dict | None:
 
 
 def test_build_standards_browse_tree_includes_known_nodes(project_root: Path) -> None:
-    reader = StandardsReader(project_root / "standards", standard="asme_b31.3")
+    reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
     payload = build_standards_browse_payload(reader, standard="asme_b31.3")
 
     node_ids = _collect_node_ids(payload["tree"])
@@ -74,7 +74,7 @@ def test_build_standards_browse_tree_includes_known_nodes(project_root: Path) ->
 
 
 def test_appendix_a_tree_omits_redundant_folder_group(project_root: Path) -> None:
-    reader = StandardsReader(project_root / "standards", standard="asme_b31.3")
+    reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
     payload = build_standards_browse_payload(reader, standard="asme_b31.3")
 
     appendix_group = _find_group_by_label(payload["tree"], "Appendix A")
@@ -91,7 +91,7 @@ def test_appendix_a_tree_omits_redundant_folder_group(project_root: Path) -> Non
 
 
 def test_browse_links_pipe_wall_thickness_workflow(project_root: Path) -> None:
-    reader = StandardsReader(project_root / "standards", standard="asme_b31.3")
+    reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
     payload = build_standards_browse_payload(reader, standard="asme_b31.3")
 
     available_tasks_group = next(
@@ -104,7 +104,9 @@ def test_browse_links_pipe_wall_thickness_workflow(project_root: Path) -> None:
     ]
     assert any(child.get("workflow_id") == "pipe_wall_thickness_design" for child in workflow_leaves)
 
-    node_304 = _find_leaf(payload["tree"], "B313-304.1.1")
+    node_304 = _find_leaf(payload["tree"], "304.1.1")
+    if node_304 is None:
+        node_304 = _find_leaf(payload["tree"], "B313-304.1.1")
     assert node_304 is not None
     related = node_304.get("related_workflows") or []
     assert any(item.get("id") == "pipe_wall_thickness_design" for item in related)
@@ -113,7 +115,7 @@ def test_browse_links_pipe_wall_thickness_workflow(project_root: Path) -> None:
     assert table_a1 is not None
     assert table_a1.get("table_id")
     table_related = table_a1.get("related_workflows") or []
-    assert any(item.get("id") == "pipe_wall_thickness_design" for item in table_related)
+    assert any(item.get("id") == "mawp_design" for item in table_related)
 
 
 def test_get_standards_browse_endpoint(project_root: Path, tmp_path: Path) -> None:

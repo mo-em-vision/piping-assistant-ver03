@@ -85,6 +85,15 @@ def _item_node_id(item: dict[str, Any]) -> str:
     return str(item.get("id") or item.get("node_id") or "").strip()
 
 
+def _embedded_item_node_id(item: dict[str, Any], *, container_key: str) -> str:
+    explicit_id = str(item.get("id") or "").strip()
+    if explicit_id:
+        return explicit_id
+    if container_key == "references":
+        return ""
+    return str(item.get("node_id") or "").strip()
+
+
 def _embedded_source(
     *,
     parent_id: str,
@@ -93,8 +102,10 @@ def _embedded_source(
     item: dict[str, Any],
     subsection_id: str | None = None,
 ) -> EmbeddedNodeSource | None:
-    node_id = _item_node_id(item)
+    node_id = _embedded_item_node_id(item, container_key=container_key)
     if not node_id:
+        return None
+    if str(item.get("ref") or "").strip().lower() == "external":
         return None
 
     metadata = dict(item)

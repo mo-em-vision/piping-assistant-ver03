@@ -11,7 +11,7 @@ from api.material_catalog import search_astm_materials
 
 @pytest.fixture
 def standards_root(project_root: Path) -> Path:
-    return project_root / "standards"
+    return project_root / "knowledge" / "standards"
 
 
 def test_search_requires_three_characters(standards_root: Path) -> None:
@@ -73,7 +73,7 @@ def test_get_material_detail_returns_a106_grade_b(standards_root: Path) -> None:
     assert detail["product_form"] == "seamless_pipe"
     assert detail["uns_number"] == "K03006"
     assert detail["mechanical_properties"]["room_temperature"]["tensile_strength_min"]["ksi"] == 60
-    assert detail["source_node"] == "ASTM-a106-material-properties"
+    assert detail["source_node"] == "A106"
 
 
 def test_get_material_detail_unknown_raises(standards_root: Path) -> None:

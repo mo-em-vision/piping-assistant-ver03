@@ -17,8 +17,8 @@ export const FORMULA_INPUT_STEP_IDS = new Set([
   'joint_category',
   'allowable_stress',
   'weld_joint_efficiency',
-  'weld_strength_reduction',
-  'temperature_coefficient',
+  'weld_joint_strength_reduction_factor_W',
+  'temperature_coefficient_Y',
 ])
 
 export const USER_INPUT_STEP_PROMPT = 'Complete the fields below to continue.'
@@ -72,8 +72,8 @@ export function completedStepStatement(step: TimelineStepViewModel): string | nu
     case 'joint_category':
     case 'allowable_stress':
     case 'weld_joint_efficiency':
-    case 'weld_strength_reduction':
-    case 'temperature_coefficient':
+    case 'weld_joint_strength_reduction_factor_W':
+    case 'temperature_coefficient_Y':
       return null
     case 'd_input_mode':
     case 'thin_wall':

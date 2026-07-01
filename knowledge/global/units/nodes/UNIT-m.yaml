@@ -1,0 +1,14 @@
+---
+id: UNIT-m
+type: unit
+symbol: m
+dimension: length
+description: Meter (SI)
+aliases:
+- meter
+- metre
+edges:
+- type: derived_from
+  target: UNIT-mm
+  factor: 1000.0
+---

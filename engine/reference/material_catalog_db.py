@@ -59,19 +59,24 @@ class MaterialSourceSpec:
 
     @property
     def db_relative_path(self) -> str:
+        if self.group == "astm":
+            return f"{self.group}/{self.db_file}"
         return f"{self.group}/{self.standard}/{self.db_file}"
 
 
+from engine.reference.knowledge_paths import materials_root
+
+
 def material_registry_path(standards_root: Path) -> Path:
-    return standards_root / "materials" / "registry.yaml"
+    return materials_root(standards_root=standards_root) / "registry.yaml"
 
 
 def supplemental_materials_path(standards_root: Path) -> Path:
-    return standards_root / "materials" / "supplemental.yaml"
+    return materials_root(standards_root=standards_root) / "supplemental.yaml"
 
 
 def global_material_catalog_path(standards_root: Path) -> Path:
-    return standards_root / "materials" / "materials.db"
+    return materials_root(standards_root=standards_root) / "materials.db"
 
 
 def standards_root_from_pack_root(pack_root: Path) -> Path:

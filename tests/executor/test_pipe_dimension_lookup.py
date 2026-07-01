@@ -10,7 +10,7 @@ from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
 
 
 def _lookup() -> PipeDimensionLookup:
-    root = Path(__file__).resolve().parents[2] / "standards"
+    root = Path(__file__).resolve().parents[2] / "knowledge" / "standards"
     return PipeDimensionLookup(root)
 
 

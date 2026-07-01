@@ -7,6 +7,10 @@ The framework does **not** ship in production builds and does **not** change pla
 **Related tools:** [Developer Graph Explorer](developer_graph_explorer.md) (deep graph viz), [Node Dev Studio](node_dev_studio.md) (node authoring), inline dev hovers (`DevNodeHoverSurface`).
 
 ---
+## maintaining Audit Files
+after each change "update `@audit engine/executor/README.md#files` for the new module”
+
+---
 
 ## 1. Purpose
 

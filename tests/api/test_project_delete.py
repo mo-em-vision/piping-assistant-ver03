@@ -13,7 +13,7 @@ from config.loader import CLIConfig
 @pytest.fixture
 def temp_service(tmp_path: Path) -> DesktopApiService:
     sessions_dir = tmp_path / "sessions"
-    standards_root = Path(__file__).resolve().parents[2] / "standards"
+    standards_root = Path(__file__).resolve().parents[2] / "knowledge" / "standards"
     config = CLIConfig(
         report_format="pdf",
         language="english",

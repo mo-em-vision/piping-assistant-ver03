@@ -12,7 +12,7 @@ from models.validation import ComplianceStatus
 
 def test_validate_task_input_units_uses_registry_for_pressure() -> None:
     root = Path(__file__).resolve().parents[2]
-    reader = StandardsReader(root / "standards", standard="asme_b31.3")
+    reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
     result = validate_task_input_units(
         reader,
         {
@@ -30,7 +30,7 @@ def test_validate_task_input_units_uses_registry_for_pressure() -> None:
 
 def test_validate_task_input_units_rejects_incompatible_unit() -> None:
     root = Path(__file__).resolve().parents[2]
-    reader = StandardsReader(root / "standards", standard="asme_b31.3")
+    reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
     result = validate_task_input_units(
         reader,
         {

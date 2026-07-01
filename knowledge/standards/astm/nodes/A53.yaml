@@ -1,0 +1,29 @@
+---
+id: A53
+type: lookup
+title: ASTM A53 — Material Properties
+version: '1.0'
+status: draft
+paragraph: ASTM A53/A53M
+section: Material Properties
+topic: material_properties
+inputs:
+- id: grade
+  name: grade
+  description: ASTM A53 or alias (A53, SA-53)
+  required: true
+  source: user_input
+  unit: dimensionless
+lookups:
+- id: a53_material_catalog
+  source: table
+  table_id: astm_a53_material_properties
+  lookup_rule: grade
+edges:
+- type: parameter
+  target: material_properties
+---
+
+# ASTM A53 — Material Properties
+
+Catalog entry for **ASTM A53** carbon steel pipe (Types S, E, and F).

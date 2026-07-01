@@ -4,60 +4,48 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.reference.b313_legacy_aliases import build_b313_legacy_aliases
+from engine.reference.graph_edge_schema import (
+    ALLOWED_EDGE_METADATA,
+    CANONICAL_EDGE_TYPES,
+    EDGE_ROUTING_KEYS,
+    STORED_EDGE_TYPES,
+    edge_target,
+    relationship_metadata,
+)
 from engine.reference.node_types import MICRO_GRAPH_TYPES, is_micro_graph_node
 
 LEGACY_SECTION_ALIASES = {
-    "B313-304.1.1": "B313-304.1.1-SECTION",
-    "B313-304.1.2": "B313-304.1.2-SECTION",
-    "B313-304.1.3": "B313-304.1.3-SECTION",
+    "304.1.1": "304.1.1-SECTION",
+    "304.1.2": "304.1.2-SECTION",
+    "304.1.3": "304.1.3-SECTION",
+    "B313-304.1.1": "304.1.1-SECTION",
+    "B313-304.1.2": "304.1.2-SECTION",
+    "B313-304.1.3": "304.1.3-SECTION",
 }
 
-# Flattened node ids that retain legacy references in nomenclature_ref fields.
-LEGACY_NODE_ID_ALIASES = {
-    "B313-MAWP-DEFINITION": "B313-MAWP-SECTION",
-}
+LEGACY_NODE_ID_ALIASES = build_b313_legacy_aliases()
 
-EDGE_LIST_KEYS = (
-    "requires",
-    "calculates",
-    "defines",
-    "explains",
-    "outputs",
-    "contains",
-    "anchors_to",
-    "uses_table",
-    "next_step",
-    "validates",
-    "located_in",
-    "defined_by",
-    "related_to",
-    "references",
-    "uses",
-    "accepts",
-    "depends_on",
-    "converts_to",
-)
-
-_EDGE_ROUTING_KEYS = frozenset({"node_id", "to", "id", "type", "direction", "dependency_type"})
+# Deprecated — kept for import compatibility during tooling transition.
+EDGE_LIST_KEYS: tuple[str, ...] = ("edges",)
 
 
-def relationship_metadata(item: dict[str, Any]) -> dict[str, Any]:
-    """Return metadata that belongs to the relationship, not either node."""
-    meta: dict[str, Any] = {}
-    for key, value in item.items():
-        if key in _EDGE_ROUTING_KEYS:
-            continue
-        if key == "when" and not isinstance(value, dict):
-            continue
-        meta[key] = value
-    return meta
+def parse_dependency_node_ref(node_id: str) -> tuple[str, str | None]:
+    """Split ``node_id/subsection`` into a graph node id and optional subsection."""
+    text = str(node_id).strip()
+    if not text or "/" not in text:
+        return text, None
+    base, subsection = text.rsplit("/", 1)
+    if not base or not subsection:
+        return text, None
+    return base, subsection
 
 
 def compile_metadata_edges(
     node_id: str,
     metadata: dict[str, Any],
 ) -> list[tuple[str, str, str, dict[str, Any] | None]]:
-    """Extract edges from metadata fields and explicit edges block."""
+    """Extract outgoing edges from the canonical ``edges`` metadata field."""
     compiled: list[tuple[str, str, str, dict[str, Any] | None]] = []
     seen: set[tuple[str, str, str, str | None]] = set()
 
@@ -76,58 +64,50 @@ def compile_metadata_edges(
         seen.add(key)
         compiled.append((from_id, to_id, edge_type, edge_meta))
 
-    for edge_type in EDGE_LIST_KEYS:
-        targets = metadata.get(edge_type)
-        if not targets:
-            continue
-        if isinstance(targets, str):
-            add_edge(node_id, targets, edge_type)
-            continue
-        if not isinstance(targets, list):
-            continue
-        for target in targets:
-            if isinstance(target, str):
-                add_edge(node_id, target, edge_type)
-            elif isinstance(target, dict):
-                to_id = str(
-                    target.get("node_id") or target.get("to") or target.get("id") or ""
-                ).strip()
-                if not to_id:
-                    continue
-                et = str(target.get("type") or edge_type)
-                edge_meta = relationship_metadata(target)
-                add_edge(node_id, to_id, et, edge_meta if edge_meta else None)
-
-    anchors_to = metadata.get("anchors_to")
-    if isinstance(anchors_to, str) and anchors_to:
-        add_edge(node_id, anchors_to, "anchors_to")
-
     for item in metadata.get("edges", []) or []:
         if not isinstance(item, dict):
             continue
-        to_id = str(item.get("to") or item.get("node_id") or "").strip()
+        to_id = edge_target(item)
         if not to_id:
             continue
-        edge_type = str(item.get("type") or "related_to")
+        dep_id, subsection = parse_dependency_node_ref(to_id)
+        to_id = dep_id
+        edge_type = str(item.get("type") or "").strip()
+        if not edge_type:
+            continue
+        if edge_type not in CANONICAL_EDGE_TYPES:
+            continue
+        if edge_type.endswith("_by"):
+            continue
         edge_meta = relationship_metadata(item)
-        direction = str(item.get("direction") or "outgoing")
-        if direction == "incoming":
-            add_edge(to_id, node_id, edge_type, edge_meta if edge_meta else None)
-        else:
-            add_edge(node_id, to_id, edge_type, edge_meta if edge_meta else None)
-
-    for item in metadata.get("depends_on", []) or []:
-        if isinstance(item, dict):
-            dep_id = str(item.get("node_id", "")).strip()
-            if not dep_id:
-                continue
-            dep_type = str(item.get("dependency_type") or "requires")
-            edge_meta = relationship_metadata(item)
-            add_edge(dep_id, node_id, dep_type, edge_meta if edge_meta else None)
-        elif isinstance(item, str) and item.strip():
-            add_edge(item.strip(), node_id, "requires")
+        if subsection and "subsection" not in edge_meta:
+            edge_meta = {**edge_meta, "subsection": subsection}
+        add_edge(node_id, to_id, edge_type, edge_meta if edge_meta else None)
 
     return compiled
+
+
+def validate_edge_item(item: dict[str, Any]) -> list[str]:
+    """Return validation issues for one edge dict."""
+    issues: list[str] = []
+    edge_type = str(item.get("type") or "").strip()
+    target = edge_target(item)
+    if not edge_type:
+        issues.append("missing type")
+    elif edge_type not in CANONICAL_EDGE_TYPES:
+        issues.append(f"unknown type: {edge_type}")
+    elif edge_type.endswith("_by"):
+        issues.append(f"reverse type must not be stored: {edge_type}")
+    elif edge_type not in STORED_EDGE_TYPES:
+        issues.append(f"type not storable: {edge_type}")
+    if not target:
+        issues.append("missing target")
+    for key in item:
+        if key in EDGE_ROUTING_KEYS:
+            continue
+        if key not in ALLOWED_EDGE_METADATA:
+            issues.append(f"disallowed metadata key: {key}")
+    return issues
 
 
 def node_aliases(node_id: str, metadata: dict[str, Any]) -> list[str]:

@@ -1,0 +1,44 @@
+---
+id: B313-table-A-3
+standard: asme_b31.3
+source:
+  pack: asme_b31.3
+  yaml: nodes/tables/B313-table-A-3.yaml
+  tables_db: asme_b313_tables.db
+  table_id: asme_b31.3_A-3
+type: lookup
+title: Table A-3 — Basic Quality Factors for Longitudinal Weld Joints in Pipes and
+  Tubes, E_j
+status: draft
+paragraph: Appendix A, Table A-3
+section: Appendix A
+topic: quality_factor
+revision_year: 2024
+inputs:
+- id: material
+  name: material
+  description: Pipe material specification
+  required: true
+  source: user_input
+  unit: dimensionless
+- id: joint_category
+  name: joint_category
+  description: Pipe or joint category
+  required: true
+  source: user_input
+  unit: dimensionless
+lookups:
+- id: appendix_a3_longitudinal_weld_quality
+  source: table
+  table_id: asme_b31.3_A-3
+  lookup_rule: material_and_joint_category
+edges:
+- type: parameter
+  target: quality_factor
+---
+
+# Table A-3 — Basic Quality Factors for Longitudinal Weld Joints in Pipes and Tubes, E_j
+
+> **Development sample — not verbatim ASME B31.3 table data.**
+
+Lookup for basic quality factor **E_j** by material and joint category. Data is stored in `asme_b313_tables.db` (`table_id: asme_b31.3_A-3`).

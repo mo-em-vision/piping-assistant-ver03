@@ -33,8 +33,9 @@ class UnitResolver:
 
     @classmethod
     def default(cls) -> UnitResolver:
-        root = Path(__file__).resolve().parents[2] / "standards" / "units"
-        return cls(pack_root=root)
+        from engine.reference.knowledge_paths import units_root
+
+        return cls(pack_root=units_root())
 
     def load(self) -> None:
         if self._graph is not None:

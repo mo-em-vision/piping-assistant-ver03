@@ -10,12 +10,12 @@ from engine.executor.material_properties_lookup import MaterialPropertiesLookup
 
 
 def _a106() -> MaterialPropertiesLookup:
-    root = Path(__file__).resolve().parents[2] / "standards"
+    root = Path(__file__).resolve().parents[2] / "knowledge" / "standards"
     return MaterialPropertiesLookup(root, standard="astm_a106")
 
 
 def _a312() -> MaterialPropertiesLookup:
-    root = Path(__file__).resolve().parents[2] / "standards"
+    root = Path(__file__).resolve().parents[2] / "knowledge" / "standards"
     return MaterialPropertiesLookup(root, standard="astm_a312")
 
 

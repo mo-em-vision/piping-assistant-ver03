@@ -26,7 +26,12 @@ from engine.graph.node_interaction import evaluate_node_interactions
 from engine.executor.functions import get_execution_function
 from engine.executor.lookup_engine import LookupEngine
 from engine.executor.unit_manager import prepare_engineering_input, prepare_symbol_map
-from engine.reference.nomenclature_resolver import input_applies, load_nomenclature_for_node, resolve_input_spec
+from engine.reference.nomenclature_resolver import (
+    enrich_input_spec,
+    input_applies,
+    load_nomenclature_for_node,
+    spec_symbol,
+)
 from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.embedded_nodes import find_embedded_body
 from engine.reference.standards_reader import NodeRecord, StandardsReader
@@ -248,7 +253,7 @@ class NodeRunner:
         for spec in record.metadata.get("inputs", []) or []:
             if not isinstance(spec, dict):
                 continue
-            symbol = str(spec.get("name", spec.get("id", "")))
+            symbol = spec_symbol(spec)
             validation = str(spec.get("validation", ""))
             if validation == "positive" and symbol in resolved:
                 error = self._rule_engine.validate_positive(symbol, resolved[symbol])
@@ -390,7 +395,7 @@ class NodeRunner:
         for spec in record.metadata.get("outputs", []) or []:
             if isinstance(spec, dict) and spec.get("id"):
                 output_id = str(spec["id"])
-                output_symbol = str(spec.get("name", output_id))
+                output_symbol = spec_symbol(spec, fallback=output_id)
                 break
 
         final = calculation.final_result
@@ -500,11 +505,11 @@ class NodeRunner:
         for spec in record.metadata.get("inputs", []) or []:
             if not isinstance(spec, dict):
                 continue
-            spec = resolve_input_spec(spec, nomenclature) if nomenclature else spec
+            spec = enrich_input_spec(spec, nomenclature if nomenclature else None)
             if not input_applies(spec, task_inputs):
                 continue
             input_id = str(spec.get("id", ""))
-            symbol = str(spec.get("name", input_id))
+            symbol = spec_symbol(spec, fallback=input_id)
             if symbol == "D" or input_id == "outside_diameter":
                 if "D" in resolved:
                     continue
@@ -932,7 +937,7 @@ class NodeRunner:
         for spec in record.metadata.get("inputs", []) or []:
             if not isinstance(spec, dict):
                 continue
-            symbol = str(spec.get("name", spec.get("id", "")))
+            symbol = spec_symbol(spec)
             unit_map[symbol] = str(spec.get("unit", "dimensionless"))
         return unit_map
 

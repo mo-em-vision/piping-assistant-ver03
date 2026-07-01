@@ -1,0 +1,125 @@
+---
+id: 304.3.1
+type: paragraph
+title: General — Branch Connections
+version: '2026'
+status: draft
+created: '2026-06-28'
+modified: '2026-06-28'
+topic: branch_connections
+revision_year: 2024
+purpose: 'Define scope and applicability of branch connection pressure design rules
+  in §304.3.2 through §304.3.4, including geometric limits and qualification paths.
+
+  '
+engineering_intent: branch_connection_design
+subsections:
+- id: a
+  label: (a)
+  text: 'Except as provided in (b) below, the requirements in paras. 304.3.2 through
+    304.3.4 are applicable to listed fittings, welded couplings and unlisted fittings,
+    and welded direct branch connections.
+
+    '
+- id: b
+  label: (b)
+  text: 'Rules in paras. 304.3.2 through 304.3.4 are minimum requirements valid only
+    for branch connections meeting diameter-ratio, angle, and axis intersection limits
+    per Figure 304.3.3-1 nomenclature.
+
+    '
+- id: c
+  label: (c)
+  text: 'Where provisions of (a) and (b) are not met, pressure design shall be qualified
+    as required by para. 304.7.2.
+
+    '
+- id: d
+  label: (d)
+  text: 'Other design considerations relating to branch connections are stated in
+    para. 304.3.5.
+
+    '
+trace:
+  capture:
+  - paragraph_text
+  - decisions
+report:
+  section_title: General — §304.3.1 Branch Connections
+  include:
+  - node_reference
+  - paragraph_text
+  explanation_required: true
+ai_hints:
+  explanation_focus: 'Clarify when §304.3.2–304.3.4 apply directly versus when §304.7.2
+    qualification is required.
+
+    '
+  common_questions:
+  - When do branch connection rules not apply without qualification?
+  - What geometric limits apply under subsection (b)?
+  avoid:
+  - Do not treat (b) limits as optional when calculating reinforcement.
+kind: requirement
+edges:
+- type: parent
+  target: '304.3'
+- type: references
+  target: 304.3.2
+- type: references
+  target: 304.3.3
+- type: references
+  target: 304.7.2
+  reason: Pressure design qualification when (a) and (b) limits are not met.
+- type: references
+  target: 328.5.4
+  reason: Direct weld branch connections per §328.5.4.
+- type: references
+  target: '300.2'
+  reason: Unlisted cast or forged branch connection fittings.
+---
+
+# ASME B31.3 §304.3.1 — General
+
+## Paragraph Text
+
+Except as provided in (b) below, the requirements in paras. [304.3.2](node:304.3.2) through [304.3.4](node:304.3.4) are applicable to the following branch connections:
+
+**(1)** fittings (tees, extruded outlets, branch outlet fittings in accordance with MSS SP-97, laterals, crosses)
+
+**(2)** couplings not larger than DN 80 (NPS 3) and unlisted cast or forged branch connection fittings (see para. [300.2](node:300.2)) attached to the run pipe by welding
+
+**(3)** welding the branch pipe directly to the run pipe (set-in or set-on), with or without added reinforcement, as covered in para. [328.5.4](node:328.5.4)
+
+**(b)** The rules in paras. [304.3.2](node:304.3.2) through [304.3.4](node:304.3.4) are minimum requirements, valid only for branch connections in which (using the nomenclature of [Figure 304.3.3-1](figure:304.3.3-1))
+
+(1) the run pipe diameter-to-thickness ratio ($\frac{D_h}{T_h}$) is less than 100 and the branch-to-run diameter ratio ($\frac{D_b}{D_h}$) is not greater than 1.0
+
+(2) for run pipe with $\frac{D_h}{T_h} \geq 100$, the branch diameter, $D_b$, is less than one-half the run diameter, $D_h$
+
+(3) angle $\beta$ is at least 45 deg
+
+(4) the axis of the branch intersects the axis of the run
+
+**(c)** Where the provisions of (a) and (b) above are not met, pressure design shall be qualified as required by para. [304.7.2](node:304.7.2).
+
+**(d)** Other design considerations relating to branch connections are stated in para. [304.3.5](node:304.3.5).
+
+---
+
+# Engineering Explanation
+
+This node establishes when the standard branch-connection reinforcement rules apply and when alternative qualification is required. Subsection (b) defines the geometric envelope for which §304.3.2–304.3.4 are minimum, directly applicable requirements.
+
+---
+
+# Decision Logic
+
+This node applies when:
+
+- The piping component includes a branch connection subject to §304.3.
+
+This node does not apply when:
+
+- Branch geometry falls outside subsection (b) limits without §304.7.2 qualification.
+- Design considerations in §304.3.5 govern non-pressure topics not covered here.

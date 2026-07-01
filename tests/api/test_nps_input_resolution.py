@@ -13,7 +13,7 @@ from models.task import TaskStatus
 
 @pytest.fixture(scope="module")
 def standards_root() -> Path:
-    return Path(__file__).resolve().parents[2] / "standards"
+    return Path(__file__).resolve().parents[2] / "knowledge" / "standards"
 
 
 def test_submit_nominal_pipe_size_resolves_outside_diameter(standards_root: Path) -> None:

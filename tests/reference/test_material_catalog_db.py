@@ -11,17 +11,23 @@ from engine.reference.material_catalog_db import (
     load_material_registry,
     search_materials,
 )
-from engine.reference.pack_tables_db import resolve_pack_tables_db
 
 
 @pytest.fixture
 def standards_root(project_root: Path) -> Path:
-    return project_root / "standards"
+    return project_root / "knowledge" / "standards"
 
 
-def test_resolve_pack_tables_db_prefers_slug_named_file(project_root: Path) -> None:
-    pack = project_root / "standards" / "astm" / "astm_a106"
-    assert resolve_pack_tables_db(pack).name == "astm_a106.db"
+def test_astm_pack_has_material_table_dbs(project_root: Path) -> None:
+    pack = project_root / "knowledge" / "standards" / "astm"
+    assert (pack / "astm_a106.db").is_file()
+    assert (pack / "astm_a53_tables.db").is_file()
+
+
+def test_material_registry_db_path_for_astm_a106(project_root: Path) -> None:
+    sources = load_material_registry(project_root / "knowledge" / "standards")
+    a106 = next(source for source in sources if source.standard == "astm_a106")
+    assert a106.db_relative_path == "astm/astm_a106.db"
 
 
 def test_load_material_registry_includes_astm_sources(standards_root: Path) -> None:
@@ -30,7 +36,6 @@ def test_load_material_registry_includes_astm_sources(standards_root: Path) -> N
     assert "astm_a53" in slugs
     assert "astm_a106" in slugs
     assert "astm_a312" in slugs
-    assert "astm_stainless_castings" in slugs
 
 
 def test_global_catalog_search_finds_a53_and_api_5l(standards_root: Path) -> None:
@@ -38,11 +43,6 @@ def test_global_catalog_search_finds_a53_and_api_5l(standards_root: Path) -> Non
     assert any(item["value"] == "astm_a53" for item in a53)
     api = search_materials(standards_root, "api 5")
     assert any(item["value"] == "api_5l" for item in api)
-
-
-def test_global_catalog_search_finds_a351(standards_root: Path) -> None:
-    results = search_materials(standards_root, "a351")
-    assert any(item["value"] == "astm_a351" for item in results)
 
 
 def test_global_catalog_search_finds_a106_alias(standards_root: Path) -> None:
@@ -57,6 +57,11 @@ def test_global_catalog_search_finds_a106_alias(standards_root: Path) -> None:
     }
 
 
+def test_global_catalog_search_finds_a312(standards_root: Path) -> None:
+    results = search_materials(standards_root, "a312")
+    assert any(item["value"].startswith("astm_a312") for item in results)
+
+
 def test_global_catalog_search_finds_tp316(standards_root: Path) -> None:
     results = search_materials(standards_root, "tp3")
     assert results
@@ -69,8 +74,9 @@ def test_rebuild_global_catalog(tmp_path: Path, project_root: Path) -> None:
     import shutil
 
     root = tmp_path / "standards"
-    shutil.copytree(project_root / "standards" / "astm", root / "astm")
-    shutil.copytree(project_root / "standards" / "materials", root / "materials")
+    global_root = tmp_path / "global"
+    shutil.copytree(project_root / "knowledge" / "standards" / "astm", root / "astm")
+    shutil.copytree(project_root / "knowledge" / "global" / "materials", global_root / "materials")
 
     catalog = GlobalMaterialCatalog(root)
     count = catalog.rebuild()

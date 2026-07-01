@@ -12,7 +12,7 @@ from engine.graph.node_behaviors import (
     is_reference_designation,
     is_reference_quantity,
 )
-from engine.graph.relationship_resolver import resolve_require_binding
+from engine.reference.graph_edge_schema import edge_targets, workflow_anchor_target
 from models.input import EngineeringInput
 
 
@@ -126,7 +126,7 @@ def emit_initiation_blocks(
                 )
             )
 
-    anchors = root.metadata.get("anchors_to")
+    anchors = workflow_anchor_target(root.metadata)
     if isinstance(anchors, str):
         for edge in store.outgoing(anchors, edge_types={"contains"}):
             node = store.get_node(edge.to_id)

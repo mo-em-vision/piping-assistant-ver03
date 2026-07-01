@@ -1,0 +1,109 @@
+---
+id: WF-PIPE-WALL-THICKNESS
+type: workflow
+title: Pipe Wall Thickness Design
+version: '1.0'
+status: draft
+engineering_intent: pipe_wall_thickness_design
+slug: pipe_wall_thickness_design
+purpose: 'Entry point for designing or verifying required pipe wall thickness under
+  internal or external pressure per ASME B31.3 pressure design provisions.
+
+  '
+documentation:
+  summary: 'Entry point for designing or verifying required pipe wall thickness under
+    internal or external pressure per ASME B31.3 pressure design provisions.
+
+    '
+  report_summary: 'Pipe wall thickness design per ASME B31.3 §304.1 for internal or
+    external pressure.
+
+    '
+goal_output: minimum_required_thickness
+navigation:
+  assumption_gate_fields:
+  - straight_pipe_section
+  - pressure_loading
+  phases:
+    expansion_assumptions:
+    - straight_pipe_section
+    path_decisions:
+    - pressure_loading
+    parameter_gathering:
+    - design_pressure
+    - nominal_pipe_size
+    - outside_diameter
+    - material
+    - design_temperature
+    - external_design_pressure
+    coefficient_resolution:
+    - joint_category
+    - weld_joint_efficiency
+    - weld_joint_strength_reduction_factor_W
+    - temperature_coefficient_Y
+    execution_assumptions: []
+    definition_equation_completion:
+    - corrosion_allowance
+assumptions:
+- id: straight_pipe_section
+  field: straight_pipe_section
+  description: 'Applied to a straight section of a pipe.
+
+    '
+  required_for_expansion: true
+  requires_confirmation: true
+  allowed_values:
+  - true
+  - false
+  blocks_expansion_on:
+  - false
+  expansion_block_message: 'Non-straight pipe sections are not yet supported. A future
+    node will cover fittings and bends.
+
+    '
+interactions:
+- variable: pressure_loading
+  mode: decision
+  required: true
+  required_for_expansion: true
+  options:
+  - internal_pressure
+  - external_pressure
+  question: 'Is the pipe subjected to internal or external pressure?
+
+    '
+edges:
+- type: requires
+  target: WF-PIPE-WALL-THICKNESS
+- type: references
+  target: 304.1.1
+- type: next
+  target: 304.1.2
+  when:
+    field: pressure_loading
+    in:
+    - internal_pressure
+- type: next
+  target: 304.1.3
+  when:
+    field: pressure_loading
+    in:
+    - external_pressure
+texts:
+- id: pipe-wall-init-text
+  type: text
+  kind: section
+  role: initiation
+  title: Calculation of Minimum Required Thickness of a straight section pipe (according
+    to ASME B 31.3 paragraph 304.1.1)
+  text: Entry point for designing or verifying required pipe wall thickness under
+    internal or external pressure per ASME B31.3 pressure design provisions.
+- id: pipe-wall-result-text
+  type: text
+  role: result_explanation
+  text: Minimum required wall thickness t_m has been calculated per §304.1.1 eq. (2).
+suggested_workflows:
+- mawp_design
+---
+
+Verify or calculate the minimum required wall thickness for piping.

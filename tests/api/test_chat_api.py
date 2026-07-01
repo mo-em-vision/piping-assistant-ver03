@@ -18,7 +18,7 @@ from tests.agents.conftest import FakeLLMClient
 @pytest.fixture
 def temp_config(tmp_path: Path) -> CLIConfig:
     sessions_dir = tmp_path / "sessions"
-    standards_root = Path(__file__).resolve().parents[2] / "standards"
+    standards_root = Path(__file__).resolve().parents[2] / "knowledge" / "standards"
     return CLIConfig(
         report_format="pdf",
         language="english",

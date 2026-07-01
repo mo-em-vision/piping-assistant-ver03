@@ -1,0 +1,14 @@
+---
+id: 304.1
+type: paragraph
+title: Design of Straight Pipe
+status: draft
+revision_year: 2024
+edges:
+- type: parent
+  target: '304'
+---
+
+# ASME B31.3 §304.1 — Design of Straight Pipe
+
+Structural navigation node for §304.1 sub-paragraphs (304.1.1–304.1.3).

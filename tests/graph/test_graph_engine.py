@@ -15,7 +15,7 @@ from tests.acceptance.helpers import internal_pressure_assumption, straight_sect
 
 def _reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[2]
-    return StandardsReader(root / "standards", standard="asme_b31.3")
+    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_build_plan_execution_order_without_pressure_loading() -> None:

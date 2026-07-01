@@ -11,8 +11,8 @@ from engine.reference.material_resolver import canonical_material_id, resolve_ma
 from engine.reference.asme_b31_3_table_ids import (
     TABLE_302_3_5,
     TABLE_304_1_1,
-    TABLE_A_1A,
-    TABLE_A_1B,
+    TABLE_A_2,
+    TABLE_A_3,
 )
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_tables import StandardsTablesDatabase
@@ -99,7 +99,7 @@ def lookup_y_coefficient(
     design_temperature_unit: str = "F",
     material: str | None = None,
 ) -> tuple[float, bool]:
-    """Return Y from Table 304.1.1 at design temperature."""
+    """Return Y from Table 304.1.1-1 at design temperature."""
     from engine.reference.standards_tables import flatten_lookup_table_rows
 
     table_data = _load_table(pack_root, TABLE_304_1_1)
@@ -173,10 +173,10 @@ def lookup_quality_factor(
     material: str,
     joint_category: str,
 ) -> float | None:
-    """Look up E from Tables A-1A and A-1B by material and joint category."""
+    """Look up E from Tables A-2 and A-3 by material and joint category."""
     category = _normalize_joint_category(joint_category)
     standards_root = standards_root_from_pack_root(pack_root)
-    for table_ref in (TABLE_A_1A, TABLE_A_1B):
+    for table_ref in (TABLE_A_2, TABLE_A_3):
         table_data = _load_table(pack_root, table_ref)
         rows = table_data.get("rows", []) or []
         material_keys = {_row_material_token(row): row for row in rows}
@@ -205,7 +205,7 @@ def lookup_w_factor(
     design_temperature_unit: str = "F",
     weld_joint_category: str = "seamless",
 ) -> float | None:
-    """Look up W from Table 302.3.5 when rows are available; otherwise return 1.0."""
+    """Look up W from Table 302.3.5-1 when rows are available; otherwise return 1.0."""
     try:
         table_data = _load_table(pack_root, TABLE_302_3_5)
     except FileNotFoundError:
@@ -272,9 +272,9 @@ def propose_coefficient_defaults(
                 design_temperature=float(raw_temp),
                 design_temperature_unit=str(temp_unit),
             )
-            proposed["temperature_coefficient"] = (
+            proposed["temperature_coefficient_Y"] = (
                 y_value,
-                "Table 304.1.1 at design temperature (thin-wall, t < D/6)",
+                "Table 304.1.1-1 at design temperature (thin-wall, t < D/6)",
             )
         except (ValueError, FileNotFoundError):
             pass
@@ -306,7 +306,7 @@ def propose_coefficient_defaults(
                     mat_label = display
             proposed["weld_joint_efficiency"] = (
                 e_value,
-                f"Tables A-1A/A-1B for {mat_label} ({joint_value})",
+                f"Tables A-2/A-3 for {mat_label} ({joint_value})",
             )
 
     if material is not None and temp is not None:
@@ -325,9 +325,9 @@ def propose_coefficient_defaults(
         except (ValueError, FileNotFoundError):
             w_value = None
         if w_value is not None:
-            proposed["weld_strength_reduction"] = (
+            proposed["weld_joint_strength_reduction_factor_W"] = (
                 w_value,
-                "Table 302.3.5 per §302.3.5(e)",
+                "Table 302.3.5-1 per §302.3.5(e)",
             )
 
     return proposed

@@ -16,7 +16,7 @@ if str(_ROOT) not in sys.path:
 from engine.reference.embedded_nodes import iter_embedded_node_sources
 from engine.reference.standards_markdown import split_frontmatter
 
-PACK = _ROOT / "standards" / "asme" / "asme_b31.3"
+PACK = _ROOT / "knowledge" / "standards" / "asme" / "asme_b31.3"
 NODES = PACK / "nodes"
 _NODE_FILES = ("node.yaml", "node.yml", "node.md")
 

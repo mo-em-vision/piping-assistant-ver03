@@ -15,7 +15,7 @@ from api.material_catalog_service import (
 
 @pytest.fixture
 def standards_root(project_root: Path) -> Path:
-    return project_root / "standards"
+    return project_root / "knowledge" / "standards"
 
 
 def test_warm_material_catalog_marks_catalog_ready(standards_root: Path) -> None:

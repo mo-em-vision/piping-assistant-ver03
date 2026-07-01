@@ -9,7 +9,8 @@ from typing import Any
 
 from engine.graph.graph_store import GraphStore
 from engine.reference.node_types import is_section_node
-from engine.reference.graph_compile import LEGACY_NODE_ID_ALIASES
+from engine.reference.graph_compile import LEGACY_NODE_ID_ALIASES, parse_dependency_node_ref
+from engine.reference.graph_edge_schema import edge_target, iter_stored_edges
 from engine.reference.embedded_nodes import find_embedded_body, iter_embedded_node_sources
 from engine.reference.pack_graph_db import resolve_pack_graph_db
 from engine.reference.pack_nodes_db import resolve_pack_nodes_db
@@ -19,10 +20,9 @@ from engine.reference.standards_nodes import StandardsNodesDatabase
 from engine.reference.standards_paths import (
     list_standard_packs,
     resolve_global_tasks_db,
+    resolve_pack_workflows_dir,
     resolve_pack_tasks_dir,
     resolve_standard_pack,
-    resolve_standard_tasks_dir,
-    resolve_standards_tasks_dir,
 )
 from engine.reference.standards_tables import StandardsTablesDatabase
 from engine.reference.standards_tasks_db import StandardsTasksDatabase
@@ -45,13 +45,13 @@ class NodeRecord:
     @property
     def depends_on(self) -> list[str]:
         deps: list[str] = []
-        for item in self.metadata.get("depends_on", []) or []:
-            if isinstance(item, dict):
-                dep_node_id = item.get("node_id")
-                if dep_node_id:
-                    deps.append(str(dep_node_id))
-            elif isinstance(item, str):
-                deps.append(item)
+        for item in iter_stored_edges(self.metadata):
+            if str(item.get("type") or "") not in {"depends_on", "references", "table", "uses"}:
+                continue
+            target = edge_target(item)
+            if target:
+                base_id, _ = parse_dependency_node_ref(target)
+                deps.append(base_id)
         return deps
 
 
@@ -98,12 +98,7 @@ class StandardsReader:
         self.standard = standard
         self.pack_root = resolve_standard_pack(self.standards_root, standard)
         self.nodes_dir = self.pack_root / "nodes"
-        self.global_tasks_dir = resolve_standards_tasks_dir(self.standards_root)
-        global_tasks_dir = resolve_standard_tasks_dir(self.standards_root, standard)
-        if global_tasks_dir.is_dir():
-            self.tasks_dir = global_tasks_dir
-        else:
-            self.tasks_dir = resolve_pack_tasks_dir(self.pack_root)
+        self.tasks_dir = resolve_pack_workflows_dir(self.pack_root)
         self.tables_db_path = resolve_pack_tables_db(self.pack_root)
         self.nodes_db_path = resolve_pack_nodes_db(self.pack_root)
         self.graph_db_path = resolve_pack_graph_db(self.pack_root)
@@ -165,9 +160,19 @@ class StandardsReader:
         )
 
     def _virtual_node_path(self, source_rel_path: str, *, kind: str) -> Path:
-        if kind == "root":
-            return self.standards_root / "tasks" / source_rel_path / "root.md"
-        base = self.pack_root / source_rel_path
+        if kind in {"root", "workflow"}:
+            text = source_rel_path.replace("\\", "/")
+            prefix = f"{self.standard}/"
+            if text.startswith(prefix):
+                text = text.removeprefix(prefix)
+            direct = self.pack_root / text
+            if direct.is_file():
+                return direct
+            return direct
+        direct = self.pack_root / source_rel_path
+        if direct.is_file():
+            return direct
+        base = direct
         for name in ("node.yaml", "node.yml", "node.md"):
             candidate = base / name
             if candidate.is_file():
@@ -181,7 +186,7 @@ class StandardsReader:
         data = self._tasks_db.get_node(resolved_id)
         if data is None:
             return None
-        path = self._virtual_node_path(str(data["source_rel_path"]), kind="root")
+        path = self._virtual_node_path(str(data["source_rel_path"]), kind=str(data.get("kind") or "workflow"))
         return NodeRecord(
             node_id=str(data["node_id"]),
             path=path,
@@ -207,14 +212,15 @@ class StandardsReader:
         if record is None:
             return None
         base = self.pack_root / record.source_rel_path
-        path = None
-        for name in ("node.md", "node.yaml", "node.yml"):
-            candidate = base / name
-            if candidate.is_file():
-                path = candidate
-                break
+        path = base if base.is_file() else None
         if path is None:
-            path = base / "node.yaml"
+            for name in ("node.md", "node.yaml", "node.yml"):
+                candidate = base / name
+                if candidate.is_file():
+                    path = candidate
+                    break
+        if path is None:
+            path = base if base.suffix in {".yaml", ".yml", ".md"} else base / "node.yaml"
         metadata = dict(record.metadata)
         metadata.setdefault("type", record.node_type)
         body = record.body
@@ -383,11 +389,19 @@ class StandardsReader:
                 resolved = candidate
 
         if resolved is None and self.nodes_dir.is_dir():
-            for name in ("node.yaml", "node.yml", "node.md"):
-                direct = self.nodes_dir / node_id / name
-                if direct.is_file():
-                    resolved = direct
+            from engine.reference.node_sources import iter_node_source_paths
+
+            for path in iter_node_source_paths(self.nodes_dir):
+                record = self.load_file(path)
+                if record.node_id == node_id:
+                    resolved = path
                     break
+            if resolved is None:
+                for name in ("node.yaml", "node.yml", "node.md"):
+                    direct = self.nodes_dir / node_id / name
+                    if direct.is_file():
+                        resolved = direct
+                        break
             if resolved is None:
                 self._warn_missing_nodes_db_once()
                 for path in self.nodes_dir.rglob("node.md"):
@@ -486,6 +500,10 @@ class StandardsReader:
         return candidate if candidate.is_file() else None
 
     def read_asset_text(self, record: NodeRecord, file_ref: str) -> str | None:
+        path = self.resolve_asset_path(record, file_ref)
+        if path is not None and path.is_file():
+            return path.read_text(encoding="utf-8")
+
         embedded_body = find_embedded_body(record.metadata, file_ref)
         if embedded_body is not None:
             return embedded_body
@@ -523,10 +541,7 @@ class StandardsReader:
                 if asset.body:
                     return asset.body
 
-        path = self.resolve_asset_path(record, file_ref)
-        if path is None or not path.is_file():
-            return None
-        return path.read_text(encoding="utf-8")
+        return None
 
     @staticmethod
     def load_file(path: Path) -> NodeRecord:

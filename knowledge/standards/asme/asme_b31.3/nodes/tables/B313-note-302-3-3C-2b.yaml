@@ -1,0 +1,25 @@
+---
+id: B313-note-302-3-3C-2b
+standard: asme_b31.3
+source:
+  pack: asme_b31.3
+  yaml: nodes/tables/B313-note-302-3-3C-2b.yaml
+  tables_db: asme_b313_tables.db
+type: text
+title: Table 302.3.3C — Note (2)(b)
+status: draft
+paragraph: Table 302.3.3C, Note (2)(b)
+section: '302.3'
+topic: quality_factor
+revision_year: 2024
+kind: note
+edges:
+- type: depends_on
+  target: B313-table-302-3-3C
+---
+
+# Note (2)(b) to Table 302.3.3C
+
+Examine all surfaces of each casting by the liquid penetrant method, in accordance with ASTM E165. Judge acceptability in accordance with SP-93, Table 1.
+
+Referenced from [Table 302.3.3C](table:asme_b31.3_table_302_3_3C). See also [Note (2)(a)](node:B313-note-302-3-3C-2a).

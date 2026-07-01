@@ -16,7 +16,7 @@ if str(_ROOT) not in sys.path:
 
 from engine.reference.standards_markdown import compose_frontmatter, split_frontmatter
 
-PACK = _ROOT / "standards" / "asme" / "asme_b31.3"
+PACK = _ROOT / "knowledge" / "standards" / "asme" / "asme_b31.3"
 NODES = PACK / "nodes"
 
 _ASSET_DIRS = ("equations", "conditions", "notes", "references")

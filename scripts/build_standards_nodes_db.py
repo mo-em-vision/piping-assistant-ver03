@@ -19,6 +19,7 @@ from engine.reference.embedded_nodes import iter_embedded_node_sources
 from engine.reference.standards_markdown import merge_dual_node_frontmatter, split_frontmatter
 from engine.reference.standards_nodes import StandardsNodesDatabase
 from engine.reference.standards_paths import list_standard_packs
+from engine.reference.node_sources import iter_node_source_paths, source_rel_path
 
 _ASSET_DIRS = {
     "equations": "equation",
@@ -51,31 +52,27 @@ def _discover_nodes(pack_root: Path) -> list[_DiscoveredNode]:
 
     if nodes_dir.is_dir():
         seen_paths: set[Path] = set()
-        for pattern in ("node.md", "node.yaml", "node.yml"):
-            for path in sorted(nodes_dir.rglob(pattern)):
-                if path in seen_paths:
-                    continue
-                seen_paths.add(path)
-                text = path.read_text(encoding="utf-8")
-                metadata, body = split_frontmatter(text)
-                node_id = str(metadata.get("id") or path.parent.name).strip()
-                if not node_id:
-                    continue
-                try:
-                    source_rel_path = path.parent.relative_to(pack_root).as_posix()
-                except ValueError:
-                    continue
-                discovered.append(
-                    _DiscoveredNode(
-                        node_id=node_id,
-                        kind="node",
-                        metadata=metadata,
-                        body=body,
-                        source_rel_path=source_rel_path,
-                        source_path=path,
-                        depth_score=_path_depth_score(source_rel_path),
-                    )
+        for path in iter_node_source_paths(nodes_dir):
+            if path in seen_paths:
+                continue
+            seen_paths.add(path)
+            text = path.read_text(encoding="utf-8")
+            metadata, body = split_frontmatter(text)
+            node_id = str(metadata.get("id") or path.stem).strip()
+            if not node_id:
+                continue
+            rel = source_rel_path(pack_root, path)
+            discovered.append(
+                _DiscoveredNode(
+                    node_id=node_id,
+                    kind="node",
+                    metadata=metadata,
+                    body=body,
+                    source_rel_path=rel,
+                    source_path=path,
+                    depth_score=_path_depth_score(rel),
                 )
+            )
 
     by_id: dict[str, _DiscoveredNode] = {}
     for item in discovered:
@@ -122,8 +119,11 @@ def _discover_nodes(pack_root: Path) -> list[_DiscoveredNode]:
             metadata=metadata,
         ):
             existing = by_id.get(embedded.node_id)
-            if existing is not None and existing.source_path.parent.name == embedded.node_id:
-                continue
+            if existing is not None:
+                if existing.source_path.parent.name == embedded.node_id:
+                    continue
+                if existing.source_path.stem == embedded.node_id:
+                    continue
             by_id[embedded.node_id] = _DiscoveredNode(
                 node_id=embedded.node_id,
                 kind="node",
@@ -286,7 +286,7 @@ def build_pack(pack_root: Path) -> Path | None:
 
 
 def build_all(*, standards_root: Path | None = None) -> list[Path]:
-    root = (standards_root or (_ROOT / "standards")).resolve()
+    root = (standards_root or (_ROOT / "knowledge" / "standards")).resolve()
     built: list[Path] = []
     for slug, pack_root in list_standard_packs(root):
         db_path = build_pack(pack_root)

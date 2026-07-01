@@ -1,8 +1,0 @@
----
-id: B313-quantity-diameter
-type: quantity
-name: Outside Diameter
-dimension: length
-description: >
-  Outside diameter of pipe as listed in tables or as measured.
----

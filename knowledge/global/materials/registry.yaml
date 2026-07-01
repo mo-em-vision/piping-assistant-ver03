@@ -1,0 +1,21 @@
+sources:
+  - standard: astm_a53
+    group: astm
+    table_id: astm_a53_material_properties
+    db_file: astm_a53_tables.db
+    source_node: A53
+  - standard: astm_a106
+    group: astm
+    table_id: astm_a106_material_properties
+    db_file: astm_a106.db
+    source_node: A106
+  - standard: astm_a312
+    group: astm
+    table_id: astm_a312_material_properties
+    db_file: astm_a312.db
+    source_node: A312
+  - standard: a_105
+    group: astm
+    table_id: astm_a105_material_properties
+    db_file: a_105_tables.db
+    source_node: A105

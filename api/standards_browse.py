@@ -9,6 +9,7 @@ from typing import Any
 
 from api.serializers import _workflow_meta
 from engine.graph.graph_engine import normalize_root_id
+from engine.reference.graph_compile import LEGACY_NODE_ID_ALIASES
 from engine.reference.standards_paths import resolve_global_tasks_db, resolve_standard_pack
 from engine.reference.standards_reader import StandardsReader
 from engine.reference.standards_tasks_db import StandardsTasksDatabase
@@ -54,8 +55,14 @@ def _resolve_table_id_for_node(
     return reader.tables_database.resolve_table_id(node_id)
 
 
-def _content_kind(node_type: str, node_id: str) -> str:
-    if node_type == "lookup" or node_id.startswith("B313-table-"):
+def _content_kind(node_type: str, node_id: str, source_rel_path: str = "") -> str:
+    normalized = source_rel_path.replace("\\", "/")
+    if (
+        node_type == "lookup"
+        or node_id.startswith("B313-table-")
+        or "/nodes/tables/" in normalized
+        or normalized.startswith("nodes/tables/")
+    ):
         return "table"
     return "node"
 
@@ -140,7 +147,7 @@ def _build_node_workflow_map(
         if record is None:
             continue
         metadata = record.get("metadata") or {}
-        if str(metadata.get("type") or "") != "root":
+        if str(metadata.get("type") or "") not in {"root", "workflow"}:
             continue
         source_rel_path = str(record.get("source_rel_path") or "")
         if not source_rel_path.startswith(prefix):
@@ -150,6 +157,9 @@ def _build_node_workflow_map(
         workflow = _workflow_summary(workflow_id)
 
         depended_nodes: set[str] = set()
+        anchors_to = metadata.get("anchors_to")
+        if isinstance(anchors_to, str) and anchors_to.strip():
+            depended_nodes.add(anchors_to.strip())
         depends_on = metadata.get("depends_on") or []
         if isinstance(depends_on, list):
             for dep in depends_on:
@@ -214,7 +224,7 @@ def _build_available_tasks_entries(
         if record is None:
             continue
         metadata = record.get("metadata") or {}
-        if str(metadata.get("type") or "") != "root":
+        if str(metadata.get("type") or "") not in {"root", "workflow"}:
             continue
         source_rel_path = str(record.get("source_rel_path") or "")
         if not source_rel_path.startswith(prefix):
@@ -381,7 +391,11 @@ def _build_section_tree(
             continue
         summary = summaries.get(node_id, {})
         node_type = str(summary.get("node_type") or "node")
-        content_kind = _content_kind(node_type, node_id)
+        content_kind = _content_kind(
+            node_type,
+            node_id,
+            str(summary.get("source_rel_path") or ""),
+        )
         paragraph = summary.get("paragraph")
         title = summary.get("title")
         label = f"§{paragraph}" if paragraph else (title or node_id)
@@ -394,7 +408,10 @@ def _build_section_tree(
             "description": description,
             "node_id": node_id,
             "content_kind": content_kind,
-            "related_workflows": node_workflows.get(node_id, []),
+            "related_workflows": node_workflows.get(
+                LEGACY_NODE_ID_ALIASES.get(node_id, node_id),
+                node_workflows.get(node_id, []),
+            ),
         }
         if content_kind == "table":
             table_id = _resolve_table_id_for_node(reader, node_id, _node_metadata(reader, node_id))

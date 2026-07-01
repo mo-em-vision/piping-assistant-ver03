@@ -12,7 +12,7 @@ from engine.reference.standards_paths import resolve_standard_pack
 
 def _lookup_engine() -> LookupEngine:
     root = Path(__file__).resolve().parents[2]
-    pack = resolve_standard_pack(root / "standards", "asme_b31.3")
+    pack = resolve_standard_pack(root / "knowledge" / "standards", "asme_b31.3")
     return LookupEngine(pack)
 
 

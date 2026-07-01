@@ -34,3 +34,7 @@ Structure → data flow → backend connection → visualization → interaction
 - `cd desktopApp && npm run verify:mvp` for desktop MVP smoke tests.
 - `cd desktopApp && npm run verify:release` before packaging a release build.
 - `python -m pytest tests/api` after API/backend changes.
+
+## Architecture audit docs (living)
+
+After code changes, update affected audit README sections per [docs/audit/MAINTENANCE.md](docs/audit/MAINTENANCE.md). Locate docs via [docs/audit/INDEX.md](docs/audit/INDEX.md). User may cite sections as `@audit path#section-anchor`.

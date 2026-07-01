@@ -1,0 +1,29 @@
+---
+id: A105
+type: lookup
+title: ASTM A105 — Material Properties
+version: '1.0'
+status: draft
+paragraph: ASTM A105/A105M
+section: Material Properties
+topic: material_properties
+inputs:
+- id: grade
+  name: grade
+  description: ASTM A105 or alias (A105, SA-105)
+  required: true
+  source: user_input
+  unit: dimensionless
+lookups:
+- id: a105_material_catalog
+  source: table
+  table_id: astm_a105_material_properties
+  lookup_rule: grade
+edges:
+- type: parameter
+  target: material_properties
+---
+
+# ASTM A105 — Material Properties
+
+Catalog entry for **ASTM A105** carbon steel forgings for piping applications.

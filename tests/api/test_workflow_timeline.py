@@ -35,8 +35,8 @@ def test_revealed_inputs_include_current_and_completed_phases() -> None:
                 "coefficient_resolution": [
                     "joint_category",
                     "weld_joint_efficiency",
-                    "weld_strength_reduction",
-                    "temperature_coefficient",
+                    "weld_joint_strength_reduction_factor_W",
+                    "temperature_coefficient_Y",
                 ],
             },
         },
@@ -76,8 +76,8 @@ def test_revealed_inputs_expand_into_coefficient_phase() -> None:
                 "coefficient_resolution": [
                     "joint_category",
                     "weld_joint_efficiency",
-                    "weld_strength_reduction",
-                    "temperature_coefficient",
+                    "weld_joint_strength_reduction_factor_W",
+                    "temperature_coefficient_Y",
                 ],
             },
         },
@@ -87,8 +87,8 @@ def test_revealed_inputs_expand_into_coefficient_phase() -> None:
     revealed = revealed_pipe_wall_input_ids(task, task.outputs["planning_summary"])
     assert "allowable_stress" in revealed
     assert "weld_joint_efficiency" in revealed
-    assert "weld_strength_reduction" in revealed
-    assert "temperature_coefficient" in revealed
+    assert "weld_joint_strength_reduction_factor_W" in revealed
+    assert "temperature_coefficient_Y" in revealed
     assert revealed.index("allowable_stress") < revealed.index("weld_joint_efficiency")
 
 

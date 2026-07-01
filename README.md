@@ -130,7 +130,7 @@ After changing standards markdown nodes, registry YAML, ASTM seeds, or lookup ta
 python scripts/build_all_standards_dbs.py
 ```
 
-This builds per-pack `{slug}_tables.db` and `{slug}_nodes.db` files, `standards/standards_config.db`, `standards/materials/materials.db`, and pipe dimension databases.
+This builds per-pack `{slug}_tables.db` and `{slug}_nodes.db` files, `knowledge/standards/standards_config.db`, `knowledge/global/materials/materials.db`, and pipe dimension databases.
 
 Individual builders (when you only changed one source type):
 
@@ -143,13 +143,13 @@ python scripts/build_material_catalog_db.py     # material search index
 python scripts/build_pipe_dimensions_db.py
 ```
 
-After changing ASTM material seed YAML or adding a pack to `standards/materials/registry.yaml`:
+After changing ASTM material seed YAML or adding a pack to `knowledge/global/materials/registry.yaml`:
 
 ```bash
 python scripts/build_material_catalog_db.py
 ```
 
-This rebuilds per-pack `{slug}.db` files (e.g. `astm_a106.db`) and the global search index at `standards/materials/materials.db`.
+This rebuilds per-pack `{slug}.db` files (e.g. `astm_a106.db`) and the global search index at `knowledge/global/materials/materials.db`.
 
 After changing pipe dimension YAML or adding a pack to `standards/pipe_dimensions/registry.yaml`:
 

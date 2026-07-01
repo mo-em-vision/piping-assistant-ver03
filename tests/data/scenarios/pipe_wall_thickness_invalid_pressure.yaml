@@ -8,8 +8,8 @@ given:
     joint_category: { value: seamless, unit: dimensionless }
     corrosion_allowance: { value: 0.5, unit: mm }
     weld_joint_efficiency: { value: 1.0, unit: dimensionless }
-    weld_strength_reduction: { value: 1.0, unit: dimensionless }
-    temperature_coefficient: { value: 0.4, unit: dimensionless }
+    weld_joint_strength_reduction_factor_W: { value: 1.0, unit: dimensionless }
+    temperature_coefficient_Y: { value: 0.4, unit: dimensionless }
     design_pressure: { value: abc, unit: psi }
     d_input_mode: { value: direct_od, unit: dimensionless }
     outside_diameter: { value: 10, unit: in }

@@ -1,0 +1,13 @@
+---
+id: UNIT-psi
+type: unit
+symbol: psi
+dimension: pressure
+description: Pounds per square inch
+aliases:
+- PSI
+edges:
+- type: derived_from
+  target: UNIT-Pa
+  factor: 6894.757293168
+---

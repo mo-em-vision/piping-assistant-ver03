@@ -36,37 +36,12 @@ class ValidationResult:
 
 def _collect_edge_targets(metadata: dict[str, Any]) -> list[str]:
     targets: list[str] = []
-    edge_keys = (
-        "requires",
-        "calculates",
-        "defines",
-        "explains",
-        "outputs",
-        "contains",
-        "anchors_to",
-        "uses_table",
-        "next_step",
-        "located_in",
-        "depends_on",
-        "edges",
-    )
-    for key in edge_keys:
-        value = metadata.get(key)
-        if isinstance(value, str) and value.strip():
-            targets.append(value.strip())
-        elif isinstance(value, list):
-            for item in value:
-                if isinstance(item, str) and item.strip():
-                    targets.append(item.strip())
-                elif isinstance(item, dict):
-                    ref = str(
-                        item.get("node_id") or item.get("to") or item.get("id") or ""
-                    ).strip()
-                    if ref:
-                        targets.append(ref)
-    anchors = metadata.get("anchors_to")
-    if isinstance(anchors, str) and anchors.strip():
-        targets.append(anchors.strip())
+    for item in metadata.get("edges", []) or []:
+        if not isinstance(item, dict):
+            continue
+        ref = str(item.get("target") or item.get("to") or item.get("node_id") or "").strip()
+        if ref:
+            targets.append(ref)
     goal = metadata.get("goal_output")
     if isinstance(goal, str) and goal.strip():
         targets.append(goal.strip())

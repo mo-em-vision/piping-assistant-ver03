@@ -13,7 +13,7 @@ from tests.acceptance.helpers import confirmed_default_inputs, internal_pressure
 
 def test_nps_lookup_resolves_outside_diameter_for_calculation() -> None:
     root = Path(__file__).resolve().parents[2]
-    reader = StandardsReader(root / "standards", standard="asme_b31.3")
+    reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
     state = TaskStateManager()
     task_id = "nps-lookup-wall-thickness"
     state.create_task(task_id)

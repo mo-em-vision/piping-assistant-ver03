@@ -141,14 +141,14 @@ _PARAMETER_SPECS: dict[str, dict[str, Any]] = {
         "default_unit": "dimensionless",
         "validation": {"min": 0, "max": 1},
     },
-    "weld_strength_reduction": {
+    "weld_joint_strength_reduction_factor_W": {
         "label": "Weld Strength Reduction",
         "type": "number",
         "units": [],
         "default_unit": "dimensionless",
         "validation": {"min": 0, "max": 1},
     },
-    "temperature_coefficient": {
+    "temperature_coefficient_Y": {
         "label": "Temperature Coefficient",
         "type": "number",
         "units": [],

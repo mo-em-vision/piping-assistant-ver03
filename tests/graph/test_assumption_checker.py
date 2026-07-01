@@ -16,7 +16,7 @@ from tests.acceptance.helpers import confirmed_default_inputs, internal_pressure
 
 def _reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[2]
-    return StandardsReader(root / "standards", standard="asme_b31.3")
+    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_wall_thickness_requires_pressure_loading_assumption() -> None:
@@ -97,7 +97,7 @@ def test_execution_assumptions_require_confirmed_defaults() -> None:
     )
 
     assert "weld_joint_efficiency" in result.missing_fields
-    assert "temperature_coefficient" in result.missing_fields
+    assert "temperature_coefficient_Y" in result.missing_fields
 
 
 def test_execution_assumptions_satisfied_with_confirmed_defaults() -> None:

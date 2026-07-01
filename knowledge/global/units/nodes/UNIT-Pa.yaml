@@ -1,0 +1,13 @@
+---
+id: UNIT-Pa
+type: unit
+symbol: Pa
+dimension: pressure
+description: Pascal (SI)
+aliases:
+- pa
+edges:
+- type: derived_from
+  target: UNIT-MPa
+  factor: 1.0e-06
+---

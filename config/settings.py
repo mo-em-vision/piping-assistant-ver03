@@ -36,7 +36,7 @@ class Settings:
             openai_api_key=os.environ.get("OPENAI_API_KEY"),
             openai_model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
             openai_base_url=os.environ.get("OPENAI_BASE_URL"),
-            standards_root=os.environ.get("STANDARDS_ROOT", "standards"),
+            standards_root=os.environ.get("STANDARDS_ROOT", "knowledge/standards"),
         )
 
 

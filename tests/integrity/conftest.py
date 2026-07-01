@@ -11,4 +11,4 @@ from engine.reference.standards_reader import StandardsReader
 
 @pytest.fixture
 def standards_reader(project_root: Path) -> StandardsReader:
-    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+    return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")

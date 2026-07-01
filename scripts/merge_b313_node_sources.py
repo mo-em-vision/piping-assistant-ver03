@@ -17,7 +17,7 @@ from engine.reference.standards_markdown import (
     split_frontmatter,
 )
 
-PACK = _ROOT / "standards" / "asme" / "asme_b31.3"
+PACK = _ROOT / "knowledge" / "standards" / "asme" / "asme_b31.3"
 NODES = PACK / "nodes"
 
 

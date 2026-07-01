@@ -12,7 +12,7 @@ def _wall_thickness_formula_text() -> str:
     from engine.reference.standards_reader import StandardsReader
 
     root = Path(__file__).resolve().parents[2]
-    reader = StandardsReader(root / "standards")
+    reader = StandardsReader(root / "knowledge" / "standards")
     node = reader.load("B313-304.1.2")
     text = reader.read_asset_text(node, "equations/wall_thickness.md")
     assert text is not None

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from engine.reference.asme_b31_3_table_ids import TABLE_A_1, TABLE_A_1A
+from engine.reference.asme_b31_3_table_ids import TABLE_A_1, TABLE_A_2, TABLE_A_1A
 from engine.reference.material_ids import ASTM_A106_GR_B
 from engine.reference.standards_reader import StandardsReader
 from engine.reference.standards_tables import StandardsTablesDatabase
@@ -14,7 +14,7 @@ from engine.reference.standards_tables import StandardsTablesDatabase
 
 @pytest.fixture
 def standards_reader(project_root: Path) -> StandardsReader:
-    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+    return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_standards_tables_db_exists(standards_reader: StandardsReader) -> None:
@@ -30,7 +30,8 @@ def test_resolve_legacy_yaml_alias(standards_reader: StandardsReader) -> None:
 def test_load_table_by_id_returns_db_path(standards_reader: StandardsReader) -> None:
     path, data = standards_reader.load_table_by_id("A-1A")
     assert path.name in {"standards_tables.db", "asme_b313_tables.db"}
-    assert data["table_id"] == TABLE_A_1A
+    assert data["table_id"] == TABLE_A_2
+    assert TABLE_A_1A == TABLE_A_2
 
 
 def test_material_catalog_round_trip(tmp_path: Path) -> None:

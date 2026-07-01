@@ -89,7 +89,7 @@ describe('RightPanel tabs', () => {
   it('renders close buttons for each closable reference tab', () => {
     const store = useRightPanelStore.getState()
     store.openReferenceTab('B313-304.1.1', '§304.1.1')
-    store.openReferenceTab('asme_b31.3_A-1A', 'Table A-1A', 'table')
+    store.openReferenceTab('asme_b31.3_A-2', 'Table A-2', 'table')
 
     const { container } = render(<RightPanel />)
 
@@ -127,7 +127,7 @@ describe('RightPanel tabs', () => {
   it('activates the previous tab when closing the active reference tab', () => {
     const store = useRightPanelStore.getState()
     store.openReferenceTab('B313-304.1.1', '§304.1.1')
-    store.openReferenceTab('asme_b31.3_A-1A', 'Table A-1A', 'table')
+    store.openReferenceTab('asme_b31.3_A-2', 'Table A-2', 'table')
 
     const tabs = useRightPanelStore.getState().tabs
     const firstReferenceTabId = tabs[3]?.id
@@ -147,7 +147,7 @@ describe('RightPanel tabs', () => {
 
     const store = useRightPanelStore.getState()
     store.openReferenceTab('B313-304.1.1', '§304.1.1')
-    store.openReferenceTab('asme_b31.3_A-1A', 'Table A-1A', 'table')
+    store.openReferenceTab('asme_b31.3_A-2', 'Table A-2', 'table')
 
     const tabs = useRightPanelStore.getState().tabs
     const secondReferenceTabId = tabs[4]?.id
@@ -157,7 +157,7 @@ describe('RightPanel tabs', () => {
     scrollIntoView.mockClear()
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'Close Table A-1A' }),
+      screen.getByRole('button', { name: 'Close Table A-2' }),
     )
 
     expect(useRightPanelStore.getState().activeTabId).toBe(tabs[3]?.id)

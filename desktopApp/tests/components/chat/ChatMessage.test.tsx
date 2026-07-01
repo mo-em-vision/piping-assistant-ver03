@@ -97,22 +97,22 @@ describe('ChatMessage', () => {
     render(
       <ChatMessage
         message={buildMessage({
-          content: 'See [Table A-1A](table:asme_b31.3_A-1A) for quality factors.',
+          content: 'See [Table A-2](table:asme_b31.3_A-2) for quality factors.',
         })}
       />,
     )
 
-    const link = screen.getByRole('button', { name: 'Table A-1A' })
+    const link = screen.getByRole('button', { name: 'Table A-2' })
     fireEvent.click(link)
 
     const state = useRightPanelStore.getState()
-    expect(state.activeTabId).toBe('ref-table-asme_b31.3_A-1A')
-    expect(state.tabs.some((tab) => tab.id === 'ref-table-asme_b31.3_A-1A')).toBe(true)
-    expect(screen.getByRole('button', { name: 'Table A-1A' })).toBeInTheDocument()
+    expect(state.activeTabId).toBe('ref-table-asme_b31.3_A-2')
+    expect(state.tabs.some((tab) => tab.id === 'ref-table-asme_b31.3_A-2')).toBe(true)
+    expect(screen.getByRole('button', { name: 'Table A-2' })).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Table A-1A' }))
-    expect(useRightPanelStore.getState().activeTabId).toBe('ref-table-asme_b31.3_A-1A')
-    expect(screen.getByRole('button', { name: 'Table A-1A' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Table A-2' }))
+    expect(useRightPanelStore.getState().activeTabId).toBe('ref-table-asme_b31.3_A-2')
+    expect(screen.getByRole('button', { name: 'Table A-2' })).toBeInTheDocument()
   })
 
   it('keeps source footer links after opening the reference tab', () => {

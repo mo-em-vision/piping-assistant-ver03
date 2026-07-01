@@ -41,7 +41,7 @@ export function buildTableViewerContext(
   const temperature = inputDisplayValue(inputs, 'design_temperature')
   const jointCategory = inputDisplayValue(inputs, 'joint_category')
 
-  if (key === '304-1-1' || key === '304.1.1') {
+  if (key === '304-1-1-1' || key === '304.1.1-1' || key === '304-1-1' || key === '304.1.1') {
     if (!temperature) {
       return undefined
     }
@@ -71,7 +71,7 @@ export function buildTableViewerContext(
     return { highlightKeys }
   }
 
-  if (key === '302.3.5' || key === '302-3-5') {
+  if (key === '302.3.5-1' || key === '302-3-5-1' || key === '302.3.5' || key === '302-3-5') {
     if (!material) {
       return undefined
     }

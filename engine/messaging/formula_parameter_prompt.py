@@ -12,10 +12,11 @@ from engine.messaging.prompt_format import format_parameter_block, format_reply_
 from engine.reference.formula_display import load_equation_context
 from engine.reference.nomenclature_resolver import (
     NomenclatureEntry,
+    enrich_input_spec,
     entry_for_symbol,
     input_applies,
     load_nomenclature_for_node,
-    resolve_input_spec,
+    spec_symbol,
 )
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
@@ -36,8 +37,8 @@ _FALLBACK_SYMBOL_MAP: dict[str, str] = {
     "NPS": "nominal_pipe_size",
     "S": "allowable_stress",
     "E": "weld_joint_efficiency",
-    "W": "weld_strength_reduction",
-    "Y": "temperature_coefficient",
+    "W": "weld_joint_strength_reduction_factor_W",
+    "Y": "temperature_coefficient_Y",
     "c": "corrosion_allowance",
 }
 
@@ -109,9 +110,9 @@ def build_symbol_map(
     for spec in record.metadata.get("inputs", []) or []:
         if not isinstance(spec, dict):
             continue
-        spec = resolve_input_spec(spec, nomenclature) if nomenclature else spec
+        spec = enrich_input_spec(spec, nomenclature if nomenclature else None)
         input_id = str(spec.get("id", ""))
-        symbol = str(spec.get("name", input_id))
+        symbol = spec_symbol(spec, fallback=input_id)
         if input_id and symbol:
             symbol_map[symbol] = input_id
         if input_id == "nominal_pipe_size":
@@ -363,7 +364,7 @@ def _input_spec_for_symbol(metadata: dict[str, Any], symbol: str) -> dict[str, A
     for spec in metadata.get("inputs", []) or []:
         if not isinstance(spec, dict):
             continue
-        if str(spec.get("name", spec.get("id", ""))) == symbol:
+        if spec_symbol(spec) == symbol:
             return spec
     return None
 
@@ -564,14 +565,14 @@ def _missing_guidance(
             if default is not None:
                 text += f"; default {symbol} = {default}"
             if symbol == "Y" and "design_temperature" not in task_inputs:
-                text += "; provide design temperature for Table 304.1.1 lookup"
+                text += "; provide design temperature for Table 304.1.1-1 lookup"
             if requires_conf:
                 text += f". Confirm or enter a value (e.g. {symbol}: {default})."
             return text.rstrip(".") + "."
 
     if symbol == "E":
         return (
-            "looked up from Tables A-1A and A-1B. "
+            "looked up from Tables A-2 and A-3. "
             "Input pipe/joint category for lookup, or enter E directly. "
             "Default E = 1.0 for seamless pipe."
         )
@@ -582,7 +583,7 @@ def _missing_guidance(
         )
     if symbol == "Y":
         return (
-            "coefficient from Table 304.1.1 (interpolate for intermediate temperatures); "
+            "coefficient from Table 304.1.1-1 (interpolate for intermediate temperatures); "
             "default Y = 0.4 for thin-wall — confirm or provide design temperature for lookup."
         )
 

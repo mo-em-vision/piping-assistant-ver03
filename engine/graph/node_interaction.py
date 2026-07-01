@@ -16,10 +16,10 @@ from engine.graph.assumption_checker import field_value, normalize_assumption_va
 from engine.reference.node_types import is_section_node, parameter_input_id
 from engine.reference.nomenclature_resolver import (
     default_question,
+    enrich_input_spec,
     input_applies,
     load_nomenclature,
     load_nomenclature_for_node,
-    resolve_input_spec,
 )
 from engine.reference.standards_reader import NodeRecord, StandardsReader
 from models.input import (
@@ -301,7 +301,7 @@ def load_node_interactions(record: NodeRecord, reader: StandardsReader | None = 
 
     for item in record.metadata.get("inputs", []) or []:
         if isinstance(item, dict):
-            merged = resolve_input_spec(item, nomenclature) if nomenclature else item
+            merged = enrich_input_spec(item, nomenclature if nomenclature else None)
             bridged = interaction_from_input(merged, record.node_id)
             if bridged is not None:
                 specs.append(bridged)

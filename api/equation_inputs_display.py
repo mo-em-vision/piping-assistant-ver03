@@ -24,8 +24,8 @@ FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str, str], ...] = (
     ("outside_diameter", "D", "Outside diameter"),
     ("allowable_stress", "S", "Allowable stress"),
     ("weld_joint_efficiency", "E", "Joint efficiency"),
-    ("weld_strength_reduction", "W", "Weld strength reduction"),
-    ("temperature_coefficient", "Y", "Temperature coefficient"),
+    ("weld_joint_strength_reduction_factor_W", "W", "Weld strength reduction"),
+    ("temperature_coefficient_Y", "Y", "Temperature coefficient"),
 )
 
 FORMULA_INPUT_STEP_IDS = frozenset(row[0] for row in FORMULA_INPUT_DISPLAY_ROWS)
@@ -42,8 +42,8 @@ MAWP_FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str, str], ...] = (
     ("outside_diameter", "D", "Outside diameter"),
     ("allowable_stress", "S", "Allowable stress"),
     ("weld_joint_efficiency", "E", "Joint quality factor"),
-    ("weld_strength_reduction", "W", "Weld strength reduction factor"),
-    ("temperature_coefficient", "Y", "Coefficient Y"),
+    ("weld_joint_strength_reduction_factor_W", "W", "Weld strength reduction factor"),
+    ("temperature_coefficient_Y", "Y", "Coefficient Y"),
 )
 
 _SYMBOL_TO_INPUT_ID: dict[str, str] = {
@@ -52,8 +52,8 @@ _SYMBOL_TO_INPUT_ID: dict[str, str] = {
     "NPS": "nominal_pipe_size",
     "S": "allowable_stress",
     "E": "weld_joint_efficiency",
-    "W": "weld_strength_reduction",
-    "Y": "temperature_coefficient",
+    "W": "weld_joint_strength_reduction_factor_W",
+    "Y": "temperature_coefficient_Y",
     "T": "design_temperature",
     "c": "corrosion_allowance",
 }
@@ -286,14 +286,14 @@ def _weld_joint_efficiency_display_value(task: Task) -> str | None:
     joint_category = _joint_category_label(task)
     if not joint_category:
         return None
-    return f"{display} ({_ASME_B31_3} Tables A-1A/A-1B, {joint_category})"
+    return f"{display} ({_ASME_B31_3} Tables A-2/A-3, {joint_category})"
 
 
-def _weld_strength_reduction_display_value(task: Task) -> str | None:
-    display = _input_display_value_from_input(task, "weld_strength_reduction")
+def _weld_joint_strength_reduction_factor_W_display_value(task: Task) -> str | None:
+    display = _input_display_value_from_input(task, "weld_joint_strength_reduction_factor_W")
     if not display:
         return None
-    if not _is_table_sourced(task, "weld_strength_reduction"):
+    if not _is_table_sourced(task, "weld_joint_strength_reduction_factor_W"):
         return display
     material = _material_label(task)
     if not material:
@@ -301,11 +301,11 @@ def _weld_strength_reduction_display_value(task: Task) -> str | None:
     return f"{display} ({_ASME_B31_3} Table 302.3.5, {material})"
 
 
-def _temperature_coefficient_display_value(task: Task) -> str | None:
-    display = _input_display_value_from_input(task, "temperature_coefficient")
+def _temperature_coefficient_Y_display_value(task: Task) -> str | None:
+    display = _input_display_value_from_input(task, "temperature_coefficient_Y")
     if not display:
         return None
-    if not _is_table_sourced(task, "temperature_coefficient"):
+    if not _is_table_sourced(task, "temperature_coefficient_Y"):
         return display
     material = _material_label(task)
     temp_display = _design_temperature_display(task)
@@ -323,10 +323,10 @@ def _input_display_value(task: Task, input_id: str, *, standards_root: Path | No
         return _allowable_stress_display_value(task)
     if input_id == "weld_joint_efficiency":
         return _weld_joint_efficiency_display_value(task)
-    if input_id == "weld_strength_reduction":
-        return _weld_strength_reduction_display_value(task)
-    if input_id == "temperature_coefficient":
-        return _temperature_coefficient_display_value(task)
+    if input_id == "weld_joint_strength_reduction_factor_W":
+        return _weld_joint_strength_reduction_factor_W_display_value(task)
+    if input_id == "temperature_coefficient_Y":
+        return _temperature_coefficient_Y_display_value(task)
     if input_id == "actual_wall_thickness":
         return _actual_wall_thickness_display_value(task)
     if input_id == "pressure_design_thickness":

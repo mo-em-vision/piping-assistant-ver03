@@ -31,7 +31,7 @@ def require_target_id(item: Any) -> str | None:
         target = item.strip()
         return target or None
     if isinstance(item, dict):
-        for key in ("node_id", "id", "to"):
+        for key in ("node_id", "id", "to", "target"):
             value = item.get(key)
             if value is not None:
                 target = str(value).strip()
@@ -80,7 +80,7 @@ def _priority_from_metadata_requires(
     param_node_id: str,
     active_nodes: set[str],
 ) -> int | None:
-    from engine.graph.relationship_resolver import resolve_priority_target
+    from engine.graph.relationship_resolver import node_requires_items, resolve_priority_target
 
     best: int | None = None
     for node_id in active_nodes:
@@ -89,7 +89,8 @@ def _priority_from_metadata_requires(
         node = store.get_node(node_id)
         if node is None:
             continue
-        for item in node.metadata.get("requires") or []:
+        requires_items = node.metadata.get("requires") or node_requires_items(store, node_id)
+        for item in requires_items:
             if resolve_priority_target(store, item) != param_node_id:
                 continue
             priority = require_entry_priority(item)
@@ -109,7 +110,7 @@ def _priority_from_resolved_requires(
     param_node_id: str,
     active_nodes: set[str],
 ) -> int | None:
-    from engine.graph.relationship_resolver import resolve_require_binding
+    from engine.graph.relationship_resolver import node_requires_items, resolve_require_binding
 
     best: int | None = None
     for node_id in active_nodes:
@@ -118,7 +119,8 @@ def _priority_from_resolved_requires(
         node = store.get_node(node_id)
         if node is None:
             continue
-        for item in node.metadata.get("requires") or []:
+        requires_items = node.metadata.get("requires") or node_requires_items(store, node_id)
+        for item in requires_items:
             binding = resolve_require_binding(store, item)
             if binding is None or binding.param_id != param_node_id:
                 continue

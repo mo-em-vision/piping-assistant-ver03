@@ -59,8 +59,8 @@ _PROPOSE_DEFAULTS_ON_FIELDS = frozenset(
         "outside_diameter",
         "joint_category",
         "weld_joint_efficiency",
-        "weld_strength_reduction",
-        "temperature_coefficient",
+        "weld_joint_strength_reduction_factor_W",
+        "temperature_coefficient_Y",
         "corrosion_allowance",
     }
 )

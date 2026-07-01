@@ -14,9 +14,11 @@ from models.task import Task, TaskStatus
 _LOOKUP_OUTPUT_SUFFIXES = ("_lookup", "_lookup_result")
 
 _WORKFLOW_ROOT_ALIASES: dict[str, str] = {
-    "pipe_wall_thickness_design": "B313-WF-PIPE-WALL-THICKNESS",
-    "mawp_design": "B313-WF-MAWP",
-    "B313-PIPE-WALL-THICKNESS-DESIGN": "B313-WF-PIPE-WALL-THICKNESS",
+    "pipe_wall_thickness_design": "WF-PIPE-WALL-THICKNESS",
+    "mawp_design": "WF-MAWP",
+    "B313-PIPE-WALL-THICKNESS-DESIGN": "WF-PIPE-WALL-THICKNESS",
+    "B313-WF-PIPE-WALL-THICKNESS": "WF-PIPE-WALL-THICKNESS",
+    "B313-WF-MAWP": "WF-MAWP",
 }
 
 
@@ -298,8 +300,13 @@ def _attach_workflow_completion(
     )
     goal_param = str(store.metadata(root_id).get("goal_output", "")).strip()
     if goal_param:
-        goal_meta = store.metadata(goal_param)
-        goal_input_id = str(goal_meta.get("input_id", "")).strip()
+        goal_meta: dict[str, Any] = {}
+        goal_input_id = ""
+        if store.get_node(goal_param) is not None:
+            goal_meta = store.metadata(goal_param)
+            goal_input_id = str(goal_meta.get("input_id", "")).strip()
+        if not goal_input_id:
+            goal_input_id = goal_param
         goal_value = None
         if goal_input_id:
             goal_value = task.outputs.get(goal_input_id)

@@ -13,7 +13,7 @@ from models.task import TaskStatus
 
 @pytest.fixture(scope="module")
 def standards_root() -> Path:
-    return Path(__file__).resolve().parents[2] / "standards"
+    return Path(__file__).resolve().parents[2] / "knowledge" / "standards"
 
 
 def _pipe_wall_task(manager: TaskStateManager, task_id: str, *, missing: list[str]) -> None:

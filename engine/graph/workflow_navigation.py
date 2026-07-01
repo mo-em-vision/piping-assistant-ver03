@@ -30,8 +30,8 @@ _PIPE_WALL_NAVIGATION: dict[str, Any] = {
         NavigationPhase.COEFFICIENT_RESOLUTION.value: [
             "joint_category",
             "weld_joint_efficiency",
-            "weld_strength_reduction",
-            "temperature_coefficient",
+            "weld_joint_strength_reduction_factor_W",
+            "temperature_coefficient_Y",
         ],
         NavigationPhase.EXECUTION_ASSUMPTIONS.value: [],
         NavigationPhase.DEFINITION_EQUATION_COMPLETION.value: ["corrosion_allowance"],
@@ -55,8 +55,8 @@ _MAWP_NAVIGATION: dict[str, Any] = {
         NavigationPhase.COEFFICIENT_RESOLUTION.value: [
             "joint_category",
             "weld_joint_efficiency",
-            "weld_strength_reduction",
-            "temperature_coefficient",
+            "weld_joint_strength_reduction_factor_W",
+            "temperature_coefficient_Y",
         ],
         NavigationPhase.EXECUTION_ASSUMPTIONS.value: [],
         NavigationPhase.DEFINITION_EQUATION_COMPLETION.value: [],

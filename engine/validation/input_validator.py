@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Any
 
 from engine.reference.node_types import is_section_node
-from engine.reference.nomenclature_resolver import input_applies, load_nomenclature_for_node, resolve_input_spec
+from engine.reference.nomenclature_resolver import (
+    enrich_input_spec,
+    input_applies,
+    load_nomenclature_for_node,
+    spec_symbol,
+    task_input_key,
+)
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
 from models.validation import ComplianceStatus, LayerValidationResult, ValidationFinding, ValidationSeverity
@@ -35,7 +41,7 @@ class InputValidator:
                 continue
             if section_node and str(spec.get("source", "")) == "node_output":
                 continue
-            spec = resolve_input_spec(spec, nomenclature) if nomenclature else spec
+            spec = enrich_input_spec(spec, nomenclature if nomenclature else None)
             if not input_applies(spec, task_inputs):
                 continue
             input_id = str(spec.get("id", ""))
@@ -49,7 +55,7 @@ class InputValidator:
             if source == "node_output":
                 if skip_dependency_inputs:
                     continue
-                symbol = str(spec.get("name", input_id))
+                symbol = spec_symbol(spec, fallback=input_id)
                 value = dependency_outputs.get(input_id) or dependency_outputs.get(symbol)
                 if value is None and required:
                     errors.append(
@@ -63,8 +69,10 @@ class InputValidator:
                     )
                 continue
 
-            if input_id in task_inputs:
-                stored = task_inputs[input_id]
+            lookup_key = task_input_key(spec)
+
+            if lookup_key in task_inputs:
+                stored = task_inputs[lookup_key]
                 if bool(spec.get("requires_confirmation", False)) and not input_is_expansion_ready(
                     stored
                 ):

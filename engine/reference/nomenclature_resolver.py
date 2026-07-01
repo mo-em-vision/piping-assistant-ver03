@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from typing import Any
 
 from engine.graph.assumption_checker import field_value, normalize_assumption_value
+from engine.reference.knowledge_paths import dimensions_root, materials_root
+from engine.reference.graph_edge_schema import edge_target, edge_targets, iter_stored_edges
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput
 
@@ -78,7 +80,7 @@ def load_nomenclature(reader: StandardsReader, node_id: str) -> dict[str, Nomenc
             )
 
         allowed = item.get("allowed_units") or []
-        refs = item.get("references") or []
+        refs = item.get("citations") or item.get("references") or []
         entries[symbol] = NomenclatureEntry(
             symbol=symbol,
             description=str(item.get("description", "")).strip(),
@@ -104,6 +106,179 @@ def entry_for_symbol(
             if entry.input_id == input_id:
                 return entry
     return None
+
+
+def spec_symbol(spec: dict[str, Any], *, fallback: str = "") -> str:
+    """Return the engineering symbol from an input or output spec."""
+    symbol = spec.get("symbol") or spec.get("name")
+    if symbol:
+        return str(symbol)
+    if fallback:
+        return fallback
+    return str(spec.get("id", ""))
+
+
+_DIMENSION_NODE_CACHE: dict[str, dict[str, Any] | None] = {}
+
+
+def _load_dimension_node(node_id: str) -> dict[str, Any] | None:
+    if node_id in _DIMENSION_NODE_CACHE:
+        return _DIMENSION_NODE_CACHE[node_id]
+    path = dimensions_root() / "nodes" / f"{node_id}.yaml"
+    if not path.is_file():
+        _DIMENSION_NODE_CACHE[node_id] = None
+        return None
+    metadata, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+    if str(metadata.get("type", "")) != "dimension":
+        _DIMENSION_NODE_CACHE[node_id] = None
+        return None
+    _DIMENSION_NODE_CACHE[node_id] = metadata
+    return metadata
+
+
+def resolve_dimension_input_spec(input_spec: dict[str, Any]) -> dict[str, Any]:
+    """Merge input metadata from global dimension node references (e.g. DIM-temperature)."""
+    merged = dict(input_spec)
+    refs = input_spec.get("references") or input_spec.get("citations") or []
+    dimension_refs = [
+        str(ref).strip()
+        for ref in refs
+        if str(ref).strip().startswith("DIM-")
+    ]
+    if not dimension_refs:
+        return merged
+
+    dim_meta = _load_dimension_node(dimension_refs[0])
+    if dim_meta is None:
+        return merged
+
+    key = str(dim_meta.get("key", "")).strip()
+    if key and not merged.get("dimension"):
+        merged["dimension"] = key
+
+    canonical = str(dim_meta.get("canonical_unit", "")).strip()
+    if canonical and not merged.get("canonical_unit"):
+        merged["canonical_unit"] = canonical
+
+    if not merged.get("allowed_units"):
+        allowed: list[str] = []
+        for ref in edge_targets(dim_meta, "references"):
+            if ref:
+                allowed.append(ref)
+        if allowed:
+            merged["allowed_units"] = allowed
+
+    display_name = str(input_spec.get("display_name", "")).strip()
+    if display_name:
+        merged["name"] = display_name
+        if not str(input_spec.get("description", "")).strip():
+            merged["description"] = display_name
+
+    return merged
+
+
+def resolve_dimension_output_spec(output_spec: dict[str, Any]) -> dict[str, Any]:
+    """Merge output metadata from global dimension node references (e.g. DIM-pressure)."""
+    merged = dict(output_spec)
+    refs = output_spec.get("references") or []
+    dimension_refs = [
+        str(ref).strip()
+        for ref in refs
+        if str(ref).strip().startswith("DIM-")
+    ]
+    if not dimension_refs:
+        return merged
+
+    dim_meta = _load_dimension_node(dimension_refs[0])
+    if dim_meta is None:
+        return merged
+
+    key = str(dim_meta.get("key", "")).strip()
+    if key and not merged.get("dimension"):
+        merged["dimension"] = key
+
+    canonical = str(dim_meta.get("canonical_unit", "")).strip()
+    if canonical and not merged.get("canonical_unit"):
+        merged["canonical_unit"] = canonical
+
+    if not merged.get("allowed_units"):
+        allowed: list[str] = []
+        for ref in edge_targets(dim_meta, "references"):
+            if ref:
+                allowed.append(ref)
+        if allowed:
+            merged["allowed_units"] = allowed
+
+    return merged
+
+
+def enrich_output_spec(output_spec: dict[str, Any]) -> dict[str, Any]:
+    """Apply dimension enrichment to an output spec."""
+    return resolve_dimension_output_spec(output_spec)
+
+
+_MATERIAL_CATALOG_CACHE: dict[str, dict[str, Any] | None] = {}
+
+
+def _load_material_catalog_node(node_id: str) -> dict[str, Any] | None:
+    if node_id in _MATERIAL_CATALOG_CACHE:
+        return _MATERIAL_CATALOG_CACHE[node_id]
+    path = materials_root() / "nodes" / f"{node_id}.yaml"
+    if not path.is_file():
+        _MATERIAL_CATALOG_CACHE[node_id] = None
+        return None
+    metadata, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+    if str(metadata.get("type", "")) != "material_catalog":
+        _MATERIAL_CATALOG_CACHE[node_id] = None
+        return None
+    _MATERIAL_CATALOG_CACHE[node_id] = metadata
+    return metadata
+
+
+def resolve_material_input_spec(input_spec: dict[str, Any]) -> dict[str, Any]:
+    """Merge input metadata from global material catalog references (e.g. MAT-catalog)."""
+    merged = dict(input_spec)
+    refs = input_spec.get("references") or input_spec.get("citations") or []
+    catalog_refs = [
+        str(ref).strip()
+        for ref in refs
+        if str(ref).strip().startswith("MAT-")
+    ]
+    if not catalog_refs:
+        return merged
+
+    catalog_meta = _load_material_catalog_node(catalog_refs[0])
+    if catalog_meta is None:
+        return merged
+
+    canonical = str(catalog_meta.get("canonical_unit", "UNIT-dimensionless")).strip()
+    if canonical:
+        merged.setdefault("canonical_unit", canonical)
+    merged.setdefault("unit", "dimensionless")
+    return merged
+
+
+def task_input_key(spec: dict[str, Any]) -> str:
+    """Resolve the task-level input id for a table or node input spec."""
+    bridge = str(spec.get("task_input_id", "")).strip()
+    if bridge:
+        return bridge
+    return str(spec.get("id", ""))
+
+
+def enrich_input_spec(
+    input_spec: dict[str, Any],
+    nomenclature: dict[str, NomenclatureEntry] | None = None,
+) -> dict[str, Any]:
+    """Apply material, dimension, task bridge, and nomenclature enrichment."""
+    spec = resolve_material_input_spec(input_spec)
+    spec = resolve_dimension_input_spec(spec)
+    bridge = str(spec.get("task_input_id", "")).strip()
+    if bridge:
+        spec["binds_to"] = bridge
+    if nomenclature:
+        spec = resolve_input_spec(spec, nomenclature)
+    return spec
 
 
 def resolve_input_spec(

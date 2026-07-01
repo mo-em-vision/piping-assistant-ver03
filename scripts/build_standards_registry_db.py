@@ -94,7 +94,7 @@ def _load_pipe_registry_yaml(standards_root: Path) -> tuple[str | None, list[Pip
 
 
 def build_all(*, standards_root: Path | None = None) -> Path:
-    root = (standards_root or (_ROOT / "standards")).resolve()
+    root = (standards_root or (_ROOT / "knowledge" / "standards")).resolve()
     database = StandardsConfigDatabase(standards_config_db_path(root))
     database.clear_all()
 

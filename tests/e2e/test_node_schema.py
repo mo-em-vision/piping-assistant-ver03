@@ -25,8 +25,7 @@ REQUIRED_LOOKUP_FIELDS = (
     "id",
     "inputs",
     "outputs",
-    "depends_on",
-    "report",
+    "lookups",
 )
 
 

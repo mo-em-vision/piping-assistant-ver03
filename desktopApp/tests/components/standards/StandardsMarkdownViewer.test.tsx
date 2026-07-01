@@ -204,25 +204,25 @@ $$`
 
   it('renders table cross-reference links as table reference controls', () => {
     render(
-      <StandardsMarkdownViewer content="Quality factor from [Table A-1A](table:asme_b31.3_A-1A)." />,
+      <StandardsMarkdownViewer content="Quality factor from [Table A-2](table:asme_b31.3_A-2)." />,
     )
 
-    const link = screen.getByRole('button', { name: 'Table A-1A' })
+    const link = screen.getByRole('button', { name: 'Table A-2' })
     expect(link).toHaveClass('standard-reference-link__button')
 
     fireEvent.click(link)
 
-    expect(useRightPanelStore.getState().activeTabId).toBe('ref-table-asme_b31.3_A-1A')
+    expect(useRightPanelStore.getState().activeTabId).toBe('ref-table-asme_b31.3_A-2')
   })
 
   it('treats legacy node:table_* links as table references', () => {
     render(
-      <StandardsMarkdownViewer content="See [Table A-1A](node:table_b31_3_A-1A)." />,
+      <StandardsMarkdownViewer content="See [Table A-2](node:table_b31_3_A-2)." />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Table A-1A' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Table A-2' }))
 
-    expect(useRightPanelStore.getState().activeTabId).toBe('ref-table-table_b31_3_A-1A')
+    expect(useRightPanelStore.getState().activeTabId).toBe('ref-table-table_b31_3_A-2')
   })
 
   it('renders node subsection cross-reference links as separate reference tabs', () => {

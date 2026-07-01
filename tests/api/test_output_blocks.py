@@ -99,7 +99,7 @@ def test_completed_workflow_with_nps_includes_schedule_recommendation(
         "nps": "2",
         "outside_diameter_mm": 60.325,
         "standard": "asme_b36.10",
-        "table_id": "welded_seamless_pipe_dimensions",
+        "table_id": "table-2-1",
     }
     state_manager.replace_task(task_id, task)
 

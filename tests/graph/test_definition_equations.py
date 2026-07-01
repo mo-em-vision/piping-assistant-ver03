@@ -24,7 +24,7 @@ from tests.acceptance.helpers import (
 
 @pytest.fixture
 def standards_reader(project_root):
-    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+    return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_pending_definition_inputs_after_thickness_without_corrosion(standards_reader) -> None:

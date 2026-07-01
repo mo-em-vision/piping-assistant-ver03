@@ -13,7 +13,7 @@ from engine.reference.standards_reader import StandardsReader
 
 @pytest.fixture
 def standards_root() -> Path:
-    return Path(__file__).resolve().parents[2] / "standards"
+    return Path(__file__).resolve().parents[2] / "knowledge" / "standards"
 
 
 @pytest.fixture

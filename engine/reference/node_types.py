@@ -5,7 +5,17 @@ from __future__ import annotations
 from typing import Any
 
 CANONICAL_NODE_TYPES = frozenset(
-    {"workflow", "equation", "parameter", "quantity", "designation", "text", "unit"}
+    {
+        "workflow",
+        "paragraph",
+        "equation",
+        "parameter",
+        "quantity",
+        "designation",
+        "text",
+        "unit",
+        "dimension",
+    }
 )
 RUNTIME_NODE_FIELDS = frozenset({"value", "user_input", "runtime_unit", "runtime_units"})
 
@@ -15,13 +25,14 @@ _LEGACY_TYPE_KIND: dict[str, tuple[str, str]] = {
     "interaction": ("parameter", "interaction"),
     "lookup": ("equation", "lookup"),
     "table": ("text", "table"),
-    "standard_section": ("text", "section"),
+    "standard_section": ("paragraph", "section"),
+    "definition": ("paragraph", "definition"),
+    "calculation": ("paragraph", "calculation"),
+    "requirement": ("paragraph", "requirement"),
 }
 
 # Accept canonical types and legacy aliases when discovering sources.
-MICRO_GRAPH_TYPES = CANONICAL_NODE_TYPES | frozenset(_LEGACY_TYPE_KIND.keys()) | frozenset(
-    {"definition", "calculation"}
-)
+MICRO_GRAPH_TYPES = CANONICAL_NODE_TYPES | frozenset(_LEGACY_TYPE_KIND.keys())
 
 
 def normalize_node_metadata(
@@ -35,9 +46,16 @@ def normalize_node_metadata(
         if node_type in {"quantity", "designation"}:
             for field in RUNTIME_NODE_FIELDS:
                 meta.pop(field, None)
+        if node_type == "paragraph" and explicit_kind is None:
+            meta.setdefault("kind", "section")
         if explicit_kind is not None:
             meta["kind"] = str(explicit_kind)
         return node_type, meta
+
+    if node_type == "text" and explicit_kind == "section":
+        meta.setdefault("kind", "section")
+        meta["type"] = "paragraph"
+        return "paragraph", meta
 
     mapping = _LEGACY_TYPE_KIND.get(node_type)
     if mapping is None:
@@ -94,7 +112,7 @@ def is_section_node(metadata: dict[str, Any], node_type: str | None = None) -> b
     if raw == "standard_section":
         return True
     ctype, meta = normalize_node_metadata(metadata, raw)
-    return ctype == "text" and node_kind(meta) == "section"
+    return ctype == "paragraph" and node_kind(meta) in {"section", "definition", "calculation"}
 
 
 def is_lookup_node(metadata: dict[str, Any], node_type: str | None = None) -> bool:
@@ -143,8 +161,12 @@ def expansion_priority_order(node_type: str, metadata: dict[str, Any]) -> int:
         return 6
     if ctype == "equation":
         return 7
+    if ctype == "paragraph":
+        return 8
     if ctype == "text":
         return 8
     if ctype == "unit":
         return 9
+    if ctype == "dimension":
+        return 10
     return 50

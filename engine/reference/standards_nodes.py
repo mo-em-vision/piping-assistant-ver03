@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from engine.reference.paragraph_hierarchy import hierarchy_entries, paragraph_reference, section_label
+
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS node_records (
@@ -186,8 +188,9 @@ class StandardsNodesDatabase:
             node_id = str(row["node_id"])
             node_type = str(metadata.get("type") or "node")
             summaries[node_id] = {
-                "paragraph": str(metadata.get("paragraph") or "").strip() or None,
-                "section": str(metadata.get("section") or "").strip() or None,
+                "paragraph": paragraph_reference(metadata) or None,
+                "section": section_label(metadata),
+                "hierarchy": hierarchy_entries(metadata),
                 "title": str(metadata.get("title") or "").strip() or None,
                 "node_type": node_type,
                 "revision_year": metadata.get("revision_year"),

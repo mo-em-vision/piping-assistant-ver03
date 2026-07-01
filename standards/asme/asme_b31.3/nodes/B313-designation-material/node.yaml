@@ -1,8 +1,0 @@
----
-id: B313-designation-material
-type: designation
-name: Material Grade
-symbol: material
-description: >
-  Pipe material specification used for allowable stress and joint factor lookups.
----

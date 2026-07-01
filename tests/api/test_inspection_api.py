@@ -18,7 +18,7 @@ def _service(tmp_path: Path, project_root: Path) -> DesktopApiService:
         language="english",
         default_standard="ASME_B31.3",
         sessions_dir=tmp_path / "sessions",
-        standards_root=project_root / "standards",
+        standards_root=project_root / "knowledge" / "standards",
         openai_api_key=None,
         openai_model="gpt-4o-mini",
         openai_base_url=None,

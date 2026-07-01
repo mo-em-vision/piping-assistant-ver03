@@ -1,0 +1,1136 @@
+standard: asme_b36.10
+node_id: B3610-table-2-1
+registry:
+  pack: asme_b36.10
+  yaml: tables/B3610-table-2-1.yaml
+  db_file: pipe_dimensions.db
+  table_id: table-2-1
+# Development sample — structured per ASME B36.10M welded/seamless wrought steel pipe.
+# Outside diameter is identical for all schedules at a given NPS.
+# Wall thickness and plain-end weight vary by schedule.
+
+table_id: table-2-1
+title: Dimensions and Weights (Masses) of Welded and Seamless Wrought Steel Pipe
+publish_date: 2018
+unit_system: imperial
+
+keys:
+  - nominal_pipe_size
+  - schedule
+
+aliases:
+  nps:
+    '1/2"': "1/2"
+    '1/2 in': "1/2"
+    '0.5': "1/2"
+    '2"': "2"
+    '2 in': "2"
+    '2 inch': "2"
+    'NPS 2': "2"
+    'NPS 4': "4"
+    '4"': "4"
+  schedule:
+    STD: "40"
+    STANDARD: "40"
+    XS: "80"
+    XSTR: "80"
+    XXS: "XXS"
+
+pipes:
+  "1/8":
+    outside_diameter_in: 0.405
+    outside_diameter_mm: 10.29
+    schedules:
+      "10":
+        wall_thickness_in: 0.049
+        wall_thickness_mm: 1.24
+        weight_lb_per_ft: 0.19
+        weight_kg_per_m: 0.28
+      "30":
+        wall_thickness_in: 0.057
+        wall_thickness_mm: 1.45
+        weight_lb_per_ft: 0.21
+        weight_kg_per_m: 0.32
+      "40":
+        identification: STD
+        wall_thickness_in: 0.068
+        wall_thickness_mm: 1.73
+        weight_lb_per_ft: 0.24
+        weight_kg_per_m: 0.37
+      "80":
+        identification: XS
+        wall_thickness_in: 0.095
+        wall_thickness_mm: 2.41
+        weight_lb_per_ft: 0.31
+        weight_kg_per_m: 0.47
+      "160":
+        wall_thickness_in: 0.124
+        wall_thickness_mm: 3.15
+        weight_lb_per_ft: 0.37
+        weight_kg_per_m: 0.55
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.190
+        wall_thickness_mm: 4.83
+        weight_lb_per_ft: 0.44
+        weight_kg_per_m: 0.65
+  "1/4":
+    outside_diameter_in: 0.540
+    outside_diameter_mm: 13.72
+    schedules:
+      "10":
+        wall_thickness_in: 0.065
+        wall_thickness_mm: 1.65
+        weight_lb_per_ft: 0.33
+        weight_kg_per_m: 0.49
+      "30":
+        wall_thickness_in: 0.073
+        wall_thickness_mm: 1.85
+        weight_lb_per_ft: 0.36
+        weight_kg_per_m: 0.54
+      "40":
+        identification: STD
+        wall_thickness_in: 0.088
+        wall_thickness_mm: 2.24
+        weight_lb_per_ft: 0.43
+        weight_kg_per_m: 0.63
+      "80":
+        identification: XS
+        wall_thickness_in: 0.119
+        wall_thickness_mm: 3.02
+        weight_lb_per_ft: 0.54
+        weight_kg_per_m: 0.80
+      "160":
+        wall_thickness_in: 0.145
+        wall_thickness_mm: 3.68
+        weight_lb_per_ft: 0.61
+        weight_kg_per_m: 0.91
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.238
+        wall_thickness_mm: 6.05
+        weight_lb_per_ft: 0.77
+        weight_kg_per_m: 1.14
+  "3/8":
+    outside_diameter_in: 0.675
+    outside_diameter_mm: 17.14
+    schedules:
+      "10":
+        wall_thickness_in: 0.065
+        wall_thickness_mm: 1.65
+        weight_lb_per_ft: 0.42
+        weight_kg_per_m: 0.63
+      "30":
+        wall_thickness_in: 0.073
+        wall_thickness_mm: 1.85
+        weight_lb_per_ft: 0.47
+        weight_kg_per_m: 0.70
+      "40":
+        identification: STD
+        wall_thickness_in: 0.091
+        wall_thickness_mm: 2.31
+        weight_lb_per_ft: 0.57
+        weight_kg_per_m: 0.84
+      "80":
+        identification: XS
+        wall_thickness_in: 0.126
+        wall_thickness_mm: 3.20
+        weight_lb_per_ft: 0.74
+        weight_kg_per_m: 1.10
+      "160":
+        wall_thickness_in: 0.158
+        wall_thickness_mm: 4.01
+        weight_lb_per_ft: 0.87
+        weight_kg_per_m: 1.30
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.252
+        wall_thickness_mm: 6.40
+        weight_lb_per_ft: 1.14
+        weight_kg_per_m: 1.70
+  "1/2":
+    outside_diameter_in: 0.840
+    outside_diameter_mm: 21.34
+    schedules:
+      "5":
+        wall_thickness_in: 0.065
+        wall_thickness_mm: 1.65
+        weight_lb_per_ft: 0.54
+        weight_kg_per_m: 0.80
+      "10":
+        wall_thickness_in: 0.083
+        wall_thickness_mm: 2.11
+        weight_lb_per_ft: 0.67
+        weight_kg_per_m: 1.00
+      "30":
+        wall_thickness_in: 0.095
+        wall_thickness_mm: 2.41
+        weight_lb_per_ft: 0.76
+        weight_kg_per_m: 1.13
+      "40":
+        identification: STD
+        wall_thickness_in: 0.109
+        wall_thickness_mm: 2.77
+        weight_lb_per_ft: 0.85
+        weight_kg_per_m: 1.27
+      "80":
+        identification: XS
+        wall_thickness_in: 0.147
+        wall_thickness_mm: 3.73
+        weight_lb_per_ft: 1.09
+        weight_kg_per_m: 1.62
+      "160":
+        wall_thickness_in: 0.188
+        wall_thickness_mm: 4.78
+        weight_lb_per_ft: 1.31
+        weight_kg_per_m: 1.95
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.294
+        wall_thickness_mm: 7.47
+        weight_lb_per_ft: 1.72
+        weight_kg_per_m: 2.56
+  "3/4":
+    outside_diameter_in: 1.050
+    outside_diameter_mm: 26.67
+    schedules:
+      "5":
+        wall_thickness_in: 0.065
+        wall_thickness_mm: 1.65
+        weight_lb_per_ft: 0.68
+        weight_kg_per_m: 1.02
+      "10":
+        wall_thickness_in: 0.083
+        wall_thickness_mm: 2.11
+        weight_lb_per_ft: 0.86
+        weight_kg_per_m: 1.28
+      "30":
+        wall_thickness_in: 0.095
+        wall_thickness_mm: 2.41
+        weight_lb_per_ft: 0.97
+        weight_kg_per_m: 1.44
+      "40":
+        identification: STD
+        wall_thickness_in: 0.113
+        wall_thickness_mm: 2.87
+        weight_lb_per_ft: 1.13
+        weight_kg_per_m: 1.68
+      "80":
+        identification: XS
+        wall_thickness_in: 0.154
+        wall_thickness_mm: 3.91
+        weight_lb_per_ft: 1.48
+        weight_kg_per_m: 2.19
+      "160":
+        wall_thickness_in: 0.219
+        wall_thickness_mm: 5.56
+        weight_lb_per_ft: 1.95
+        weight_kg_per_m: 2.89
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.308
+        wall_thickness_mm: 7.82
+        weight_lb_per_ft: 2.44
+        weight_kg_per_m: 3.64
+  "1":
+    outside_diameter_in: 1.315
+    outside_diameter_mm: 33.40
+    schedules:
+      "5":
+        wall_thickness_in: 0.065
+        wall_thickness_mm: 1.65
+        weight_lb_per_ft: 0.87
+        weight_kg_per_m: 1.29
+      "10":
+        wall_thickness_in: 0.109
+        wall_thickness_mm: 2.77
+        weight_lb_per_ft: 1.41
+        weight_kg_per_m: 2.09
+      "30":
+        wall_thickness_in: 0.114
+        wall_thickness_mm: 2.90
+        weight_lb_per_ft: 1.46
+        weight_kg_per_m: 2.18
+      "40":
+        identification: STD
+        wall_thickness_in: 0.133
+        wall_thickness_mm: 3.38
+        weight_lb_per_ft: 1.68
+        weight_kg_per_m: 2.50
+      "80":
+        identification: XS
+        wall_thickness_in: 0.179
+        wall_thickness_mm: 4.55
+        weight_lb_per_ft: 2.17
+        weight_kg_per_m: 3.24
+      "160":
+        wall_thickness_in: 0.250
+        wall_thickness_mm: 6.35
+        weight_lb_per_ft: 2.85
+        weight_kg_per_m: 4.24
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.358
+        wall_thickness_mm: 9.09
+        weight_lb_per_ft: 3.66
+        weight_kg_per_m: 5.45
+  "1-1/4":
+    outside_diameter_in: 1.66
+    outside_diameter_mm: 42.2
+    schedules:
+      "5":
+        wall_thickness_in: 0.065
+        wall_thickness_mm: 1.65
+        weight_lb_per_ft: 1.11
+        weight_kg_per_m: 1.65
+      "10":
+        wall_thickness_in: 0.109
+        wall_thickness_mm: 2.77
+        weight_lb_per_ft: 1.81
+        weight_kg_per_m: 2.69
+      "30":
+        wall_thickness_in: 0.117
+        wall_thickness_mm: 2.97
+        weight_lb_per_ft: 1.93
+        weight_kg_per_m: 2.87
+      "40":
+        identification: STD
+        wall_thickness_in: 0.14
+        wall_thickness_mm: 3.56
+        weight_lb_per_ft: 2.27
+        weight_kg_per_m: 3.39
+      "80":
+        identification: XS
+        wall_thickness_in: 0.191
+        wall_thickness_mm: 4.85
+        weight_lb_per_ft: 3.0
+        weight_kg_per_m: 4.47
+      "160":
+        wall_thickness_in: 0.25
+        wall_thickness_mm: 6.35
+        weight_lb_per_ft: 3.77
+        weight_kg_per_m: 5.61
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.382
+        wall_thickness_mm: 9.7
+        weight_lb_per_ft: 5.22
+        weight_kg_per_m: 7.77
+  "1-1/2":
+    outside_diameter_in: 1.9
+    outside_diameter_mm: 48.3
+    schedules:
+      "5":
+        wall_thickness_in: 0.065
+        wall_thickness_mm: 1.65
+        weight_lb_per_ft: 1.28
+        weight_kg_per_m: 1.9
+      "10":
+        wall_thickness_in: 0.109
+        wall_thickness_mm: 2.77
+        weight_lb_per_ft: 2.09
+        weight_kg_per_m: 3.11
+      "30":
+        wall_thickness_in: 0.125
+        wall_thickness_mm: 3.18
+        weight_lb_per_ft: 2.37
+        weight_kg_per_m: 3.53
+      "40":
+        identification: STD
+        wall_thickness_in: 0.145
+        wall_thickness_mm: 3.68
+        weight_lb_per_ft: 2.72
+        weight_kg_per_m: 4.05
+      "80":
+        identification: XS
+        wall_thickness_in: 0.2
+        wall_thickness_mm: 5.08
+        weight_lb_per_ft: 3.63
+        weight_kg_per_m: 5.41
+      "160":
+        wall_thickness_in: 0.281
+        wall_thickness_mm: 7.14
+        weight_lb_per_ft: 4.86
+        weight_kg_per_m: 7.25
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.4
+        wall_thickness_mm: 10.15
+        weight_lb_per_ft: 6.41
+        weight_kg_per_m: 9.55
+  "2":
+    outside_diameter_in: 2.375
+    outside_diameter_mm: 60.3
+    schedules:
+      "5":
+        wall_thickness_in: 0.065
+        wall_thickness_mm: 1.65
+        weight_lb_per_ft: 1.61
+        weight_kg_per_m: 2.39
+      "10":
+        wall_thickness_in: 0.109
+        wall_thickness_mm: 2.77
+        weight_lb_per_ft: 2.64
+        weight_kg_per_m: 3.93
+      "30":
+        wall_thickness_in: 0.125
+        wall_thickness_mm: 3.18
+        weight_lb_per_ft: 3.01
+        weight_kg_per_m: 4.48
+      "40":
+        identification: STD
+        wall_thickness_in: 0.154
+        wall_thickness_mm: 3.91
+        weight_lb_per_ft: 3.66
+        weight_kg_per_m: 5.44
+      "80":
+        identification: XS
+        wall_thickness_in: 0.218
+        wall_thickness_mm: 5.54
+        weight_lb_per_ft: 5.03
+        weight_kg_per_m: 7.48
+      "160":
+        wall_thickness_in: 0.344
+        wall_thickness_mm: 8.74
+        weight_lb_per_ft: 7.47
+        weight_kg_per_m: 11.11
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.436
+        wall_thickness_mm: 11.07
+        weight_lb_per_ft: 9.04
+        weight_kg_per_m: 13.44
+  "2-1/2":
+    outside_diameter_in: 2.875
+    outside_diameter_mm: 73.0
+    schedules:
+      "5":
+        wall_thickness_in: 0.083
+        wall_thickness_mm: 2.11
+        weight_lb_per_ft: 2.48
+        weight_kg_per_m: 3.69
+      "10":
+        wall_thickness_in: 0.12
+        wall_thickness_mm: 3.05
+        weight_lb_per_ft: 3.53
+        weight_kg_per_m: 5.26
+      "30":
+        wall_thickness_in: 0.188
+        wall_thickness_mm: 4.78
+        weight_lb_per_ft: 5.4
+        weight_kg_per_m: 8.04
+      "40":
+        identification: STD
+        wall_thickness_in: 0.203
+        wall_thickness_mm: 5.16
+        weight_lb_per_ft: 5.8
+        weight_kg_per_m: 8.63
+      "80":
+        identification: XS
+        wall_thickness_in: 0.276
+        wall_thickness_mm: 7.01
+        weight_lb_per_ft: 7.67
+        weight_kg_per_m: 11.41
+      "160":
+        wall_thickness_in: 0.375
+        wall_thickness_mm: 9.53
+        weight_lb_per_ft: 10.02
+        weight_kg_per_m: 14.92
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.552
+        wall_thickness_mm: 14.02
+        weight_lb_per_ft: 13.71
+        weight_kg_per_m: 20.39
+  "3":
+    outside_diameter_in: 3.5
+    outside_diameter_mm: 88.9
+    schedules:
+      "5":
+        wall_thickness_in: 0.083
+        wall_thickness_mm: 2.11
+        weight_lb_per_ft: 3.03
+        weight_kg_per_m: 4.52
+      "10":
+        wall_thickness_in: 0.12
+        wall_thickness_mm: 3.05
+        weight_lb_per_ft: 4.34
+        weight_kg_per_m: 6.46
+      "30":
+        wall_thickness_in: 0.188
+        wall_thickness_mm: 4.78
+        weight_lb_per_ft: 6.66
+        weight_kg_per_m: 9.92
+      "40":
+        identification: STD
+        wall_thickness_in: 0.216
+        wall_thickness_mm: 5.49
+        weight_lb_per_ft: 7.58
+        weight_kg_per_m: 11.29
+      "80":
+        identification: XS
+        wall_thickness_in: 0.3
+        wall_thickness_mm: 7.62
+        weight_lb_per_ft: 10.26
+        weight_kg_per_m: 15.27
+      "160":
+        wall_thickness_in: 0.438
+        wall_thickness_mm: 11.13
+        weight_lb_per_ft: 14.34
+        weight_kg_per_m: 21.35
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.6
+        wall_thickness_mm: 15.24
+        weight_lb_per_ft: 18.6
+        weight_kg_per_m: 27.68
+  "3-1/2":
+    outside_diameter_in: 4.0
+    outside_diameter_mm: 101.6
+    schedules:
+      "5":
+        wall_thickness_in: 0.083
+        wall_thickness_mm: 2.11
+        weight_lb_per_ft: 3.48
+        weight_kg_per_m: 5.18
+      "10":
+        wall_thickness_in: 0.12
+        wall_thickness_mm: 3.05
+        weight_lb_per_ft: 4.98
+        weight_kg_per_m: 7.41
+      "30":
+        wall_thickness_in: 0.188
+        wall_thickness_mm: 4.78
+        weight_lb_per_ft: 7.66
+        weight_kg_per_m: 11.41
+      "40":
+        identification: STD
+        wall_thickness_in: 0.226
+        wall_thickness_mm: 5.74
+        weight_lb_per_ft: 9.12
+        weight_kg_per_m: 13.57
+      "80":
+        identification: XS
+        wall_thickness_in: 0.318
+        wall_thickness_mm: 8.08
+        weight_lb_per_ft: 12.52
+        weight_kg_per_m: 18.64
+  "4":
+    outside_diameter_in: 4.5
+    outside_diameter_mm: 114.3
+    schedules:
+      "5":
+        wall_thickness_in: 0.083
+        wall_thickness_mm: 2.11
+        weight_lb_per_ft: 3.92
+        weight_kg_per_m: 5.84
+      "10":
+        wall_thickness_in: 0.12
+        wall_thickness_mm: 3.05
+        weight_lb_per_ft: 5.62
+        weight_kg_per_m: 8.37
+      "30":
+        wall_thickness_in: 0.188
+        wall_thickness_mm: 4.78
+        weight_lb_per_ft: 8.67
+        weight_kg_per_m: 12.91
+      "40":
+        identification: STD
+        wall_thickness_in: 0.237
+        wall_thickness_mm: 6.02
+        weight_lb_per_ft: 10.8
+        weight_kg_per_m: 16.08
+      "80":
+        identification: XS
+        wall_thickness_in: 0.337
+        wall_thickness_mm: 8.56
+        weight_lb_per_ft: 15.0
+        weight_kg_per_m: 22.32
+      "120":
+        wall_thickness_in: 0.438
+        wall_thickness_mm: 11.13
+        weight_lb_per_ft: 19.02
+        weight_kg_per_m: 28.32
+      "160":
+        wall_thickness_in: 0.531
+        wall_thickness_mm: 13.49
+        weight_lb_per_ft: 22.53
+        weight_kg_per_m: 33.54
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.674
+        wall_thickness_mm: 17.12
+        weight_lb_per_ft: 27.57
+        weight_kg_per_m: 41.03
+  "5":
+    outside_diameter_in: 5.563
+    outside_diameter_mm: 141.3
+    schedules:
+      "5":
+        wall_thickness_in: 0.109
+        wall_thickness_mm: 2.77
+        weight_lb_per_ft: 6.36
+        weight_kg_per_m: 9.46
+      "10":
+        wall_thickness_in: 0.134
+        wall_thickness_mm: 3.4
+        weight_lb_per_ft: 7.78
+        weight_kg_per_m: 11.56
+      "40":
+        identification: STD
+        wall_thickness_in: 0.258
+        wall_thickness_mm: 6.55
+        weight_lb_per_ft: 14.63
+        weight_kg_per_m: 21.77
+      "80":
+        identification: XS
+        wall_thickness_in: 0.375
+        wall_thickness_mm: 9.53
+        weight_lb_per_ft: 20.8
+        weight_kg_per_m: 30.97
+      "120":
+        wall_thickness_in: 0.5
+        wall_thickness_mm: 12.7
+        weight_lb_per_ft: 27.06
+        weight_kg_per_m: 40.28
+      "160":
+        wall_thickness_in: 0.625
+        wall_thickness_mm: 15.88
+        weight_lb_per_ft: 32.99
+        weight_kg_per_m: 49.12
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.75
+        wall_thickness_mm: 19.05
+        weight_lb_per_ft: 38.59
+        weight_kg_per_m: 57.43
+  "6":
+    outside_diameter_in: 6.625
+    outside_diameter_mm: 168.3
+    schedules:
+      "5":
+        wall_thickness_in: 0.109
+        wall_thickness_mm: 2.77
+        weight_lb_per_ft: 7.59
+        weight_kg_per_m: 11.31
+      "10":
+        wall_thickness_in: 0.134
+        wall_thickness_mm: 3.4
+        weight_lb_per_ft: 9.3
+        weight_kg_per_m: 13.83
+      "40":
+        identification: STD
+        wall_thickness_in: 0.28
+        wall_thickness_mm: 7.11
+        weight_lb_per_ft: 18.99
+        weight_kg_per_m: 28.26
+      "80":
+        identification: XS
+        wall_thickness_in: 0.432
+        wall_thickness_mm: 10.97
+        weight_lb_per_ft: 28.6
+        weight_kg_per_m: 42.56
+      "120":
+        wall_thickness_in: 0.562
+        wall_thickness_mm: 14.27
+        weight_lb_per_ft: 36.43
+        weight_kg_per_m: 54.21
+      "160":
+        wall_thickness_in: 0.719
+        wall_thickness_mm: 18.26
+        weight_lb_per_ft: 45.39
+        weight_kg_per_m: 67.57
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.864
+        wall_thickness_mm: 21.95
+        weight_lb_per_ft: 53.21
+        weight_kg_per_m: 79.22
+  "8":
+    outside_diameter_in: 8.625
+    outside_diameter_mm: 219.1
+    schedules:
+      "5":
+        wall_thickness_in: 0.109
+        wall_thickness_mm: 2.77
+        weight_lb_per_ft: 9.92
+        weight_kg_per_m: 14.78
+      "10":
+        wall_thickness_in: 0.148
+        wall_thickness_mm: 3.76
+        weight_lb_per_ft: 13.41
+        weight_kg_per_m: 19.97
+      "20":
+        wall_thickness_in: 0.25
+        wall_thickness_mm: 6.35
+        weight_lb_per_ft: 22.38
+        weight_kg_per_m: 33.32
+      "30":
+        wall_thickness_in: 0.277
+        wall_thickness_mm: 7.04
+        weight_lb_per_ft: 24.72
+        weight_kg_per_m: 36.82
+      "40":
+        identification: STD
+        wall_thickness_in: 0.322
+        wall_thickness_mm: 8.18
+        weight_lb_per_ft: 28.58
+        weight_kg_per_m: 42.55
+      "60":
+        wall_thickness_in: 0.406
+        wall_thickness_mm: 10.31
+        weight_lb_per_ft: 35.67
+        weight_kg_per_m: 53.09
+      "80":
+        identification: XS
+        wall_thickness_in: 0.5
+        wall_thickness_mm: 12.7
+        weight_lb_per_ft: 43.43
+        weight_kg_per_m: 64.64
+      "100":
+        wall_thickness_in: 0.594
+        wall_thickness_mm: 15.09
+        weight_lb_per_ft: 51.0
+        weight_kg_per_m: 75.92
+      "120":
+        wall_thickness_in: 0.719
+        wall_thickness_mm: 18.26
+        weight_lb_per_ft: 60.77
+        weight_kg_per_m: 90.44
+      "140":
+        wall_thickness_in: 0.812
+        wall_thickness_mm: 20.62
+        weight_lb_per_ft: 67.82
+        weight_kg_per_m: 100.93
+      "160":
+        wall_thickness_in: 0.906
+        wall_thickness_mm: 23.01
+        weight_lb_per_ft: 74.76
+        weight_kg_per_m: 111.27
+      XXS:
+        identification: XXS
+        wall_thickness_in: 0.875
+        wall_thickness_mm: 22.23
+        weight_lb_per_ft: 72.49
+        weight_kg_per_m: 107.93
+  "10":
+    outside_diameter_in: 10.75
+    outside_diameter_mm: 273.0
+    schedules:
+      "5":
+        wall_thickness_in: 0.134
+        wall_thickness_mm: 3.4
+        weight_lb_per_ft: 15.21
+        weight_kg_per_m: 22.61
+      "10":
+        wall_thickness_in: 0.165
+        wall_thickness_mm: 4.19
+        weight_lb_per_ft: 18.67
+        weight_kg_per_m: 27.78
+      "20":
+        wall_thickness_in: 0.25
+        wall_thickness_mm: 6.35
+        weight_lb_per_ft: 28.06
+        weight_kg_per_m: 41.76
+      "30":
+        wall_thickness_in: 0.307
+        wall_thickness_mm: 7.8
+        weight_lb_per_ft: 34.27
+        weight_kg_per_m: 51.01
+      "40":
+        identification: STD
+        wall_thickness_in: 0.365
+        wall_thickness_mm: 9.27
+        weight_lb_per_ft: 40.52
+        weight_kg_per_m: 60.29
+      "60":
+        identification: XS
+        wall_thickness_in: 0.5
+        wall_thickness_mm: 12.7
+        weight_lb_per_ft: 54.79
+        weight_kg_per_m: 81.53
+      "80":
+        wall_thickness_in: 0.594
+        wall_thickness_mm: 15.09
+        weight_lb_per_ft: 64.49
+        weight_kg_per_m: 95.98
+      "100":
+        wall_thickness_in: 0.719
+        wall_thickness_mm: 18.26
+        weight_lb_per_ft: 77.1
+        weight_kg_per_m: 114.71
+      "120":
+        wall_thickness_in: 0.844
+        wall_thickness_mm: 21.44
+        weight_lb_per_ft: 89.38
+        weight_kg_per_m: 133.01
+      "140":
+        wall_thickness_in: 1.0
+        wall_thickness_mm: 25.4
+        weight_lb_per_ft: 104.23
+        weight_kg_per_m: 155.1
+      "160":
+        wall_thickness_in: 1.125
+        wall_thickness_mm: 28.58
+        weight_lb_per_ft: 115.75
+        weight_kg_per_m: 172.27
+  "12":
+    outside_diameter_in: 12.75
+    outside_diameter_mm: 323.8
+    schedules:
+      "5":
+        wall_thickness_in: 0.156
+        wall_thickness_mm: 3.96
+        weight_lb_per_ft: 21.0
+        weight_kg_per_m: 31.24
+      "10":
+        wall_thickness_in: 0.18
+        wall_thickness_mm: 4.57
+        weight_lb_per_ft: 24.19
+        weight_kg_per_m: 35.98
+      "20":
+        wall_thickness_in: 0.25
+        wall_thickness_mm: 6.35
+        weight_lb_per_ft: 33.41
+        weight_kg_per_m: 49.71
+      "30":
+        wall_thickness_in: 0.33
+        wall_thickness_mm: 8.38
+        weight_lb_per_ft: 43.81
+        weight_kg_per_m: 65.19
+      "40":
+        wall_thickness_in: 0.406
+        wall_thickness_mm: 10.31
+        weight_lb_per_ft: 53.57
+        weight_kg_per_m: 79.71
+      "60":
+        wall_thickness_in: 0.562
+        wall_thickness_mm: 14.27
+        weight_lb_per_ft: 73.22
+        weight_kg_per_m: 108.93
+      "80":
+        wall_thickness_in: 0.688
+        wall_thickness_mm: 17.48
+        weight_lb_per_ft: 88.71
+        weight_kg_per_m: 132.05
+      "100":
+        wall_thickness_in: 0.844
+        wall_thickness_mm: 21.44
+        weight_lb_per_ft: 107.42
+        weight_kg_per_m: 159.87
+      "120":
+        wall_thickness_in: 1.0
+        wall_thickness_mm: 25.4
+        weight_lb_per_ft: 125.61
+        weight_kg_per_m: 186.92
+      "140":
+        wall_thickness_in: 1.125
+        wall_thickness_mm: 28.58
+        weight_lb_per_ft: 139.81
+        weight_kg_per_m: 208.08
+      "160":
+        wall_thickness_in: 1.312
+        wall_thickness_mm: 33.32
+        weight_lb_per_ft: 160.42
+        weight_kg_per_m: 238.69
+  "14":
+    outside_diameter_in: 14.0
+    outside_diameter_mm: 355.6
+    schedules:
+      "5":
+        wall_thickness_in: 0.156
+        wall_thickness_mm: 3.96
+        weight_lb_per_ft: 23.09
+        weight_kg_per_m: 34.34
+      "10":
+        wall_thickness_in: 0.25
+        wall_thickness_mm: 6.35
+        weight_lb_per_ft: 36.75
+        weight_kg_per_m: 54.69
+      "20":
+        wall_thickness_in: 0.312
+        wall_thickness_mm: 7.92
+        weight_lb_per_ft: 45.65
+        weight_kg_per_m: 67.91
+      "30":
+        identification: STD
+        wall_thickness_in: 0.375
+        wall_thickness_mm: 9.53
+        weight_lb_per_ft: 54.62
+        weight_kg_per_m: 81.33
+      "40":
+        wall_thickness_in: 0.438
+        wall_thickness_mm: 11.13
+        weight_lb_per_ft: 63.5
+        weight_kg_per_m: 94.55
+      "60":
+        wall_thickness_in: 0.594
+        wall_thickness_mm: 15.09
+        weight_lb_per_ft: 85.13
+        weight_kg_per_m: 126.72
+      "80":
+        wall_thickness_in: 0.75
+        wall_thickness_mm: 19.05
+        weight_lb_per_ft: 106.23
+        weight_kg_per_m: 158.11
+      "100":
+        wall_thickness_in: 0.938
+        wall_thickness_mm: 23.83
+        weight_lb_per_ft: 130.98
+        weight_kg_per_m: 194.98
+      "120":
+        wall_thickness_in: 1.094
+        wall_thickness_mm: 27.79
+        weight_lb_per_ft: 150.93
+        weight_kg_per_m: 224.66
+      "140":
+        wall_thickness_in: 1.25
+        wall_thickness_mm: 31.75
+        weight_lb_per_ft: 170.37
+        weight_kg_per_m: 253.58
+      "160":
+        wall_thickness_in: 1.406
+        wall_thickness_mm: 35.71
+        weight_lb_per_ft: 189.29
+        weight_kg_per_m: 281.72
+  "16":
+    outside_diameter_in: 16.0
+    outside_diameter_mm: 406.4
+    schedules:
+      "5":
+        wall_thickness_in: 0.165
+        wall_thickness_mm: 4.19
+        weight_lb_per_ft: 27.93
+        weight_kg_per_m: 41.56
+      "10":
+        wall_thickness_in: 0.25
+        wall_thickness_mm: 6.35
+        weight_lb_per_ft: 42.09
+        weight_kg_per_m: 62.65
+      "20":
+        wall_thickness_in: 0.312
+        wall_thickness_mm: 7.92
+        weight_lb_per_ft: 52.32
+        weight_kg_per_m: 77.83
+      "30":
+        identification: STD
+        wall_thickness_in: 0.375
+        wall_thickness_mm: 9.53
+        weight_lb_per_ft: 62.64
+        weight_kg_per_m: 93.27
+      "40":
+        identification: XS
+        wall_thickness_in: 0.5
+        wall_thickness_mm: 12.7
+        weight_lb_per_ft: 82.85
+        weight_kg_per_m: 123.31
+      "60":
+        wall_thickness_in: 0.656
+        wall_thickness_mm: 16.66
+        weight_lb_per_ft: 107.6
+        weight_kg_per_m: 160.13
+      "80":
+        wall_thickness_in: 0.844
+        wall_thickness_mm: 21.44
+        weight_lb_per_ft: 136.74
+        weight_kg_per_m: 203.54
+      "100":
+        wall_thickness_in: 1.031
+        wall_thickness_mm: 26.19
+        weight_lb_per_ft: 164.98
+        weight_kg_per_m: 245.57
+      "120":
+        wall_thickness_in: 1.219
+        wall_thickness_mm: 30.96
+        weight_lb_per_ft: 192.61
+        weight_kg_per_m: 286.66
+      "140":
+        wall_thickness_in: 1.438
+        wall_thickness_mm: 36.53
+        weight_lb_per_ft: 223.85
+        weight_kg_per_m: 333.21
+      "160":
+        wall_thickness_in: 1.594
+        wall_thickness_mm: 40.49
+        weight_lb_per_ft: 245.48
+        weight_kg_per_m: 365.38
+  "18":
+    outside_diameter_in: 18.0
+    outside_diameter_mm: 457.0
+    schedules:
+      "5":
+        wall_thickness_in: 0.165
+        wall_thickness_mm: 4.19
+        weight_lb_per_ft: 31.46
+        weight_kg_per_m: 46.79
+      "10":
+        wall_thickness_in: 0.25
+        wall_thickness_mm: 6.35
+        weight_lb_per_ft: 47.44
+        weight_kg_per_m: 70.57
+      "20":
+        wall_thickness_in: 0.312
+        wall_thickness_mm: 7.92
+        weight_lb_per_ft: 58.99
+        weight_kg_per_m: 87.71
+      "30":
+        wall_thickness_in: 0.438
+        wall_thickness_mm: 11.13
+        weight_lb_per_ft: 82.23
+        weight_kg_per_m: 122.38
+      "40":
+        wall_thickness_in: 0.562
+        wall_thickness_mm: 14.27
+        weight_lb_per_ft: 104.76
+        weight_kg_per_m: 155.81
+      "60":
+        wall_thickness_in: 0.75
+        wall_thickness_mm: 19.05
+        weight_lb_per_ft: 138.3
+        weight_kg_per_m: 205.75
+      "80":
+        wall_thickness_in: 0.938
+        wall_thickness_mm: 23.83
+        weight_lb_per_ft: 171.08
+        weight_kg_per_m: 254.57
+      "100":
+        wall_thickness_in: 1.156
+        wall_thickness_mm: 29.36
+        weight_lb_per_ft: 208.15
+        weight_kg_per_m: 309.64
+      "120":
+        wall_thickness_in: 1.375
+        wall_thickness_mm: 34.93
+        weight_lb_per_ft: 244.37
+        weight_kg_per_m: 363.58
+      "140":
+        wall_thickness_in: 1.562
+        wall_thickness_mm: 39.67
+        weight_lb_per_ft: 274.48
+        weight_kg_per_m: 408.28
+      "160":
+        wall_thickness_in: 1.781
+        wall_thickness_mm: 45.24
+        weight_lb_per_ft: 308.79
+        weight_kg_per_m: 459.39
+  "20":
+    outside_diameter_in: 20.0
+    outside_diameter_mm: 508.0
+    schedules:
+      "5":
+        wall_thickness_in: 0.188
+        wall_thickness_mm: 4.78
+        weight_lb_per_ft: 39.82
+        weight_kg_per_m: 59.32
+      "10":
+        wall_thickness_in: 0.25
+        wall_thickness_mm: 6.35
+        weight_lb_per_ft: 52.78
+        weight_kg_per_m: 78.56
+      "20":
+        identification: STD
+        wall_thickness_in: 0.375
+        wall_thickness_mm: 9.53
+        weight_lb_per_ft: 78.67
+        weight_kg_per_m: 117.15
+      "30":
+        identification: XS
+        wall_thickness_in: 0.5
+        wall_thickness_mm: 12.7
+        weight_lb_per_ft: 104.23
+        weight_kg_per_m: 155.13
+      "40":
+        wall_thickness_in: 0.594
+        wall_thickness_mm: 15.09
+        weight_lb_per_ft: 123.23
+        weight_kg_per_m: 183.43
+      "60":
+        wall_thickness_in: 0.812
+        wall_thickness_mm: 20.62
+        weight_lb_per_ft: 166.56
+        weight_kg_per_m: 247.84
+      "80":
+        wall_thickness_in: 1.031
+        wall_thickness_mm: 26.19
+        weight_lb_per_ft: 209.06
+        weight_kg_per_m: 311.19
+      "100":
+        wall_thickness_in: 1.281
+        wall_thickness_mm: 32.54
+        weight_lb_per_ft: 256.34
+        weight_kg_per_m: 381.55
+      "120":
+        wall_thickness_in: 1.5
+        wall_thickness_mm: 38.1
+        weight_lb_per_ft: 296.65
+        weight_kg_per_m: 441.52
+      "140":
+        wall_thickness_in: 1.75
+        wall_thickness_mm: 44.45
+        weight_lb_per_ft: 341.41
+        weight_kg_per_m: 508.15
+      "160":
+        wall_thickness_in: 1.969
+        wall_thickness_mm: 50.01
+        weight_lb_per_ft: 379.53
+        weight_kg_per_m: 564.85
+  "24":
+    outside_diameter_in: 24.0
+    outside_diameter_mm: 610.0
+    schedules:
+      "5":
+        wall_thickness_in: 0.218
+        wall_thickness_mm: 5.54
+        weight_lb_per_ft: 55.42
+        weight_kg_per_m: 82.58
+      "10":
+        wall_thickness_in: 0.25
+        wall_thickness_mm: 6.35
+        weight_lb_per_ft: 63.47
+        weight_kg_per_m: 94.53
+      "20":
+        identification: STD
+        wall_thickness_in: 0.375
+        wall_thickness_mm: 9.53
+        weight_lb_per_ft: 94.71
+        weight_kg_per_m: 141.12
+      "30":
+        wall_thickness_in: 0.562
+        wall_thickness_mm: 14.27
+        weight_lb_per_ft: 140.81
+        weight_kg_per_m: 209.65
+      "40":
+        wall_thickness_in: 0.688
+        wall_thickness_mm: 17.48
+        weight_lb_per_ft: 171.45
+        weight_kg_per_m: 255.43
+      "60":
+        wall_thickness_in: 0.969
+        wall_thickness_mm: 24.61
+        weight_lb_per_ft: 238.57
+        weight_kg_per_m: 355.28
+      "80":
+        wall_thickness_in: 1.219
+        wall_thickness_mm: 30.96
+        weight_lb_per_ft: 296.86
+        weight_kg_per_m: 442.11
+      "100":
+        wall_thickness_in: 1.531
+        wall_thickness_mm: 38.89
+        weight_lb_per_ft: 367.74
+        weight_kg_per_m: 547.74
+      "120":
+        wall_thickness_in: 1.812
+        wall_thickness_mm: 46.02
+        weight_lb_per_ft: 429.79
+        weight_kg_per_m: 640.07
+      "140":
+        wall_thickness_in: 2.062
+        wall_thickness_mm: 52.37
+        weight_lb_per_ft: 483.57
+        weight_kg_per_m: 720.19
+      "160":
+        wall_thickness_in: 2.344
+        wall_thickness_mm: 59.54
+        weight_lb_per_ft: 542.64
+        weight_kg_per_m: 808.27

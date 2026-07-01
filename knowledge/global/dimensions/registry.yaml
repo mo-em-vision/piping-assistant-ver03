@@ -1,0 +1,9 @@
+default_standard: asme_b36.10
+
+sources:
+  - standard: asme_b36.10
+    group: asme
+    table_id: table-2-1
+    db_file: pipe_dimensions.db
+    yaml_source: tables/B3610-table-2-1.yaml
+    default: true

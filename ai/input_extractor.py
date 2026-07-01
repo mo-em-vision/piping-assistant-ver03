@@ -23,8 +23,8 @@ _DEFAULT_SYMBOL_MAP: dict[str, str] = {
     "NPS": "nominal_pipe_size",
     "S": "allowable_stress",
     "E": "weld_joint_efficiency",
-    "W": "weld_strength_reduction",
-    "Y": "temperature_coefficient",
+    "W": "weld_joint_strength_reduction_factor_W",
+    "Y": "temperature_coefficient_Y",
     "c": "corrosion_allowance",
 }
 
@@ -259,8 +259,8 @@ def _parse_symbol_assignment(
         )
     if input_id in {
         "weld_joint_efficiency",
-        "weld_strength_reduction",
-        "temperature_coefficient",
+        "weld_joint_strength_reduction_factor_W",
+        "temperature_coefficient_Y",
     }:
         return _parse_dimensionless_symbol(input_id, raw_value, existing)
     return None

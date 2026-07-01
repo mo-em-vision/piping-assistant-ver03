@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-NODES = ROOT / "standards" / "asme" / "asme_b31.3" / "nodes"
+NODES = ROOT / "knowledge" / "standards" / "asme" / "asme_b31.3" / "nodes"
 
 PATHS = {
     "B313-WF-PIPE-WALL-THICKNESS": "B313-WF-PIPE-WALL-THICKNESS",
@@ -62,14 +62,14 @@ PARAMS = [
      "Quality factor from Tables A-1A and A-1B.",
      "Please confirm the weld joint quality factor E.",
      {"method": "table_lookup", "keys": ["material", "joint_category"]}),
-    ("B313-param-W", "W", "weld_strength_reduction", "Weld strength reduction", "dimensionless", None,
+    ("B313-param-W", "W", "weld_joint_strength_reduction_factor_W", "Weld strength reduction", "dimensionless", None,
      "Weld strength reduction factor per para. 302.3.5(e).",
      "Please confirm the weld strength reduction factor W.",
      {"method": "table_lookup", "keys": ["material", "design_temperature", "joint_category"]}),
-    ("B313-param-Y", "Y", "temperature_coefficient", "Temperature coefficient", "dimensionless", None,
+    ("B313-param-Y", "Y", "temperature_coefficient_Y", "Temperature coefficient", "dimensionless", None,
      "Coefficient from Table 304.1.1.",
      "Temperature coefficient Y from Table 304.1.1.",
-     {"method": "table_lookup", "keys": ["design_temperature"], "table_id": "asme_b31.3_table_304_1_1"}),
+     {"method": "table_lookup", "keys": ["material", "design_temperature"], "table_id": "asme_b31.3_table_304_1_1_1"}),
     ("B313-param-t", "t", "thickness", "Pressure design thickness", "mm", None,
      "Pressure design thickness from §304.1.2 or §304.1.3.",
      None,

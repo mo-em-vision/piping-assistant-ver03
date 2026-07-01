@@ -566,7 +566,7 @@ def task_state(
     if not isinstance(planning, dict):
         planning = {}
 
-    resolved_standards_root = standards_root or (Path(__file__).resolve().parent.parent / "standards")
+    resolved_standards_root = standards_root or (Path(__file__).resolve().parent.parent / "knowledge" / "standards")
     resolved_reader = reader or StandardsReader(resolved_standards_root, standard="asme_b31.3")
 
     timeline = _build_progress_steps(

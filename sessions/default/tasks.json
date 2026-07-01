@@ -81,8 +81,8 @@
           "original_value": 1.0,
           "original_unit": null
         },
-        "weld_strength_reduction": {
-          "input_id": "weld_strength_reduction",
+        "weld_joint_strength_reduction_factor_W": {
+          "input_id": "weld_joint_strength_reduction_factor_W",
           "value": 1.0,
           "unit": "dimensionless",
           "source": "user",
@@ -93,8 +93,8 @@
           "original_value": 1.0,
           "original_unit": null
         },
-        "temperature_coefficient": {
-          "input_id": "temperature_coefficient",
+        "temperature_coefficient_Y": {
+          "input_id": "temperature_coefficient_Y",
           "value": 0.4,
           "unit": "dimensionless",
           "source": "user",
@@ -212,8 +212,8 @@
           "original_value": null,
           "original_unit": null
         },
-        "weld_strength_reduction": {
-          "input_id": "weld_strength_reduction",
+        "weld_joint_strength_reduction_factor_W": {
+          "input_id": "weld_joint_strength_reduction_factor_W",
           "value": 1.0,
           "unit": "dimensionless",
           "source": "default",
@@ -224,8 +224,8 @@
           "original_value": null,
           "original_unit": null
         },
-        "temperature_coefficient": {
-          "input_id": "temperature_coefficient",
+        "temperature_coefficient_Y": {
+          "input_id": "temperature_coefficient_Y",
           "value": 0.4,
           "unit": "dimensionless",
           "source": "default",
@@ -313,8 +313,8 @@
           "missing_execution_assumptions": [
             "joint_category",
             "weld_joint_efficiency",
-            "weld_strength_reduction",
-            "temperature_coefficient"
+            "weld_joint_strength_reduction_factor_W",
+            "temperature_coefficient_Y"
           ],
           "missing_inputs": [
             "material",
@@ -374,8 +374,8 @@
           "original_value": null,
           "original_unit": null
         },
-        "weld_strength_reduction": {
-          "input_id": "weld_strength_reduction",
+        "weld_joint_strength_reduction_factor_W": {
+          "input_id": "weld_joint_strength_reduction_factor_W",
           "value": 1.0,
           "unit": "dimensionless",
           "source": "default",
@@ -386,8 +386,8 @@
           "original_value": null,
           "original_unit": null
         },
-        "temperature_coefficient": {
-          "input_id": "temperature_coefficient",
+        "temperature_coefficient_Y": {
+          "input_id": "temperature_coefficient_Y",
           "value": 0.4,
           "unit": "dimensionless",
           "source": "default",
@@ -451,8 +451,8 @@
           "missing_execution_assumptions": [
             "joint_category",
             "weld_joint_efficiency",
-            "weld_strength_reduction",
-            "temperature_coefficient"
+            "weld_joint_strength_reduction_factor_W",
+            "temperature_coefficient_Y"
           ],
           "missing_inputs": [
             "material",

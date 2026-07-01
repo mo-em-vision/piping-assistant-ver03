@@ -12,8 +12,8 @@ const PIPE_WALL_STEP_ORDER = [
   'external_design_pressure',
   'joint_category',
   'weld_joint_efficiency',
-  'weld_strength_reduction',
-  'temperature_coefficient',
+  'weld_joint_strength_reduction_factor_W',
+  'temperature_coefficient_Y',
   'corrosion_allowance',
 ] as const
 
@@ -31,8 +31,8 @@ const MAWP_STEP_ORDER = [
   'design_temperature',
   'joint_category',
   'weld_joint_efficiency',
-  'weld_strength_reduction',
-  'temperature_coefficient',
+  'weld_joint_strength_reduction_factor_W',
+  'temperature_coefficient_Y',
 ] as const
 
 function findNextWorkflowStep(workflowId: string, parameter: string): string | null {

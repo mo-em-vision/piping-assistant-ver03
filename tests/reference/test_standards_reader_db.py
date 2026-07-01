@@ -12,10 +12,10 @@ from engine.reference.standards_reader import StandardsReader
 
 @pytest.fixture
 def standards_reader(project_root: Path) -> StandardsReader:
-    db_path = resolve_pack_nodes_db(project_root / "standards" / "asme" / "asme_b31.3")
+    db_path = resolve_pack_nodes_db(project_root / "knowledge" / "standards" / "asme" / "asme_b31.3")
     if not db_path.is_file():
         pytest.skip("Run scripts/build_standards_nodes_db.py first")
-    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+    return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_reader_loads_node_from_db(standards_reader: StandardsReader) -> None:

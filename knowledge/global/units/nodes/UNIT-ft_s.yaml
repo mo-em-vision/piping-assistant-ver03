@@ -1,0 +1,14 @@
+---
+id: UNIT-ft_s
+type: unit
+symbol: ft/s
+dimension: velocity
+description: Feet per second
+aliases:
+- fps
+- ft_s
+edges:
+- type: derived_from
+  target: UNIT-m_s
+  factor: 0.3048
+---

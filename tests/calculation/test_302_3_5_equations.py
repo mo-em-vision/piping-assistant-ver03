@@ -17,7 +17,7 @@ from engine.reference.standards_paths import resolve_standard_pack
 @pytest.fixture
 def node_dir() -> Path:
     root = Path(__file__).resolve().parents[2]
-    pack = resolve_standard_pack(root / "standards", "asme_b31.3")
+    pack = resolve_standard_pack(root / "knowledge" / "standards", "asme_b31.3")
     return pack / "nodes" / "B313-302.3.5"
 
 

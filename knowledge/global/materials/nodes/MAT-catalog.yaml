@@ -1,0 +1,9 @@
+---
+id: MAT-catalog
+type: material_catalog
+name: Material catalog
+description: Cross-pack material search index (ASTM tables + supplemental entries).
+registry: registry.yaml
+canonical_unit: UNIT-dimensionless
+edges: []
+---

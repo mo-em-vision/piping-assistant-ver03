@@ -59,11 +59,11 @@ class InputAgent(BaseAgent):
             "Please confirm the weld joint quality factor E = 1.0 "
             "(default for seamless pipe), or provide a different value."
         ),
-        "weld_strength_reduction": (
+        "weld_joint_strength_reduction_factor_W": (
             "Please confirm the weld strength reduction factor W = 1.0, "
             "or provide a different value."
         ),
-        "temperature_coefficient": (
+        "temperature_coefficient_Y": (
             "Please confirm the temperature coefficient Y = 0.4, "
             "or provide a different value."
         ),
@@ -78,8 +78,8 @@ class InputAgent(BaseAgent):
         "design_temperature": "T",
         "external_design_pressure": "P_ext",
         "weld_joint_efficiency": "E",
-        "weld_strength_reduction": "W",
-        "temperature_coefficient": "Y",
+        "weld_joint_strength_reduction_factor_W": "W",
+        "temperature_coefficient_Y": "Y",
     }
 
     _NODE_IDS: dict[str, str] = {
@@ -89,8 +89,8 @@ class InputAgent(BaseAgent):
         "outside_diameter": PIPE_WALL_THICKNESS_NODE,
         "external_design_pressure": "B313-304.1.3",
         "weld_joint_efficiency": PIPE_WALL_THICKNESS_NODE,
-        "weld_strength_reduction": PIPE_WALL_THICKNESS_NODE,
-        "temperature_coefficient": PIPE_WALL_THICKNESS_NODE,
+        "weld_joint_strength_reduction_factor_W": PIPE_WALL_THICKNESS_NODE,
+        "temperature_coefficient_Y": PIPE_WALL_THICKNESS_NODE,
         "material": MATERIAL_STRESS_NODE,
         "design_temperature": MATERIAL_STRESS_NODE,
     }

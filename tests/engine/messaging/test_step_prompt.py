@@ -16,7 +16,7 @@ from tests.acceptance.helpers import straight_section_assumption
 
 def _reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[3]
-    return StandardsReader(root / "standards", standard="asme_b31.3")
+    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_straight_pipe_prompt_is_deterministic() -> None:

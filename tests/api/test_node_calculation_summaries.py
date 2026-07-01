@@ -27,7 +27,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def _standards_db_available(project_root: Path | None = None) -> bool:
     root = project_root or _REPO_ROOT
-    return resolve_pack_tables_db(root / "standards" / "asme" / "asme_b31.3").exists()
+    return resolve_pack_tables_db(root / "knowledge" / "standards" / "asme" / "asme_b31.3").exists()
 
 
 @pytest.mark.skipif(

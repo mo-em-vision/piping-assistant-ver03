@@ -12,8 +12,8 @@ from api.table_context import table_source_payload
 from engine.reference.asme_b31_3_table_ids import (
     TABLE_302_3_5,
     TABLE_304_1_1,
-    TABLE_A_1A,
-    TABLE_A_1B,
+    TABLE_A_2,
+    TABLE_A_3,
     local_table_id,
 )
 from engine.reference.coefficient_resolver import lookup_y_coefficient
@@ -28,13 +28,13 @@ _SYMBOL_ALIASES: dict[str, list[str]] = {
         "y",
         "temperature coefficient",
         "coefficient y",
-        "temperature_coefficient",
+        "temperature_coefficient_Y",
         "coefficient from table 304.1.1",
     ],
     "w": [
         "w",
         "weld strength reduction",
-        "weld_strength_reduction",
+        "weld_joint_strength_reduction_factor_W",
         "weld strength reduction factor",
     ],
     "e": [
@@ -302,10 +302,10 @@ def _task_seed_boosts(task_state_payload: dict[str, Any] | None) -> dict[str, fl
     if isinstance(inputs, dict):
         if inputs.get("design_temperature"):
             boosts[f"table:{TABLE_304_1_1}"] = max(boosts.get(f"table:{TABLE_304_1_1}", 0), 12.0)
-            boosts["node:B313-table-304-1-1"] = 10.0
+            boosts["node:B313-table-304-1-1-1"] = 10.0
         if inputs.get("material") and inputs.get("joint_category"):
-            boosts[f"table:{TABLE_A_1A}"] = max(boosts.get(f"table:{TABLE_A_1A}", 0), 8.0)
-            boosts[f"table:{TABLE_A_1B}"] = max(boosts.get(f"table:{TABLE_A_1B}", 0), 8.0)
+            boosts[f"table:{TABLE_A_2}"] = max(boosts.get(f"table:{TABLE_A_2}", 0), 8.0)
+            boosts[f"table:{TABLE_A_3}"] = max(boosts.get(f"table:{TABLE_A_3}", 0), 8.0)
         if inputs.get("weld_joint_category") or inputs.get("joint_category"):
             boosts[f"table:{TABLE_302_3_5}"] = max(boosts.get(f"table:{TABLE_302_3_5}", 0), 8.0)
 
@@ -420,13 +420,13 @@ def _maybe_add_y_lookup(
     sources.append(
         RetrievedSource(
             kind="lookup_result",
-            id="temperature_coefficient",
+            id="temperature_coefficient_Y",
             label=f"Y = {y_value}{interp_note} at {temp_value} {temp_unit}",
             paragraph="304.1.1",
-            node_id="B313-table-304-1-1",
+            node_id="B313-table-304-1-1-1",
             table_id=TABLE_304_1_1,
             excerpt=(
-                f"Deterministic lookup from Table 304.1.1 at design temperature "
+                f"Deterministic lookup from Table 304.1.1-1 at design temperature "
                 f"{temp_value} {temp_unit}: Y = {y_value}{interp_note}."
             ),
         )

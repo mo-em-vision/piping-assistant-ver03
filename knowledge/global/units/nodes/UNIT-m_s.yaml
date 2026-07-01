@@ -1,0 +1,11 @@
+---
+id: UNIT-m_s
+type: unit
+symbol: m/s
+dimension: velocity
+description: Meters per second (SI)
+aliases:
+- mps
+- m_s
+edges: []
+---

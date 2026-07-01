@@ -6,6 +6,12 @@ import re
 from typing import Any
 
 from api.workflow_bootstrap import resolve_activated_definition_node
+from engine.reference.paragraph_hierarchy import (
+    hierarchy_entries,
+    paragraph_reference,
+    resolve_hierarchy_chain,
+    section_label,
+)
 from engine.reference.standards_reader import StandardsReader
 from models.task import Task
 
@@ -88,7 +94,7 @@ def display_heading_for_node(
         return _collapse_whitespace(explicit)
 
     purpose = _collapse_whitespace(str(metadata.get("purpose", "")).strip())
-    paragraph = str(metadata.get("paragraph", "")).strip()
+    paragraph = paragraph_reference(metadata)
     if purpose and paragraph:
         return f"{purpose} (according to {standard_label} paragraph {paragraph})"
     if purpose:
@@ -109,12 +115,14 @@ def revision_year_from_metadata(metadata: dict[str, Any]) -> int | None:
 def node_source_payload(reader: StandardsReader, node_id: str) -> dict[str, Any]:
     record = reader.load(node_id)
     metadata = record.metadata
+    hierarchy = resolve_hierarchy_chain(reader, record.node_id)
     return {
         "node_id": record.node_id,
         "title": str(metadata.get("title", "")).strip(),
         "standard": _DEFAULT_STANDARD_LABEL,
-        "paragraph": str(metadata.get("paragraph", "")).strip() or None,
-        "section": str(metadata.get("section", "")).strip() or None,
+        "paragraph": paragraph_reference(metadata) or None,
+        "section": section_label({**metadata, "hierarchy_chain": hierarchy}),
+        "hierarchy": hierarchy,
         "revision_year": revision_year_from_metadata(metadata),
         "body": record.body.strip(),
         "hover_excerpt": hover_excerpt_for_node(record),
@@ -137,13 +145,15 @@ def subsection_source_payload(
     body = subsection.body.strip()
     purpose = str(subsection_meta.get("purpose", "")).strip()
     hover_excerpt = _first_body_paragraph(body) if body else _collapse_whitespace(title or purpose)
+    hierarchy = resolve_hierarchy_chain(reader, record.node_id)
 
     return {
         "node_id": record.node_id,
         "title": str(parent_metadata.get("title", "")).strip(),
         "standard": _DEFAULT_STANDARD_LABEL,
         "paragraph": paragraph,
-        "section": str(parent_metadata.get("section", "")).strip() or None,
+        "section": section_label({**parent_metadata, "hierarchy_chain": hierarchy}),
+        "hierarchy": hierarchy,
         "subsection_id": subsection.subsection_id,
         "subsection_title": title or None,
         "subsection_paragraph": paragraph,
@@ -190,11 +200,13 @@ def active_node_context_for_task(
         return None
 
     metadata = record.metadata
-    paragraph = str(metadata.get("paragraph", "")).strip() or None
+    paragraph = paragraph_reference(metadata) or None
+    hierarchy = resolve_hierarchy_chain(reader, record.node_id)
     return {
         "node_id": record.node_id,
         "standard": _DEFAULT_STANDARD_LABEL,
         "paragraph": paragraph,
+        "hierarchy": hierarchy,
         "display_heading": display_heading_for_node(metadata),
         "hover_excerpt": hover_excerpt_for_node(record),
         "source_field": active_context_source_field(metadata),

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from engine.reference.paragraph_hierarchy import paragraph_reference
 from engine.reference.standards_paths import list_standard_packs
 
 
@@ -13,7 +14,7 @@ class TestStandardsCoverage:
     """§4 Standards Coverage — ASME B31.3 and extensible architecture."""
 
     def test_asme_b31_3_pack_is_available(self, project_root: Path) -> None:
-        packs = list_standard_packs(project_root / "standards")
+        packs = list_standard_packs(project_root / "knowledge" / "standards")
         slugs = [slug for slug, _path in packs]
         assert "asme_b31.3" in slugs
 
@@ -22,7 +23,7 @@ class TestStandardsCoverage:
         wall_node = standards_reader.load("B313-304.1.2")
         stress_node = standards_reader.load("B313-table-A-1")
 
-        assert definition_node.metadata.get("paragraph") == "304.1.1"
+        assert paragraph_reference(definition_node.metadata) == "304.1.1"
         assert definition_node.metadata.get("type") == "definition"
         assert definition_node.metadata.get("nomenclature")
         c_entry = next(
@@ -36,7 +37,7 @@ class TestStandardsCoverage:
         assert any(
             ref.get("standard") == "asme_b36.10" for ref in d_entry.get("references", [])
         )
-        assert wall_node.metadata.get("paragraph") == "304.1.2"
+        assert paragraph_reference(wall_node.metadata) == "304.1.2"
         assert wall_node.metadata.get("type") == "calculation"
         assert stress_node.metadata.get("type") == "equation"
         assert stress_node.metadata.get("kind") == "lookup"
@@ -47,9 +48,9 @@ class TestStandardsCoverage:
         assert equation_path.exists()
 
     def test_future_standard_architecture_supports_multiple_packs(self, project_root: Path) -> None:
-        packs = list_standard_packs(project_root / "standards")
+        packs = list_standard_packs(project_root / "knowledge" / "standards")
         slugs = {slug for slug, _path in packs}
-        assert len(slugs) >= 4
+        assert len(slugs) >= 3
         assert "asme_b31.3" in slugs
 
 
@@ -62,7 +63,7 @@ class TestNodeAcceptanceCriteria:
             ("pipe_wall_thickness_design", ("id", "type", "depends_on", "report")),
             ("B313-304.1.1", ("id", "nomenclature", "report")),
             ("B313-304.1.2", ("id", "inputs", "outputs", "depends_on", "conditions", "equations", "report")),
-            ("B313-table-A-1", ("id", "inputs", "outputs", "depends_on", "report")),
+            ("B313-table-A-1", ("id", "inputs", "outputs", "lookups")),
         ],
     )
     def test_active_nodes_contain_required_fields(

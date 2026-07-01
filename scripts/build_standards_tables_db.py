@@ -26,15 +26,15 @@ from engine.reference.asme_b31_3_table_ids import (
 
     TABLE_302_3_3C,
 
-    TABLE_302_3_5,
+    TABLE_302_3_5_1,
 
-    TABLE_304_1_1,
+    TABLE_304_1_1_1,
 
     TABLE_A_1,
 
-    TABLE_A_1A,
+    TABLE_A_2,
 
-    TABLE_A_1B,
+    TABLE_A_3,
 
 )
 
@@ -56,11 +56,11 @@ from engine.reference.standards_tables import StandardsTablesDatabase
 
 
 
-_PACK_ROOT = _ROOT / "standards" / "asme" / "asme_b31.3"
+_PACK_ROOT = _ROOT / "knowledge" / "standards" / "asme" / "asme_b31.3"
 
 _DB_PATH = resolve_pack_tables_db(_PACK_ROOT)
 
-# B31.3 Table A-1A base-metal group headings (row field: base_metal_group).
+# B31.3 Table A-2 base-metal group headings (row field: base_metal_group).
 BASE_METAL_GROUP_STAINLESS_STEEL = "Stainless Steel"
 BASE_METAL_GROUP_IRON = "Iron"
 BASE_METAL_GROUP_CARBON_STEEL = "Carbon steel"
@@ -69,7 +69,7 @@ BASE_METAL_GROUP_COPPER_AND_COPPER_ALLOY = "Copper and Copper Alloy"
 BASE_METAL_GROUP_NICKEL_AND_NICKEL_ALLOY = "Nickel and Nickel Alloy"
 BASE_METAL_GROUP_ALUMINUM_ALLOY = "Aluminum Alloy"
 
-_TABLE_A_1A_DESCRIPTION = (
+_TABLE_A_2_DESCRIPTION = (
     "These quality factors are determined in accordance with "
     "[para. 302.3.3(b)](node:B313-302.3.3/b). See also "
     "[para. 302.3.3(c)](node:B313-302.3.3/c) and "
@@ -403,9 +403,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
     database.upsert_table(
 
-        table_id=TABLE_A_1A,
+        table_id=TABLE_A_2,
 
-        title="Table A-1A — Basic Casting Quality Factors, E_c",
+        title="Table A-2 — Basic Casting Quality Factors, E_c",
 
         version="1.0",
 
@@ -413,15 +413,21 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
         layout="flat_rows",
 
-        source_node="B313-table-A-1A",
+        source_node="B313-table-A-2",
 
-        metadata={"description": _TABLE_A_1A_DESCRIPTION},
+        metadata={"description": _TABLE_A_2_DESCRIPTION},
 
         aliases=[
 
+            "A-2",
+
             "A-1A",
 
+            "table_b31_3_A-2",
+
             "table_b31_3_A-1A",
+
+            "nodes/tables/B313-table-A-2.yaml",
 
             "nodes/B313-table-A-1A/tables/A-1A.yaml",
 
@@ -457,9 +463,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
     database.upsert_table(
 
-        table_id=TABLE_A_1B,
+        table_id=TABLE_A_3,
 
-        title="Table A-1B — Quality Factors for Welded Pipe and Forgings (sample)",
+        title="Table A-3 — Basic Quality Factors for Longitudinal Weld Joints in Pipes and Tubes, E_j",
 
         version="1.0",
 
@@ -467,13 +473,19 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
         layout="flat_rows",
 
-        source_node="B313-table-A-1B",
+        source_node="B313-table-A-3",
 
         aliases=[
 
+            "A-3",
+
             "A-1B",
 
+            "table_b31_3_A-3",
+
             "table_b31_3_A_1B",
+
+            "nodes/tables/B313-table-A-3.yaml",
 
             "nodes/B313-table-A-1B/tables/A-1B.yaml",
 
@@ -555,9 +567,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
     database.upsert_table(
 
-        table_id=TABLE_304_1_1,
+        table_id=TABLE_304_1_1_1,
 
-        title="Table 304.1.1 — Values of Coefficient Y for t < D/6",
+        title="Table 304.1.1-1 — Values of Coefficient Y for t < D/6",
 
         version="1.0",
 
@@ -569,11 +581,17 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
         layout="material_rows",
 
-        source_node="B313-table-304-1-1",
+        source_node="B313-table-304-1-1-1",
 
         aliases=[
 
+            "asme_b31.3_table_304_1_1",
+
             "table_304_1_1",
+
+            "B313-table-304-1-1",
+
+            "nodes/tables/B313-table-304-1-1.yaml",
 
             "nodes/B313-table-304-1-1/tables/table_304_1_1.yaml",
 
@@ -591,9 +609,9 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
     database.upsert_table(
 
-        table_id=TABLE_302_3_5,
+        table_id=TABLE_302_3_5_1,
 
-        title="Table 302.3.5 — Weld Joint Strength Reduction Factor W (sample)",
+        title="Table 302.3.5-1 — Weld Joint Strength Reduction Factor, W",
 
         version="1.0",
 
@@ -603,15 +621,21 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
         interpolation=True,
 
-        keys=["material_id", "design_temperature", "weld_joint_category"],
+        keys=["material_id", "design_temperature"],
 
         layout="flat_rows",
 
-        source_node="B313-table-302-3-5",
+        source_node="B313-table-302-3-5-1",
 
         aliases=[
 
+            "asme_b31.3_302.3.5",
+
             "302.3.5",
+
+            "B313-table-302-3-5",
+
+            "nodes/tables/B313-table-302-3-5.yaml",
 
             "nodes/B313-table-302-3-5/tables/302.3.5.yaml",
 

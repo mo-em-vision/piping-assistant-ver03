@@ -1,0 +1,49 @@
+---
+id: B313-table-A-1
+standard: asme_b31.3
+source:
+  pack: asme_b31.3
+  yaml: nodes/tables/B313-table-A-1.yaml
+  tables_db: asme_b313_tables.db
+  table_id: asme_b31.3_A-1
+type: lookup
+title: Basic Allowable Stresses in Tension for Metals
+status: draft
+revision_year: 2024
+inputs:
+- id: material
+  required: true
+- id: temperature
+  display_name: Metal Temperature
+  task_input_id: design_temperature
+  required: true
+lookups:
+- id: appendix_a1_stress
+  source: table
+  table_id: asme_b31.3_A-1
+edges:
+- type: parameter
+  target: allowable_stress
+- type: parameter
+  target: MAT-catalog
+- type: parameter
+  target: DIM-temperature
+---
+
+# Basic Allowable Stresses in Tension for Metals
+
+
+
+> **Development sample — not verbatim ASME B31.3 table data.**
+
+
+
+Deterministic lookup for allowable stress **S** at metal temperature for the selected material. Data is stored in `asme_b313_tables.db` (`table_id: asme_b31.3_A-1`).
+
+
+
+## Output
+
+
+
+Allowable stress **S** (declared in MPa via `DIM-pressure`; stored in Pa in the standards tables database), passed to dependent calculation nodes (e.g. §304.1.1, §304.1.2).

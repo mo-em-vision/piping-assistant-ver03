@@ -42,7 +42,7 @@ class CLIConfig:
                 file_data = yaml.safe_load(handle) or {}
 
         sessions_dir = Path(file_data.get("sessions_dir", "sessions"))
-        standards_root = Path(file_data.get("standards_root", "standards"))
+        standards_root = Path(file_data.get("standards_root", "knowledge/standards"))
 
         desktop_user_data = os.environ.get("DESKTOP_USER_DATA")
         if desktop_user_data:

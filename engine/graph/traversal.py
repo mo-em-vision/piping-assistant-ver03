@@ -22,9 +22,14 @@ _TRAVERSAL_EDGE_TYPES = frozenset(
         EdgeType.DEFINES.value,
         EdgeType.CALCULATES.value,
         "requires",
+        "next",
         "next_step",
         "dependency",
+        "depends_on",
         "contains",
+        "references",
+        "equation",
+        "implements",
         "anchors_to",
     }
 )

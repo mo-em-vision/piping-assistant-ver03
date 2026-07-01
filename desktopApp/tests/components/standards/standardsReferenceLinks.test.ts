@@ -19,16 +19,16 @@ describe('parseStandardsReferenceHref', () => {
   })
 
   it('parses table links', () => {
-    expect(parseStandardsReferenceHref('table:asme_b31.3_A-1A')).toEqual({
+    expect(parseStandardsReferenceHref('table:asme_b31.3_A-2')).toEqual({
       referenceKind: 'table',
-      referenceId: 'asme_b31.3_A-1A',
+      referenceId: 'asme_b31.3_A-2',
     })
   })
 
   it('treats legacy node:table_* links as table references', () => {
-    expect(parseStandardsReferenceHref('node:table_b31_3_A-1A')).toEqual({
+    expect(parseStandardsReferenceHref('node:table_b31_3_A-2')).toEqual({
       referenceKind: 'table',
-      referenceId: 'table_b31_3_A-1A',
+      referenceId: 'table_b31_3_A-2',
     })
   })
 

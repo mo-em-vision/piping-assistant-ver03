@@ -35,7 +35,7 @@ export function mockSelectionExplanation(selectedText: string, prompt: string): 
   if (/quality factor/i.test(topic) || /\bE\b/.test(topic)) {
     return `${intro}
 
-**Definition:** The quality factor (E) accounts for material and manufacturing quality in the wall-thickness equation. In ASME B31.3 it is taken from Tables A-1A and A-1B.
+**Definition:** The quality factor (E) accounts for material and manufacturing quality in the wall-thickness equation. In ASME B31.3 it is taken from Tables A-2 and A-3.
 
 **Example:** For seamless pipe in many common services, E is often 1.0. A lower E increases the required wall thickness because it reduces the allowable strength used in the calculation.
 

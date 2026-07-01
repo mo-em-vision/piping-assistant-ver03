@@ -2,4 +2,4 @@ report_format: pdf
 language: english
 default_standard: ASME_B31.3
 sessions_dir: sessions
-standards_root: standards
+standards_root: knowledge/standards

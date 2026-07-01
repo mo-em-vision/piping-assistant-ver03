@@ -11,7 +11,7 @@ from models.planning import NavigationPhase
 
 def test_load_navigation_from_workflow_yaml() -> None:
     reader = StandardsReader(
-        __import__("pathlib").Path(__file__).resolve().parents[2] / "standards",
+        __import__("pathlib").Path(__file__).resolve().parents[2] / "knowledge" / "standards",
         standard="asme_b31.3",
     )
     config = load_workflow_navigation(reader, "pipe_wall_thickness_design")
@@ -21,7 +21,7 @@ def test_load_navigation_from_workflow_yaml() -> None:
 
 def test_mawp_navigation_geometry_mode_in_path_decisions() -> None:
     reader = StandardsReader(
-        __import__("pathlib").Path(__file__).resolve().parents[2] / "standards",
+        __import__("pathlib").Path(__file__).resolve().parents[2] / "knowledge" / "standards",
         standard="asme_b31.3",
     )
     config = load_workflow_navigation(reader, "mawp_design")
@@ -31,7 +31,7 @@ def test_mawp_navigation_geometry_mode_in_path_decisions() -> None:
 
 def test_phased_navigation_uses_config_order() -> None:
     reader = StandardsReader(
-        __import__("pathlib").Path(__file__).resolve().parents[2] / "standards",
+        __import__("pathlib").Path(__file__).resolve().parents[2] / "knowledge" / "standards",
         standard="asme_b31.3",
     )
     config = load_workflow_navigation(reader, "pipe_wall_thickness_design")
@@ -49,7 +49,7 @@ def test_phased_navigation_uses_config_order() -> None:
 
 def test_phase_allowlists_serializable() -> None:
     reader = StandardsReader(
-        __import__("pathlib").Path(__file__).resolve().parents[2] / "standards",
+        __import__("pathlib").Path(__file__).resolve().parents[2] / "knowledge" / "standards",
         standard="asme_b31.3",
     )
     config = load_workflow_navigation(reader, "mawp_design")

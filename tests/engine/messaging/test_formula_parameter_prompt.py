@@ -23,7 +23,7 @@ from tests.acceptance.helpers import (
 
 def _reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[3]
-    return StandardsReader(root / "standards", standard="asme_b31.3")
+    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def _plan_with_internal_pressure() -> NavigationPlan:
@@ -143,7 +143,7 @@ def test_classify_marks_unconfirmed_defaults_as_missing() -> None:
                 requires_confirmation=True,
             ),
         },
-        missing_input_ids=["weld_joint_efficiency", "weld_strength_reduction", "temperature_coefficient"],
+        missing_input_ids=["weld_joint_efficiency", "weld_joint_strength_reduction_factor_W", "temperature_coefficient_Y"],
     )
 
     known_symbols = {item.symbol for item in known}

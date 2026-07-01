@@ -19,7 +19,7 @@ from models.task import TaskStatus
 
 @pytest.fixture
 def standards_reader(project_root: Path) -> StandardsReader:
-    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+    return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def test_node_source_payload_includes_body(standards_reader: StandardsReader) -> None:
@@ -74,7 +74,7 @@ def test_get_standards_node_endpoint(tmp_path: Path, project_root: Path) -> None
         language="english",
         default_standard="ASME_B31.3",
         sessions_dir=tmp_path / "sessions",
-        standards_root=project_root / "standards",
+        standards_root=project_root / "knowledge" / "standards",
         openai_api_key=None,
         openai_model="gpt-4o-mini",
         openai_base_url=None,
@@ -94,7 +94,7 @@ def test_subsection_source_payload_for_302_3_3_b(standards_reader: StandardsRead
     assert payload["subsection_id"] == "b"
     assert payload["subsection_paragraph"] == "302.3.3(b)"
     assert payload["subsection_title"] == "Basic Quality Factors"
-    assert "Table A-1A" in payload["body"]
+    assert "Table A-2" in payload["body"]
     assert "Increased Quality Factors" not in payload["body"]
 
 
@@ -159,7 +159,7 @@ def test_get_standards_node_subsection_endpoint(tmp_path: Path, project_root: Pa
         language="english",
         default_standard="ASME_B31.3",
         sessions_dir=tmp_path / "sessions",
-        standards_root=project_root / "standards",
+        standards_root=project_root / "knowledge" / "standards",
         openai_api_key=None,
         openai_model="gpt-4o-mini",
         openai_base_url=None,

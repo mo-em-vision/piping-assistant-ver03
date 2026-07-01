@@ -50,7 +50,7 @@ def build_pack_graph_db(pack_root: Path) -> Path:
 
 def build_all(*, standards_root: Path | None = None) -> list[Path]:
 
-    root = (standards_root or (_ROOT / "standards")).resolve()
+    root = (standards_root or (_ROOT / "knowledge" / "standards")).resolve()
 
     built: list[Path] = []
 

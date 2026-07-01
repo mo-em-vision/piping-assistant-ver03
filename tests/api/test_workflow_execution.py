@@ -16,7 +16,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 def _standards_db_available(project_root: Path | None = None) -> bool:
     root = project_root or _REPO_ROOT
-    return resolve_pack_tables_db(root / "standards" / "asme" / "asme_b31.3").exists()
+    return resolve_pack_tables_db(root / "knowledge" / "standards" / "asme" / "asme_b31.3").exists()
 
 
 def _service(tmp_path: Path, project_root: Path) -> DesktopApiService:
@@ -25,7 +25,7 @@ def _service(tmp_path: Path, project_root: Path) -> DesktopApiService:
         language="english",
         default_standard="ASME_B31.3",
         sessions_dir=tmp_path / "sessions",
-        standards_root=project_root / "standards",
+        standards_root=project_root / "knowledge" / "standards",
         openai_api_key=None,
         openai_model="gpt-4o-mini",
         openai_base_url=None,
@@ -84,8 +84,8 @@ def test_submit_input_runs_wall_thickness_calculation(
             ("nominal_pipe_size", "6", None),
             ("joint_category", "seamless", None),
             ("weld_joint_efficiency", 1.0, None),
-            ("weld_strength_reduction", 1.0, None),
-            ("temperature_coefficient", 0.4, None),
+            ("weld_joint_strength_reduction_factor_W", 1.0, None),
+            ("temperature_coefficient_Y", 0.4, None),
         ],
     )
 

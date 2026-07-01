@@ -63,15 +63,15 @@ def confirmed_default_inputs() -> dict[str, EngineeringInput]:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-        "weld_strength_reduction": EngineeringInput(
-            input_id="weld_strength_reduction",
+        "weld_joint_strength_reduction_factor_W": EngineeringInput(
+            input_id="weld_joint_strength_reduction_factor_W",
             value=1.0,
             unit="dimensionless",
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-        "temperature_coefficient": EngineeringInput(
-            input_id="temperature_coefficient",
+        "temperature_coefficient_Y": EngineeringInput(
+            input_id="temperature_coefficient_Y",
             value=0.4,
             unit="dimensionless",
             source=InputSource.USER,

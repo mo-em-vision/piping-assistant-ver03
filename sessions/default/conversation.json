@@ -146,7 +146,7 @@
   },
   {
     "role": "assistant",
-    "content": "Required inputs:\n- weld_joint_efficiency (E): Required by ASME B31.3 \u00a7304.1.1 for determining the effective design strength of the welded joint.\n- weld_strength_reduction (R_w): Required by ASME B31.3 \u00a7304.1.1 to account for the reduction in strength due to welding.\n- temperature_coefficient (\u03b1): Required for calculating the thermal expansion effects on the pipe material under varying temperatures.",
+    "content": "Required inputs:\n- weld_joint_efficiency (E): Required by ASME B31.3 \u00a7304.1.1 for determining the effective design strength of the welded joint.\n- weld_joint_strength_reduction_factor_W (R_w): Required by ASME B31.3 \u00a7304.1.1 to account for the reduction in strength due to welding.\n- temperature_coefficient_Y (\u03b1): Required for calculating the thermal expansion effects on the pipe material under varying temperatures.",
     "timestamp": "2026-06-18T17:35:15.692089+00:00"
   },
   {
@@ -156,7 +156,7 @@
   },
   {
     "role": "assistant",
-    "content": "Required inputs:\n- weld_joint_efficiency (E): Required by ASME B31.3 \u00a7304.1.2 for determining the effective thickness of the weld joint.\n- weld_strength_reduction (R_w): Required by ASME B31.3 \u00a7304.1.2 to account for the reduction in strength due to the weld.\n- temperature_coefficient (\u03b1): Required for calculating the thermal expansion effects on the pipe material as per ASME B31.3 \u00a7302.2.",
+    "content": "Required inputs:\n- weld_joint_efficiency (E): Required by ASME B31.3 \u00a7304.1.2 for determining the effective thickness of the weld joint.\n- weld_joint_strength_reduction_factor_W (R_w): Required by ASME B31.3 \u00a7304.1.2 to account for the reduction in strength due to the weld.\n- temperature_coefficient_Y (\u03b1): Required for calculating the thermal expansion effects on the pipe material as per ASME B31.3 \u00a7302.2.",
     "timestamp": "2026-06-18T17:35:45.793422+00:00"
   },
   {
@@ -166,7 +166,7 @@
   },
   {
     "role": "assistant",
-    "content": "Required inputs:\n- weld_joint_efficiency (E): Required by ASME B31.3 \u00a7304.1.1 for thickness calculation.\n- weld_strength_reduction (R_w): Required by ASME B31.3 \u00a7304.1.1 to account for the strength reduction due to welding.\n- temperature_coefficient (\u03b1): Required for adjustments in material properties due to temperature changes as per ASME B31.3 \u00a7304.1.1.",
+    "content": "Required inputs:\n- weld_joint_efficiency (E): Required by ASME B31.3 \u00a7304.1.1 for thickness calculation.\n- weld_joint_strength_reduction_factor_W (R_w): Required by ASME B31.3 \u00a7304.1.1 to account for the strength reduction due to welding.\n- temperature_coefficient_Y (\u03b1): Required for adjustments in material properties due to temperature changes as per ASME B31.3 \u00a7304.1.1.",
     "timestamp": "2026-06-19T01:46:32.802358+00:00"
   },
   {
@@ -176,7 +176,7 @@
   },
   {
     "role": "assistant",
-    "content": "Required inputs:\n- weld_strength_reduction (E_w): Required by ASME B31.3 \u00a7302.3.5 for determining the effective weld strength.\n- temperature_coefficient (\u03b1): Required for calculating the thermal expansion effects on the pipe material as per ASME B31.3 \u00a7302.2.",
+    "content": "Required inputs:\n- weld_joint_strength_reduction_factor_W (E_w): Required by ASME B31.3 \u00a7302.3.5 for determining the effective weld strength.\n- temperature_coefficient_Y (\u03b1): Required for calculating the thermal expansion effects on the pipe material as per ASME B31.3 \u00a7302.2.",
     "timestamp": "2026-06-19T01:46:46.663677+00:00"
   },
   {
@@ -186,7 +186,7 @@
   },
   {
     "role": "assistant",
-    "content": "Required inputs:\n- temperature_coefficient (\u03b1): Required for calculating the thermal expansion effects on the pipe wall thickness as per ASME B31.3 \u00a7302.2.",
+    "content": "Required inputs:\n- temperature_coefficient_Y (\u03b1): Required for calculating the thermal expansion effects on the pipe wall thickness as per ASME B31.3 \u00a7302.2.",
     "timestamp": "2026-06-19T01:46:59.884626+00:00"
   },
   {
@@ -196,7 +196,7 @@
   },
   {
     "role": "assistant",
-    "content": "Required inputs:\n- temperature_coefficient (Y): Required for calculating the thermal expansion effects on the pipe wall thickness as per ASME B31.3 \u00a7304.1.2.",
+    "content": "Required inputs:\n- temperature_coefficient_Y (Y): Required for calculating the thermal expansion effects on the pipe wall thickness as per ASME B31.3 \u00a7304.1.2.",
     "timestamp": "2026-06-19T01:52:04.726490+00:00"
   },
   {

@@ -36,7 +36,7 @@ def _pipe_wall_task(
 def test_joint_category_submission_resolves_weld_joint_efficiency_from_table(
     project_root: Path,
 ) -> None:
-    standards_root = project_root / "standards"
+    standards_root = project_root / "knowledge" / "standards"
     manager = TaskStateManager()
     _pipe_wall_task(
         manager,
@@ -92,7 +92,7 @@ def test_joint_category_submission_resolves_weld_joint_efficiency_from_table(
 def test_apply_coefficient_lookups_waits_for_confirmed_joint_category(
     project_root: Path,
 ) -> None:
-    standards_root = project_root / "standards"
+    standards_root = project_root / "knowledge" / "standards"
     manager = TaskStateManager()
     task = manager.create_task("coeff-apply-test01", status=TaskStatus.AWAITING_INPUT)
     task.inputs = {

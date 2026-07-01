@@ -1,8 +1,0 @@
----
-id: B313-quantity-stress
-type: quantity
-name: Stress
-dimension: stress
-description: >
-  Allowable or design stress values from material tables.
----

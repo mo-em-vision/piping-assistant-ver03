@@ -12,7 +12,7 @@ from engine.reference.standards_nodes import StandardsNodesDatabase
 
 @pytest.fixture
 def b313_nodes_db(project_root: Path) -> StandardsNodesDatabase:
-    pack = project_root / "standards" / "asme" / "asme_b31.3"
+    pack = project_root / "knowledge" / "standards" / "asme" / "asme_b31.3"
     db_path = resolve_pack_nodes_db(pack)
     if not db_path.is_file():
         pytest.skip("Run scripts/build_standards_nodes_db.py first")
@@ -20,7 +20,7 @@ def b313_nodes_db(project_root: Path) -> StandardsNodesDatabase:
 
 
 def test_resolve_pack_nodes_db_uses_compact_slug(project_root: Path) -> None:
-    pack = project_root / "standards" / "asme" / "asme_b31.3"
+    pack = project_root / "knowledge" / "standards" / "asme" / "asme_b31.3"
     assert resolve_pack_nodes_db(pack).name == "asme_b313_nodes.db"
 
 

@@ -15,7 +15,7 @@ from models.input import (
 )
 from models.task import Task
 
-B36_10_TABLE_REF = "asme_b36.10/welded_seamless_pipe_dimensions"
+B36_10_TABLE_REF = "asme_b36.10/table-2-1"
 
 # ISO 6708 / common DN to ASME B36.10 NPS keys used in the dimension tables.
 _DN_TO_NPS: dict[str, str] = {

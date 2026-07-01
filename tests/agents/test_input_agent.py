@@ -29,14 +29,14 @@ def test_enrich_with_llm_preserves_known_symbols() -> None:
     agent = InputAgent(client=None)
     task = Task(task_id="t1", status=TaskStatus.AWAITING_INPUT)
     requests = [
-        agent._build_request("temperature_coefficient", None),
+        agent._build_request("temperature_coefficient_Y", None),
     ]
 
     def fake_complete_json(_prompt: str) -> dict:
         return {
             "requests": [
                 {
-                    "input_id": "temperature_coefficient",
+                    "input_id": "temperature_coefficient_Y",
                     "symbol": "α",
                     "reason": "LLM reason",
                     "node_id": "B313-302.2",
@@ -45,6 +45,6 @@ def test_enrich_with_llm_preserves_known_symbols() -> None:
         }
 
     agent.complete_json = fake_complete_json  # type: ignore[method-assign]
-    enriched = agent._enrich_with_llm(task, ["temperature_coefficient"], requests, None)
+    enriched = agent._enrich_with_llm(task, ["temperature_coefficient_Y"], requests, None)
 
     assert enriched[0].symbol == "Y"

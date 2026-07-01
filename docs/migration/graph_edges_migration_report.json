@@ -1,0 +1,906 @@
+[
+  {
+    "pack": "asme_b31.3",
+    "files": 25,
+    "migrated": 25,
+    "flags": [
+      {
+        "node_id": "304.3.3",
+        "flags": [
+          "unmigrated subsection equation in b",
+          "unmigrated subsection equation in c",
+          "unmigrated subsection equation in c",
+          "unmigrated subsection equation in c"
+        ]
+      },
+      {
+        "node_id": "WF-MAWP",
+        "flags": [
+          "anchors_to\u2192references"
+        ]
+      },
+      {
+        "node_id": "WF-PIPE-WALL-THICKNESS",
+        "flags": [
+          "anchors_to\u2192references"
+        ]
+      }
+    ],
+    "connectivity_diffs": [
+      {
+        "node_id": "304.1.2",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\paragraph\\304.1.2.yaml",
+        "removed": [
+          [
+            "304.1",
+            "304.1.2",
+            "contains"
+          ],
+          [
+            "304.1.1",
+            "304.1.2",
+            "reference"
+          ],
+          [
+            "304.1.2",
+            "material_stress",
+            "text"
+          ],
+          [
+            "304.1.2",
+            "param-t",
+            "calculates"
+          ]
+        ],
+        "added": [
+          [
+            "304.1.2",
+            "304.1",
+            "parent"
+          ],
+          [
+            "304.1.2",
+            "material_stress",
+            "references"
+          ],
+          [
+            "304.1.2",
+            "param-t",
+            "implements"
+          ]
+        ]
+      },
+      {
+        "node_id": "304.1.3",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\paragraph\\304.1.3.yaml",
+        "removed": [
+          [
+            "304.1",
+            "304.1.3",
+            "contains"
+          ],
+          [
+            "304.1.3",
+            "param-t",
+            "calculates"
+          ]
+        ],
+        "added": [
+          [
+            "304.1.3",
+            "304.1",
+            "parent"
+          ],
+          [
+            "304.1.3",
+            "param-t",
+            "implements"
+          ]
+        ]
+      },
+      {
+        "node_id": "304.1",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\paragraph\\304.1.yaml",
+        "removed": [
+          [
+            "304",
+            "304.1",
+            "contains"
+          ]
+        ],
+        "added": [
+          [
+            "304.1",
+            "304",
+            "parent"
+          ]
+        ]
+      },
+      {
+        "node_id": "304.3.1",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\paragraph\\304.3.1.yaml",
+        "removed": [
+          [
+            "304.3",
+            "304.3.1",
+            "contains"
+          ],
+          [
+            "304.3.2",
+            "304.3.1",
+            "reference"
+          ],
+          [
+            "304.3.3",
+            "304.3.1",
+            "reference"
+          ]
+        ],
+        "added": [
+          [
+            "304.3.1",
+            "304.3",
+            "parent"
+          ]
+        ]
+      },
+      {
+        "node_id": "304.3.2",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\paragraph\\304.3.2.yaml",
+        "removed": [
+          [
+            "304.3",
+            "304.3.2",
+            "contains"
+          ],
+          [
+            "304.3.1",
+            "304.3.2",
+            "reference"
+          ],
+          [
+            "304.3.3",
+            "304.3.2",
+            "calculation"
+          ]
+        ],
+        "added": [
+          [
+            "304.3.2",
+            "304.3",
+            "parent"
+          ],
+          [
+            "304.3.2",
+            "304.3.1",
+            "references"
+          ],
+          [
+            "304.3.2",
+            "304.3.3",
+            "depends_on"
+          ]
+        ]
+      },
+      {
+        "node_id": "304.3.3",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\paragraph\\304.3.3.yaml",
+        "removed": [
+          [
+            "302.3.5",
+            "304.3.3",
+            "reference"
+          ],
+          [
+            "304.1.1",
+            "304.3.3",
+            "reference"
+          ],
+          [
+            "304.1.2",
+            "304.3.3",
+            "calculation"
+          ],
+          [
+            "304.3",
+            "304.3.3",
+            "contains"
+          ],
+          [
+            "304.3.1",
+            "304.3.3",
+            "reference"
+          ],
+          [
+            "304.3.2",
+            "304.3.3",
+            "reference"
+          ],
+          [
+            "B313-table-A-1",
+            "304.3.3",
+            "lookup"
+          ]
+        ],
+        "added": [
+          [
+            "304.3.3",
+            "304.1.2",
+            "depends_on"
+          ],
+          [
+            "304.3.3",
+            "304.3",
+            "parent"
+          ],
+          [
+            "304.3.3",
+            "304.3.1",
+            "references"
+          ],
+          [
+            "304.3.3",
+            "304.3.2",
+            "references"
+          ],
+          [
+            "304.3.3",
+            "B313-table-A-1",
+            "table"
+          ]
+        ]
+      },
+      {
+        "node_id": "304.3",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\paragraph\\304.3.yaml",
+        "removed": [
+          [
+            "304",
+            "304.3",
+            "contains"
+          ]
+        ],
+        "added": [
+          [
+            "304.3",
+            "304",
+            "parent"
+          ]
+        ]
+      },
+      {
+        "node_id": "B313-note-302-3-3C-1",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\tables\\B313-note-302-3-3C-1.yaml",
+        "removed": [
+          [
+            "B313-table-302-3-3C",
+            "B313-note-302-3-3C-1",
+            "requires"
+          ]
+        ],
+        "added": [
+          [
+            "B313-note-302-3-3C-1",
+            "B313-table-302-3-3C",
+            "depends_on"
+          ]
+        ]
+      },
+      {
+        "node_id": "B313-note-302-3-3C-2a",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\tables\\B313-note-302-3-3C-2a.yaml",
+        "removed": [
+          [
+            "B313-table-302-3-3C",
+            "B313-note-302-3-3C-2a",
+            "requires"
+          ]
+        ],
+        "added": [
+          [
+            "B313-note-302-3-3C-2a",
+            "B313-table-302-3-3C",
+            "depends_on"
+          ]
+        ]
+      },
+      {
+        "node_id": "B313-note-302-3-3C-2b",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\tables\\B313-note-302-3-3C-2b.yaml",
+        "removed": [
+          [
+            "B313-table-302-3-3C",
+            "B313-note-302-3-3C-2b",
+            "requires"
+          ]
+        ],
+        "added": [
+          [
+            "B313-note-302-3-3C-2b",
+            "B313-table-302-3-3C",
+            "depends_on"
+          ]
+        ]
+      },
+      {
+        "node_id": "B313-note-302-3-3C-3a",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\tables\\B313-note-302-3-3C-3a.yaml",
+        "removed": [
+          [
+            "B313-table-302-3-3C",
+            "B313-note-302-3-3C-3a",
+            "requires"
+          ]
+        ],
+        "added": [
+          [
+            "B313-note-302-3-3C-3a",
+            "B313-table-302-3-3C",
+            "depends_on"
+          ]
+        ]
+      },
+      {
+        "node_id": "B313-note-302-3-3C-3b",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\tables\\B313-note-302-3-3C-3b.yaml",
+        "removed": [
+          [
+            "B313-table-302-3-3C",
+            "B313-note-302-3-3C-3b",
+            "requires"
+          ]
+        ],
+        "added": [
+          [
+            "B313-note-302-3-3C-3b",
+            "B313-table-302-3-3C",
+            "depends_on"
+          ]
+        ]
+      },
+      {
+        "node_id": "B313-table-302-3-3C",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\tables\\B313-table-302-3-3C.yaml",
+        "removed": [
+          [
+            "302.3.3",
+            "B313-table-302-3-3C",
+            "requires"
+          ],
+          [
+            "B313-table-302-3-3C",
+            "quality_factor",
+            "quantity"
+          ]
+        ],
+        "added": [
+          [
+            "B313-table-302-3-3C",
+            "302.3.3",
+            "depends_on"
+          ],
+          [
+            "B313-table-302-3-3C",
+            "quality_factor",
+            "parameter"
+          ]
+        ]
+      },
+      {
+        "node_id": "B313-table-302-3-5-1",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\tables\\B313-table-302-3-5-1.yaml",
+        "removed": [
+          [
+            "302.3.5",
+            "B313-table-302-3-5-1",
+            "requires"
+          ],
+          [
+            "B313-table-302-3-5-1",
+            "weld_joint_strength_reduction_factor_W",
+            "quantity"
+          ]
+        ],
+        "added": [
+          [
+            "B313-table-302-3-5-1",
+            "302.3.5",
+            "depends_on"
+          ],
+          [
+            "B313-table-302-3-5-1",
+            "DIM-temperature",
+            "parameter"
+          ],
+          [
+            "B313-table-302-3-5-1",
+            "MAT-catalog",
+            "parameter"
+          ],
+          [
+            "B313-table-302-3-5-1",
+            "weld_joint_strength_reduction_factor_W",
+            "parameter"
+          ]
+        ]
+      },
+      {
+        "node_id": "B313-table-304-1-1-1",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\tables\\B313-table-304-1-1-1.yaml",
+        "removed": [
+          [
+            "B313-table-304-1-1-1",
+            "temperature_coefficient_Y",
+            "quantity"
+          ]
+        ],
+        "added": [
+          [
+            "B313-table-304-1-1-1",
+            "DIM-temperature",
+            "parameter"
+          ],
+          [
+            "B313-table-304-1-1-1",
+            "MAT-catalog",
+            "parameter"
+          ],
+          [
+            "B313-table-304-1-1-1",
+            "temperature_coefficient_Y",
+            "parameter"
+          ]
+        ]
+      },
+      {
+        "node_id": "B313-table-A-1",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\tables\\B313-table-A-1.yaml",
+        "removed": [
+          [
+            "B313-table-A-1",
+            "allowable_stress",
+            "quantity"
+          ]
+        ],
+        "added": [
+          [
+            "B313-table-A-1",
+            "DIM-temperature",
+            "parameter"
+          ],
+          [
+            "B313-table-A-1",
+            "MAT-catalog",
+            "parameter"
+          ],
+          [
+            "B313-table-A-1",
+            "allowable_stress",
+            "parameter"
+          ]
+        ]
+      },
+      {
+        "node_id": "B313-table-A-2",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\tables\\B313-table-A-2.yaml",
+        "removed": [
+          [
+            "302.3.3",
+            "B313-table-A-2",
+            "requires"
+          ],
+          [
+            "B313-table-A-2",
+            "quality_factor",
+            "quantity"
+          ]
+        ],
+        "added": [
+          [
+            "B313-table-A-2",
+            "302.3.3",
+            "depends_on"
+          ],
+          [
+            "B313-table-A-2",
+            "quality_factor",
+            "parameter"
+          ]
+        ]
+      },
+      {
+        "node_id": "B313-table-A-3",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\tables\\B313-table-A-3.yaml",
+        "removed": [
+          [
+            "B313-table-A-3",
+            "quality_factor",
+            "quantity"
+          ]
+        ],
+        "added": [
+          [
+            "B313-table-A-3",
+            "quality_factor",
+            "parameter"
+          ]
+        ]
+      },
+      {
+        "node_id": "WF-MAWP",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\workflows\\mawp.yaml",
+        "removed": [
+          [
+            "B313-table-A-1",
+            "WF-MAWP",
+            "calculation"
+          ],
+          [
+            "WF-MAWP",
+            "304.1.2",
+            "anchors_to"
+          ],
+          [
+            "WF-MAWP",
+            "WF-MAWP",
+            "calculation"
+          ],
+          [
+            "WF-MAWP",
+            "mawp",
+            "quantity"
+          ]
+        ],
+        "added": [
+          [
+            "WF-MAWP",
+            "304.1.2",
+            "references"
+          ],
+          [
+            "WF-MAWP",
+            "B313-table-A-1",
+            "depends_on"
+          ],
+          [
+            "WF-MAWP",
+            "WF-MAWP",
+            "depends_on"
+          ],
+          [
+            "WF-MAWP",
+            "mawp",
+            "parameter"
+          ]
+        ]
+      },
+      {
+        "node_id": "WF-PIPE-WALL-THICKNESS",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\workflows\\pipe-wall-thickness.yaml",
+        "removed": [
+          [
+            "WF-PIPE-WALL-THICKNESS",
+            "304.1.1",
+            "anchors_to"
+          ],
+          [
+            "WF-PIPE-WALL-THICKNESS",
+            "304.1.2",
+            "next_step"
+          ],
+          [
+            "WF-PIPE-WALL-THICKNESS",
+            "304.1.3",
+            "next_step"
+          ]
+        ],
+        "added": [
+          [
+            "WF-PIPE-WALL-THICKNESS",
+            "304.1.1",
+            "references"
+          ],
+          [
+            "WF-PIPE-WALL-THICKNESS",
+            "304.1.2",
+            "next"
+          ],
+          [
+            "WF-PIPE-WALL-THICKNESS",
+            "304.1.3",
+            "next"
+          ]
+        ]
+      },
+      {
+        "node_id": "304.1.1-eq-2",
+        "path": "knowledge\\standards\\asme\\asme_b31.3\\nodes\\paragraph\\304.1.1\\equations\\eq-2.md",
+        "removed": [
+          [
+            "304.1.1",
+            "304.1.1-eq-2",
+            "contains"
+          ]
+        ],
+        "added": [
+          [
+            "304.1.1-eq-2",
+            "304.1.1",
+            "parent"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "pack": "asme_b36.10",
+    "files": 0,
+    "migrated": 0,
+    "flags": [],
+    "connectivity_diffs": []
+  },
+  {
+    "pack": "astm",
+    "files": 4,
+    "migrated": 4,
+    "flags": [],
+    "connectivity_diffs": [
+      {
+        "node_id": "A105",
+        "path": "knowledge\\standards\\astm\\nodes\\A105.yaml",
+        "removed": [
+          [
+            "A105",
+            "material_properties",
+            "structured"
+          ]
+        ],
+        "added": [
+          [
+            "A105",
+            "material_properties",
+            "parameter"
+          ]
+        ]
+      },
+      {
+        "node_id": "A106",
+        "path": "knowledge\\standards\\astm\\nodes\\A106.yaml",
+        "removed": [
+          [
+            "A106",
+            "mechanical_properties",
+            "structured"
+          ]
+        ],
+        "added": [
+          [
+            "A106",
+            "mechanical_properties",
+            "parameter"
+          ]
+        ]
+      },
+      {
+        "node_id": "A312",
+        "path": "knowledge\\standards\\astm\\nodes\\A312.yaml",
+        "removed": [
+          [
+            "A312",
+            "mechanical_properties",
+            "structured"
+          ]
+        ],
+        "added": [
+          [
+            "A312",
+            "mechanical_properties",
+            "parameter"
+          ]
+        ]
+      },
+      {
+        "node_id": "A53",
+        "path": "knowledge\\standards\\astm\\nodes\\A53.yaml",
+        "removed": [
+          [
+            "A53",
+            "material_properties",
+            "structured"
+          ]
+        ],
+        "added": [
+          [
+            "A53",
+            "material_properties",
+            "parameter"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "pack": "global/dimensions",
+    "files": 4,
+    "migrated": 4,
+    "flags": [],
+    "connectivity_diffs": []
+  },
+  {
+    "pack": "global/units",
+    "files": 13,
+    "migrated": 13,
+    "flags": [],
+    "connectivity_diffs": [
+      {
+        "node_id": "UNIT-bar",
+        "path": "knowledge\\global\\units\\nodes\\UNIT-bar.yaml",
+        "removed": [
+          [
+            "UNIT-bar",
+            "UNIT-Pa",
+            "converts_to"
+          ]
+        ],
+        "added": [
+          [
+            "UNIT-bar",
+            "UNIT-Pa",
+            "derived_from"
+          ]
+        ]
+      },
+      {
+        "node_id": "UNIT-degC",
+        "path": "knowledge\\global\\units\\nodes\\UNIT-degC.yaml",
+        "removed": [
+          [
+            "UNIT-degC",
+            "UNIT-K",
+            "converts_to"
+          ]
+        ],
+        "added": [
+          [
+            "UNIT-degC",
+            "UNIT-K",
+            "derived_from"
+          ]
+        ]
+      },
+      {
+        "node_id": "UNIT-degF",
+        "path": "knowledge\\global\\units\\nodes\\UNIT-degF.yaml",
+        "removed": [
+          [
+            "UNIT-degF",
+            "UNIT-K",
+            "converts_to"
+          ]
+        ],
+        "added": [
+          [
+            "UNIT-degF",
+            "UNIT-K",
+            "derived_from"
+          ]
+        ]
+      },
+      {
+        "node_id": "UNIT-ft_s",
+        "path": "knowledge\\global\\units\\nodes\\UNIT-ft_s.yaml",
+        "removed": [
+          [
+            "UNIT-ft_s",
+            "UNIT-m_s",
+            "converts_to"
+          ]
+        ],
+        "added": [
+          [
+            "UNIT-ft_s",
+            "UNIT-m_s",
+            "derived_from"
+          ]
+        ]
+      },
+      {
+        "node_id": "UNIT-in",
+        "path": "knowledge\\global\\units\\nodes\\UNIT-in.yaml",
+        "removed": [
+          [
+            "UNIT-in",
+            "UNIT-mm",
+            "converts_to"
+          ]
+        ],
+        "added": [
+          [
+            "UNIT-in",
+            "UNIT-mm",
+            "derived_from"
+          ]
+        ]
+      },
+      {
+        "node_id": "UNIT-m",
+        "path": "knowledge\\global\\units\\nodes\\UNIT-m.yaml",
+        "removed": [
+          [
+            "UNIT-m",
+            "UNIT-mm",
+            "converts_to"
+          ]
+        ],
+        "added": [
+          [
+            "UNIT-m",
+            "UNIT-mm",
+            "derived_from"
+          ]
+        ]
+      },
+      {
+        "node_id": "UNIT-MPa",
+        "path": "knowledge\\global\\units\\nodes\\UNIT-MPa.yaml",
+        "removed": [
+          [
+            "UNIT-MPa",
+            "UNIT-Pa",
+            "converts_to"
+          ]
+        ],
+        "added": [
+          [
+            "UNIT-MPa",
+            "UNIT-Pa",
+            "derived_from"
+          ]
+        ]
+      },
+      {
+        "node_id": "UNIT-Pa",
+        "path": "knowledge\\global\\units\\nodes\\UNIT-Pa.yaml",
+        "removed": [
+          [
+            "UNIT-Pa",
+            "UNIT-MPa",
+            "converts_to"
+          ]
+        ],
+        "added": [
+          [
+            "UNIT-Pa",
+            "UNIT-MPa",
+            "derived_from"
+          ]
+        ]
+      },
+      {
+        "node_id": "UNIT-psi",
+        "path": "knowledge\\global\\units\\nodes\\UNIT-psi.yaml",
+        "removed": [
+          [
+            "UNIT-psi",
+            "UNIT-Pa",
+            "converts_to"
+          ]
+        ],
+        "added": [
+          [
+            "UNIT-psi",
+            "UNIT-Pa",
+            "derived_from"
+          ]
+        ]
+      }
+    ]
+  },
+  {
+    "pack": "global/materials",
+    "files": 1,
+    "migrated": 1,
+    "flags": [],
+    "connectivity_diffs": []
+  }
+]

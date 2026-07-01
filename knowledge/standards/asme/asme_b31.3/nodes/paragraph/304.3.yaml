@@ -1,0 +1,14 @@
+---
+id: 304.3
+type: paragraph
+title: Branch Connections
+status: draft
+revision_year: 2024
+edges:
+- type: parent
+  target: '304'
+---
+
+# ASME B31.3 §304.3 — Branch Connections
+
+Structural navigation node for §304.3 sub-paragraphs (304.3.1–304.3.3).
