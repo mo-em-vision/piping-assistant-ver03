@@ -8,11 +8,12 @@ from typing import Any
 
 from engine.executor.unit_manager import convert_to_si
 from models.task import Task
+from tests.helpers.facts import fact_get_unit, fact_get_value
 
 
 def expected_wall_thickness(task: Task) -> float:
-    p_pa, _ = convert_to_si(float(task.inputs["design_pressure"].value), task.inputs["design_pressure"].unit)
-    d_mm, _ = convert_to_si(float(task.inputs["outside_diameter"].value), task.inputs["outside_diameter"].unit)
+    p_pa, _ = convert_to_si(float(fact_get_value(task, "design_pressure")), fact_get_unit(task, "design_pressure"))
+    d_mm, _ = convert_to_si(float(fact_get_value(task, "outside_diameter")), fact_get_unit(task, "outside_diameter"))
     s_pa = float(task.outputs.get("allowable_stress", task.outputs.get("S", 0)))
     e = 1.0
     w = 1.0

@@ -14,6 +14,8 @@ from engine.graph.documentation_resolver import (
 from engine.reference.standards_reader import StandardsReader
 from engine.state import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
 
 
 @pytest.fixture

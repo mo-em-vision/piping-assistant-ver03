@@ -39,7 +39,11 @@ from engine.graph.definition_equations import (
 from engine.reference.standards_reader import StandardsReader
 from engine.graph.graph_engine import GraphEngine
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
+from engine.state.authority_context_projection import authority_context_summary
+from engine.state.execution_context_projection import execution_context_summary
+from engine.state.goal_projection import goals_to_api_dict, planning_projection
 from engine.state.state_manager import TaskStateManager
+from models.fact import Fact, ValidationStatus, fact_scalar_value, fact_to_dict, fact_unit
 from models.task import Task, TaskStatus
 
 WORKFLOW_CATALOG: tuple[dict[str, Any], ...] = (
@@ -100,7 +104,7 @@ def workflow_catalog(reader: StandardsReader | None = None) -> list[dict[str, An
             catalog.extend(
                 item
                 for item in WORKFLOW_CATALOG
-                if not item["available"] and item["id"] not in {w["id"] for w in catalog}
+                if item["id"] not in {w["id"] for w in catalog}
             )
             return catalog
     return [dict(item) for item in WORKFLOW_CATALOG]
@@ -145,17 +149,17 @@ def _task_display_name(task: Task) -> str:
     return meta["name"]
 
 
-def _input_to_dict(value: Any) -> dict[str, Any]:
-    return {
-        "input_id": value.input_id,
-        "value": value.value,
-        "unit": value.unit,
-        "source": value.source.value,
-        "status": value.status.value,
-        "default": value.default,
-        "requires_confirmation": value.requires_confirmation,
-        "display_value": _format_display_value(value.value, value.unit),
-    }
+def _fact_to_dict(fact: Fact) -> dict[str, Any]:
+    payload = fact_to_dict(fact)
+    value = fact_scalar_value(fact)
+    unit = fact_unit(fact)
+    payload["display_value"] = _format_display_value(value, unit)
+    return json_safe(payload)
+
+
+def _input_to_dict(value: Fact) -> dict[str, Any]:
+    """Legacy alias for fact serialization."""
+    return _fact_to_dict(value)
 
 
 def _format_display_value(value: Any, unit: str | None) -> str | None:
@@ -179,10 +183,10 @@ def _input_display(
     standards_root: Path | None = None,
 ) -> str | None:
     if input_id == "pressure_loading":
-        engineering_input = task.inputs.get(input_id)
-        if engineering_input is None:
+        fact = task.fact_store.active_fact(input_id)
+        if fact is None:
             return None
-        return _pressure_loading_report_value(engineering_input.value)
+        return _pressure_loading_report_value(fact_scalar_value(fact))
     return _input_display_value(task, input_id, standards_root=standards_root)
 
 
@@ -349,7 +353,7 @@ def _build_pipe_wall_timeline(
             preview = GraphEngine().build_plan(
                 task_id=task.task_id,
                 root_id=normalize_root_id(str(graph)),
-                inputs=dict(task.inputs),
+                inputs=dict(task.fact_store.active_facts()),
                 reader=reader,
             )
             definition_pending = bool(
@@ -501,21 +505,23 @@ def _build_progress_steps(
     steps: list[dict[str, Any]] = []
     missing_inputs = set(planning.get("missing_inputs") or [])
 
-    for input_id, engineering_input in task.inputs.items():
+    for input_id, fact in task.fact_store.active_facts().items():
         if input_id in missing_inputs:
             status = "active"
-        elif engineering_input.status.value in {"confirmed", "pending"}:
+        elif fact.validation.status in {ValidationStatus.CONFIRMED, ValidationStatus.VALIDATED, ValidationStatus.PENDING}:
             status = "done"
         else:
             status = "pending"
+        value = fact_scalar_value(fact)
+        unit = fact_unit(fact)
         steps.append(
             _step(
                 step_id=input_id,
                 title=input_id.replace("_", " ").title(),
                 status=status,
-                value=engineering_input.value,
-                unit=engineering_input.unit,
-                display_value=_format_display_value(engineering_input.value, engineering_input.unit),
+                value=value,
+                unit=unit,
+                display_value=_format_display_value(value, unit),
                 provenance=step_provenance(reader, task, input_id, planning) if reader else None,
             )
         )
@@ -539,8 +545,8 @@ def _build_progress_steps(
 def task_summary(task: Task) -> dict[str, Any]:
     workflow_id = _task_workflow_id(task)
     meta = _workflow_meta(workflow_id)
-    planning = task.outputs.get("planning_summary") or {}
-    if not isinstance(planning, dict):
+    planning = planning_projection(task)
+    if not planning:
         planning = {}
 
     return {
@@ -562,8 +568,8 @@ def task_state(
 ) -> dict[str, Any]:
     workflow_id = _task_workflow_id(task)
     meta = _workflow_meta(workflow_id)
-    planning = task.outputs.get("planning_summary") or {}
-    if not isinstance(planning, dict):
+    planning = planning_projection(task)
+    if not planning:
         planning = {}
 
     resolved_standards_root = standards_root or (Path(__file__).resolve().parent.parent / "knowledge" / "standards")
@@ -613,7 +619,10 @@ def task_state(
             "submittable_parameters": submittable_parameter_ids(task, planning),
             "step_progress": step_progress,
         },
-        "inputs": {key: _input_to_dict(value) for key, value in task.inputs.items()},
+        "facts": {key: _fact_to_dict(value) for key, value in task.fact_store.active_facts().items()},
+        "goals": goals_to_api_dict(task),
+        "execution_context": execution_context_summary(task),
+        "authority_context": authority_context_summary(task),
         "outputs": json_safe(dict(task.outputs)),
         "warnings": list(task.warnings),
         "parameters": build_parameter_definitions(task, reader=resolved_reader),

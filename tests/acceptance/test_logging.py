@@ -8,6 +8,8 @@ from engine.graph.graph_engine import GraphEngine
 from models.event import EventType
 from models.input import EngineeringInput, InputSource
 from tests.acceptance.helpers import PIPE_WALL_THICKNESS_ROOT, run_completed_workflow, sample_inputs
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
 
 
 class TestLoggingAcceptance:

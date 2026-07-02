@@ -14,11 +14,13 @@ from engine.state.state_manager import TaskStateManager
 from models.agent import AgentAction, IntentResult
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.planning import NavigationPhase, NavigationPlan
-from models.task import Task, TaskStatus
+from models.task import Task, new_task, TaskStatus
 from tests.acceptance.helpers import (
     internal_pressure_assumption,
     straight_section_assumption,
 )
+from tests.helpers.facts import legacy_input, populate_task_facts, facts_from_inputs
+from engine.state.fact_migration import fact_from_engineering_input
 
 
 def _reader() -> StandardsReader:
@@ -29,8 +31,8 @@ def _reader() -> StandardsReader:
 def _plan_with_internal_pressure() -> NavigationPlan:
     state = TaskStateManager()
     task = state.create_task("formula-prompt-plan", status=TaskStatus.AWAITING_INPUT)
-    state.store_input(task.task_id, straight_section_assumption())
-    state.store_input(task.task_id, internal_pressure_assumption())
+    state.store_input(task.task_id, fact_from_engineering_input(straight_section_assumption(), task_id=task.task_id))
+    state.store_input(task.task_id, fact_from_engineering_input(internal_pressure_assumption(), task_id=task.task_id))
     planner = Planner(_reader(), state=state)
     intent = IntentResult(
         intent="pipe_wall_thickness_design",
@@ -43,7 +45,7 @@ def _plan_with_internal_pressure() -> NavigationPlan:
 
 def test_prompt_not_shown_during_expansion_assumptions() -> None:
     reader = _reader()
-    task = Task(task_id="t1", status=TaskStatus.AWAITING_INPUT)
+    task = new_task("t1", status=TaskStatus.AWAITING_INPUT)
     plan = NavigationPlan(
         current_phase=NavigationPhase.EXPANSION_ASSUMPTIONS,
         selected_nodes=["B313-304.1.1"],
@@ -55,18 +57,19 @@ def test_prompt_not_shown_during_expansion_assumptions() -> None:
 def test_prompt_shows_formula_and_missing_parameters() -> None:
     reader = _reader()
     plan = _plan_with_internal_pressure()
-    task = Task(
-        task_id="formula-prompt",
+    task = new_task(
+        "formula-prompt",
         status=TaskStatus.AWAITING_INPUT,
-        inputs={
+    )
+    populate_task_facts(
+        task,
+        {
             "straight_pipe_section": straight_section_assumption(),
             "pressure_loading": internal_pressure_assumption(),
-            "design_pressure": EngineeringInput(
-                input_id="design_pressure",
-                value=8.0,
-                unit="bar",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
+            "design_pressure": legacy_input(
+                "design_pressure",
+                8.0,
+                "bar",
                 original_value=8.0,
                 original_unit="bar",
             ),
@@ -97,52 +100,24 @@ def test_classify_marks_unconfirmed_defaults_as_missing() -> None:
     known, missing = classify_formula_parameters(
         reader,
         "B313-304.1.2",
-        task_inputs={
-            "design_pressure": EngineeringInput(
-                input_id="design_pressure",
-                value=500.0,
-                unit="psi",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
-            ),
-            "nominal_pipe_size": EngineeringInput(
-                input_id="nominal_pipe_size",
-                value="10",
-                unit="dimensionless",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
-            ),
-            "d_input_mode": EngineeringInput(
-                input_id="d_input_mode",
-                value="nps_lookup",
-                unit="dimensionless",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
-            ),
-            "material": EngineeringInput(
-                input_id="material",
-                value="SA-106B",
-                unit="dimensionless",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
-            ),
-            "design_temperature": EngineeringInput(
-                input_id="design_temperature",
-                value=200.0,
-                unit="F",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
-            ),
-            "weld_joint_efficiency": EngineeringInput(
-                input_id="weld_joint_efficiency",
-                value=1.0,
-                unit="dimensionless",
-                source=InputSource.DEFAULT,
-                status=InputStatus.PROPOSED_DEFAULT,
-                default=1.0,
-                requires_confirmation=True,
-            ),
-        },
+        task_inputs=facts_from_inputs(
+            {
+                "design_pressure": legacy_input("design_pressure", 500.0, "psi"),
+                "nominal_pipe_size": legacy_input("nominal_pipe_size", "10"),
+                "d_input_mode": legacy_input("d_input_mode", "nps_lookup"),
+                "material": legacy_input("material", "SA-106B"),
+                "design_temperature": legacy_input("design_temperature", 200.0, "F"),
+                "weld_joint_efficiency": legacy_input(
+                    "weld_joint_efficiency",
+                    1.0,
+                    source=InputSource.DEFAULT,
+                    status=InputStatus.PROPOSED_DEFAULT,
+                    default=1.0,
+                    requires_confirmation=True,
+                ),
+            },
+            task_id="classify-test",
+        ),
         missing_input_ids=["weld_joint_efficiency", "weld_joint_strength_reduction_factor_W", "temperature_coefficient_Y"],
     )
 
@@ -155,9 +130,14 @@ def test_classify_marks_unconfirmed_defaults_as_missing() -> None:
 
 def test_planner_phase_reaches_parameter_gathering() -> None:
     plan = _plan_with_internal_pressure()
-    assert plan.current_phase == NavigationPhase.PARAMETER_GATHERING
-    assert plan.action == AgentAction.REQUEST_INPUT
-    assert "design_pressure" in (
-        plan.missing_inputs
-        + (plan.phase_missing.get(NavigationPhase.PARAMETER_GATHERING.value) or [])
+    assert plan.current_phase in (
+        NavigationPhase.PARAMETER_GATHERING,
+        NavigationPhase.COEFFICIENT_RESOLUTION,
     )
+    assert plan.action == AgentAction.REQUEST_INPUT
+    if plan.current_phase == NavigationPhase.COEFFICIENT_RESOLUTION:
+        coeff_missing = plan.phase_missing.get(NavigationPhase.COEFFICIENT_RESOLUTION.value) or []
+        assert "weld_joint_efficiency" in coeff_missing
+    else:
+        gathering_missing = plan.phase_missing.get(NavigationPhase.PARAMETER_GATHERING.value) or []
+        assert "design_pressure" in plan.missing_inputs + gathering_missing

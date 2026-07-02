@@ -13,6 +13,8 @@ from models.input import EngineeringInput, InputSource
 from models.validation import ComplianceStatus
 from tests.acceptance.helpers import PIPE_WALL_THICKNESS_ROOT, sample_inputs
 from typer.testing import CliRunner
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
 
 
 class TestInputInjectionTesting:

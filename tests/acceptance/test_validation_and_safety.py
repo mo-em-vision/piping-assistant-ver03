@@ -11,6 +11,8 @@ from models.input import EngineeringInput, InputSource
 from models.task import TaskStatus
 from models.validation import ComplianceStatus
 from tests.acceptance.helpers import (
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
     PIPE_WALL_THICKNESS_ROOT,
     pipe_thickness_intent,
     sample_inputs,

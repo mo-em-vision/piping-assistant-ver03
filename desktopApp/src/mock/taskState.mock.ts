@@ -53,24 +53,26 @@ export const mockTaskState: TaskStateDto = {
     submittable_parameters: ['nominal_pipe_size'],
     step_progress: [],
   },
-  inputs: {
+  facts: {
     material: {
-      input_id: 'material',
-      value: 'astm_a106_gr_b',
-      unit: 'dimensionless',
+      id: 'FACT-mock-material',
+      key: 'material',
+      parameter: 'PARAM-material-specification',
+      value: { label: 'astm_a106_gr_b' },
       display_value: 'ASTM A106 Grade B',
     },
     design_pressure: {
-      input_id: 'design_pressure',
-      value: 8,
-      unit: 'bar',
+      id: 'FACT-mock-pressure',
+      key: 'design_pressure',
+      parameter: 'PARAM-design-pressure',
+      value: { amount: 8, unit: 'UNIT-bar' },
       display_value: '8 bar',
     },
   },
   outputs: {
     workflow: 'pipe_wall_thickness_design',
-    planning_summary: { action: 'request_input' },
   },
+  goals: {},
   warnings: [],
   parameters: [
     {
@@ -203,10 +205,10 @@ export const mockCompletedTaskState: TaskStateDto = {
   ],
   outputs: {
     workflow: 'pipe_wall_thickness_design',
-    planning_summary: { action: 'complete' },
     required_thickness: 4.2,
     minimum_required_thickness: 4.2,
   },
+  goals: {},
 }
 
 mockCompletedTaskState.progress.steps = mockCompletedTaskState.progress.timeline

@@ -5,8 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
+from engine.reference.paragraph_sidecar import (
+    merge_paragraph_sidecar_metadata,
+    parse_applicability_as_assumptions,
+)
+from engine.reference.workflow_sidecar import merge_workflow_sidecar_metadata
 from engine.reference.standards_reader import NodeRecord, StandardsReader
-from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
+from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready, fact_scalar_value
 
 
 @dataclass(frozen=True)
@@ -54,42 +59,52 @@ class AssumptionEvaluation:
         return bool(self.missing_fields)
 
 
+def _assumption_from_dict(item: dict[str, Any]) -> NodeAssumptionSpec | None:
+    assumption_id = str(item.get("id", ""))
+    if not assumption_id:
+        return None
+    allowed = item.get("allowed_values") or []
+    blocks = item.get("blocks_expansion_on") or []
+    return NodeAssumptionSpec(
+        id=assumption_id,
+        description=str(item.get("description", "")),
+        field=str(item["field"]) if item.get("field") else None,
+        required_for_expansion=bool(item.get("required_for_expansion", False)),
+        required_for_execution=bool(item.get("required_for_execution", False)),
+        default=item.get("default"),
+        requires_confirmation=bool(item.get("requires_confirmation", False)),
+        allowed_values=tuple(str(v) for v in allowed),
+        blocks_expansion_on=tuple(str(v) for v in blocks),
+        expansion_block_message=(
+            str(item["expansion_block_message"])
+            if item.get("expansion_block_message")
+            else None
+        ),
+    )
+
+
 def parse_assumptions(metadata: dict[str, Any]) -> list[NodeAssumptionSpec]:
     """Parse structured assumptions from node metadata."""
     specs: list[NodeAssumptionSpec] = []
     for item in metadata.get("assumptions", []) or []:
         if not isinstance(item, dict):
             continue
-        assumption_id = str(item.get("id", ""))
-        if not assumption_id:
-            continue
-        allowed = item.get("allowed_values") or []
-        blocks = item.get("blocks_expansion_on") or []
-        specs.append(
-            NodeAssumptionSpec(
-                id=assumption_id,
-                description=str(item.get("description", "")),
-                field=str(item["field"]) if item.get("field") else None,
-                required_for_expansion=bool(item.get("required_for_expansion", False)),
-                required_for_execution=bool(item.get("required_for_execution", False)),
-                default=item.get("default"),
-                requires_confirmation=bool(item.get("requires_confirmation", False)),
-                allowed_values=tuple(str(v) for v in allowed),
-                blocks_expansion_on=tuple(str(v) for v in blocks),
-                expansion_block_message=(
-                    str(item["expansion_block_message"])
-                    if item.get("expansion_block_message")
-                    else None
-                ),
-            )
-        )
+        spec = _assumption_from_dict(item)
+        if spec is not None:
+            specs.append(spec)
+    if not specs:
+        for item in parse_applicability_as_assumptions(metadata):
+            spec = _assumption_from_dict(item)
+            if spec is not None:
+                specs.append(spec)
     return specs
 
 
 def derive_execution_assumptions(record: NodeRecord) -> list[NodeAssumptionSpec]:
     """Derive execution assumptions from inputs requiring user confirmation."""
+    metadata = _record_metadata(record)
     specs: list[NodeAssumptionSpec] = []
-    for item in record.metadata.get("inputs", []) or []:
+    for item in metadata.get("inputs", []) or []:
         if not isinstance(item, dict):
             continue
         if str(item.get("source", "")) not in ("default", "resolved"):
@@ -116,8 +131,41 @@ def derive_execution_assumptions(record: NodeRecord) -> list[NodeAssumptionSpec]
     return specs
 
 
+def _record_metadata(record: NodeRecord) -> dict[str, Any]:
+    node_type = str(record.metadata.get("type", ""))
+    if node_type == "workflow":
+        return merge_workflow_sidecar_metadata(
+            record.metadata,
+            record_path=record.path,
+            node_id=record.node_id,
+        )
+    return merge_paragraph_sidecar_metadata(
+        record.metadata,
+        record_path=record.path,
+        node_id=record.node_id,
+    )
+
+
 def expansion_assumption_specs(record: NodeRecord) -> list[NodeAssumptionSpec]:
-    return [s for s in parse_assumptions(record.metadata) if s.required_for_expansion]
+    metadata = _record_metadata(record)
+    specs = [s for s in parse_assumptions(metadata) if s.required_for_expansion]
+    for item in metadata.get("interactions", []) or []:
+        if not isinstance(item, dict):
+            continue
+        if not bool(item.get("required_for_expansion", False)):
+            continue
+        field = str(item.get("variable") or item.get("field") or "").strip()
+        if not field:
+            continue
+        specs.append(
+            NodeAssumptionSpec(
+                id=field,
+                description=str(item.get("question") or f"Confirm {field}"),
+                field=field,
+                required_for_expansion=True,
+            )
+        )
+    return specs
 
 
 _COEFFICIENT_CONFIRMATION_FIELDS = frozenset(
@@ -130,7 +178,8 @@ _COEFFICIENT_CONFIRMATION_FIELDS = frozenset(
 
 
 def execution_assumption_specs(record: NodeRecord) -> list[NodeAssumptionSpec]:
-    explicit = [s for s in parse_assumptions(record.metadata) if s.required_for_execution]
+    metadata = _record_metadata(record)
+    explicit = [s for s in parse_assumptions(metadata) if s.required_for_execution]
     derived = derive_execution_assumptions(record)
     if str(record.metadata.get("type", "")) == "parameter":
         input_id = str(record.metadata.get("input_id", "")).strip()
@@ -172,41 +221,41 @@ def normalize_assumption_value(value: Any) -> str:
 
 def field_value(
     field_id: str,
-    existing_inputs: dict[str, EngineeringInput | Any],
+    existing_inputs: dict[str, Fact | Any],
 ) -> str | None:
     if field_id not in existing_inputs:
         return None
     raw = existing_inputs[field_id]
-    if isinstance(raw, EngineeringInput):
-        if raw.requires_confirmation and not input_is_expansion_ready(raw):
+    if isinstance(raw, Fact):
+        if raw.requires_confirmation and not fact_is_expansion_ready(raw):
             return None
-        if raw.status == InputStatus.PROPOSED_DEFAULT:
+        if raw.fact_class == FactClass.DEFAULT_CONFIRMED and raw.validation.status == ValidationStatus.PENDING:
             return None
-        return normalize_assumption_value(raw.value)
+        return normalize_assumption_value(fact_scalar_value(raw))
     return normalize_assumption_value(raw)
 
 
 def is_field_satisfied(
     spec: NodeAssumptionSpec,
-    existing_inputs: dict[str, EngineeringInput | Any],
+    existing_inputs: dict[str, Fact | Any],
 ) -> bool:
     if not spec.field:
         return True
     if spec.field not in existing_inputs:
         return False
     raw = existing_inputs[spec.field]
-    if isinstance(raw, EngineeringInput):
-        if raw.requires_confirmation and raw.status != InputStatus.CONFIRMED:
+    if isinstance(raw, Fact):
+        if raw.requires_confirmation and raw.validation.status != ValidationStatus.CONFIRMED:
             return False
-        if spec.requires_confirmation and raw.source.value == "default":
-            return raw.status == InputStatus.CONFIRMED
+        if spec.requires_confirmation and raw.fact_class == FactClass.DEFAULT_CONFIRMED:
+            return raw.validation.status == ValidationStatus.CONFIRMED
     return True
 
 
 def _evaluate_specs(
     record: NodeRecord,
     specs: list[NodeAssumptionSpec],
-    existing_inputs: dict[str, EngineeringInput | Any],
+    existing_inputs: dict[str, Fact | Any],
     *,
     check_blocks: bool,
 ) -> AssumptionEvaluation:
@@ -260,7 +309,7 @@ def _evaluate_specs(
 def evaluate_node_expansion_assumptions(
     record: NodeRecord,
     *,
-    existing_inputs: dict[str, EngineeringInput | Any] | None = None,
+    existing_inputs: dict[str, Fact | Any] | None = None,
 ) -> AssumptionEvaluation:
     """Check expansion assumptions for a single node."""
     return _evaluate_specs(
@@ -274,7 +323,7 @@ def evaluate_node_expansion_assumptions(
 def evaluate_node_execution_assumptions(
     record: NodeRecord,
     *,
-    existing_inputs: dict[str, EngineeringInput | Any] | None = None,
+    existing_inputs: dict[str, Fact | Any] | None = None,
 ) -> AssumptionEvaluation:
     """Check execution assumptions for a single node."""
     return _evaluate_specs(
@@ -288,7 +337,7 @@ def evaluate_node_execution_assumptions(
 def evaluate_node_assumptions(
     record: NodeRecord,
     *,
-    existing_inputs: dict[str, EngineeringInput | Any] | None = None,
+    existing_inputs: dict[str, Fact | Any] | None = None,
 ) -> AssumptionEvaluation:
     """Check expansion assumptions for a single node (backward compatible)."""
     return evaluate_node_expansion_assumptions(record, existing_inputs=existing_inputs)
@@ -310,7 +359,7 @@ def evaluate_path_assumptions(
     node_ids: tuple[str, ...] | list[str],
     reader: StandardsReader,
     *,
-    existing_inputs: dict[str, EngineeringInput | Any] | None = None,
+    existing_inputs: dict[str, Fact | Any] | None = None,
     mode: Literal["expansion", "execution"] = "expansion",
 ) -> AssumptionEvaluation:
     """Check assumptions for all nodes on a planned path."""
@@ -333,7 +382,7 @@ def evaluate_path_expansion_assumptions(
     node_ids: tuple[str, ...] | list[str],
     reader: StandardsReader,
     *,
-    existing_inputs: dict[str, EngineeringInput | Any] | None = None,
+    existing_inputs: dict[str, Fact | Any] | None = None,
 ) -> AssumptionEvaluation:
     return evaluate_path_assumptions(
         node_ids, reader, existing_inputs=existing_inputs, mode="expansion"
@@ -344,16 +393,16 @@ def evaluate_path_execution_assumptions(
     node_ids: tuple[str, ...] | list[str],
     reader: StandardsReader,
     *,
-    existing_inputs: dict[str, EngineeringInput | Any] | None = None,
+    existing_inputs: dict[str, Fact | Any] | None = None,
 ) -> AssumptionEvaluation:
     evaluation = evaluate_path_assumptions(
         node_ids, reader, existing_inputs=existing_inputs, mode="execution"
     )
     inputs = existing_inputs or {}
     for input_id, raw in inputs.items():
-        if not isinstance(raw, EngineeringInput):
+        if not isinstance(raw, Fact):
             continue
-        if raw.status != InputStatus.PROPOSED_DEFAULT:
+        if raw.fact_class != FactClass.DEFAULT_CONFIRMED or raw.validation.status != ValidationStatus.PENDING:
             continue
         if input_id in evaluation.missing_fields:
             continue

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from engine.graph.graph_engine import GraphEngine
 from engine.planner.planner import Planner
+from engine.state.goal_projection import planning_projection
 from models.agent import AgentAction
 from models.agent import IntentResult
-from models.task import Task, TaskStatus
+from models.task import Task, new_task, TaskStatus
 from tests.acceptance.helpers import (
     MATERIAL_STRESS_NODE,
     PIPE_WALL_THICKNESS_ROOT,
@@ -98,7 +99,7 @@ class TestPlannerAcceptance:
         plan_pipe_thickness(standards_reader, state_manager, task)
         stored = state_manager.get_task(task.task_id)
 
-        assert stored.outputs.get("planning_summary")
+        assert planning_projection(stored)
         assert stored.active_nodes
 
     def test_ambiguous_integrity_request_requests_clarification(
@@ -108,7 +109,7 @@ class TestPlannerAcceptance:
     ) -> None:
         planner = Planner(standards_reader, state=state_manager)
         intent = IntentResult(intent=None, domain="piping", confidence=0.3)
-        plan = planner.plan(intent, Task(task_id="ambiguous", status=TaskStatus.ACTIVE), user_message="verify pipe integrity")
+        plan = planner.plan(intent, new_task("ambiguous", status=TaskStatus.ACTIVE), user_message="verify pipe integrity")
 
         assert plan.action == AgentAction.CLARIFY
         assert plan.alternative_paths

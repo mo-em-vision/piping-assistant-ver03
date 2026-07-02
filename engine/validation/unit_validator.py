@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from engine.executor.unit_manager import convert_to_si, normalize_unit
+from engine.reference.relationship_taxonomy import PARAMETER_CONCEPT_TRAVERSAL_TYPES
 from engine.reference.node_types import is_section_node
 from engine.reference.standards_reader import StandardsReader
-from models.input import EngineeringInput
+from models.fact import Fact, fact_scalar_value, fact_unit
 from models.validation import ComplianceStatus, LayerValidationResult, ValidationFinding, ValidationSeverity
 
 
@@ -28,7 +29,7 @@ _SUPPORTED_UNITS = {
 
 def validate_task_input_units(
     reader: StandardsReader,
-    task_inputs: dict[str, EngineeringInput],
+    task_inputs: dict[str, Fact],
 ) -> LayerValidationResult:
     """Validate task inputs against micro-graph parameter unit metadata."""
     from engine.units.unit_registry import get_unit_registry
@@ -51,7 +52,7 @@ def validate_task_input_units(
         if not input_id or input_id not in task_inputs:
             continue
 
-        engineering_input = task_inputs[input_id]
+        fact = task_inputs[input_id]
         _, dimension, is_designation = _parameter_concept_for_validation(
             store,
             node.node_id,
@@ -64,7 +65,7 @@ def validate_task_input_units(
         if not allowed_symbols:
             continue
 
-        unit = normalize_unit(engineering_input.unit)
+        unit = normalize_unit(fact_unit(fact))
         if unit not in allowed_symbols:
             convertible = _can_convert(unit, allowed_symbols)
             if not convertible:
@@ -72,7 +73,7 @@ def validate_task_input_units(
                     ValidationFinding(
                         rule="unit_incompatible",
                         message=(
-                            f"Unit '{engineering_input.unit}' is not allowed for {input_id}. "
+                            f"Unit '{fact_unit(fact)}' is not allowed for {input_id}. "
                             f"Allowed: {', '.join(sorted(allowed_symbols))}"
                         ),
                         severity=ValidationSeverity.ERROR,
@@ -85,7 +86,7 @@ def validate_task_input_units(
                     ValidationFinding(
                         rule="unit_converted",
                         message=(
-                            f"{input_id} will be converted from {engineering_input.unit} "
+                            f"{input_id} will be converted from {fact_unit(fact)} "
                             "for calculation."
                         ),
                         severity=ValidationSeverity.INFO,
@@ -94,9 +95,10 @@ def validate_task_input_units(
                     )
                 )
 
-        if isinstance(engineering_input.value, (int, float)):
+        scalar = fact_scalar_value(fact)
+        if isinstance(scalar, (int, float)):
             try:
-                convert_to_si(float(engineering_input.value), engineering_input.unit)
+                convert_to_si(float(scalar), fact_unit(fact))
             except (ValueError, TypeError) as exc:
                 errors.append(
                     ValidationFinding(
@@ -126,7 +128,7 @@ def _parameter_concept_for_validation(
 ) -> tuple[str | None, str | None, bool]:
     from engine.reference.node_types import is_designation_node, is_quantity_node
 
-    for edge in store.outgoing(param_node_id, edge_types={"references"}):
+    for edge in store.outgoing(param_node_id, edge_types=PARAMETER_CONCEPT_TRAVERSAL_TYPES | {"has_dimension"}):
         ref_meta = store.metadata(edge.to_id)
         ref_type = store.node_type(edge.to_id) or ""
         if is_quantity_node(ref_meta, ref_type):
@@ -145,7 +147,7 @@ class UnitValidator:
         node_id: str,
         *,
         reader: StandardsReader,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
     ) -> LayerValidationResult:
         record = reader.load(node_id)
         errors: list[ValidationFinding] = []
@@ -161,10 +163,10 @@ class UnitValidator:
             if input_id not in task_inputs:
                 continue
 
-            engineering_input = task_inputs[input_id]
+            fact = task_inputs[input_id]
             allowed = spec.get("allowed_units") or [spec.get("unit", "")]
             allowed_normalized = {normalize_unit(str(u)) for u in allowed if u}
-            unit = normalize_unit(engineering_input.unit)
+            unit = normalize_unit(fact_unit(fact))
 
             if allowed_normalized and unit not in allowed_normalized:
                 convertible = _can_convert(unit, allowed_normalized)
@@ -173,7 +175,7 @@ class UnitValidator:
                         ValidationFinding(
                             rule="unit_incompatible",
                             message=(
-                                f"Unit '{engineering_input.unit}' is not allowed for {input_id}. "
+                                f"Unit '{fact_unit(fact)}' is not allowed for {input_id}. "
                                 f"Allowed: {', '.join(sorted(allowed_normalized))}"
                             ),
                             severity=ValidationSeverity.ERROR,
@@ -185,16 +187,17 @@ class UnitValidator:
                     warnings.append(
                         ValidationFinding(
                             rule="unit_converted",
-                            message=f"{input_id} will be converted from {engineering_input.unit} for calculation.",
+                            message=f"{input_id} will be converted from {fact_unit(fact)} for calculation.",
                             severity=ValidationSeverity.INFO,
                             input_id=input_id,
                             node_id=node_id,
                         )
                     )
 
-            if isinstance(engineering_input.value, (int, float)):
+            scalar = fact_scalar_value(fact)
+            if isinstance(scalar, (int, float)):
                 try:
-                    convert_to_si(float(engineering_input.value), engineering_input.unit)
+                    convert_to_si(float(scalar), fact_unit(fact))
                 except (ValueError, TypeError) as exc:
                     errors.append(
                         ValidationFinding(

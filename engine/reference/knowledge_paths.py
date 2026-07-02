@@ -63,6 +63,11 @@ def concepts_root(*, project_root: Path | None = None) -> Path:
     return global_root(project_root=project_root) / "concepts"
 
 
+def authorities_root(*, project_root: Path | None = None) -> Path:
+    """Global authority ontology pack root."""
+    return global_root(project_root=project_root) / "authorities"
+
+
 def materials_root(
     *,
     project_root: Path | None = None,

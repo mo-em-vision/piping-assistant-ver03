@@ -1,0 +1,41 @@
+---
+interactions:
+- variable: pressure_loading
+  mode: decision
+  required: true
+  required_for_expansion: true
+  options:
+  - internal_pressure
+  - external_pressure
+  aliases:
+    internal: internal_pressure
+    internal_pressure: internal_pressure
+    internal pressure: internal_pressure
+    internally_pressurized: internal_pressure
+    external: external_pressure
+    external_pressure: external_pressure
+    external pressure: external_pressure
+    externally_pressurized: external_pressure
+  question: 'Is the pipe subjected to internal or external pressure? Internal pressure
+    design uses آ§304.1.2; external pressure design uses آ§304.1.3. Coefficients E,
+    S, W, and Y are defined in آ§304.1.1(b).
+
+    '
+assumptions:
+- id: straight_pipe_section
+  field: straight_pipe_section
+  description: 'Applied to a straight section of a pipe.
+
+    '
+  required_for_expansion: true
+  requires_confirmation: true
+  allowed_values:
+  - true
+  - false
+  blocks_expansion_on:
+  - false
+  expansion_block_message: 'Non-straight pipe sections are not yet supported. A future
+    node will cover fittings and bends.
+
+    '
+---

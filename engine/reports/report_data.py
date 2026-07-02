@@ -11,6 +11,8 @@ from engine.reference.standards_reader import StandardsReader
 from engine.reports.block_renderer import blocks_to_display_sections, human_input_label
 from engine.reports.template_registry import PIPE_WALL_THICKNESS_WORKFLOW, resolve_template_name
 from engine.state.state_manager import TaskStateManager
+from engine.state.task_facts import active_facts
+from models.fact import Fact, fact_scalar_value, fact_unit
 from models.report import (
     ReportData,
     ReportDecision,
@@ -67,11 +69,11 @@ def _build_pipe_wall_thickness_report(
 ) -> ReportData:
     root = reader.load(ROOT_SLUG)
     node = reader.load(WALL_THICKNESS_NODE)
-    missing = [key for key in REQUIRED_INPUTS if key not in task.inputs]
+    missing = [key for key in REQUIRED_INPUTS if key not in active_facts(task)]
     status = _derive_status(task, missing)
 
     traversal = _flatten_traversal(reader, ROOT_SLUG)
-    input_entries = [_input_entry(key, task.inputs[key]) for key in task.inputs]
+    input_entries = [_input_entry(key, fact) for key, fact in active_facts(task).items()]
     formula_display = _load_formula_display(reader, WALL_THICKNESS_NODE)
     display_blocks = build_display_outputs(task, reader=reader, standards_root=reader.standards_root)
     display_sections = blocks_to_display_sections(display_blocks)
@@ -81,7 +83,7 @@ def _build_pipe_wall_thickness_report(
         paragraph=str(node.metadata.get("paragraph", "")),
         source_text=_extract_paragraph_excerpt(node.body),
         formula=formula_display,
-        inputs={key: inp.value for key, inp in task.inputs.items()},
+        inputs={key: fact_scalar_value(fact) for key, fact in active_facts(task).items()},
         outputs=_execution_outputs(task),
     )
 
@@ -393,17 +395,16 @@ def _report_overrides(task: Task) -> list[ReportOverride]:
     return overrides
 
 
-def _input_entry(input_id: str, engineering_input: Any) -> ReportInputEntry:
-    symbol = input_id
-    original_value = engineering_input.original_value or engineering_input.value
-    original_unit = engineering_input.original_unit or engineering_input.unit
+def _input_entry(input_id: str, fact: Fact) -> ReportInputEntry:
+    original_value = fact.original_value or fact_scalar_value(fact)
+    original_unit = fact.original_unit or fact_unit(fact)
     return ReportInputEntry(
         input_id=input_id,
-        name=symbol,
+        name=input_id,
         original_value=original_value,
         original_unit=original_unit,
-        calculation_value=engineering_input.value,
-        calculation_unit=engineering_input.unit,
+        calculation_value=fact_scalar_value(fact),
+        calculation_unit=fact_unit(fact),
     )
 
 

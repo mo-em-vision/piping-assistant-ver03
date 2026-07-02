@@ -8,6 +8,7 @@ from cli.display import print_assistant, print_error, print_task_table
 from cli.session_store import SessionStore
 from config.loader import CLIConfig
 from engine.state.state_manager import TaskNotFoundError
+from models.fact import fact_scalar_value, fact_unit
 
 
 def register_task_commands(app: typer.Typer, config: CLIConfig) -> None:
@@ -37,7 +38,12 @@ def register_task_commands(app: typer.Typer, config: CLIConfig) -> None:
             raise typer.Exit(code=1) from None
 
         store.save_state_manager(manager)
-        waiting = [key for key in ("design_pressure", "outside_diameter", "allowable_stress") if key not in task.inputs]
+        active_keys = set(task.fact_store.active_facts())
+        waiting = [
+            key
+            for key in ("design_pressure", "outside_diameter", "allowable_stress")
+            if key not in active_keys
+        ]
         if waiting:
             detail = f"Waiting for: {', '.join(waiting)}"
         else:
@@ -62,21 +68,22 @@ def register_task_commands(app: typer.Typer, config: CLIConfig) -> None:
             for step in steps:
                 lines.append(f"- {step.step_id}: {step.status}")
 
-        if task.inputs:
+        active_facts = task.fact_store.active_facts()
+        if active_facts:
             lines.append("")
-            lines.append("Inputs:")
-            for input_id, engineering_input in task.inputs.items():
-                original = engineering_input.original_value
-                original_unit = engineering_input.original_unit
+            lines.append("Facts:")
+            for key, fact in active_facts.items():
+                original = fact.original_value
+                original_unit = fact.original_unit
+                value = fact_scalar_value(fact)
+                unit = fact_unit(fact)
                 if original is not None:
                     lines.append(
-                        f"- {input_id}: {engineering_input.value} {engineering_input.unit} "
-                        f"(original: {original} {original_unit or engineering_input.unit})"
+                        f"- {key}: {value} {unit} "
+                        f"(original: {original} {original_unit or unit})"
                     )
                 else:
-                    lines.append(
-                        f"- {input_id}: {engineering_input.value} {engineering_input.unit}"
-                    )
+                    lines.append(f"- {key}: {value} {unit}")
 
         if task.outputs:
             lines.append("")

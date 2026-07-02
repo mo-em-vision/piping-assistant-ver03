@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from engine.graph.assumption_checker import field_value, normalize_assumption_value
-from models.input import EngineeringInput
+from models.fact import Fact
 
 
 class GraphCycleError(ValueError):
@@ -14,7 +14,7 @@ class GraphCycleError(ValueError):
 
 def when_clause_matches(
     when: dict[str, Any] | None,
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
 ) -> bool:
     """Return True when a conditional edge should be active."""
     if not when:

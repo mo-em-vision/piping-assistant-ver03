@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import Any
 
 from engine.reference.standards_reader import StandardsReader
+from engine.state.task_facts import pending_parameter_fact_from_descriptor
+from models.fact import Fact
 from models.input import (
-    EngineeringInput,
     ParameterDescriptor,
     ResolutionMethod,
     ResolutionRef,
-    pending_parameter_input,
 )
 
 
@@ -72,7 +72,7 @@ def seed_parameter_registry(
     reader: StandardsReader,
     *,
     execution_order: tuple[str, ...] | list[str],
-    existing_inputs: dict[str, EngineeringInput | Any] | None = None,
+    existing_inputs: dict[str, Fact | Any] | None = None,
 ) -> dict[str, ParameterDescriptor]:
     """Register parameters from legacy definition-node nomenclature.
 
@@ -159,30 +159,28 @@ def seed_parameter_registry(
 
 def apply_registry_to_inputs(
     registry: dict[str, ParameterDescriptor],
-    existing_inputs: dict[str, EngineeringInput | Any],
-) -> dict[str, EngineeringInput]:
-    """Create pending EngineeringInput placeholders for unregistered parameters."""
-    proposed: dict[str, EngineeringInput] = {}
+    existing_inputs: dict[str, Fact | Any],
+    *,
+    task_id: str,
+) -> dict[str, Fact]:
+    """Create pending fact placeholders for unregistered parameters."""
+    proposed: dict[str, Fact] = {}
     for input_id, descriptor in registry.items():
         if input_id in existing_inputs:
             continue
-        proposed[input_id] = pending_parameter_input(descriptor)
+        proposed[input_id] = pending_parameter_fact_from_descriptor(descriptor, task_id=task_id)
     return proposed
 
 
-def merge_descriptor_into_input(
-    engineering_input: EngineeringInput,
+def merge_descriptor_into_fact(
+    fact: Fact,
     descriptor: ParameterDescriptor,
-) -> EngineeringInput:
-    """Enrich an input with registry metadata when absent."""
-    if engineering_input.symbol is None:
-        engineering_input.symbol = descriptor.symbol
-    if engineering_input.description is None:
-        engineering_input.description = descriptor.description
-    if engineering_input.introduced_at_node is None:
-        engineering_input.introduced_at_node = descriptor.introduced_at_node
-    if engineering_input.resolution_method is None:
-        engineering_input.resolution_method = descriptor.resolution_method
-    if engineering_input.resolution_ref is None:
-        engineering_input.resolution_ref = descriptor.resolution_ref
-    return engineering_input
+) -> Fact:
+    """Enrich a fact with registry metadata when absent."""
+    if fact.symbol is None:
+        fact.symbol = descriptor.symbol
+    if fact.description is None:
+        fact.description = descriptor.description
+    if fact.introduced_at_node is None:
+        fact.introduced_at_node = descriptor.introduced_at_node
+    return fact

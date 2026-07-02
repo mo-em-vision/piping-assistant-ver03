@@ -8,7 +8,7 @@ from typing import Any
 
 from engine.graph.graph_store import GraphStore
 from engine.graph.lazy_expander import ExpansionState, expand_workflow, next_pending_parameter
-from models.input import EngineeringInput
+from models.fact import Fact
 
 
 @dataclass
@@ -47,7 +47,7 @@ def prefetch_next(
     *,
     task_id: str,
     root_id: str,
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
     horizon: int = 1,
 ) -> dict[str, Any]:
     """Prefetch expansion state and upcoming parameter metadata."""
@@ -86,7 +86,7 @@ def prefetch_async(
     *,
     task_id: str,
     root_id: str,
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
     horizon: int = 1,
 ) -> None:
     """Fire-and-forget prefetch in a background thread."""

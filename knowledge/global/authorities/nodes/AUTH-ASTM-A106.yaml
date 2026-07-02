@@ -1,0 +1,34 @@
+---
+id: AUTH-ASTM-A106
+type: authority
+key: astm_a106
+name: ASTM A106
+authority_class: material_standard
+publisher: ASTM
+title: Seamless Carbon Steel Pipe for High-Temperature Service
+description: >
+  Material standard defining requirements for seamless carbon steel pipe
+  intended for high-temperature service.
+editions:
+  - year: 2024
+    status: active
+scope:
+  domain:
+    - materials
+    - piping
+  material_family:
+    - carbon_steel
+  product_form:
+    - seamless_pipe
+contains:
+  material_designations:
+    - ASTM A106 Grade A
+    - ASTM A106 Grade B
+    - ASTM A106 Grade C
+edges:
+  - type: constrains_parameter
+    target: PARAM-material-specification
+metadata:
+  status: active
+  version: 1
+---

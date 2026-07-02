@@ -1,259 +1,57 @@
 ---
 id: 304.3.3
 type: paragraph
+key: b313_304_3_3
 title: Reinforcement of Welded Branch Connections
-version: '2026'
-status: draft
-created: '2026-06-28'
-modified: '2026-06-28'
-topic: branch_connections
-revision_year: 2024
-purpose: 'Define branch connection nomenclature, required reinforcement area, available
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.3
+paragraph_class: calculation_requirement
+description: Define branch connection nomenclature, required reinforcement area, available
   reinforcement areas, reinforcement zone geometry, and rules for multiple branches
   and added reinforcement.
-
-  '
-engineering_intent: branch_connection_design
-subsections:
-- id: a
-  label: (a)
-  title: Nomenclature
-  text: 'Symbols for branch connection reinforcement design illustrated in Figure
-    304.3.3-1.
-
-    '
-- id: b
-  label: (b)
-  title: Required Reinforcement Area
-- id: c
-  label: (c)
-  title: Available Area
-- id: d
-  label: (d)
-  title: Reinforcement Zone
-- id: e
-  label: (e)
-  title: Multiple Branches
-- id: f
-  label: (f)
-  title: Added Reinforcement
-equations:
-- id: eq-6
-  source: "---\nequation_id: eq-6\nname: Required Reinforcement Area Under Internal\
-    \ Pressure\ndisplay: \"A_1 = t_h d_1 (2 \\\\sin \\\\beta)\"\nnomenclature_ref:\
-    \ 304.3.3\n\nvariables:\n  t_h:\n    symbol: t_h\n    description: Pressure design\
-    \ thickness of run pipe\n    unit: mm\n  d_1:\n    symbol: d_1\n    description:\
-    \ Effective length removed from pipe at branch\n    unit: mm\n  beta:\n    symbol:\
-    \ β\n    description: Smaller angle between axes of branch and run\n    unit:\
-    \ deg\n\noutputs:\n  - symbol: A_1\n    name: required_reinforcement_area\n  \
-    \  unit: mm2\n    type: quantity\n---\n\n# Required Reinforcement Area (eq. 6)\n\
-    \n## Human-readable equation\n\n```\n$$\nA_1 = t_h d_1 (2 \\sin \\beta)\n\\tag{6}\n\
-    $$\n```\n\nFor a branch connection under external pressure, area $A_1$ is one-half\
-    \ the area calculated by eq. (6), using as $t_h$ the thickness required for external\
-    \ pressure.\n\nSymbols are defined in §304.3.3(a).\n"
-- id: eq-6a
-  source: "---\nequation_id: eq-6a\nname: Available Reinforcement Area Check\ndisplay:\
-    \ \"A_2 + A_3 + A_4 \\\\ge A_1\"\nnomenclature_ref: 304.3.3\n\nvariables:\n  A_2:\n\
-    \    symbol: A_2\n    description: Area from excess thickness in run pipe wall\n\
-    \    unit: mm2\n  A_3:\n    symbol: A_3\n    description: Area from excess thickness\
-    \ in branch pipe wall\n    unit: mm2\n  A_4:\n    symbol: A_4\n    description:\
-    \ Area from welds and attached reinforcement\n    unit: mm2\n  A_1:\n    symbol:\
-    \ A_1\n    description: Required reinforcement area\n    unit: mm2\n\noutputs:\n\
-    \  - symbol: reinforcement_adequate\n    name: reinforcement_adequate\n    unit:\
-    \ dimensionless\n    type: boolean\n---\n\n# Available Reinforcement Area (eq.\
-    \ 6a)\n\n## Human-readable equation\n\n```\n$$\nA_2 + A_3 + A_4 \\ge A_1\n\\tag{6a}\n\
-    $$\n```\n\nThese areas are all within the reinforcement zone and are further defined\
-    \ in §304.3.3(c).\n"
-- id: eq-7
-  source: "---\nequation_id: eq-7\nname: Run Pipe Excess Thickness Area\ndisplay:\
-    \ \"A_2 = (2d_2 - d_1)(T_h - t_h - c)\"\nnomenclature_ref: 304.3.3\n\nvariables:\n\
-    \  d_2:\n    symbol: d_2\n    description: Half width of reinforcement zone\n\
-    \    unit: mm\n  d_1:\n    symbol: d_1\n    description: Effective length removed\
-    \ from pipe at branch\n    unit: mm\n  T_h:\n    symbol: T_h\n    description:\
-    \ Run pipe wall thickness\n    unit: mm\n  t_h:\n    symbol: t_h\n    description:\
-    \ Pressure design thickness of run pipe\n    unit: mm\n  c:\n    symbol: c\n \
-    \   description: Corrosion allowance\n    unit: mm\n\noutputs:\n  - symbol: A_2\n\
-    \    name: run_excess_thickness_area\n    unit: mm2\n    type: quantity\n---\n\
-    \n# Area A_2 (eq. 7)\n\n## Human-readable equation\n\n```\n$$\nA_2 = (2d_2 - d_1)(T_h\
-    \ - t_h - c)\n\\tag{7}\n$$\n```\n\nArea $A_2$ is the area resulting from excess\
-    \ thickness in the run pipe wall.\n"
-- id: eq-8
-  source: "---\nequation_id: eq-8\nname: Branch Pipe Excess Thickness Area\ndisplay:\
-    \ \"A_3 = 2L_4(T_b - t_b - c)/\\\\sin(\\\\beta)\"\nnomenclature_ref: 304.3.3\n\
-    \nvariables:\n  L_4:\n    symbol: L_4\n    description: Height of reinforcement\
-    \ zone outside run pipe\n    unit: mm\n  T_b:\n    symbol: T_b\n    description:\
-    \ Branch pipe wall thickness\n    unit: mm\n  t_b:\n    symbol: t_b\n    description:\
-    \ Pressure design thickness of branch pipe\n    unit: mm\n  c:\n    symbol: c\n\
-    \    description: Corrosion allowance\n    unit: mm\n  beta:\n    symbol: β\n\
-    \    description: Smaller angle between axes of branch and run\n    unit: deg\n\
-    \noutputs:\n  - symbol: A_3\n    name: branch_excess_thickness_area\n    unit:\
-    \ mm2\n    type: quantity\n---\n\n# Area A_3 (eq. 8)\n\n## Human-readable equation\n\
-    \n```\n$$\nA_3 = 2L_4(T_b - t_b - c)/\\sin(\\beta)\n\\tag{8}\n$$\n```\n\nIf the\
-    \ allowable stress for the branch pipe wall is less than that for the run pipe,\
-    \ its calculated area shall be reduced in the ratio of allowable stress values\
-    \ of the branch to the run in determining its contribution to area $A_3$.\n"
-nomenclature:
-- symbol: b
-  description: Subscript referring to branch.
-- symbol: D_b
-  description: Outside diameter of branch pipe.
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-- symbol: D_h
-  description: Outside diameter of run pipe (or header pipe).
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-- symbol: D_s
-  description: Outside diameter of reinforcing saddle.
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-- symbol: d_1
-  description: 'Effective length removed from pipe at branch. For pipe-to-pipe fabricated
-    branches, d_1 = [D_b − 2(T_b − c)]/sin(β).
-
-    '
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-- symbol: d_2
-  description: 'Half width of reinforcement zone; d_1 or (T_b − c) + (T_h − c) + d_1/2,
-    whichever is greater, but not more than D_h.
-
-    '
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-- symbol: h
-  description: Subscript referring to run or header.
-- symbol: L_4
-  description: 'Height of reinforcement zone outside run pipe; 2.5(T_h − c) or 2.5(T_b
-    − c) + T_r, whichever is less.
-
-    '
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-- symbol: T_b
-  description: Branch pipe wall thickness per purchase specification.
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-- symbol: T_h
-  description: Run pipe wall thickness per purchase specification.
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-- symbol: T_r
-  description: 'Minimum thickness of reinforcing ring or saddle made from pipe, or
-    height of the largest 60-deg right triangle in the integral reinforcement area.
-
-    '
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-- symbol: t
-  description: Pressure design thickness per §304.1.
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-- symbol: β
-  description: Smaller angle between axes of branch and run.
-  unit: deg
-- symbol: A_1
-  description: Required reinforcement area.
-  unit: mm2
-- symbol: A_2
-  description: Area from excess thickness in run pipe wall.
-  unit: mm2
-- symbol: A_3
-  description: Area from excess thickness in branch pipe wall.
-  unit: mm2
-- symbol: A_4
-  description: Area from welds and properly attached reinforcement.
-  unit: mm2
-- symbol: c
-  description: Corrosion allowance per §304.1.1.
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-  citations:
-  - node_id: 304.1.1
-limitations:
-- id: not_yet_implemented
-  parameter: calculation
-  condition: Branch reinforcement area calculation not yet implemented
-  action: reject
-trace:
-  capture:
-  - paragraph_text
-  - nomenclature
-  - equations
-  - inputs
-  - outputs
-  - warnings
-report:
-  section_title: Reinforcement of Welded Branch Connections — §304.3.3
-  include:
-  - node_reference
-  - paragraph_text
-  - nomenclature
-  - equations
-  - warnings
-  explanation_required: true
-ai_hints:
-  explanation_focus: 'Explain the reinforcement zone, required area A_1, and how excess
-    wall thickness and added metal contribute through A_2, A_3, and A_4.
-
-    '
-  common_questions:
-  - How is the reinforcement zone defined?
-  - When is external pressure A_1 half of the internal value?
-  - How does branch allowable stress affect A_3?
-  avoid:
-  - Do not double-count metal area across overlapping reinforcement zones.
-kind: calculation
+metadata:
+  status: draft
+  node_version: 1
+  source_revision_year: 2024
 edges:
+- type: belongs_to_authority
+  target: AUTH-ASME-B31.3
 - type: parent
   target: '304.3'
-- type: references
+- type: related_to
   target: 304.3.1
-- type: references
+- type: related_to
   target: 304.3.2
-- type: references
+- type: related_to
   target: 304.1.1
 - type: depends_on
   target: 304.1.2
-- type: references
+- type: related_to
   target: 302.3.5
   subsection: e
-- type: table
+- type: references_table
   target: B313-table-A-1
-- type: references
+- type: related_to
   target: 304.1.2
   reason: Pressure design thickness t for run and branch pipe.
-- type: references
+- type: related_to
   target: 328.5.4
   reason: Minimum weld dimensions for area A_4.
-- type: references
+- type: related_to
   target: '300.2'
   reason: Branch connection fitting thickness definitions.
-- type: references
+- type: related_to
   target: Appendix-J
   reason: Supplemental nomenclature definitions.
+referenced_equations:
+- asme_b313_304_3_3_eq_6
+- asme_b313_304_3_3_eq_6a
+- asme_b313_304_3_3_eq_7
+- asme_b313_304_3_3_eq_8
+limitations:
+- id: not_yet_implemented
+  description: Branch reinforcement area calculation not yet implemented
 ---
 
 # ASME B31.3 §304.3.3 — Reinforcement of Welded Branch Connections

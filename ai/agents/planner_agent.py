@@ -10,7 +10,7 @@ from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from models.agent import AgentAction, IntentResult, PlannerResult
 from models.planning import NavigationPlan
-from models.task import Task, TaskStatus
+from models.task import Task, new_task, TaskStatus
 
 from ai.agents.base import BaseAgent
 
@@ -40,7 +40,7 @@ class PlannerAgent(BaseAgent):
         reader = self._reader or self._default_reader()
 
         if task is None:
-            task = Task(task_id="planner-preview", status=TaskStatus.ACTIVE)
+            task = new_task("planner-preview", status=TaskStatus.ACTIVE)
 
         planner = Planner(reader, state=state)
         navigation = planner.plan(intent, task, user_message=user_message)

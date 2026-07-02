@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Any
 
 from .graph import GraphEdge, GraphVersion
-from .input import EngineeringInput
+from .fact import Fact
 
 
 class NodeExecutionStatus(str, Enum):
@@ -43,7 +43,7 @@ class ExecutionPlan:
     root: str
     nodes: tuple[str, ...]
     execution_order: tuple[str, ...]
-    inputs: dict[str, EngineeringInput] = field(default_factory=dict)
+    inputs: dict[str, Fact] = field(default_factory=dict)
     dependencies: tuple[GraphEdge, ...] = ()
     graph_version: GraphVersion | None = None
     configuration: ExecutionConfiguration = field(default_factory=ExecutionConfiguration)

@@ -356,7 +356,7 @@ def execute_workflow(
     plan = GraphEngine().build_plan(
         task_id=task_id,
         root_id=root_id,
-        inputs=dict(task.inputs),
+        inputs=dict(task.fact_store.active_facts()),
         reader=reader,
     )
     executor = Executor(reader, events=events)

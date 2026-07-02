@@ -1,11 +1,11 @@
 import type { TableViewerContext } from '@/store/rightPanelStore'
 import type { TaskStateDto } from '@/types/backend/api'
 
-function inputDisplayValue(
-  inputs: Record<string, unknown>,
+function factDisplayValue(
+  facts: Record<string, unknown>,
   key: string,
 ): string | undefined {
-  const entry = inputs[key]
+  const entry = facts[key]
   if (!entry || typeof entry !== 'object') {
     return undefined
   }
@@ -31,15 +31,15 @@ export function buildTableViewerContext(
   tableId: string,
   taskState?: TaskStateDto | null,
 ): TableViewerContext | undefined {
-  if (!taskState?.inputs) {
+  if (!taskState?.facts) {
     return undefined
   }
 
-  const inputs = taskState.inputs
+  const facts = taskState.facts
   const key = normalizeTableKey(tableId)
-  const material = inputDisplayValue(inputs, 'material')
-  const temperature = inputDisplayValue(inputs, 'design_temperature')
-  const jointCategory = inputDisplayValue(inputs, 'joint_category')
+  const material = factDisplayValue(facts, 'material')
+  const temperature = factDisplayValue(facts, 'design_temperature')
+  const jointCategory = factDisplayValue(facts, 'joint_category')
 
   if (key === '304-1-1-1' || key === '304.1.1-1' || key === '304-1-1' || key === '304.1.1') {
     if (!temperature) {

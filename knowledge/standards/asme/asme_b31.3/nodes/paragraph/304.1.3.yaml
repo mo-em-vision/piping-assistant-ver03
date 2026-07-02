@@ -1,45 +1,40 @@
 ---
 id: 304.1.3
 type: paragraph
+key: b313_304_1_3
 title: Straight Pipe Under External Pressure
-revision_year: 2024
-version: '1.0'
-status: superseded
-created: '2026-06-18'
-modified: '2026-06-19'
-topic: external_wall_thickness
-purpose: 'Determine required wall thickness for straight pipe under external pressure.
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.1.3
+paragraph_class: calculation_requirement
+description: Determine required wall thickness for straight pipe under external pressure.
   Full calculation is not yet implemented; this node records the selected external-pressure
   design path.
-
-  '
-engineering_intent: pipe_wall_thickness_design
-limitations:
-- id: not_yet_implemented
-  parameter: calculation
-  condition: External pressure wall thickness equation not yet implemented
-  action: reject
-report:
-  section_title: External Wall Thickness — §304.1.3
-  include:
-  - node_reference
-  - paragraph_text
-  - inputs
-  - warnings
-  explanation_required: true
-trace:
-  capture:
-  - inputs
-  - warnings
+metadata:
+  status: superseded
+  node_version: 1
+  source_revision_year: 2024
 edges:
+- type: belongs_to_authority
+  target: AUTH-ASME-B31.3
 - type: parent
   target: '304.1'
-- type: requires
+- type: requires_parameter
   target: 304.1.1
   alias: Pe
-  role: External Pressure
 - type: implements
   target: param-t
+applicability:
+  applies_when:
+  - parameter: PARAM-pressure-loading
+    operator: equals
+    value: external_pressure
+  - parameter: PARAM-straight-pipe-section
+    operator: equals
+    value: true
+limitations:
+- id: not_yet_implemented
+  description: External pressure wall thickness equation not yet implemented
 ---
 
 # Straight Pipe Under External Pressure.

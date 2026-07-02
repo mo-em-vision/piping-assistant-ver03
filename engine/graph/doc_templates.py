@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from models.input import EngineeringInput
+from models.fact import Fact, fact_scalar_value
 from models.task import Task
 from models.workflow_state import WorkflowParameter
 
@@ -33,7 +33,7 @@ def build_doc_context(
     task: Task | None = None,
     *,
     parameters: dict[str, WorkflowParameter] | None = None,
-    inputs: dict[str, EngineeringInput] | None = None,
+    inputs: dict[str, Fact] | None = None,
 ) -> dict[str, Any]:
     """Build template context from task state and structured parameters."""
     context: dict[str, Any] = {}
@@ -42,16 +42,16 @@ def build_doc_context(
         for key, value in task.outputs.items():
             if not key.endswith("_unit") and not key.endswith("_lookup"):
                 context[key] = value
-        for key, engineering_input in task.inputs.items():
-            context[key] = engineering_input.value
-            if engineering_input.symbol:
-                context[engineering_input.symbol] = engineering_input.value
+        for key, fact in task.fact_store.active_facts().items():
+            context[key] = fact_scalar_value(fact)
+            if fact.symbol:
+                context[fact.symbol] = fact_scalar_value(fact)
 
     if inputs:
-        for key, engineering_input in inputs.items():
-            context.setdefault(key, engineering_input.value)
-            if engineering_input.symbol:
-                context.setdefault(engineering_input.symbol, engineering_input.value)
+        for key, fact in inputs.items():
+            context.setdefault(key, fact_scalar_value(fact))
+            if fact.symbol:
+                context.setdefault(fact.symbol, fact_scalar_value(fact))
 
     if parameters:
         for name, param in parameters.items():

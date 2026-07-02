@@ -9,7 +9,7 @@ from engine.planner.planner import Planner
 from engine.reports.formatters import render_markdown
 from engine.validation.validation_engine import ValidationEngine
 from models.execution import ExecutionStatus
-from models.task import TaskStatus
+from models.task import Task, new_taskStatus
 from tests.acceptance.helpers import (
     MATERIAL_STRESS_NODE,
     PIPE_WALL_THICKNESS_ROOT,
@@ -93,7 +93,7 @@ class TestAiInteractionStrategy:
         from models.task import Task
 
         agent = InputAgent(client=None)
-        task = Task(task_id="mvp-ai", status=TaskStatus.AWAITING_INPUT)
+        task = new_task("mvp-ai", status=TaskStatus.AWAITING_INPUT)
         result = agent.analyze(task, workflow=PIPE_WALL_THICKNESS_ROOT)
 
         assert result.missing_inputs

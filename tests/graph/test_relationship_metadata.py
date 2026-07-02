@@ -9,17 +9,13 @@ def test_requires_edge_preserves_relationship_metadata() -> None:
     edges = compile_metadata_edges(
         "equation_pipe_thickness",
         {
+            "type": "equation",
             "edges": [
                 {
-                    "type": "requires",
+                    "type": "requires_parameter",
                     "target": "quantity_pressure",
                     "alias": "P",
                     "role": "Internal Pressure",
-                    "displayName": "Design pressure",
-                    "required": True,
-                    "defaultValue": 0,
-                    "validation": {"min": 0},
-                    "priority": 10,
                 }
             ],
         },
@@ -29,7 +25,7 @@ def test_requires_edge_preserves_relationship_metadata() -> None:
         (
             "equation_pipe_thickness",
             "quantity_pressure",
-            "requires",
+            "requires_parameter",
             {
                 "alias": "P",
                 "role": "Internal Pressure",
@@ -42,10 +38,11 @@ def test_explicit_edge_preserves_metadata_without_routing_fields() -> None:
     edges = compile_metadata_edges(
         "equation_external_pressure",
         {
+            "type": "equation",
             "edges": [
                 {
                     "target": "quantity_pressure",
-                    "type": "requires",
+                    "type": "requires_parameter",
                     "alias": "Pe",
                     "role": "External Pressure",
                     "when": {"field": "pressure_loading", "in": ["external_pressure"]},
@@ -58,7 +55,7 @@ def test_explicit_edge_preserves_metadata_without_routing_fields() -> None:
         (
             "equation_external_pressure",
             "quantity_pressure",
-            "requires",
+            "requires_parameter",
             {
                 "alias": "Pe",
                 "role": "External Pressure",
@@ -73,8 +70,8 @@ def test_duplicate_requires_to_same_concept_keep_distinct_aliases() -> None:
         "equation_eq_2",
         {
             "edges": [
-                {"type": "requires", "target": "quantity_thickness", "alias": "t", "priority": 85},
-                {"type": "requires", "target": "quantity_thickness", "alias": "c", "priority": 90},
+                {"type": "requires_parameter", "target": "quantity_thickness", "alias": "t"},
+                {"type": "requires_parameter", "target": "quantity_thickness", "alias": "c"},
             ],
         },
     )

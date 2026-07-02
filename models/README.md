@@ -15,15 +15,21 @@ Audited: 2026-07-01. Static analysis only; no code changes.
 | `calculation.py` | Calculation trace and quantity result types |
 | `event.py` | Execution audit event types |
 | `execution.py` | Execution plan, per-node results, run status |
+| `authority_context.py` | Runtime Authority Context (active standards, hierarchy, conflicts, overrides) |
+| `execution_context.py` | Runtime Execution Context container (facts, goals, state, decisions, assumptions) |
+| `fact.py` | Runtime Fact nodes (parameter values, provenance, supersession) |
+| `fact_store.py` | Append-only Fact collection for task execution context |
+| `goal.py` | Runtime Goal nodes (engineering objectives, satisfaction, provenance) |
+| `goal_store.py` | Mutable goal tree for task execution context |
 | `graph.py` | Graph edge type enum, edges, graph version metadata |
-| `input.py` |  Engineering inputs, parameter registry, resolution provenance |
+| `input.py` | Parameter registry descriptors and legacy migration helpers |
 | `node_documentation.py` | Resolved per-node documentation (Phase 7) |
 | `node_output.py` | Named outputs from executable nodes (Phase 11) |
 | `planning.py` | Planner navigation plan and workflow candidates |
 | `report.py` | Report payload, traceability, display sections |
 | `rule.py` | Legacy rule-validation result types |
 | `standard_node.py` | Legacy standard knowledge-node schema |
-| `task.py` | Task session state and input conflicts |
+| `task.py` | Task session shell (`task_id`, `execution_context`, `authority_context`, outputs, active_nodes) |
 | `validation.py` | Validation Layer aggregated results |
 | `workflow_lifecycle.py` | Graph traversal lifecycle events (Phase 8) |
 | `workflow_state.py` | Mutable runtime workflow state (Phase 5+) |
@@ -45,7 +51,7 @@ Nothing in `models/` is executed as a standalone script or CLI command.
 workflow_state.py → node_documentation.py, node_output.py, workflow_lifecycle.py
 execution.py      → graph.py, input.py
 planning.py       → agent.py
-task.py           → input.py
+task.py           → fact_store.py, input.py (ParameterDescriptor)
 __init__.py       → all other model modules (partial; see Notes)
 ```
 

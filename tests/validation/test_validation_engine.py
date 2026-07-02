@@ -6,11 +6,13 @@ from pathlib import Path
 
 from engine.graph.graph_engine import GraphEngine
 from engine.reference.standards_reader import StandardsReader
+from engine.state.fact_migration import fact_from_engineering_input
 from engine.state.state_manager import TaskStateManager
 from engine.validation.validation_engine import ValidationEngine
-from models.input import EngineeringInput, InputSource
+from models.input import InputSource
 from models.validation import ComplianceStatus
 from tests.acceptance.helpers import sample_inputs as _sample_inputs
+from tests.helpers.facts import facts_from_inputs, legacy_input
 
 
 def _reader() -> StandardsReader:
@@ -39,13 +41,16 @@ def test_validate_plan_pass_with_warnings_for_limitations() -> None:
     state = TaskStateManager()
     task = state.create_task("val-pass")
     for inp in _sample_inputs().values():
-        state.store_input(task.task_id, inp)
+        state.store_input(
+            task.task_id,
+            fact_from_engineering_input(inp, task_id=task.task_id),
+        )
     task = state.get_task(task.task_id)
     reader = _reader()
     plan = GraphEngine().build_plan(
         task_id=task.task_id,
         root_id="pipe_wall_thickness_design",
-        inputs=dict(task.inputs),
+        inputs=dict(task.fact_store.active_facts()),
         reader=reader,
     )
 
@@ -57,7 +62,10 @@ def test_validate_plan_pass_with_warnings_for_limitations() -> None:
 def test_catalog_material_name_passes_stress_table_validation() -> None:
     reader = _reader()
     engine = ValidationEngine(reader)
-    inputs = _sample_inputs(material="A106 Gr B")
+    inputs = facts_from_inputs(
+        _sample_inputs(material="A106 Gr B"),
+        task_id="catalog-material-test",
+    )
 
     result = engine.validate_node(
         "B313-table-A-1",
@@ -74,13 +82,9 @@ def test_catalog_material_name_passes_stress_table_validation() -> None:
 def test_temperature_out_of_table_range_fails() -> None:
     reader = _reader()
     engine = ValidationEngine(reader)
-    inputs = _sample_inputs()
-    inputs["design_temperature"] = EngineeringInput(
-        input_id="design_temperature",
-        value=900,
-        unit="F",
-        source=InputSource.USER,
-    )
+    sample = _sample_inputs()
+    sample["design_temperature"] = legacy_input("design_temperature", 900, "F")
+    inputs = facts_from_inputs(sample, task_id="temperature-bounds-test")
 
     result = engine.validate_node(
         "B313-table-A-1",
@@ -95,13 +99,9 @@ def test_temperature_out_of_table_range_fails() -> None:
 
 def test_invalid_pressure_string_fails() -> None:
     reader = _reader()
-    inputs = _sample_inputs()
-    inputs["design_pressure"] = EngineeringInput(
-        input_id="design_pressure",
-        value="abc",
-        unit="psi",
-        source=InputSource.USER,
-    )
+    sample = _sample_inputs()
+    sample["design_pressure"] = legacy_input("design_pressure", "abc", "psi")
+    inputs = facts_from_inputs(sample, task_id="invalid-pressure-test")
 
     result = ValidationEngine(reader).validate_node(
         "B313-304.1.2",
@@ -118,14 +118,14 @@ def test_invalid_pressure_string_fails() -> None:
 
 def test_unconfirmed_weld_efficiency_is_incomplete() -> None:
     reader = _reader()
-    inputs = _sample_inputs()
-    inputs["weld_joint_efficiency"] = EngineeringInput(
-        input_id="weld_joint_efficiency",
-        value=1.0,
-        unit="dimensionless",
+    sample = _sample_inputs()
+    sample["weld_joint_efficiency"] = legacy_input(
+        "weld_joint_efficiency",
+        1.0,
         source=InputSource.DEFAULT,
         requires_confirmation=True,
     )
+    inputs = facts_from_inputs(sample, task_id="unconfirmed-efficiency-test")
 
     result = ValidationEngine(reader).validate_node(
         "B313-304.1.2",

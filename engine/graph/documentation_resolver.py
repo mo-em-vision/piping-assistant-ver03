@@ -175,7 +175,7 @@ def resolve_workflow_documentation(
     if not store.available:
         return {}
 
-    context = build_doc_context(task, parameters=parameters, inputs=task.inputs)
+    context = build_doc_context(task, parameters=parameters, inputs=task.fact_store.active_facts())
     targets = set(node_ids)
     root_id = _workflow_root_id(task, store)
     if root_id:

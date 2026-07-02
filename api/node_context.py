@@ -6,6 +6,7 @@ import re
 from typing import Any
 
 from api.workflow_bootstrap import resolve_activated_definition_node
+from engine.state.goal_projection import planning_projection
 from engine.reference.paragraph_hierarchy import (
     hierarchy_entries,
     paragraph_reference,
@@ -174,7 +175,7 @@ def active_node_context_for_task(
     task: Task,
     reader: StandardsReader,
 ) -> dict[str, Any] | None:
-    planning = task.outputs.get("planning_summary") or {}
+    planning = planning_projection(task)
     if not isinstance(planning, dict):
         planning = {}
 

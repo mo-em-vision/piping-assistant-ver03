@@ -23,7 +23,8 @@ from engine.reference.graph_edge_schema import workflow_anchor_target
 from engine.reference.graph_db import GraphEdgeRecord
 from models.execution import ExecutionPlan
 from models.graph import EdgeType, GraphEdge, GraphVersion
-from models.input import EngineeringInput, ParameterDescriptor
+from models.fact import Fact
+from models.input import ParameterDescriptor
 from models.planning import WorkflowCandidate
 
 
@@ -107,7 +108,7 @@ class MicroGraphEngine:
     def expand(
         self,
         root_id: str,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
         *,
         lazy: bool = True,
     ) -> ExpansionState:
@@ -118,7 +119,7 @@ class MicroGraphEngine:
         *,
         task_id: str,
         root_id: str,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
         lazy: bool = False,
     ) -> ExecutionPlan:
         expansion = expand_workflow(self._store, root_id, inputs, lazy=lazy)
@@ -170,7 +171,7 @@ class MicroGraphEngine:
     def resolve_next_step(
         self,
         root_id: str,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
     ) -> dict[str, Any]:
         expansion = expand_workflow(self._store, root_id, inputs, lazy=True)
         pending_assumptions: list[dict[str, Any]] = []
@@ -178,12 +179,12 @@ class MicroGraphEngine:
         wf = self._store.get_node(root_id)
         scan_ids = list(expansion.active_nodes)
         if wf is not None:
-            for edge in self._store.outgoing(root_id, edge_types={"requires", "contains"}):
+            for edge in self._store.outgoing(root_id, edge_types={"requires", "requires_parameter", "contains", "contains_paragraph"}):
                 if edge.to_id not in scan_ids:
                     scan_ids.append(edge.to_id)
             anchors = workflow_anchor_target(wf.metadata)
             if isinstance(anchors, str):
-                for edge in self._store.outgoing(anchors, edge_types={"contains"}):
+                for edge in self._store.outgoing(anchors, edge_types={"contains", "contains_paragraph"}):
                     if edge.to_id not in scan_ids:
                         scan_ids.append(edge.to_id)
 
@@ -213,7 +214,7 @@ class MicroGraphEngine:
     def evaluate_assumptions(
         self,
         root_id: str,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
     ) -> AssumptionEvaluation:
         evaluation = AssumptionEvaluation()
         step = self.resolve_next_step(root_id, inputs)
@@ -227,14 +228,14 @@ class MicroGraphEngine:
     def expansion_gate_ready(
         self,
         root_id: str,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
     ) -> bool:
         return expansion_gate_ready(self._store, root_id, inputs)
 
     def seed_parameter_registry(
         self,
         root_id: str,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
     ) -> dict[str, ParameterDescriptor]:
         if not expansion_gate_ready(self._store, root_id, inputs):
             return {}
@@ -264,7 +265,7 @@ class MicroGraphEngine:
     def required_user_inputs(
         self,
         root_id: str,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
     ) -> list[str]:
         if not expansion_gate_ready(self._store, root_id, inputs):
             return []
@@ -294,7 +295,7 @@ class MicroGraphEngine:
                         required.append(key_name)
         return required
 
-    def prefetch(self, *, task_id: str, root_id: str, inputs: dict[str, EngineeringInput], horizon: int = 1) -> None:
+    def prefetch(self, *, task_id: str, root_id: str, inputs: dict[str, Fact], horizon: int = 1) -> None:
         prefetch_async(self._store, task_id=task_id, root_id=root_id, inputs=inputs, horizon=horizon)
 
     def question_for_field(self, field_name: str) -> str | None:
@@ -309,7 +310,7 @@ class MicroGraphEngine:
     def collect_active_edges(
         self,
         root_id: str,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
     ) -> list[GraphEdgeRecord]:
         expansion = expand_workflow(self._store, root_id, inputs, lazy=False)
         return list(expansion.edges)

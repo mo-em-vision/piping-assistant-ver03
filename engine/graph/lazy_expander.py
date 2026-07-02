@@ -18,12 +18,13 @@ from engine.graph.traversal import dfs_collect, topological_order
 from engine.reference.graph_db import GraphEdgeRecord
 from engine.reference.graph_compile import parse_dependency_node_ref
 from engine.reference.graph_edge_schema import workflow_anchor_target
+from engine.reference.relationship_taxonomy import DEPENDENCY_TRAVERSAL_TYPES
 from engine.reference.node_types import (
     expansion_priority_order,
     is_ui_parameter,
     parameter_input_id,
 )
-from models.input import EngineeringInput
+from models.fact import Fact
 
 
 @dataclass
@@ -57,7 +58,7 @@ def _collect_expansion_assumptions(
     """Assumption and interaction nodes directly linked from workflow root."""
     fields: list[str] = []
     for edge in store.outgoing(root_id):
-        if edge.edge_type not in {"contains", "references"}:
+        if edge.edge_type not in {"contains", "contains_paragraph", "references", "starts_from_paragraph", "related_to"}:
             continue
         node = store.get_node(edge.to_id)
         if node is None:
@@ -68,7 +69,7 @@ def _collect_expansion_assumptions(
                 fields.append(field_name)
     anchored = workflow_anchor_target(store.metadata(root_id))
     if isinstance(anchored, str):
-        for edge in store.outgoing(anchored, edge_types={"contains"}):
+        for edge in store.outgoing(anchored, edge_types={"contains", "contains_paragraph"}):
             node = store.get_node(edge.to_id)
             if node and is_ui_parameter(node.metadata, node.node_type):
                 field_name = parameter_input_id(node.metadata)
@@ -80,7 +81,7 @@ def _collect_expansion_assumptions(
 def expansion_gate_ready(
     store: GraphStore,
     root_id: str,
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
 ) -> bool:
     for field_name in _collect_expansion_assumptions(store, root_id):
         if field_value(field_name, inputs) is None:
@@ -93,7 +94,7 @@ def _expand_metadata_dependencies(
     node_set: set[str],
     order: list[str],
     edges: list[GraphEdgeRecord],
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
     skipped_nodes: list[dict[str, Any]],
 ) -> None:
     """Include conditional dependency targets from stored ``edges`` on active nodes."""
@@ -102,7 +103,7 @@ def _expand_metadata_dependencies(
         node_id = queue.pop(0)
         for edge in store.outgoing(
             node_id,
-            edge_types={"depends_on", "references", "table", "uses"},
+            edge_types=DEPENDENCY_TRAVERSAL_TYPES,
         ):
             dep_id = edge.to_id
             when = edge.metadata.get("when") if edge.metadata else None
@@ -150,7 +151,7 @@ def _expand_output_producers(
     node_set: set[str],
     order: list[str],
     edges: list[GraphEdgeRecord],
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
 ) -> None:
     """Include lookup/equation nodes that populate required parameter outputs."""
     queue = [node_id for node_id in order if store.node_type(node_id) == "parameter"]
@@ -206,27 +207,28 @@ def _ordering_edges(
 def expand_workflow(
     store: GraphStore,
     root_id: str,
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
     *,
     lazy: bool = False,
 ) -> ExpansionState:
     """Expand workflow graph. When lazy=True, only expand when gate inputs are ready."""
-    state = ExpansionState(root_id=root_id)
-    root = store.get_node(root_id)
+    resolved_root = store.resolve_node_id(root_id) or root_id
+    state = ExpansionState(root_id=resolved_root)
+    root = store.get_node(resolved_root)
     if root is None:
         return state
 
-    if lazy and not expansion_gate_ready(store, root_id, inputs):
-        state.active_nodes = [root_id]
+    if lazy and not expansion_gate_ready(store, resolved_root, inputs):
+        state.active_nodes = [resolved_root]
         anchors = workflow_anchor_target(root.metadata)
         if isinstance(anchors, str):
             state.active_nodes.append(anchors)
-        for field_name in _collect_expansion_assumptions(store, root_id):
+        for field_name in _collect_expansion_assumptions(store, resolved_root):
             if field_value(field_name, inputs) is None:
                 state.pending_fields.append(field_name)
         return state
 
-    order, edges = dfs_collect(store, root_id, inputs=inputs)
+    order, edges = dfs_collect(store, resolved_root, inputs=inputs)
     node_set = set(order)
     for edge in edges:
         if edge.to_id not in node_set:
@@ -248,7 +250,7 @@ def expand_workflow(
     for calc_id in list(node_set):
         if store.node_type(calc_id) != "calculation":
             continue
-        for req_edge in store.outgoing(calc_id, edge_types={"requires"}):
+        for req_edge in store.outgoing(calc_id, edge_types={"requires", "requires_parameter"}):
             param_id = req_edge.to_id
             for prod_edge in store.incoming(param_id, edge_types={"implements", "parameter"}):
                 producer_id = prod_edge.from_id
@@ -278,7 +280,7 @@ def expand_workflow(
 def next_pending_parameter(
     store: GraphStore,
     expansion: ExpansionState,
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
 ) -> str | None:
     """Return the next unresolved parameter input_id on the active path."""
     for node_id in expansion.active_nodes:

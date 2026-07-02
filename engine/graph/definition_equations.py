@@ -12,9 +12,9 @@ from engine.graph.param_priority import normalize_require_ids
 from engine.graph.relationship_resolver import resolve_require_bindings
 from engine.executor.functions import get_execution_function
 from engine.equation.sympy_evaluator import evaluate_equation
-from engine.executor.unit_manager import prepare_engineering_input
+from engine.executor.unit_manager import prepare_fact
 from engine.reference.standards_reader import StandardsReader
-from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
+from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready, fact_scalar_value
 from models.task import Task, TaskStatus
 
 _OUTPUT_SYMBOL_KEYS: dict[str, tuple[str, ...]] = {
@@ -316,8 +316,12 @@ def _resolve_equation_variables(
             if not _input_value_ready(task, input_id):
                 unresolved.append(input_id)
                 continue
-            prepared = prepare_engineering_input(task.inputs[input_id])
-            resolved[symbol] = float(prepared.value)
+            stored = task.fact_store.active_fact(input_id)
+            if stored is None:
+                unresolved.append(input_id)
+                continue
+            prepared = prepare_fact(stored)
+            resolved[symbol] = float(fact_scalar_value(prepared))
         return resolved, unresolved
 
     if spec.requires_param_nodes:
@@ -341,8 +345,12 @@ def _resolve_equation_variables(
             if not _input_value_ready(task, input_id):
                 unresolved.append(input_id)
                 continue
-            prepared = prepare_engineering_input(task.inputs[input_id])
-            resolved[symbol] = float(prepared.value)
+            stored = task.fact_store.active_fact(input_id)
+            if stored is None:
+                unresolved.append(input_id)
+                continue
+            prepared = prepare_fact(stored)
+            resolved[symbol] = float(fact_scalar_value(prepared))
         return resolved, unresolved
 
     nomenclature = _nomenclature_by_symbol(reader, spec.node_id)
@@ -361,8 +369,12 @@ def _resolve_equation_variables(
         if not _input_value_ready(task, input_id):
             unresolved.append(input_id)
             continue
-        prepared = prepare_engineering_input(task.inputs[input_id])
-        resolved[symbol] = float(prepared.value)
+        stored = task.fact_store.active_fact(input_id)
+        if stored is None:
+            unresolved.append(input_id)
+            continue
+        prepared = prepare_fact(stored)
+        resolved[symbol] = float(fact_scalar_value(prepared))
 
     return resolved, unresolved
 
@@ -391,14 +403,14 @@ def _resolve_output_value(task: Task, symbol: str) -> float | None:
 
 
 def _input_value_ready(task: Task, input_id: str) -> bool:
-    stored = task.inputs.get(input_id)
-    if not isinstance(stored, EngineeringInput):
+    stored = task.fact_store.active_fact(input_id)
+    if not isinstance(stored, Fact):
         return False
-    if stored.status == InputStatus.PROPOSED_DEFAULT:
+    if stored.fact_class == FactClass.DEFAULT_CONFIRMED and stored.validation.status == ValidationStatus.PENDING:
         return False
-    if stored.requires_confirmation and not input_is_expansion_ready(stored):
+    if stored.requires_confirmation and not fact_is_expansion_ready(stored):
         return False
-    if stored.value is None:
+    if fact_scalar_value(stored) is None:
         return False
     return True
 

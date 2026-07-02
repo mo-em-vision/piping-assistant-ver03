@@ -10,9 +10,14 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from engine.state.authority_context_migration import migrate_task_to_v5
+from engine.state.execution_context_sync import refresh_execution_context_for_task
+from engine.state.goal_migration import migrate_task_goals_from_outputs
 from engine.state.state_manager import TaskAlreadyExistsError, TaskNotFoundError, TaskStateManager
-from models.input import EngineeringInput, InputSource, InputStatus
-from models.task import Task, TaskStatus
+from models.authority_context import authority_context_from_dict, authority_context_to_dict
+from models.execution_context import execution_context_from_dict, execution_context_to_dict
+from models.input import EngineeringInput, InputSource, InputStatus, ParameterDescriptor
+from models.task import Task, TaskStatus, new_task
 
 
 def _json_default(value: Any) -> Any:
@@ -129,31 +134,78 @@ class SessionStore:
 
 
 def _task_to_dict(task: Task) -> dict[str, Any]:
-    return {
+    payload: dict[str, Any] = {
         "task_id": task.task_id,
-        "status": task.status.value,
         "active_nodes": task.active_nodes,
-        "inputs": {key: _input_to_dict(value) for key, value in task.inputs.items()},
+        "execution_context": execution_context_to_dict(task.execution_context),
         "outputs": task.outputs,
-        "warnings": task.warnings,
-        "conflicts": [asdict(conflict) for conflict in task.conflicts],
+        "parameter_registry": {
+            key: _descriptor_to_dict(value) for key, value in task.parameter_registry.items()
+        },
+        "payload_version": task.payload_version,
     }
+    if task.authority_context is not None:
+        payload["authority_context"] = authority_context_to_dict(task.authority_context)
+    return payload
 
 
 def _task_from_dict(data: dict[str, Any]) -> Task:
-    return Task(
-        task_id=data["task_id"],
-        status=TaskStatus(data["status"]),
-        active_nodes=list(data.get("active_nodes", [])),
-        inputs={
-            key: _input_from_dict(value) for key, value in data.get("inputs", {}).items()
-        },
-        outputs=dict(data.get("outputs", {})),
-        warnings=list(data.get("warnings", [])),
+    migrated = migrate_task_to_v5(data)
+    ctx = execution_context_from_dict(migrated["execution_context"])
+
+    registry_raw = migrated.get("parameter_registry") or {}
+    registry = {
+        key: _descriptor_from_dict(value) for key, value in registry_raw.items()
+    }
+
+    authority_context = None
+    if migrated.get("authority_context"):
+        authority_context = authority_context_from_dict(migrated["authority_context"])
+
+    task = Task(
+        task_id=migrated["task_id"],
+        execution_context=ctx,
+        authority_context=authority_context,
+        active_nodes=list(migrated.get("active_nodes", [])),
+        outputs=dict(migrated.get("outputs", {})),
+        parameter_registry=registry,
+        payload_version=int(migrated.get("payload_version", 5)),
+    )
+    migrate_task_goals_from_outputs(task)
+    refresh_execution_context_for_task(task)
+    return task
+
+
+def _descriptor_to_dict(desc: ParameterDescriptor) -> dict[str, Any]:
+    return asdict(desc)
+
+
+def _descriptor_from_dict(data: dict[str, Any]) -> ParameterDescriptor:
+    from models.input import ResolutionMethod, ResolutionRef
+
+    resolution_ref = None
+    if data.get("resolution_ref"):
+        resolution_ref = ResolutionRef(**data["resolution_ref"])
+    resolution_method = None
+    if data.get("resolution_method"):
+        resolution_method = ResolutionMethod(data["resolution_method"])
+    return ParameterDescriptor(
+        input_id=data["input_id"],
+        symbol=data["symbol"],
+        description=data["description"],
+        introduced_at_node=data["introduced_at_node"],
+        unit=data.get("unit", "dimensionless"),
+        defined_in_nodes=tuple(data.get("defined_in_nodes") or ()),
+        concept_id=data.get("concept_id"),
+        resolution_method=resolution_method,
+        resolution_ref=resolution_ref,
+        required_when_nodes=tuple(data.get("required_when_nodes") or ()),
+        status=InputStatus(data.get("status", InputStatus.PENDING.value)),
     )
 
 
 def _input_to_dict(inp: EngineeringInput) -> dict[str, Any]:
+    """Legacy EngineeringInput JSON shape for project session storage."""
     return {
         "input_id": inp.input_id,
         "value": inp.value,

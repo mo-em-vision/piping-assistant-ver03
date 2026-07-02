@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from ai.agents.input_agent import InputAgent
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
-from models.task import Task, TaskStatus
+from models.task import Task, new_task, TaskStatus
 
 
 def test_input_agent_identifies_missing_inputs() -> None:
     agent = InputAgent(client=None)
-    task = Task(task_id="t1", status=TaskStatus.AWAITING_INPUT)
+    task = new_task("t1", status=TaskStatus.AWAITING_INPUT)
 
     result = agent.analyze(task, workflow=PIPE_WALL_THICKNESS_DESIGN)
 
@@ -27,7 +27,7 @@ def test_input_agent_identifies_missing_inputs() -> None:
 
 def test_enrich_with_llm_preserves_known_symbols() -> None:
     agent = InputAgent(client=None)
-    task = Task(task_id="t1", status=TaskStatus.AWAITING_INPUT)
+    task = new_task("t1", status=TaskStatus.AWAITING_INPUT)
     requests = [
         agent._build_request("temperature_coefficient_Y", None),
     ]

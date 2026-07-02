@@ -7,8 +7,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from engine.executor.pipe_dimension_lookup import B36_10_SLUG, PipeDimensionLookup
-from engine.executor.unit_manager import prepare_engineering_input
+from engine.executor.unit_manager import prepare_fact
 from engine.reference.pipe_dimensions_db import PipeScheduleEntry
+from models.fact import fact_scalar_value
 from models.task import Task
 
 B36_10_DISPLAY = "ASME B36.10M"
@@ -37,20 +38,20 @@ class PipeScheduleRecommendation:
 
 def resolve_task_nps(task: Task, standards_root: Path) -> str | None:
     """Resolve NPS from task inputs or outside-diameter table lookup."""
-    nps_input = task.inputs.get("nominal_pipe_size")
-    if nps_input is not None and nps_input.value is not None:
-        return str(nps_input.value).strip()
+    nps_input = task.fact_store.active_fact("nominal_pipe_size")
+    if nps_input is not None and fact_scalar_value(nps_input) is not None:
+        return str(fact_scalar_value(nps_input)).strip()
 
     lookup_output = task.outputs.get("outside_diameter_lookup")
     if isinstance(lookup_output, dict) and lookup_output.get("nps"):
         return str(lookup_output["nps"]).strip()
 
-    od_input = task.inputs.get("outside_diameter")
-    if od_input is None or od_input.value is None:
+    od_input = task.fact_store.active_fact("outside_diameter")
+    if od_input is None or fact_scalar_value(od_input) is None:
         return None
 
     try:
-        od_mm = float(prepare_engineering_input(od_input).value)
+        od_mm = float(fact_scalar_value(prepare_fact(od_input)))
     except (TypeError, ValueError):
         return None
 

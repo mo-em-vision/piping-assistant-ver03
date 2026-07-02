@@ -1,0 +1,50 @@
+---
+id: asme_b313_302_3_5_eq_1a
+type: equation
+key: asme_b313_302_3_5_eq_1a
+name: Allowable Displacement Stress Range
+equation_class: calculation
+calculation_kind: function
+description: Allowable Displacement Stress Range
+authority:
+  authorized_by:
+  - 302.3.5
+  authority_context_required: true
+requires:
+- symbol: f
+  required: true
+  description: Stress range factor from eq. (1c)
+- symbol: S_c
+  required: true
+  description: Basic allowable stress at minimum metal temperature during displacement
+    cycle analysis
+- symbol: S_h
+  required: true
+  description: Basic allowable stress at maximum metal temperature during displacement
+    cycle analysis
+calculates:
+- symbol: S_A
+  parameter: PARAM-allowable-displacement-stress-range
+edges:
+- type: authorized_by
+  target: 302.3.5
+- type: parent
+  target: 302.3.5
+- type: calculates_parameter
+  target: PARAM-allowable-displacement-stress-range
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: eq-1a
+display:
+  text: S_A = f * (1.25*S_c + 0.25*S_h)
+---
+
+# Eq. (1a) — Allowable Displacement Stress Range
+
+```
+S_A = f * (1.25*S_c + 0.25*S_h)
+```
+
+Use when the standard displacement stress range limit applies without adding the
+`S_h - S_L` margin to the `0.25*S_h` term.

@@ -13,9 +13,9 @@ from ai.user_response_extractor import (
     resolve_pending_value_responses,
 )
 from engine.executor.unit_manager import normalize_unit
+from models.fact import Fact, FactClass, ValidationStatus, fact_from_user_submission, fact_scalar_value, fact_unit
 from engine.reference.material_ids import ASTM_A106_GR_B
 from engine.graph.node_interaction import NodeInteractionSpec
-from models.input import EngineeringInput, InputSource, InputStatus
 
 _DEFAULT_SYMBOL_MAP: dict[str, str] = {
     "P": "design_pressure",
@@ -83,16 +83,17 @@ class InputRejection:
 
 @dataclass
 class ExtractionResult:
-    extracted: dict[str, EngineeringInput] = field(default_factory=dict)
+    extracted: dict[str, Fact] = field(default_factory=dict)
     rejected: list[InputRejection] = field(default_factory=list)
 
 
 def extract_pipe_wall_thickness_inputs(
     message: str,
     *,
+    task_id: str = "",
     pending_interactions: Sequence[NodeInteractionSpec] | None = None,
     pending_value_confirmations: Sequence[NodeInteractionSpec] | None = None,
-    existing_inputs: dict[str, EngineeringInput] | None = None,
+    existing_inputs: dict[str, Fact] | None = None,
     allowed_fields: frozenset[str] | None = None,
     symbol_map: dict[str, str] | None = None,
 ) -> ExtractionResult:
@@ -105,6 +106,7 @@ def extract_pipe_wall_thickness_inputs(
     _extract_symbol_labeled_inputs(
         message,
         result,
+        task_id=task_id,
         symbol_map=symbol_map or _DEFAULT_SYMBOL_MAP,
         allowed_fields=allowed_fields,
         existing_inputs=existing,
@@ -132,41 +134,27 @@ def extract_pipe_wall_thickness_inputs(
                 if allowed_fields is None or input_id in allowed_fields:
                     result.extracted[input_id] = inp
 
-    _extract_straight_section(message, result, allowed_fields=allowed_fields)
-    _extract_material(message, result, allowed_fields=allowed_fields)
-    _extract_temperature(message, result, allowed_fields=allowed_fields)
-    _extract_pressure(message, result, allowed_fields=allowed_fields)
-    _extract_nps(message, result, allowed_fields=allowed_fields)
-    _extract_diameter(message, result, allowed_fields=allowed_fields)
+    _extract_straight_section(message, result, allowed_fields=allowed_fields, task_id=task_id)
+    _extract_material(message, result, allowed_fields=allowed_fields, task_id=task_id)
+    _extract_temperature(message, result, allowed_fields=allowed_fields, task_id=task_id)
+    _extract_pressure(message, result, allowed_fields=allowed_fields, task_id=task_id)
+    _extract_nps(message, result, allowed_fields=allowed_fields, task_id=task_id)
+    _extract_diameter(message, result, allowed_fields=allowed_fields, task_id=task_id)
     for input_id, inp in list(result.extracted.items()):
-        result.extracted[input_id] = _normalize_extracted_input(inp)
+        result.extracted[input_id] = _normalize_extracted_input(inp, task_id=task_id)
     return result
 
 
-def _normalize_extracted_input(inp: EngineeringInput) -> EngineeringInput:
-    if inp.input_id != "straight_pipe_section":
+def _normalize_extracted_input(inp: Fact, *, task_id: str) -> Fact:
+    if inp.key != "straight_pipe_section":
         return inp
-    if isinstance(inp.value, bool):
+    if isinstance(fact_scalar_value(inp), bool):
         return inp
-    text = str(inp.value).strip().lower()
+    text = str(fact_scalar_value(inp)).strip().lower()
     if text in {"true", "yes", "y", "1"}:
-        return EngineeringInput(
-            input_id=inp.input_id,
-            value=True,
-            unit=inp.unit,
-            source=inp.source,
-            status=inp.status,
-            original_value=inp.original_value,
-        )
+        return fact_from_user_submission(key=inp.key, value=True, unit=fact_unit(inp), task_id=task_id, original_value=inp.original_value)
     if text in {"false", "no", "n", "2"}:
-        return EngineeringInput(
-            input_id=inp.input_id,
-            value=False,
-            unit=inp.unit,
-            source=inp.source,
-            status=inp.status,
-            original_value=inp.original_value,
-        )
+        return fact_from_user_submission(key=inp.key, value=False, unit=fact_unit(inp), task_id=task_id, original_value=inp.original_value)
     return inp
 
 
@@ -178,9 +166,10 @@ def _extract_symbol_labeled_inputs(
     message: str,
     result: ExtractionResult,
     *,
+    task_id: str,
     symbol_map: dict[str, str],
     allowed_fields: frozenset[str] | None,
-    existing_inputs: dict[str, EngineeringInput],
+    existing_inputs: dict[str, Fact],
 ) -> None:
     """Parse symbol-labeled assignments such as ``P: 8 bar, D: 4inch``."""
     symbols = sorted(symbol_map.keys(), key=len, reverse=True)
@@ -207,6 +196,7 @@ def _extract_symbol_labeled_inputs(
             input_id,
             raw_value,
             existing_inputs.get(input_id),
+            task_id=task_id,
         )
         if parsed is None:
             continue
@@ -215,46 +205,33 @@ def _extract_symbol_labeled_inputs(
             continue
         result.extracted[input_id] = parsed
         if input_id == "outside_diameter" and "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = EngineeringInput(
-                input_id="d_input_mode",
-                value="direct_od",
-                unit="dimensionless",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
-                original_value="direct_od",
-            )
+            result.extracted["d_input_mode"] = fact_from_user_submission(key="d_input_mode", value="direct_od", unit="dimensionless", task_id=task_id, original_value="direct_od")
         if input_id == "nominal_pipe_size" and "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = EngineeringInput(
-                input_id="d_input_mode",
-                value="nps_lookup",
-                unit="dimensionless",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
-                original_value="nps_lookup",
-            )
+            result.extracted["d_input_mode"] = fact_from_user_submission(key="d_input_mode", value="nps_lookup", unit="dimensionless", task_id=task_id, original_value="nps_lookup")
 
 
 def _parse_symbol_assignment(
     symbol: str,
     input_id: str,
     raw_value: str,
-    existing: EngineeringInput | None,
-) -> EngineeringInput | InputRejection | None:
+    existing: Fact | None,
+    *,
+    task_id: str,
+) -> Fact | InputRejection | None:
     if input_id == "design_pressure":
-        return _parse_pressure_symbol(raw_value)
+        return _parse_pressure_symbol(raw_value, task_id=task_id)
     if input_id == "outside_diameter":
-        return _parse_length_symbol(input_id, raw_value)
+        return _parse_length_symbol(input_id, raw_value, task_id=task_id)
     if input_id == "corrosion_allowance":
-        return _parse_length_symbol(input_id, raw_value)
+        return _parse_length_symbol(input_id, raw_value, task_id=task_id)
     if input_id == "allowable_stress":
-        return _parse_stress_symbol(raw_value)
+        return _parse_stress_symbol(raw_value, task_id=task_id)
     if input_id == "nominal_pipe_size":
-        return EngineeringInput(
-            input_id=input_id,
+        return fact_from_user_submission(
+            key=input_id,
             value=raw_value.strip().strip('"'),
             unit="dimensionless",
-            source=InputSource.USER,
-            status=InputStatus.CONFIRMED,
+            task_id=task_id,
             original_value=raw_value,
         )
     if input_id in {
@@ -262,11 +239,11 @@ def _parse_symbol_assignment(
         "weld_joint_strength_reduction_factor_W",
         "temperature_coefficient_Y",
     }:
-        return _parse_dimensionless_symbol(input_id, raw_value, existing)
+        return _parse_dimensionless_symbol(input_id, raw_value, existing, task_id=task_id)
     return None
 
 
-def _parse_pressure_symbol(raw_value: str) -> EngineeringInput | InputRejection | None:
+def _parse_pressure_symbol(raw_value: str, *, task_id: str) -> Fact | InputRejection | None:
     parts = raw_value.split(None, 1)
     if len(parts) < 2:
         return None
@@ -286,21 +263,15 @@ def _parse_pressure_symbol(raw_value: str) -> EngineeringInput | InputRejection 
             raw_value=raw_display,
             reason="unrecognized pressure unit; please use psi, bar, mpa, kpa, or pa",
         )
-    return EngineeringInput(
-        input_id="design_pressure",
-        value=value,
-        unit=unit if unit != "barg" else "bar",
-        source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-        original_value=value,
-        original_unit=unit,
-    )
+    return fact_from_user_submission(key="design_pressure", value=value, unit=unit if unit != "barg" else "bar", task_id=task_id, original_value=value, original_unit=unit)
 
 
 def _parse_length_symbol(
     input_id: str,
     raw_value: str,
-) -> EngineeringInput | None:
+    *,
+    task_id: str,
+) -> Fact | None:
     parts = raw_value.split(None, 1)
     if len(parts) == 1:
         token = parts[0].lower()
@@ -319,53 +290,40 @@ def _parse_length_symbol(
     else:
         value = float(parts[0])
         unit = _normalize_length_unit(parts[1])
-    return EngineeringInput(
-        input_id=input_id,
-        value=value,
-        unit=unit,
-        source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-        original_value=value,
-        original_unit=unit,
-    )
+    return fact_from_user_submission(key=input_id, value=value, unit=unit, task_id=task_id, original_value=value, original_unit=unit)
 
 
-def _parse_stress_symbol(raw_value: str) -> EngineeringInput | None:
+def _parse_stress_symbol(raw_value: str, *, task_id: str) -> Fact | None:
     parts = raw_value.split(None, 1)
     if len(parts) < 2:
         return None
     value = float(parts[0])
     unit = normalize_unit(parts[1].rstrip(".,;"))
-    return EngineeringInput(
-        input_id="allowable_stress",
-        value=value,
-        unit=unit,
-        source=InputSource.USER,
-        status=InputStatus.USER_OVERRIDE,
-        original_value=value,
-        original_unit=unit,
-    )
+    return fact_from_user_submission(key="allowable_stress", value=value, unit=unit, task_id=task_id, original_value=value, original_unit=unit)
 
 
 def _parse_dimensionless_symbol(
     input_id: str,
     raw_value: str,
-    existing: EngineeringInput | None,
-) -> EngineeringInput | None:
+    existing: Fact | None,
+    *,
+    task_id: str,
+) -> Fact | None:
     try:
         value = float(raw_value.split()[0])
     except ValueError:
         return None
-    status = InputStatus.USER_OVERRIDE
-    if existing is None or existing.status != InputStatus.PROPOSED_DEFAULT:
-        status = InputStatus.CONFIRMED
-    return EngineeringInput(
-        input_id=input_id,
+    validation_status = ValidationStatus.CONFIRMED
+    if existing is not None and existing.fact_class == FactClass.DEFAULT_CONFIRMED:
+        if existing.validation.status == ValidationStatus.PENDING:
+            validation_status = ValidationStatus.CONFIRMED
+    return fact_from_user_submission(
+        key=input_id,
         value=value,
         unit="dimensionless",
-        source=InputSource.USER,
-        status=status,
+        task_id=task_id,
         original_value=raw_value,
+        validation_status=validation_status,
     )
 
 
@@ -373,6 +331,7 @@ def _extract_straight_section(
     message: str,
     result: ExtractionResult,
     *,
+    task_id: str = "",
     allowed_fields: frozenset[str] | None = None,
 ) -> None:
     if "straight_pipe_section" in result.extracted:
@@ -392,24 +351,12 @@ def _extract_straight_section(
         or "non straight" in lowered
     )
     if positive and not negative:
-        from models.input import InputStatus
-
-        result.extracted["straight_pipe_section"] = EngineeringInput(
-            input_id="straight_pipe_section",
-            value=True,
-            unit="dimensionless",
-            source=InputSource.USER,
-            status=InputStatus.CONFIRMED,
+        result.extracted["straight_pipe_section"] = fact_from_user_submission(
+            key="straight_pipe_section", value=True, unit="dimensionless", task_id=task_id
         )
     elif negative and not positive:
-        from models.input import InputStatus
-
-        result.extracted["straight_pipe_section"] = EngineeringInput(
-            input_id="straight_pipe_section",
-            value=False,
-            unit="dimensionless",
-            source=InputSource.USER,
-            status=InputStatus.CONFIRMED,
+        result.extracted["straight_pipe_section"] = fact_from_user_submission(
+            key="straight_pipe_section", value=False, unit="dimensionless", task_id=task_id
         )
 
 
@@ -417,6 +364,7 @@ def _extract_material(
     message: str,
     result: ExtractionResult,
     *,
+    task_id: str = "",
     allowed_fields: frozenset[str] | None = None,
 ) -> None:
     if "material" in result.extracted:
@@ -428,13 +376,7 @@ def _extract_material(
         return
     raw = match.group(1).strip()
     normalized = _normalize_material(raw)
-    result.extracted["material"] = EngineeringInput(
-        input_id="material",
-        value=normalized,
-        unit="dimensionless",
-        source=InputSource.USER,
-        original_value=raw,
-    )
+    result.extracted["material"] = fact_from_user_submission(key="material", value=normalized, unit="dimensionless", task_id=task_id, original_value=raw)
 
 
 def _normalize_material(raw: str) -> str:
@@ -451,6 +393,7 @@ def _extract_temperature(
     message: str,
     result: ExtractionResult,
     *,
+    task_id: str = "",
     allowed_fields: frozenset[str] | None = None,
 ) -> None:
     if "design_temperature" in result.extracted:
@@ -462,14 +405,7 @@ def _extract_temperature(
         return
     value = float(match.group(1))
     unit = _normalize_temp_unit(match.group(2))
-    result.extracted["design_temperature"] = EngineeringInput(
-        input_id="design_temperature",
-        value=value,
-        unit=unit,
-        source=InputSource.USER,
-        original_value=value,
-        original_unit=unit,
-    )
+    result.extracted["design_temperature"] = fact_from_user_submission(key="design_temperature", value=value, unit=unit, task_id=task_id, original_value=value, original_unit=unit)
 
 
 def _normalize_temp_unit(unit: str) -> str:
@@ -485,6 +421,7 @@ def _extract_pressure(
     message: str,
     result: ExtractionResult,
     *,
+    task_id: str = "",
     allowed_fields: frozenset[str] | None = None,
 ) -> None:
     if "design_pressure" in result.extracted:
@@ -521,20 +458,14 @@ def _extract_pressure(
         )
         return
 
-    result.extracted["design_pressure"] = EngineeringInput(
-        input_id="design_pressure",
-        value=value,
-        unit=unit if unit != "barg" else "bar",
-        source=InputSource.USER,
-        original_value=value,
-        original_unit=unit,
-    )
+    result.extracted["design_pressure"] = fact_from_user_submission(key="design_pressure", value=value, unit=unit if unit != "barg" else "bar", task_id=task_id, original_value=value, original_unit=unit)
 
 
 def _extract_nps(
     message: str,
     result: ExtractionResult,
     *,
+    task_id: str = "",
     allowed_fields: frozenset[str] | None = None,
 ) -> None:
     if "nominal_pipe_size" in result.extracted:
@@ -543,46 +474,37 @@ def _extract_nps(
         return
     match = _NPS.search(message)
     if match:
-        result.extracted["nominal_pipe_size"] = EngineeringInput(
-            input_id="nominal_pipe_size",
+        result.extracted["nominal_pipe_size"] = fact_from_user_submission(
+            key="nominal_pipe_size",
             value=match.group(1).strip(),
             unit="dimensionless",
-            source=InputSource.USER,
+            task_id=task_id,
             original_value=match.group(1).strip(),
         )
         if "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = EngineeringInput(
-                input_id="d_input_mode",
-                value="nps_lookup",
-                unit="dimensionless",
-                source=InputSource.USER,
-                original_value="nps_lookup",
+            result.extracted["d_input_mode"] = fact_from_user_submission(
+                key="d_input_mode", value="nps_lookup", unit="dimensionless", task_id=task_id, original_value="nps_lookup"
             )
         return
 
     bare = _NPS_BARE.search(message)
     if bare:
-        result.extracted["nominal_pipe_size"] = EngineeringInput(
-            input_id="nominal_pipe_size",
+        result.extracted["nominal_pipe_size"] = fact_from_user_submission(
+            key="nominal_pipe_size",
             value=bare.group(1),
             unit="dimensionless",
-            source=InputSource.USER,
+            task_id=task_id,
             original_value=bare.group(1),
         )
         if "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = EngineeringInput(
-                input_id="d_input_mode",
-                value="nps_lookup",
-                unit="dimensionless",
-                source=InputSource.USER,
-                original_value="nps_lookup",
-            )
+            result.extracted["d_input_mode"] = fact_from_user_submission(key="d_input_mode", value="nps_lookup", unit="dimensionless", task_id=task_id, original_value="nps_lookup")
 
 
 def _extract_diameter(
     message: str,
     result: ExtractionResult,
     *,
+    task_id: str = "",
     allowed_fields: frozenset[str] | None = None,
 ) -> None:
     if "outside_diameter" in result.extracted:
@@ -595,22 +517,9 @@ def _extract_diameter(
     if match:
         value = float(match.group(1))
         unit = _normalize_length_unit(match.group(2))
-        result.extracted["outside_diameter"] = EngineeringInput(
-            input_id="outside_diameter",
-            value=value,
-            unit=unit,
-            source=InputSource.USER,
-            original_value=value,
-            original_unit=unit,
-        )
+        result.extracted["outside_diameter"] = fact_from_user_submission(key="outside_diameter", value=value, unit=unit, task_id=task_id, original_value=value, original_unit=unit)
         if "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = EngineeringInput(
-                input_id="d_input_mode",
-                value="direct_od",
-                unit="dimensionless",
-                source=InputSource.USER,
-                original_value="direct_od",
-            )
+            result.extracted["d_input_mode"] = fact_from_user_submission(key="d_input_mode", value="direct_od", unit="dimensionless", task_id=task_id, original_value="direct_od")
         return
 
     # Bare "4 inch" only when not already rejected as mislabeled pressure
@@ -620,22 +529,9 @@ def _extract_diameter(
             continue
         value = float(bare.group(1))
         unit = _normalize_length_unit(bare.group(0).split()[-1])
-        result.extracted["outside_diameter"] = EngineeringInput(
-            input_id="outside_diameter",
-            value=value,
-            unit=unit,
-            source=InputSource.USER,
-            original_value=value,
-            original_unit=unit,
-        )
+        result.extracted["outside_diameter"] = fact_from_user_submission(key="outside_diameter", value=value, unit=unit, task_id=task_id, original_value=value, original_unit=unit)
         if "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = EngineeringInput(
-                input_id="d_input_mode",
-                value="direct_od",
-                unit="dimensionless",
-                source=InputSource.USER,
-                original_value="direct_od",
-            )
+            result.extracted["d_input_mode"] = fact_from_user_submission(key="d_input_mode", value="direct_od", unit="dimensionless", task_id=task_id, original_value="direct_od")
         return
 
 

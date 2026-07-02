@@ -6,6 +6,7 @@ from typing import Any
 
 from engine.graph.graph_store import GraphStore
 from engine.reference.node_types import is_lookup_node
+from engine.reference.relationship_taxonomy import REQUIRES_TRAVERSAL_TYPES
 from engine.reference.parameter_metadata import (
     parameter_concept_id,
     parameter_defined_in,
@@ -138,7 +139,7 @@ def _priority_from_requires_edges(
     active_nodes: set[str],
 ) -> int | None:
     best: int | None = None
-    for edge in store.incoming(param_node_id, edge_types={"requires"}):
+    for edge in store.incoming(param_node_id, edge_types=REQUIRES_TRAVERSAL_TYPES):
         if edge.from_id not in active_nodes:
             continue
         if not _is_equation_priority_source(store, edge.from_id):

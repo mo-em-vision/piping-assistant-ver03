@@ -29,7 +29,7 @@ edges:
 - type: depends_on
   target: 302.3.3
   subsection: b
-- type: parameter
+- type: introduces_parameter
   target: quality_factor
 ---
 

@@ -17,7 +17,9 @@ from api.workflow_bootstrap import bootstrap_new_task
 from config.loader import CLIConfig
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
+from engine.state.goal_projection import planning_projection
 from models.task import TaskStatus
+from tests.helpers.goals import task_with_planning
 
 
 @pytest.fixture
@@ -61,16 +63,15 @@ def test_enrich_display_blocks_provenance_from_source_node(standards_reader: Sta
 def test_display_outputs_include_provenance(standards_reader: StandardsReader) -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-prov-01", status=TaskStatus.AWAITING_INPUT)
-    task.outputs = {
-        "workflow": "pipe_wall_thickness_design",
-        "planning_summary": {
-            "goal": "pipe wall thickness design",
-            "action": "request_input",
-            "active_definition_node": "B313-304.1.1",
-            "missing_inputs": ["material"],
-            "current_phase": "parameter_gathering",
-        },
+    planning = {
+        "goal": "pipe wall thickness design",
+        "action": "request_input",
+        "active_definition_node": "B313-304.1.1",
+        "missing_inputs": ["material"],
+        "current_phase": "parameter_gathering",
     }
+    task.outputs = {"workflow": "pipe_wall_thickness_design"}
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     task.active_nodes = ["B313-304.1.1"]
     manager.replace_task(task.task_id, task)
 
@@ -115,14 +116,16 @@ def test_task_state_timeline_and_parameters_include_provenance(
 def test_step_provenance_for_calculation_step(standards_reader: StandardsReader) -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-prov-03", status=TaskStatus.AWAITING_INPUT)
-    task.outputs = {
-        "workflow": "pipe_wall_thickness_design",
-        "planning_summary": {"active_definition_node": "B313-304.1.1"},
-    }
+    task.outputs = {"workflow": "pipe_wall_thickness_design"}
+    task_with_planning(
+        task,
+        {"active_definition_node": "B313-304.1.1"},
+        workflow_id="pipe_wall_thickness_design",
+    )
     task.active_nodes = ["B313-304.1.1"]
     manager.replace_task(task.task_id, task)
 
-    provenance = step_provenance(standards_reader, task, "thickness", task.outputs["planning_summary"])
+    provenance = step_provenance(standards_reader, task, "thickness", planning_projection(task))
 
     assert provenance is not None
     assert provenance["node_id"] == "B313-304.1.1"

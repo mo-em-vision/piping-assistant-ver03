@@ -9,6 +9,10 @@ from models.task import TaskStatus
 from api.parameter_definitions import build_parameter_definitions, submit_task_input
 from api.parameter_edit import assess_parameter_edit, begin_parameter_edit
 from api.workflow_timeline import submittable_parameter_ids
+from engine.state.goal_projection import planning_projection
+from tests.helpers.facts import fact_get_value, legacy_input, set_fact_from_input
+from tests.helpers.goals import task_with_planning
+from models.fact import SourceType, ValidationStatus
 
 
 def _sample_task(manager: TaskStateManager) -> str:
@@ -16,8 +20,12 @@ def _sample_task(manager: TaskStateManager) -> str:
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
         "required_thickness": 4.2,
-        "planning_summary": {"current_phase": "ready", "phase_missing": {}},
     }
+    task_with_planning(
+        task,
+        {"current_phase": "ready", "phase_missing": {}},
+        workflow_id="pipe_wall_thickness_design",
+    )
     for input_id, value in (
         ("pressure_loading", "internal_pressure"),
         ("material", "SA-106B"),
@@ -25,10 +33,9 @@ def _sample_task(manager: TaskStateManager) -> str:
         ("design_temperature", 38.0),
         ("nominal_pipe_size", "6"),
     ):
-        task.inputs[input_id] = EngineeringInput(
-            input_id=input_id,
+        set_fact_from_input(task, legacy_input(input_id=input_id,
             value=value,
-            unit="dimensionless" if input_id in {"material", "nominal_pipe_size", "pressure_loading"} else ("bar" if input_id == "design_pressure" else "C"),
+            unit="dimensionless" if input_id in {"material", "nominal_pipe_size", "pressure_loading"} else ("bar" if input_id == "design_pressure" else "C")),
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         )
@@ -57,11 +64,11 @@ def test_begin_parameter_edit_clears_downstream_and_opens_edit_session() -> None
     manager.replace_task(task_id, task)
 
     assert task.status == TaskStatus.AWAITING_INPUT
-    assert "design_temperature" not in task.inputs
+    assert task.fact_store.active_fact("design_temperature") is None
     assert task.outputs.get("required_thickness") is None
     assert task.outputs["edit_session"]["parameter"] == "design_pressure"
 
-    planning = task.outputs["planning_summary"]
+    planning = planning_projection(task)
     assert submittable_parameter_ids(task, planning) == ["design_pressure"]
 
     parameters = build_parameter_definitions(task)
@@ -87,7 +94,7 @@ def test_submit_after_edit_clears_edit_session() -> None:
 
     updated = manager.get_task(task_id)
     assert "edit_session" not in updated.outputs
-    assert updated.inputs["design_pressure"].value == 10.0
+    assert fact_get_value(updated, "design_pressure") == 10.0
 
 
 def test_desktop_service_preview_parameter_edit(tmp_path, project_root) -> None:

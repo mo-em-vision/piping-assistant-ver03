@@ -9,6 +9,7 @@ from api.workflow_timeline import (
     _HIDDEN_TIMELINE_INPUTS,
 )
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
+from engine.state.task_facts import deactivate_fact
 from models.task import Task, TaskStatus
 
 _PATH_SENSITIVE_INPUTS = frozenset({"pressure_loading"})
@@ -51,11 +52,11 @@ def is_timeline_parameter_editable(task: Task, parameter_id: str) -> bool:
         return False
     if parameter_id == "allowable_stress":
         return (
-            parameter_id in task.inputs
+            task.fact_store.active_fact(parameter_id) is not None
             or task.outputs.get("allowable_stress") is not None
             or task.outputs.get("S") is not None
         )
-    return parameter_id in task.inputs
+    return task.fact_store.active_fact(parameter_id) is not None
 
 
 def assess_parameter_edit(task: Task, parameter_id: str) -> dict[str, Any]:
@@ -63,7 +64,9 @@ def assess_parameter_edit(task: Task, parameter_id: str) -> dict[str, Any]:
         raise ValueError(f"Parameter is not editable: {parameter_id}")
 
     downstream = downstream_input_ids(parameter_id)
-    downstream_present = [item for item in downstream if item in task.inputs]
+    downstream_present = [
+        item for item in downstream if task.fact_store.active_fact(item) is not None
+    ]
     has_execution = bool(
         task.outputs.get("_execution_trace")
         or task.outputs.get("required_thickness")
@@ -106,7 +109,7 @@ def begin_parameter_edit(task: Task, parameter_id: str) -> dict[str, Any]:
     assessment = assess_parameter_edit(task, parameter_id)
 
     for downstream_id in downstream_input_ids(parameter_id):
-        task.inputs.pop(downstream_id, None)
+        deactivate_fact(task, downstream_id)
 
     for output_key in _EXECUTION_OUTPUT_KEYS:
         task.outputs.pop(output_key, None)

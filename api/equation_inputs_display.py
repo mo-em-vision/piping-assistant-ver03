@@ -10,7 +10,8 @@ from engine.messaging.formula_parameter_prompt import classify_formula_parameter
 from engine.reference.material_catalog_db import material_display_name
 from engine.reference.material_resolver import canonical_material_id
 from engine.reference.standards_reader import StandardsReader
-from models.input import EngineeringInput, InputSource, InputStatus
+from engine.state.task_facts import active_facts
+from models.fact import Fact, FactClass, SourceType, ValidationStatus, fact_scalar_value, fact_unit
 from models.task import Task
 
 _HIDDEN_UNITS = frozenset({"dimensionless", ""})
@@ -99,14 +100,19 @@ def _format_unit_for_display(unit: str) -> str:
     return unit
 
 
-def _input_has_displayable_value(engineering_input: EngineeringInput | None) -> bool:
-    if engineering_input is None:
+def _fact_has_displayable_value(fact: Fact | None) -> bool:
+    if fact is None:
         return False
-    if engineering_input.value is None:
+    if fact_scalar_value(fact) is None:
         return False
-    if engineering_input.status == InputStatus.PROPOSED_DEFAULT:
+    if fact.fact_class == FactClass.DEFAULT_CONFIRMED and fact.validation.status == ValidationStatus.PENDING:
         return False
     return True
+
+
+def _input_has_displayable_value(fact: Fact | None) -> bool:
+    """Legacy alias."""
+    return _fact_has_displayable_value(fact)
 
 
 def _standard_display_label(standard_slug: object) -> str | None:
@@ -117,10 +123,10 @@ def _standard_display_label(standard_slug: object) -> str | None:
 
 
 def _input_display_value_from_input(task: Task, input_id: str) -> str | None:
-    engineering_input = task.inputs.get(input_id)
-    if engineering_input is not None and _input_has_displayable_value(engineering_input):
-        value = engineering_input.value
-        unit = engineering_input.unit
+    fact = task.fact_store.active_fact(input_id)
+    if fact is not None and _fact_has_displayable_value(fact):
+        value = fact_scalar_value(fact)
+        unit = fact_unit(fact)
         if unit and unit not in _HIDDEN_UNITS:
             return format_value_with_unit_for_display(value, unit)
         return _format_scalar(value)
@@ -129,10 +135,10 @@ def _input_display_value_from_input(task: Task, input_id: str) -> str | None:
 
 
 def _joint_category_label(task: Task) -> str | None:
-    engineering_input = task.inputs.get("joint_category")
-    if not _input_has_displayable_value(engineering_input):
+    fact = task.fact_store.active_fact("joint_category")
+    if not _fact_has_displayable_value(fact):
         return None
-    raw = str(engineering_input.value).strip()
+    raw = str(fact_scalar_value(fact)).strip()
     if not raw:
         return None
     return raw.replace("_", " ").replace("-", " ")
@@ -149,27 +155,27 @@ def _resolve_material_display(raw: str, *, standards_root: Path | None = None) -
 
 
 def _material_label(task: Task, *, standards_root: Path | None = None) -> str | None:
-    engineering_input = task.inputs.get("material")
-    if not _input_has_displayable_value(engineering_input):
+    fact = task.fact_store.active_fact("material")
+    if not _fact_has_displayable_value(fact):
         return None
-    raw = str(engineering_input.value).strip()
+    raw = str(fact_scalar_value(fact)).strip()
     if not raw:
         return None
     return _resolve_material_display(raw, standards_root=standards_root)
 
 
 def _design_temperature_display(task: Task) -> str | None:
-    engineering_input = task.inputs.get("design_temperature")
-    if not _input_has_displayable_value(engineering_input):
+    fact = task.fact_store.active_fact("design_temperature")
+    if not _fact_has_displayable_value(fact):
         return None
-    unit = _format_unit_for_display(str(engineering_input.unit or "F"))
-    return f"{_format_scalar(engineering_input.value)}{unit}"
+    unit = _format_unit_for_display(str(fact_unit(fact) or "F"))
+    return f"{_format_scalar(fact_scalar_value(fact))}{unit}"
 
 
 def _d_input_mode(task: Task) -> str:
-    mode_input = task.inputs.get("d_input_mode")
-    if mode_input is not None and _input_has_displayable_value(mode_input):
-        return str(mode_input.value)
+    mode_input = task.fact_store.active_fact("d_input_mode")
+    if mode_input is not None and _fact_has_displayable_value(mode_input):
+        return str(fact_scalar_value(mode_input))
     return "nps_lookup"
 
 
@@ -182,12 +188,12 @@ def _uses_nps_for_outside_diameter(task: Task) -> bool:
 
 
 def _nps_display_label(task: Task) -> str | None:
-    nps_input = task.inputs.get("nominal_pipe_size")
-    if nps_input is not None and _input_has_displayable_value(nps_input):
+    nps_input = task.fact_store.active_fact("nominal_pipe_size")
+    if nps_input is not None and _fact_has_displayable_value(nps_input):
         original = nps_input.original_value
         if original is not None and str(original).strip():
             return str(original).strip()
-        return str(nps_input.value).strip()
+        return str(fact_scalar_value(nps_input)).strip()
 
     lookup = task.outputs.get("outside_diameter_lookup")
     if isinstance(lookup, dict) and lookup.get("nps"):
@@ -197,11 +203,11 @@ def _nps_display_label(task: Task) -> str | None:
 
 
 def _is_table_sourced(task: Task, input_id: str) -> bool:
-    engineering_input = task.inputs.get(input_id)
+    fact = task.fact_store.active_fact(input_id)
     return (
-        engineering_input is not None
-        and engineering_input.source == InputSource.TABLE
-        and _input_has_displayable_value(engineering_input)
+        fact is not None
+        and fact.source.source_type == SourceType.TABLE_LOOKUP
+        and _fact_has_displayable_value(fact)
     )
 
 
@@ -221,11 +227,11 @@ def _row_definition(
 
 def _outside_diameter_display_value(task: Task) -> str | None:
     if _uses_nps_for_outside_diameter(task):
-        nps_input = task.inputs.get("nominal_pipe_size")
-        od_input = task.inputs.get("outside_diameter")
+        nps_input = task.fact_store.active_fact("nominal_pipe_size")
+        od_input = task.fact_store.active_fact("outside_diameter")
         if not (
-            _input_has_displayable_value(nps_input)
-            and _input_has_displayable_value(od_input)
+            _fact_has_displayable_value(nps_input)
+            and _fact_has_displayable_value(od_input)
         ):
             return None
         display = _input_display_value_from_input(task, "outside_diameter")
@@ -258,11 +264,11 @@ def _allowable_stress_display_value(task: Task) -> str | None:
     if not isinstance(lookup, dict) or not lookup.get("table_id"):
         return display
 
-    material_input = task.inputs.get("material")
-    temp_input = task.inputs.get("design_temperature")
+    material_input = task.fact_store.active_fact("material")
+    temp_input = task.fact_store.active_fact("design_temperature")
     if not (
-        _input_has_displayable_value(material_input)
-        and _input_has_displayable_value(temp_input)
+        _fact_has_displayable_value(material_input)
+        and _fact_has_displayable_value(temp_input)
     ):
         return None
 
@@ -281,7 +287,7 @@ def _weld_joint_efficiency_display_value(task: Task) -> str | None:
         return None
     if not _is_table_sourced(task, "weld_joint_efficiency"):
         return display
-    if not _input_has_displayable_value(task.inputs.get("joint_category")):
+    if not _fact_has_displayable_value(task.fact_store.active_fact("joint_category")):
         return None
     joint_category = _joint_category_label(task)
     if not joint_category:
@@ -458,8 +464,9 @@ def build_formula_inputs_input_table(
 def primary_formula_inputs_complete(task: Task, planning: dict[str, Any]) -> bool:
     missing = set(planning.get("missing_inputs") or [])
     missing.update(planning.get("missing_assumptions") or [])
+    active = task.fact_store.active_facts()
     return all(
-        input_id in task.inputs and input_id not in missing
+        input_id in active and input_id not in missing
         for input_id in PRIMARY_FORMULA_INPUT_IDS
     )
 
@@ -610,7 +617,7 @@ def enrich_equation_variables(
     known, _missing = classify_formula_parameters(
         reader,
         node_id,
-        task_inputs=task.inputs,
+        task_inputs=active_facts(task),
         missing_input_ids=missing,
     )
     if not known:

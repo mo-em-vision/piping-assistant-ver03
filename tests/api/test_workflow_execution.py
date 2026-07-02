@@ -9,6 +9,7 @@ import pytest
 from api.desktop_service import DesktopApiService
 from config.loader import CLIConfig
 from engine.reference.pack_tables_db import resolve_pack_tables_db
+from engine.state.goal_projection import planning_projection
 from tests.api.conftest import api_session_id
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -89,7 +90,8 @@ def test_submit_input_runs_wall_thickness_calculation(
         ],
     )
 
-    planning = state["outputs"]["planning_summary"]
+    task = service._load_manager().get_task(task_id)
+    planning = planning_projection(task)
     assert state["status"] == "awaiting_input"
     assert planning["current_phase"] == "definition_equation_completion"
     assert "corrosion_allowance" in state["progress"]["submittable_parameters"]

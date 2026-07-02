@@ -137,8 +137,8 @@ export function applyOptimisticParameterSubmit(
   return {
     ...state,
     parameters,
-    inputs: {
-      ...state.inputs,
+    facts: {
+      ...state.facts,
       [parameter]: {
         input_id: parameter,
         value,

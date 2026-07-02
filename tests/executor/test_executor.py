@@ -12,6 +12,9 @@ from models.execution import ExecutionStatus
 from models.input import EngineeringInput, InputSource
 from models.task import TaskStatus
 from tests.acceptance.helpers import sample_inputs as _sample_inputs
+from tests.helpers.facts import fact_get_value, legacy_input
+from engine.state.fact_migration import fact_from_engineering_input
+from models.fact import SourceType, ValidationStatus
 
 
 def _reader() -> StandardsReader:
@@ -57,9 +60,7 @@ def test_execute_workflow_pauses_on_missing_input() -> None:
     task_id = "pipe-wall-thickness-design-pause"
     manager.create_task(task_id)
     manager.store_input(
-        task_id,
-        EngineeringInput(
-            input_id="design_pressure",
+        task_id, fact_from_engineering_input(legacy_input(input_id="design_pressure",
             value=500,
             unit="psi",
             source=InputSource.USER,
@@ -92,7 +93,9 @@ def test_report_reflects_execution_outputs() -> None:
     for engineering_input in _sample_inputs().values():
         manager.store_input(task_id, engineering_input)
 
-    execute_workflow(task_id, "pipe_wall_thickness_design", state=manager, reader=_reader())
+    execute_workflow(task_id, "pipe_wall_thickness_design", state=manager, reader=_reader(), task_id=
+        task_id, workflow_id=str(manager.get_task(
+        task_id).outputs.get('workflow') or '')))
     task = manager.get_task(task_id)
     report = build_report_from_task(task, _reader())
 

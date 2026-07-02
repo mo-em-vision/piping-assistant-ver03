@@ -14,6 +14,8 @@ from engine.executor.pipe_schedule_recommendation import (
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import TaskStatus
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
 
 
 def test_recommend_next_schedule_for_nps_2(project_root: Path) -> None:
@@ -72,13 +74,11 @@ def test_resolve_task_nps_from_nominal_pipe_size(project_root: Path) -> None:
     standards_root = project_root / "knowledge" / "standards"
     manager = TaskStateManager()
     task = manager.create_task("schedule-nps-from-input", status=TaskStatus.COMPLETED)
-    task.inputs["nominal_pipe_size"] = EngineeringInput(
-        input_id="nominal_pipe_size",
+    set_fact_from_input(task, legacy_input(input_id="nominal_pipe_size",
         value="4",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
+        status=InputStatus.CONFIRMED,))
     assert resolve_task_nps(task, standards_root) == "4"
 
 
@@ -97,13 +97,11 @@ def test_resolve_task_nps_from_matching_outside_diameter(project_root: Path) -> 
     standards_root = project_root / "knowledge" / "standards"
     manager = TaskStateManager()
     task = manager.create_task("schedule-nps-from-od", status=TaskStatus.COMPLETED)
-    task.inputs["outside_diameter"] = EngineeringInput(
-        input_id="outside_diameter",
+    set_fact_from_input(task, legacy_input(input_id="outside_diameter",
         value=168.275,
         unit="mm",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
+        status=InputStatus.CONFIRMED,))
     assert resolve_task_nps(task, standards_root) == "6"
 
 

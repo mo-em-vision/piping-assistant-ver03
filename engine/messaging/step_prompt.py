@@ -10,6 +10,7 @@ from engine.graph.node_interaction import (
     question_for_interaction,
 )
 from engine.reference.standards_reader import StandardsReader
+from models.fact import fact_scalar_value
 from models.planning import NavigationPhase, NavigationPlan
 from models.task import Task
 
@@ -61,7 +62,7 @@ def build_step_prompt(
     if spec is not None and spec.confirmation_required and spec.default is not None:
         return _format_confirm_default_prompt(field_id, spec, task)
     if spec is not None:
-        question = question_for_interaction(spec, task.inputs)
+        question = question_for_interaction(spec, task.fact_store.active_facts())
         return f"{question}\n\nReply to continue."
     return None
 
@@ -75,7 +76,7 @@ def _interaction_specs_for_task(reader: StandardsReader, task: Task) -> list[Nod
     plan = engine.build_plan(
         task_id=task.task_id,
         root_id=slug,
-        inputs=task.inputs,
+        inputs=dict(task.fact_store.active_facts()),
         reader=reader,
     )
     node_ids = [
@@ -124,11 +125,11 @@ def _format_confirm_default_prompt(
 ) -> str:
     label = spec.symbol or field_id
     default_val = spec.default
-    stored = task.inputs.get(field_id)
+    stored = task.fact_store.active_fact(field_id)
     if stored is not None and stored.default is not None:
         default_val = stored.default
-    elif stored is not None and stored.value is not None:
-        default_val = stored.value
+    elif stored is not None and fact_scalar_value(stored) is not None:
+        default_val = fact_scalar_value(stored)
 
     question = (
         spec.question.strip()

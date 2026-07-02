@@ -8,6 +8,8 @@ from pathlib import Path
 from engine.reports.formatters import render_html, render_markdown
 from engine.reports.report_generator import ReportGenerator
 from tests.acceptance.helpers import rebuild_report_from_task, run_completed_workflow
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus, fact_scalar_value
 
 
 class TestReportAcceptance:
@@ -106,7 +108,7 @@ class TestAuditRequirementsAcceptance:
 
         audit = {
             "graph_version": task.outputs.get("graph_version"),
-            "inputs": {key: inp.value for key, inp in task.inputs.items()},
+            "inputs": {key: fact_scalar_value(inp) for key, inp in task.fact_store.active_facts().items()},
             "validation_events": task.outputs.get("_validation_trace"),
             "execution_trace": task.outputs.get("_execution_trace"),
             "report_data": json.loads(Path(storage.json_path).read_text(encoding="utf-8")),

@@ -1,279 +1,49 @@
 ---
 id: 304.1.1
 type: paragraph
+key: b313_304_1_1
 title: Required Thickness and Nomenclature for Straight Pipe
-topic: pipe_wall_thickness
-revision_year: 2024
-version: '2016'
-status: superseded
-created: '2026-06-17'
-modified: '2026-06-19'
-engineering_intent: pipe_wall_thickness_design
-subsections:
-- id: a
-  label: (a)
-  text: 'The required thickness of straight sections of pipe shall be determined in
-    accordance with eq. (2):
-
-
-    t_m = t + c
-
-
-    The minimum thickness, T, for the pipe selected, considering manufacturer''s minus
-    tolerance, shall be not less than t_m.
-
-    '
-- id: b
-  label: (b)
-  text: 'The following nomenclature is used in the equations for pressure design of
-    straight pipe:'
-nomenclature:
-- symbol: c
-  input_id: corrosion_allowance
-  introduced_here: true
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-  description: 'Sum of the mechanical allowances (thread or groove depth) plus corrosion
-    and erosion allowances. For threaded components, the nominal thread depth (dimension
-    h of ASME B1.20.1, or equivalent) shall apply. For machined surfaces or grooves
-    where the tolerance is not specified, the tolerance shall be assumed to be 0.5
-    mm (0.02 in.) in addition to the specified depth of the cut.
-
-    '
-  defaults:
-  - value: 0.5
-    unit: mm
-    condition: machined surfaces or grooves where tolerance is not specified
-    requires_confirmation: true
-  citations:
-  - standard: ASME B1.20.1
-- symbol: D
-  input_id: outside_diameter
-  introduced_here: true
-  description: 'Outside diameter of pipe as listed in tables of standards or specifications
-    or as measured.
-
-    '
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-  resolution:
-    method: table_lookup
-    keys:
-    - nominal_pipe_size
-    table: standards/asme/asme_b36.10/tables/B3610-table-2-1.yaml
-    node_id: asme_b36.10
-  citations:
-  - standard: asme_b36.10
-    table: tables/B3610-table-2-1.yaml
-    field: outside_diameter_mm
-- symbol: d
-  description: Inside diameter of pipe.
-  citations:
-  - paragraph: 304.1.1(b)
-- symbol: E
-  input_id: weld_joint_efficiency
-  introduced_here: true
-  description: Quality factor from Tables A-2 and A-3.
-  resolution:
-  - method: table_lookup
-    keys:
-    - material
-    - joint_category
-    tables:
-    - A-2
-    - A-3
-  citations:
-  - paragraph: 304.1.1(b)
-  - table: Table A-2
-    table_id: asme_b31.3_A-2
-    node_id: B313-table-A-2
-  - table: Table A-3
-    table_id: asme_b31.3_A-3
-    node_id: B313-table-A-3
-- symbol: P
-  input_id: design_pressure
-  introduced_here: true
-  description: Internal design gage pressure.
-  resolution:
-    method: user_input
-    required_when_nodes:
-    - 304.1.2
-  citations:
-  - paragraph: 304.1.1(b)
-- symbol: S
-  input_id: allowable_stress
-  introduced_here: true
-  description: Stress value from Table A-1.
-  citations:
-  - paragraph: 304.1.1(b)
-  - table: Table A-1
-    table_id: asme_b31.3_A-1
-    node_id: B313-table-A-1
-  - node_id: B313-table-A-1
-- symbol: T
-  description: 'Pipe wall thickness, manufacturing tolerance considered.
-
-    '
-  citations:
-  - paragraph: 304.1.1(b)
-  - paragraph: 304.1.1(a)
-- symbol: t
-  description: 'Pressure design thickness, as calculated in accordance with para.
-    304.1.2 for internal pressure or as determined in accordance with para. 304.1.3
-    for external pressure.
-
-    '
-  depends_on:
-  - node_id: 304.1.2
-    dependency_type: calculation
-    when:
-      field: pressure_loading
-      in:
-      - internal_pressure
-  - node_id: 304.1.3
-    dependency_type: calculation
-    when:
-      field: pressure_loading
-      in:
-      - external_pressure
-  citations:
-  - paragraph: 304.1.1(b)
-  - paragraph: 304.1.2
-  - paragraph: 304.1.3
-  - node_id: 304.1.2
-  - node_id: 304.1.3
-- symbol: t_m
-  description: Minimum required thickness (t + c).
-  citations:
-  - paragraph: 304.1.1(b)
-  - paragraph: 304.1.1(a)
-  - equation: eq-2
-    node_id: 304.1.1-eq-2
-- symbol: W
-  input_id: weld_joint_strength_reduction_factor_W
-  introduced_here: true
-  description: Weld strength reduction factor per para. 302.3.5(e).
-  resolution:
-    method: table_lookup
-    keys:
-    - material
-    - design_temperature
-    table_id: asme_b31.3_302.3.5-1
-    node_id: B313-table-302-3-5-1
-    subsection: e
-  citations:
-  - paragraph: 304.1.1(b)
-  - paragraph: 302.3.5(e)
-    node_id: 302.3.5
-    subsection: e
-- symbol: Y
-  input_id: temperature_coefficient_Y
-  introduced_here: true
-  description: 'Coefficient from Table 304.1.1 when t < D/6 (interpolate for intermediate
-    temperatures). When t >= D/6: Y = (d + 2c) / (D + d + 2c).
-
-    '
-  resolution:
-  - when:
-      field: thin_wall
-      in:
-      - true
-    method: table_lookup
-    table_id: asme_b31.3_table_304_1_1_1
-    keys:
-    - material
-    - design_temperature
-    interpolation: true
-  - when:
-      field: thin_wall
-      in:
-      - false
-    method: equation
-    expression: (d + 2*c) / (D + d + 2*c)
-    file: nodes/304.1.2/equations/thick_wall_y.md
-  citations:
-  - paragraph: 304.1.1(b)
-  - table: Table 304.1.1-1
-    table_id: asme_b31.3_table_304_1_1_1
-    node_id: B313-table-304-1-1-1
-trace:
-  capture:
-  - paragraph_text
-  - nomenclature
-report:
-  section_title: Required Thickness and Nomenclature — §304.1.1
-  include:
-  - node_reference
-  - paragraph_text
-  - nomenclature
-  explanation_required: true
-ai_hints:
-  explanation_focus: 'Explain the difference between t (pressure design thickness),
-    c (allowances), t_m (minimum required thickness), and T (selected pipe wall thickness).
-
-    '
-  common_questions:
-  - What is the difference between t and t_m?
-  - What does the corrosion allowance c include?
-  - Why must selected thickness T be not less than t_m?
-  avoid:
-  - Do not confuse t_m with the calculated t from §304.1.2 without adding c.
-  - Do not omit manufacturer's minus tolerance when discussing T.
-assumptions:
-- id: straight_pipe_section
-  field: straight_pipe_section
-  description: 'Applied to a straight section of a pipe.
-
-    '
-  required_for_expansion: true
-  requires_confirmation: true
-  allowed_values:
-  - true
-  - false
-  blocks_expansion_on:
-  - false
-  expansion_block_message: 'Non-straight pipe sections are not yet supported. A future
-    node will cover fittings and bends.
-
-    '
-interactions:
-- variable: pressure_loading
-  mode: decision
-  required: true
-  required_for_expansion: true
-  options:
-  - internal_pressure
-  - external_pressure
-  aliases:
-    internal: internal_pressure
-    internal_pressure: internal_pressure
-    internal pressure: internal_pressure
-    internally_pressurized: internal_pressure
-    external: external_pressure
-    external_pressure: external_pressure
-    external pressure: external_pressure
-    externally_pressurized: external_pressure
-  question: 'Is the pipe subjected to internal or external pressure? Internal pressure
-    design uses آ§304.1.2; external pressure design uses آ§304.1.3. Coefficients E,
-    S, W, and Y are defined in آ§304.1.1(b).
-
-    '
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.1.1
+paragraph_class: definition
+description: Required Thickness and Nomenclature for Straight Pipe
+metadata:
+  status: superseded
+  node_version: 1
+  source_revision_year: 2024
 edges:
+- type: belongs_to_authority
+  target: AUTH-ASME-B31.3
 - type: parent
   target: '304.1'
-- type: references
+- type: related_to
   target: 304.1.2
   reason: Pressure design thickness t for internal pressure is calculated per §304.1.2.
-- type: references
+- type: related_to
   target: 304.1.3
   reason: Pressure design thickness t for external pressure is determined per §304.1.3.
-- type: equation
-  target: 304.1.1-eq-2
+- type: references_equation
+  target: asme_b313_304_1_1_eq_2
   subsection: a
+applicability:
+  applies_when:
+  - parameter: PARAM-straight-pipe-section
+    operator: equals
+    value: true
+introduced_parameters:
+- PARAM-corrosion-allowance
+- PARAM-outside-diameter
+- PARAM-weld-joint-efficiency
+- PARAM-design-pressure
+- PARAM-allowable-stress
+- PARAM-weld-strength-reduction-factor-W
+- PARAM-temperature-coefficient-Y
+referenced_equations:
+- asme_b313_304_1_1_eq_2
+referenced_concepts:
+- CONCEPT-pressure
+- CONCEPT-wall-thickness
 ---
 
 # ASME B31.3 §304.1.1

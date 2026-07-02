@@ -8,6 +8,8 @@ from engine.reports.report_generator import ReportGenerator
 from models.execution import ExecutionStatus
 from models.task import TaskStatus
 from tests.acceptance.helpers import (
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
     PIPE_WALL_THICKNESS_ROOT,
     rebuild_report_from_task,
     run_completed_workflow,
@@ -117,5 +119,5 @@ class TestStorageAcceptance:
         assert task.outputs.get("graph_version")
         assert task.outputs.get("_validation_trace")
         assert task.outputs.get("_execution_trace")
-        assert task.inputs
+        assert task.fact_store.active_facts()
         assert task.outputs.get("required_thickness") is not None

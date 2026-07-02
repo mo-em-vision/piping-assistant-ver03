@@ -1,0 +1,102 @@
+---
+nomenclature:
+- symbol: b
+  description: Subscript referring to branch.
+- symbol: D_b
+  description: Outside diameter of branch pipe.
+  unit: mm
+  allowed_units:
+  - mm
+  - in
+- symbol: D_h
+  description: Outside diameter of run pipe (or header pipe).
+  unit: mm
+  allowed_units:
+  - mm
+  - in
+- symbol: D_s
+  description: Outside diameter of reinforcing saddle.
+  unit: mm
+  allowed_units:
+  - mm
+  - in
+- symbol: d_1
+  description: 'Effective length removed from pipe at branch. For pipe-to-pipe fabricated
+    branches, d_1 = [D_b − 2(T_b − c)]/sin(β).
+
+    '
+  unit: mm
+  allowed_units:
+  - mm
+  - in
+- symbol: d_2
+  description: 'Half width of reinforcement zone; d_1 or (T_b − c) + (T_h − c) + d_1/2,
+    whichever is greater, but not more than D_h.
+
+    '
+  unit: mm
+  allowed_units:
+  - mm
+  - in
+- symbol: h
+  description: Subscript referring to run or header.
+- symbol: L_4
+  description: 'Height of reinforcement zone outside run pipe; 2.5(T_h − c) or 2.5(T_b
+    − c) + T_r, whichever is less.
+
+    '
+  unit: mm
+  allowed_units:
+  - mm
+  - in
+- symbol: T_b
+  description: Branch pipe wall thickness per purchase specification.
+  unit: mm
+  allowed_units:
+  - mm
+  - in
+- symbol: T_h
+  description: Run pipe wall thickness per purchase specification.
+  unit: mm
+  allowed_units:
+  - mm
+  - in
+- symbol: T_r
+  description: 'Minimum thickness of reinforcing ring or saddle made from pipe, or
+    height of the largest 60-deg right triangle in the integral reinforcement area.
+
+    '
+  unit: mm
+  allowed_units:
+  - mm
+  - in
+- symbol: t
+  description: Pressure design thickness per §304.1.
+  unit: mm
+  allowed_units:
+  - mm
+  - in
+- symbol: β
+  description: Smaller angle between axes of branch and run.
+  unit: deg
+- symbol: A_1
+  description: Required reinforcement area.
+  unit: mm2
+- symbol: A_2
+  description: Area from excess thickness in run pipe wall.
+  unit: mm2
+- symbol: A_3
+  description: Area from excess thickness in branch pipe wall.
+  unit: mm2
+- symbol: A_4
+  description: Area from welds and properly attached reinforcement.
+  unit: mm2
+- symbol: c
+  description: Corrosion allowance per §304.1.1.
+  unit: mm
+  allowed_units:
+  - mm
+  - in
+  citations:
+  - node_id: 304.1.1
+---

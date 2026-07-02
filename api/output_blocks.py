@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from engine.state.goal_projection import planning_projection
 from api.equation_inputs_display import (
     build_formula_inputs_input_table,
     build_mawp_formula_inputs_input_table,
@@ -26,6 +27,7 @@ from engine.reference.formula_display import (
 )
 from engine.reference.standards_reader import StandardsReader
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
+from models.fact import FactClass, ValidationStatus, fact_scalar_value
 from models.task import Task, TaskStatus
 
 _NODE_REFERENCES: dict[str, dict[str, str]] = {
@@ -72,9 +74,7 @@ def build_display_outputs(
     reader: StandardsReader | None = None,
 ) -> list[dict[str, Any]]:
     blocks: list[dict[str, Any]] = []
-    planning = task.outputs.get("planning_summary") or {}
-    if not isinstance(planning, dict):
-        planning = {}
+    planning = planning_projection(task)
 
     resolved_reader = reader or _reader_for(standards_root)
     resolved_standards_root = standards_root or resolved_reader.standards_root
@@ -225,8 +225,8 @@ def _resolve_calculation_node_id(
     if isinstance(path, dict) and path.get("selected_node"):
         return str(path["selected_node"])
 
-    loading = task.inputs.get("pressure_loading")
-    loading_value = getattr(loading, "value", None) if loading is not None else None
+    loading = task.fact_store.active_fact("pressure_loading")
+    loading_value = fact_scalar_value(loading) if loading is not None else None
     if loading_value == "internal_pressure":
         return "B313-304.1.2"
     if loading_value == "external_pressure":
@@ -536,15 +536,14 @@ def _pipe_schedule_recommendation_block(
 
 
 def _corrosion_allowance_mm(task: Task) -> float | None:
-    from engine.executor.unit_manager import prepare_engineering_input
-    from models.input import InputStatus
+    from engine.executor.unit_manager import prepare_fact
 
-    engineering_input = task.inputs.get("corrosion_allowance")
-    if engineering_input is None or engineering_input.value is None:
+    fact = task.fact_store.active_fact("corrosion_allowance")
+    if fact is None or fact_scalar_value(fact) is None:
         return None
-    if engineering_input.status == InputStatus.PROPOSED_DEFAULT:
+    if fact.fact_class == FactClass.DEFAULT_CONFIRMED and fact.validation.status == ValidationStatus.PENDING:
         return None
-    return float(prepare_engineering_input(engineering_input).value)
+    return float(fact_scalar_value(prepare_fact(fact)))
 
 
 def _pipe_wall_calculation_complete(task: Task, *, has_trace: bool) -> bool:

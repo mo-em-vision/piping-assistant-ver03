@@ -22,11 +22,11 @@ lookups:
   table_id: asme_b31.3_table_304_1_1_1
   interpolation: true
 edges:
-- type: parameter
+- type: introduces_parameter
   target: temperature_coefficient_Y
-- type: parameter
+- type: introduces_parameter
   target: MAT-catalog
-- type: parameter
+- type: introduces_parameter
   target: DIM-temperature
 ---
 

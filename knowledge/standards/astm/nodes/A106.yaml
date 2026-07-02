@@ -29,7 +29,7 @@ lookups:
   table_id: astm_a106_material_properties
   lookup_rule: grade
 edges:
-- type: parameter
+- type: introduces_parameter
   target: mechanical_properties
 ---
 

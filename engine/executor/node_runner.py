@@ -25,7 +25,7 @@ from engine.reference.node_types import (
 from engine.graph.node_interaction import evaluate_node_interactions
 from engine.executor.functions import get_execution_function
 from engine.executor.lookup_engine import LookupEngine
-from engine.executor.unit_manager import prepare_engineering_input, prepare_symbol_map
+from engine.executor.unit_manager import prepare_fact, prepare_symbol_map
 from engine.reference.nomenclature_resolver import (
     enrich_input_spec,
     input_applies,
@@ -37,7 +37,7 @@ from engine.reference.embedded_nodes import find_embedded_body
 from engine.reference.standards_reader import NodeRecord, StandardsReader
 from engine.rules.rule_engine import RuleEngine
 from models.execution import NodeExecutionResult, NodeExecutionStatus
-from models.input import EngineeringInput, InputSource, InputStatus, input_is_expansion_ready
+from models.fact import Fact, ValidationStatus, fact_is_expansion_ready, fact_scalar_value, fact_unit
 
 
 class NodeRunner:
@@ -58,7 +58,7 @@ class NodeRunner:
         self,
         node_id: str,
         *,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         dependency_outputs: dict[str, Any],
     ) -> NodeExecutionResult:
         record = self._reader.load(node_id)
@@ -140,7 +140,7 @@ class NodeRunner:
         self,
         record: NodeRecord,
         *,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
     ) -> NodeExecutionResult:
         missing = self._missing_inputs(record, task_inputs)
         if missing:
@@ -160,12 +160,12 @@ class NodeRunner:
                 target_unit = None
                 if input_id == "design_temperature":
                     target_unit = "f"
-                prepared = prepare_engineering_input(
+                prepared = prepare_fact(
                     task_inputs[input_id],
                     target_unit=target_unit,
                 )
-                raw_inputs[input_id] = prepared.value
-                raw_inputs[f"{input_id}_unit"] = prepared.unit
+                raw_inputs[input_id] = fact_scalar_value(prepared)
+                raw_inputs[f"{input_id}_unit"] = fact_unit(prepared)
 
         lookups = record.metadata.get("lookups", []) or []
         if not lookups:
@@ -220,7 +220,7 @@ class NodeRunner:
         self,
         record: NodeRecord,
         *,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         dependency_outputs: dict[str, Any],
     ) -> NodeExecutionResult:
         execution_eval = evaluate_node_execution_assumptions(
@@ -268,7 +268,7 @@ class NodeRunner:
         unit_map = self._symbol_unit_map(record)
         variables = prepare_symbol_map(resolved, unit_map)
 
-        equation_meta = self._primary_equation_meta(record)
+        equation_meta = self._primary_equation_meta(record, self._reader)
         if not equation_meta:
             return NodeExecutionResult(
                 node_id=record.node_id,
@@ -322,8 +322,8 @@ class NodeRunner:
 
                 c_allowance = float(resolved.get("c", 0.0) or 0.0)
                 if "c" not in resolved and "corrosion_allowance" in task_inputs:
-                    c_prepared = prepare_engineering_input(task_inputs["corrosion_allowance"])
-                    c_allowance = float(c_prepared.value)
+                    c_prepared = prepare_fact(task_inputs["corrosion_allowance"])
+                    c_allowance = float(fact_scalar_value(c_prepared))
                 inside_d = inside_diameter_from_od_and_thickness(outside_d, thickness)
                 thick_y = compute_thick_wall_y(
                     inside_diameter=inside_d,
@@ -452,7 +452,7 @@ class NodeRunner:
         self,
         record: NodeRecord,
         *,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         dependency_outputs: dict[str, Any],
     ) -> tuple[dict[str, Any], list[str]]:
         legacy_inputs = record.metadata.get("inputs", []) or []
@@ -527,26 +527,26 @@ class NodeRunner:
                     value = dependency_outputs.get("S")
             elif input_id in task_inputs:
                 stored = task_inputs[input_id]
-                if bool(spec.get("requires_confirmation", False)) and not input_is_expansion_ready(
+                if bool(spec.get("requires_confirmation", False)) and not fact_is_expansion_ready(
                     stored
                 ):
                     missing.append(input_id)
                     continue
-                prepared = prepare_engineering_input(stored)
-                resolved[symbol] = prepared.value
-                resolved[f"{symbol}_unit"] = prepared.unit
+                prepared = prepare_fact(stored)
+                resolved[symbol] = fact_scalar_value(prepared)
+                resolved[f"{symbol}_unit"] = fact_unit(prepared)
                 continue
             elif source == "resolved":
                 if input_id in task_inputs:
                     stored = task_inputs[input_id]
-                    if bool(spec.get("requires_confirmation", False)) and not input_is_expansion_ready(
+                    if bool(spec.get("requires_confirmation", False)) and not fact_is_expansion_ready(
                         stored
                     ):
                         missing.append(input_id)
                         continue
-                    prepared = prepare_engineering_input(stored)
-                    resolved[symbol] = prepared.value
-                    resolved[f"{symbol}_unit"] = prepared.unit
+                    prepared = prepare_fact(stored)
+                    resolved[symbol] = fact_scalar_value(prepared)
+                    resolved[f"{symbol}_unit"] = fact_unit(prepared)
                     continue
                 if required:
                     missing.append(input_id)
@@ -558,13 +558,13 @@ class NodeRunner:
                             missing.append(input_id)
                         continue
                     stored = task_inputs[input_id]
-                    if not input_is_expansion_ready(stored):
+                    if not fact_is_expansion_ready(stored):
                         if required:
                             missing.append(input_id)
                         continue
-                    prepared = prepare_engineering_input(stored)
-                    resolved[symbol] = prepared.value
-                    resolved[f"{symbol}_unit"] = prepared.unit
+                    prepared = prepare_fact(stored)
+                    resolved[symbol] = fact_scalar_value(prepared)
+                    resolved[f"{symbol}_unit"] = fact_unit(prepared)
                     continue
                 value = spec.get("default")
             elif input_id in dependency_outputs:
@@ -580,7 +580,10 @@ class NodeRunner:
         return resolved, missing
 
     @staticmethod
-    def _primary_equation_meta(record: NodeRecord) -> dict[str, Any] | None:
+    def _primary_equation_meta(
+        record: NodeRecord,
+        reader: StandardsReader | None = None,
+    ) -> dict[str, Any] | None:
         for child_id in record.metadata.get("contains", []) or []:
             child = str(child_id).strip()
             if "eq" not in child.lower():
@@ -604,7 +607,30 @@ class NodeRunner:
             if not isinstance(equation, dict):
                 continue
             if equation.get("execution_function") or equation.get("executor"):
-                return equation
+                merged = dict(equation)
+                if reader is not None and equation.get("file"):
+                    text = reader.read_asset_text(record, str(equation["file"]))
+                    if text:
+                        file_meta, _ = split_frontmatter(text)
+                        if isinstance(file_meta, dict):
+                            merged.update({k: v for k, v in file_meta.items() if k not in merged or not merged[k]})
+                    eq_id = str(equation.get("id") or merged.get("id") or "").strip()
+                    if eq_id:
+                        try:
+                            eq_record = reader.load(eq_id)
+                            for key in (
+                                "executor",
+                                "execution_function",
+                                "variables",
+                                "steps",
+                                "outputs",
+                                "calculation_module",
+                            ):
+                                if eq_record.metadata.get(key) and not merged.get(key):
+                                    merged[key] = eq_record.metadata[key]
+                        except FileNotFoundError:
+                            pass
+                return merged
             if equation.get("source"):
                 parsed_meta, _ = split_frontmatter(str(equation["source"]))
                 if isinstance(parsed_meta, dict) and (
@@ -619,7 +645,7 @@ class NodeRunner:
         self,
         record: NodeRecord,
         *,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         resolved: dict[str, Any],
         missing: list[str],
         nomenclature: dict,
@@ -649,15 +675,15 @@ class NodeRunner:
         if "outside_diameter" not in task_inputs:
             return "outside_diameter"
         stored = task_inputs["outside_diameter"]
-        prepared = prepare_engineering_input(stored)
-        resolved["D"] = prepared.value
-        resolved["D_unit"] = prepared.unit
+        prepared = prepare_fact(stored)
+        resolved["D"] = fact_scalar_value(prepared)
+        resolved["D_unit"] = fact_unit(prepared)
         return None
 
     @staticmethod
     def _missing_inputs(
         record: NodeRecord,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
     ) -> list[str]:
         missing: list[str] = []
         for spec in record.metadata.get("inputs", []) or []:
@@ -679,11 +705,11 @@ class NodeRunner:
                 missing.append("nominal_pipe_size")
         return missing
 
-    @staticmethod
     def _compute_minimum_required_thickness(
+        self,
         record: NodeRecord,
         *,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         thickness_t: float | None,
     ) -> float | None:
         if thickness_t is None:
@@ -691,22 +717,30 @@ class NodeRunner:
         if "corrosion_allowance" not in task_inputs:
             return None
         stored = task_inputs["corrosion_allowance"]
-        if stored.requires_confirmation and not input_is_expansion_ready(stored):
+        if stored.requires_confirmation and not fact_is_expansion_ready(stored):
             return None
-        c_prepared = prepare_engineering_input(stored)
-        c_value = float(c_prepared.value)
-        if record.node_id != "B313-304.1.2":
+        c_prepared = prepare_fact(stored)
+        c_value = float(fact_scalar_value(c_prepared))
+        if record.node_id not in {"B313-304.1.2", "304.1.2"}:
             return thickness_t + c_value
         from engine.executor.functions import get_execution_function
 
         fn = get_execution_function("calculate_minimum_required_thickness")
         if fn is None:
             return thickness_t + c_value
-        definition_path = record.path.parent.parent / "B313-304.1.1"
+        eq_record: NodeRecord | None = None
+        try:
+            eq_record = self._reader.load("asme_b313_304_1_1_eq_2")
+            definition_path = eq_record.path.parent
+        except FileNotFoundError:
+            definition_path = record.path.parent
         try:
             calculation = fn(
                 node_dir=definition_path,
                 variables={"t": float(thickness_t), "c": c_value},
+                reader=self._reader,
+                record=eq_record or record,
+                equation_meta={"file": "../equation/asme_b313_304_1_1_eq_2.yaml"},
             )
             if calculation.final_result:
                 return float(calculation.final_result.value)
@@ -724,7 +758,7 @@ class NodeRunner:
         self,
         param_node_id: str,
         *,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         dependency_outputs: dict[str, Any],
     ) -> float | None:
         try:
@@ -739,10 +773,10 @@ class NodeRunner:
                 if value is not None:
                     return float(value)
         if input_id and input_id in task_inputs:
-            prepared = prepare_engineering_input(task_inputs[input_id])
-            if prepared.value is not None:
+            prepared = prepare_fact(task_inputs[input_id])
+            if fact_scalar_value(prepared) is not None:
                 try:
-                    return float(prepared.value)
+                    return float(fact_scalar_value(prepared))
                 except (TypeError, ValueError):
                     return None
         if input_id:
@@ -766,7 +800,7 @@ class NodeRunner:
         self,
         param: NodeRecord,
         resolution: dict[str, Any],
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
     ) -> float | None:
         table_id = str(resolution.get("table_id", "")).strip()
         if not table_id:
@@ -790,7 +824,7 @@ class NodeRunner:
         self,
         record: NodeRecord,
         *,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         dependency_outputs: dict[str, Any],
     ) -> NodeExecutionResult:
         sympy_expr = str(record.metadata.get("sympy", "")).strip()
@@ -879,7 +913,7 @@ class NodeRunner:
         self,
         record: NodeRecord,
         *,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
     ) -> NodeExecutionResult:
         table_id = str(record.metadata.get("table_id", ""))
         keys = [str(key) for key in (record.metadata.get("keys") or [])]
@@ -896,10 +930,10 @@ class NodeRunner:
         lookup_inputs: dict[str, Any] = {}
         for key in keys:
             target_unit = "f" if key == "design_temperature" else None
-            prepared = prepare_engineering_input(task_inputs[key], target_unit=target_unit)
-            lookup_inputs[key] = prepared.value
+            prepared = prepare_fact(task_inputs[key], target_unit=target_unit)
+            lookup_inputs[key] = fact_scalar_value(prepared)
             if key == "design_temperature":
-                lookup_inputs["design_temperature_unit"] = prepared.unit
+                lookup_inputs["design_temperature_unit"] = fact_unit(prepared)
 
         try:
             lookup_result = self._lookup_engine.lookup(table_id, lookup_inputs)

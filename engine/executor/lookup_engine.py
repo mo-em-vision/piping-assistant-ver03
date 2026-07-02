@@ -37,17 +37,17 @@ class TableLookupValue:
 
 
 def _lookup_inputs_with_units(inputs: dict[str, Any]) -> dict[str, Any]:
-    from engine.executor.unit_manager import prepare_engineering_input
-    from models.input import EngineeringInput
+    from engine.executor.unit_manager import prepare_fact
+    from models.fact import Fact, fact_scalar_value, fact_unit
 
     normalized: dict[str, Any] = {}
     for key, raw in inputs.items():
-        if isinstance(raw, EngineeringInput):
+        if isinstance(raw, Fact):
             target = "f" if key == "design_temperature" else None
-            prepared = prepare_engineering_input(raw, target_unit=target)
-            normalized[key] = prepared.value
+            prepared = prepare_fact(raw, target_unit=target)
+            normalized[key] = fact_scalar_value(prepared)
             if key == "design_temperature":
-                normalized["design_temperature_unit"] = prepared.unit
+                normalized["design_temperature_unit"] = fact_unit(prepared)
         else:
             normalized[key] = raw
     return normalized

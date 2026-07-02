@@ -6,8 +6,8 @@ from pathlib import Path
 
 from engine.reference.standards_reader import StandardsReader
 from engine.validation.unit_validator import validate_task_input_units
-from models.input import EngineeringInput, InputSource, InputStatus
 from models.validation import ComplianceStatus
+from tests.helpers.facts import facts_from_inputs, legacy_input
 
 
 def test_validate_task_input_units_uses_registry_for_pressure() -> None:
@@ -15,15 +15,10 @@ def test_validate_task_input_units_uses_registry_for_pressure() -> None:
     reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
     result = validate_task_input_units(
         reader,
-        {
-            "design_pressure": EngineeringInput(
-                input_id="design_pressure",
-                value=500,
-                unit="psi",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
-            ),
-        },
+        facts_from_inputs(
+            {"design_pressure": legacy_input("design_pressure", 500, "psi")},
+            task_id="unit-registry-pressure",
+        ),
     )
     assert result.status in {ComplianceStatus.PASS, ComplianceStatus.PASS_WITH_WARNING}
 
@@ -33,15 +28,10 @@ def test_validate_task_input_units_rejects_incompatible_unit() -> None:
     reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
     result = validate_task_input_units(
         reader,
-        {
-            "design_pressure": EngineeringInput(
-                input_id="design_pressure",
-                value=100,
-                unit="mm",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
-            ),
-        },
+        facts_from_inputs(
+            {"design_pressure": legacy_input("design_pressure", 100, "mm")},
+            task_id="unit-registry-incompatible",
+        ),
     )
     assert result.status == ComplianceStatus.FAIL
     assert any(finding.rule == "unit_incompatible" for finding in result.errors)

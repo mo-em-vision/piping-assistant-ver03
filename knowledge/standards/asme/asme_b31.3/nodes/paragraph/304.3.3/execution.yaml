@@ -1,0 +1,10 @@
+equations:
+- id: asme_b313_304_3_3_eq_6
+  file: ../equation/asme_b313_304_3_3_eq_6.yaml
+- id: asme_b313_304_3_3_eq_6a
+  file: ../equation/asme_b313_304_3_3_eq_6a.yaml
+- id: asme_b313_304_3_3_eq_7
+  file: ../equation/asme_b313_304_3_3_eq_7.yaml
+- id: asme_b313_304_3_3_eq_8
+  file: ../equation/asme_b313_304_3_3_eq_8.yaml
+kind: calculation

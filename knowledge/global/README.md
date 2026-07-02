@@ -12,6 +12,7 @@ Cross-pack registries and graph node packs that are not tied to a single ASME/AP
 |--------|-----|------|
 | [materials/](materials/) | Global material registry (`registry.yaml`) and search catalog (`materials.db`) |
 | [concepts/](concepts/) | Engineering concept ontology (`CONCEPT-*`) grouping semantic meaning |
+| [authorities/](authorities/) | Authority ontology (`AUTH-*`) — canonical standards, codes, and specifications |
 | [parameters/](parameters/) | Canonical parameter roles (`PARAM-*`) referencing dimension nodes |
 | [dimensions/](dimensions/) | Pipe NPS registry + physical dimension nodes (`DIM-*`) with `allows_unit` edges |
 | [units/](units/) | Global unit graph (`UNIT-mm`, `UNIT-MPa`, …) with `belongs_to_dimension` and `converts_to` edges |
@@ -25,6 +26,7 @@ Cross-pack registries and graph node packs that are not tied to a single ASME/AP
 | `materials/supplemental.yaml` | Supplemental non-ASTM material entries |
 | `dimensions/registry.yaml` | Pipe dimension source registry |
 | `concepts/nodes/CONCEPT-*.yaml` | Engineering concepts (pressure, wall thickness, material, …) with `has_parameter` edges |
+| `authorities/nodes/AUTH-*.yaml` | Canonical authorities (ASME B31.3, ASTM A106, …) with `contains` / `table` edges |
 | `parameters/nodes/PARAM-*.yaml` | Canonical parameters (design pressure, corrosion allowance, …) with `has_dimension` edges |
 | `dimensions/nodes/DIM-*.yaml` | Physical dimensions (pressure, length, …) with `allows_unit` edges to unit nodes |
 | `units/index.md` | Unit pack manifest |
@@ -42,6 +44,8 @@ Cross-pack registries and graph node packs that are not tied to a single ASME/AP
 
 **Forward-looking:** `concepts/` and `parameters/` — ontology layers; standards packs will migrate to reference `CONCEPT-*` and `PARAM-*` nodes.
 
+**Runtime (not in this folder):** Facts, Goals, the unified **Execution Context**, and **Authority Context** live on each task — see [`models/execution_context.py`](../../models/execution_context.py), [`models/authority_context.py`](../../models/authority_context.py), [`models/fact.py`](../../models/fact.py), [`models/goal.py`](../../models/goal.py), and [`docs/node-templates/Execution Context.md`](../../docs/node-templates/Execution%20Context.md) / [`Authority Context.md`](../../docs/node-templates/Authority%20Context.md). **Authority nodes** (`AUTH-*`) in [`authorities/`](authorities/) are immutable knowledge; Authority Context selects which are active. Do not add `knowledge/global/facts/` or `knowledge/global/goals/` packs.
+
 **Inactive:** `datatypes/` — empty placeholder only.
 
 ## Execution trace — materials
@@ -51,6 +55,16 @@ load_material_registry(standards_root)
   → knowledge/global/materials/registry.yaml
   → resolve table DBs under knowledge/standards/astm/
   → knowledge/global/materials/materials.db (search index)
+```
+
+## Execution trace — authorities
+
+```
+AUTH-ASME-B31.3 (knowledge/global/authorities/)
+  → contains → 304.1.1, B313-table-A-1 (asme_b31.3 standards pack)
+
+AuthorityContext.active_authorities[].authority_id
+  → AUTH-ASME-B31.3
 ```
 
 ## Execution trace — concepts, parameters, and dimensions

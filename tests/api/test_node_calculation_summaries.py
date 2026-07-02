@@ -21,6 +21,9 @@ from tests.acceptance.helpers import (
     run_completed_workflow,
     straight_section_assumption,
 )
+from tests.helpers.facts import fact_get_value, populate_task_facts
+from tests.helpers.goals import task_with_planning
+from models.fact import SourceType, ValidationStatus
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -57,8 +60,7 @@ def test_task_state_includes_node_calculations(
 ) -> None:
     manager = TaskStateManager()
     task = manager.create_task("node-calc-summary-test02", status=TaskStatus.AWAITING_INPUT)
-    task.inputs.update(
-        {
+    populate_task_facts(task, {
             "pressure_loading": internal_pressure_assumption(),
             "straight_pipe_section": straight_section_assumption(),
             **confirmed_default_inputs(),
@@ -97,8 +99,7 @@ def test_task_state_includes_node_calculations(
                 source=InputSource.USER,
                 status=InputStatus.CONFIRMED,
             ),
-        }
-    )
+        })
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
         "required_thickness": 0.084,
@@ -119,8 +120,8 @@ def test_task_state_includes_node_calculations(
                 },
             }
         ],
-        "planning_summary": {},
     }
+    task_with_planning(task, {}, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
 
     state = task_state(task, manager, reader=standards_reader)

@@ -1,0 +1,59 @@
+---
+nomenclature:
+- symbol: S_L
+  description: Sum of longitudinal stresses due to sustained loads.
+  required: true
+- symbol: S_h
+  description: Basic allowable stress at the metal temperature of the operating condition.
+  required: true
+  references:
+  - table: Table A-1
+    table_id: asme_b31.3_A-1
+    node_id: B313-table-A-1
+- symbol: S_A
+  description: Allowable displacement stress range.
+  required: true
+- symbol: S_E
+  description: Greatest computed displacement stress range.
+  required: true
+- symbol: S_c
+  description: Basic allowable stress at minimum metal temperature expected during
+    displacement cycle analysis.
+  required: true
+- symbol: S_h
+  description: Basic allowable stress at maximum metal temperature expected during
+    displacement cycle analysis.
+  required: true
+- symbol: S_L
+  description: Stress due to sustained loads.
+  required: true
+- symbol: f
+  description: Stress range factor.
+  required: true
+- symbol: f_m
+  description: Maximum value of stress range factor.
+  required: true
+- symbol: N
+  description: Equivalent number of full displacement cycles during expected service
+    life.
+  required: true
+- symbol: N_E
+  description: Number of cycles of maximum computed displacement stress range S_E.
+  required: false
+- symbol: N_i
+  description: Number of cycles associated with displacement stress range S_i.
+  required: false
+- symbol: r_i
+  description: Ratio S_i/S_E.
+  required: false
+- symbol: S_i
+  description: Any computed displacement stress range smaller than S_E.
+  required: false
+- symbol: W
+  description: Weld joint strength reduction factor.
+  required: true
+- symbol: S_E
+  description: Product of allowable stress and applicable weld quality factor in subsection
+    (e) text.
+  required: true
+---

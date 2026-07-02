@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from tests.acceptance.helpers import (
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus, fact_scalar_value
     WALL_THICKNESS_NODE,
     run_completed_workflow,
     sample_inputs,
@@ -21,8 +23,8 @@ class TestCalculationTraceAcceptance:
         run_completed_workflow(state_manager, standards_reader, task_id, inputs=sample_inputs())
         task = state_manager.get_task(task_id)
 
-        pressure = task.inputs["design_pressure"]
-        assert pressure.value == 500
+        pressure = task.fact_store.active_fact("design_pressure")
+        assert fact_scalar_value(pressure) == 500
         assert pressure.unit == "psi"
         assert pressure.original_value == 500
         assert pressure.original_unit == "psi"

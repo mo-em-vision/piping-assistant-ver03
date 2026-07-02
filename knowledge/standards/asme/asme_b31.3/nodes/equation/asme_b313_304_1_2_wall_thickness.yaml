@@ -1,0 +1,107 @@
+---
+id: asme_b313_304_1_2_wall_thickness
+type: equation
+key: asme_b313_304_1_2_wall_thickness
+name: Internal Pressure Wall Thickness
+equation_class: calculation
+calculation_kind: function
+description: Internal Pressure Wall Thickness
+authority:
+  authorized_by:
+  - 304.1.2
+  authority_context_required: true
+requires:
+- symbol: P
+  required: true
+  description: Internal design gage pressure
+  parameter: param-P
+- symbol: D
+  required: true
+  description: Outside diameter of pipe
+  parameter: param-D
+- symbol: S
+  required: true
+  description: Stress value from Table A-1
+  parameter: param-S
+- symbol: E
+  required: true
+  description: Quality factor from Tables A-2 and A-3
+  parameter: param-E
+- symbol: W
+  required: true
+  description: Weld strength reduction factor per para. 302.3.5(e)
+  parameter: param-W
+- symbol: Y
+  required: true
+  description: Coefficient from Table 304.1.1
+  parameter: param-Y
+calculates:
+- symbol: t
+  parameter: param-t
+edges:
+- type: authorized_by
+  target: 304.1.2
+- type: parent
+  target: 304.1.2
+- type: requires_parameter
+  target: param-P
+  alias: P
+- type: requires_parameter
+  target: param-D
+  alias: D
+- type: requires_parameter
+  target: param-S
+  alias: S
+- type: requires_parameter
+  target: param-E
+  alias: E
+- type: requires_parameter
+  target: param-W
+  alias: W
+- type: requires_parameter
+  target: param-Y
+  alias: Y
+- type: calculates_parameter
+  target: param-t
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: wall_thickness
+display:
+  text: t = PD / 2(SEW + PY)
+applicability:
+  applies_when:
+  - parameter: PARAM-pressure-loading
+    operator: equals
+    value: internal_pressure
+  - parameter: PARAM-straight-pipe-section
+    operator: equals
+    value: true
+---
+
+# Internal Pressure Wall Thickness
+
+## Human-readable equation
+
+```
+t = PD / 2(SEW + PY)
+```
+
+Where symbols are defined in §304.1.1(b):
+
+| Symbol | Meaning |
+|--------|---------|
+| `t` | Pressure design thickness |
+| `P` | Internal design gage pressure |
+| `D` | Outside diameter of pipe |
+| `S` | Stress value from Table A-1 |
+| `E` | Quality factor from Tables A-2 and A-3 |
+| `W` | Weld strength reduction factor per para. 302.3.5(e) |
+| `Y` | Coefficient from Table 304.1.1 |
+
+## Execution notes
+
+- Inputs must be in SI units (`Pa`, `mm`) at execution time.
+- Result `t` is in `mm`.
+- Intermediate values `SEW` and `PY` must be retained in the execution trace without rounding.
+- Combine `t` with allowances `c` per §304.1.1 eq. (2) to obtain `t_m`.

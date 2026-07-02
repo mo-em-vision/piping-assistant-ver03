@@ -22,11 +22,11 @@ lookups:
   source: table
   table_id: asme_b31.3_A-1
 edges:
-- type: parameter
+- type: introduces_parameter
   target: allowable_stress
-- type: parameter
+- type: introduces_parameter
   target: MAT-catalog
-- type: parameter
+- type: introduces_parameter
   target: DIM-temperature
 ---
 

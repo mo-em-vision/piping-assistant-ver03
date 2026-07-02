@@ -6,13 +6,12 @@ from typing import Any
 
 from engine.reference.b313_legacy_aliases import build_b313_legacy_aliases
 from engine.reference.graph_edge_schema import (
-    ALLOWED_EDGE_METADATA,
     CANONICAL_EDGE_TYPES,
-    EDGE_ROUTING_KEYS,
-    STORED_EDGE_TYPES,
+    REVERSE_ONLY_QUERY_TYPES,
     edge_target,
     relationship_metadata,
 )
+from engine.reference.relationship_taxonomy import normalize_authoring_edge
 from engine.reference.node_types import MICRO_GRAPH_TYPES, is_micro_graph_node
 
 LEGACY_SECTION_ALIASES = {
@@ -64,22 +63,31 @@ def compile_metadata_edges(
         seen.add(key)
         compiled.append((from_id, to_id, edge_type, edge_meta))
 
+    source_node_type = str(metadata.get("type") or "")
+
     for item in metadata.get("edges", []) or []:
         if not isinstance(item, dict):
             continue
-        to_id = edge_target(item)
+        normalized = normalize_authoring_edge(
+            item,
+            source_node_type=source_node_type,
+            allow_legacy=True,
+        )
+        if normalized is None:
+            continue
+        to_id = edge_target(normalized)
         if not to_id:
             continue
         dep_id, subsection = parse_dependency_node_ref(to_id)
         to_id = dep_id
-        edge_type = str(item.get("type") or "").strip()
+        edge_type = str(normalized.get("type") or "").strip()
         if not edge_type:
             continue
         if edge_type not in CANONICAL_EDGE_TYPES:
             continue
-        if edge_type.endswith("_by"):
+        if edge_type in REVERSE_ONLY_QUERY_TYPES:
             continue
-        edge_meta = relationship_metadata(item)
+        edge_meta = relationship_metadata(normalized)
         if subsection and "subsection" not in edge_meta:
             edge_meta = {**edge_meta, "subsection": subsection}
         add_edge(node_id, to_id, edge_type, edge_meta if edge_meta else None)
@@ -87,32 +95,20 @@ def compile_metadata_edges(
     return compiled
 
 
-def validate_edge_item(item: dict[str, Any]) -> list[str]:
+def validate_edge_item(item: dict[str, Any], *, source_node_type: str = "", allow_legacy: bool = False) -> list[str]:
     """Return validation issues for one edge dict."""
-    issues: list[str] = []
-    edge_type = str(item.get("type") or "").strip()
-    target = edge_target(item)
-    if not edge_type:
-        issues.append("missing type")
-    elif edge_type not in CANONICAL_EDGE_TYPES:
-        issues.append(f"unknown type: {edge_type}")
-    elif edge_type.endswith("_by"):
-        issues.append(f"reverse type must not be stored: {edge_type}")
-    elif edge_type not in STORED_EDGE_TYPES:
-        issues.append(f"type not storable: {edge_type}")
-    if not target:
-        issues.append("missing target")
-    for key in item:
-        if key in EDGE_ROUTING_KEYS:
-            continue
-        if key not in ALLOWED_EDGE_METADATA:
-            issues.append(f"disallowed metadata key: {key}")
-    return issues
+    from engine.reference.relationship_validator import validate_edge_item as _validate_edge_item
+
+    return _validate_edge_item(
+        item,
+        source_node_type=source_node_type,
+        allow_legacy=allow_legacy,
+    )
 
 
 def node_aliases(node_id: str, metadata: dict[str, Any]) -> list[str]:
     aliases: list[str] = []
-    slug = str(metadata.get("slug", "")).strip()
+    slug = str(metadata.get("slug") or metadata.get("key") or "").strip()
     if slug and slug != node_id:
         aliases.append(slug)
     legacy_alias = LEGACY_SECTION_ALIASES.get(node_id)

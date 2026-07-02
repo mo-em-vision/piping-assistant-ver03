@@ -66,6 +66,9 @@ export type InspectionPayloadDto = {
   workflow_id: string
   execution_trace: ExecutionTraceStepDto[]
   planner_decisions: Record<string, PlannerDecisionDto>
+  goals?: Record<string, unknown>
+  execution_context?: Record<string, unknown>
+  authority_context?: Record<string, unknown>
   planning_summary: Record<string, unknown>
   provenance_index: ValueProvenanceRecordDto[]
   provenance_warnings: string[]

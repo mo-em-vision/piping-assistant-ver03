@@ -1,335 +1,49 @@
 ---
 id: 304.1.2
 type: paragraph
+key: b313_304_1_2
 title: Internal Pressure Design of Straight Pipe
-revision_year: 2024
-version: '2016'
-status: superseded
-created: '2026-06-17'
-modified: '2026-06-19'
-topic: pipe_wall_thickness
-purpose: 'Calculate the pressure design thickness t for straight pipe under internal
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.1.2
+paragraph_class: calculation_requirement
+description: Calculate the pressure design thickness t for straight pipe under internal
   pressure using the thin-wall pressure design equation.
-
-  '
-engineering_intent: pipe_wall_thickness_design
-subsections:
-- id: a
-  label: (a)
-  applies_when:
-    field: thin_wall
-    in:
-    - true
-  description: 'For t < D/6, internal pressure design thickness using equation (3a)
-    or (3b).
-
-    '
-- id: b
-  label: (b)
-  applies_when:
-    field: thin_wall
-    in:
-    - false
-  status: not_implemented
-  description: 'For t >= D/6 or P/SE > 0.385, thick-wall pressure design requires
-    special consideration.
-
-    '
-provisional_assumptions:
-- field: thin_wall
-  default: true
-  description: Assume t < D/6 until thickness is calculated.
-limitations:
-- id: thin_wall_applicability
-  parameter: geometry
-  condition: Thin-wall equation applicable when t < D/6
-  action: warning
-notes:
-- id: corrosion_allowance
-  text: 'Pressure design thickness t from this node must be combined with allowances
-    c per ?304.1.1 eq. (2) to obtain t_m.
-
-    '
-- id: mill_tolerance
-  text: 'Selected pipe wall thickness T must be not less than t_m per ?304.1.1(a),
-    considering manufacturer''s minus tolerance.
-
-    '
-- id: corrosion_and_ordered_thickness
-  type: text
-  source: "---\nid: corrosion_and_ordered_thickness\ntext: >\n  Pressure design thickness\
-    \ t from §304.1.2 must be combined with allowances c\n  per §304.1.1 eq. (2) to\
-    \ obtain t_m. Selected thickness T must be not less\n  than t_m, considering manufacturer's\
-    \ minus tolerance.\n---\n\n# Corrosion and Ordered Thickness\n\nThe calculated\
-    \ value `t` from this node is **pressure design thickness**, not the ordered pipe\
-    \ wall thickness.\n\nApply §304.1.1 eq. (2) to obtain `t_m = t + c`, then select\
-    \ pipe with wall thickness `T` not less than `t_m`.\n"
-trace:
-  capture:
-  - inputs
-  - decisions
-  - equations
-  - intermediate_values
-  - outputs
-  - warnings
-report:
-  section_title: Internal Pressure Wall Thickness ? ?304.1.2
-  include:
-  - node_reference
-  - paragraph_text
-  - inputs
-  - assumptions
-  - equations
-  - decisions
-  - outputs
-  - warnings
-  - nomenclature
-  explanation_required: true
-ai_hints:
-  explanation_focus: 'Explain why each input is required and how the thin-wall criterion
-    affects equation selection. Use nomenclature from ?304.1.1(b) when describing
-    symbols.
-
-    '
-  common_questions:
-  - Why is weld joint quality factor E required?
-  - When does the thin-wall equation not apply?
-  - How is t related to t_m and T per ?304.1.1?
-  avoid:
-  - Do not alter calculated thickness values.
-  - Do not skip the thin-wall applicability decision in reports.
-  - Do not report t as the final ordered thickness without applying ?304.1.1.
-equations:
-- id: WF-MAWP
-  type: equation
-  source: "---\nequation_id: mawp_pressure\nname: Maximum Allowable Working Pressure\n\
-    display: \"MAWP = 2SEWt / (D - 2Yt)\"\nnomenclature_ref: WF-MAWP\n\nvariables:\n\
-    \  S:\n    symbol: S\n    description: Stress value from Table A-1\n    unit:\
-    \ Pa\n  E:\n    symbol: E\n    description: Quality factor from Tables A-2 and\
-    \ A-3\n    unit: dimensionless\n  W:\n    symbol: W\n    description: Weld strength\
-    \ reduction factor per para. 302.3.5(e)\n    unit: dimensionless\n  t:\n    symbol:\
-    \ t\n    description: Pressure design thickness\n    unit: mm\n  D:\n    symbol:\
-    \ D\n    description: Outside diameter of pipe\n    unit: mm\n  Y:\n    symbol:\
-    \ Y\n    description: Coefficient from Table 304.1.1\n    unit: dimensionless\n\
-    \nsteps:\n  - name: compute_denominator\n    description: Calculate D - 2Yt\n\
-    \    expressions:\n      - expression: \"D - 2 * Y * t\"\n        assign: denominator\n\
-    \n  - name: compute_mawp\n    description: Calculate Maximum Allowable Working\
-    \ Pressure\n    expressions:\n      - expression: \"2 * S * E * W * t / denominator\"\
-    \n        assign: MAWP\n\noutputs:\n  - symbol: MAWP\n    name: mawp\n    unit:\
-    \ Pa\n    type: quantity\n\nexecutor: calculate_mawp\n---\n\n# Maximum Allowable\
-    \ Working Pressure\n\n## Human-readable equation\n\n```\nMAWP = 2SEWt / (D - 2Yt)\n\
-    ```\n\nRearrangement of the thin-wall internal pressure equation per §304.1.2\
-    \ when\npressure design thickness `t` is known.\n\nWhere symbols are defined in\
-    \ §304.1.1(b):\n\n| Symbol | Meaning |\n|--------|---------|\n| `MAWP` | Maximum\
-    \ Allowable Working Pressure |\n| `S` | Stress value from Table A-1 |\n| `E` |\
-    \ Quality factor from Tables A-2 and A-3 |\n| `W` | Weld strength reduction factor\
-    \ per para. 302.3.5(e) |\n| `t` | Pressure design thickness |\n| `D` | Outside\
-    \ diameter of pipe |\n| `Y` | Coefficient from Table 304.1.1 |\n\n## Execution\
-    \ notes\n\n- Inputs must be in SI units (`Pa`, `mm`) at execution time.\n- Result\
-    \ `MAWP` is in `Pa`.\n"
-- id: thick_wall_y
-  type: equation
-  source: "---\nid: thick_wall_y\ntitle: Thick-Wall Temperature Coefficient Y\nequation:\
-    \ \"Y = (d + 2c) / (D + d + 2c)\"\nsymbols:\n  - symbol: Y\n    description: Temperature\
-    \ coefficient for thick-wall pipe (t >= D/6)\n  - symbol: d\n    description:\
-    \ Inside diameter per §304.1.1(b)\n  - symbol: D\n    description: Outside diameter\n\
-    \  - symbol: c\n    description: Sum of mechanical, corrosion, and erosion allowances\n\
-    ---\n\n# Thick-Wall Coefficient Y\n\nWhen **t ≥ D/6**, the coefficient **Y** is\
-    \ computed per §304.1.1(b):\n\n```\nY = (d + 2c) / (D + d + 2c)\n```\n\nWhere\
-    \ **d** is the inside diameter (maximum value allowable under the purchase specification).\n"
-- id: 304.1.2
-  type: equation
-  source: "---\nequation_id: wall_thickness\nname: Internal Pressure Wall Thickness\n\
-    display: \"t = PD / 2(SEW + PY)\"\nnomenclature_ref: 304.1.1\n\nvariables:\n \
-    \ P:\n    symbol: P\n    description: Internal design gage pressure\n    unit:\
-    \ Pa\n  D:\n    symbol: D\n    description: Outside diameter of pipe\n    unit:\
-    \ mm\n  S:\n    symbol: S\n    description: Stress value from Table A-1\n    unit:\
-    \ Pa\n  E:\n    symbol: E\n    description: Quality factor from Tables A-2 and\
-    \ A-3\n    unit: dimensionless\n  W:\n    symbol: W\n    description: Weld strength\
-    \ reduction factor per para. 302.3.5(e)\n    unit: dimensionless\n  Y:\n    symbol:\
-    \ Y\n    description: Coefficient from Table 304.1.1\n    unit: dimensionless\n\
-    \nsteps:\n  - name: compute_denominator_terms\n    description: Calculate SEW\
-    \ and PY terms\n    expressions:\n      - expression: \"S * E * W\"\n        assign:\
-    \ SEW\n      - expression: \"P * Y\"\n        assign: PY\n\n  - name: compute_required_thickness\n\
-    \    description: Calculate pressure design wall thickness\n    expressions:\n\
-    \      - expression: \"P * D / (2 * (SEW + PY))\"\n        assign: t\n\noutputs:\n\
-    \  - symbol: t\n    name: required_thickness\n    unit: mm\n    type: quantity\n\
-    \nexecutor: calculate_wall_thickness\n---\n\n# Internal Pressure Wall Thickness\n\
-    \n## Human-readable equation\n\n```\nt = PD / 2(SEW + PY)\n```\n\nWhere symbols\
-    \ are defined in §304.1.1(b):\n\n| Symbol | Meaning |\n|--------|---------|\n\
-    | `t` | Pressure design thickness |\n| `P` | Internal design gage pressure |\n\
-    | `D` | Outside diameter of pipe |\n| `S` | Stress value from Table A-1 |\n| `E`\
-    \ | Quality factor from Tables A-2 and A-3 |\n| `W` | Weld strength reduction\
-    \ factor per para. 302.3.5(e) |\n| `Y` | Coefficient from Table 304.1.1 |\n\n\
-    ## Execution notes\n\n- Inputs must be in SI units (`Pa`, `mm`) at execution time.\n\
-    - Result `t` is in `mm`.\n- Intermediate values `SEW` and `PY` must be retained\
-    \ in the execution trace without rounding.\n- Combine `t` with allowances `c`\
-    \ per §304.1.1 eq. (2) to obtain `t_m`.\n"
-conditions:
-- type: text
-  kind: condition
-  id: thin_wall_check
-  source: "---\nid: thin_wall_check\nname: thin_wall_check\nexpression: \"t < D/6\"\
-    \ndescription: >\n  Determine whether the thin-wall pressure design equation in\
-    \ §304.1.2\n  is applicable for the calculated thickness and outside diameter.\n\
-    \ninputs:\n  - symbol: t\n    source: node_output\n    description: Calculated\
-    \ pressure design thickness from wall_thickness equation\n  - symbol: D\n    source:\
-    \ user_input\n    description: Outside diameter of pipe\n\nresult_if_true:\n \
-    \ decision: use_thin_wall_equation\n  action: Continue with equations/wall_thickness.md\
-    \ result\n\nresult_if_false:\n  decision: use_thick_wall_equation\n  action: Route\
-    \ to thick-wall pressure design node (not yet implemented)\n\ntrace:\n  capture:\n\
-    \    - expression\n    - inputs\n    - result\n    - decision\n---\n\n# Thin-Wall\
-    \ Applicability Check\n\n## Condition\n\n```\nt < D/6\n```\n\n## Engineering meaning\n\
-    \nWhen the calculated pressure design thickness satisfies the thin-wall criterion,\
-    \ the pressure design equation referenced by §304.1.2 is applicable.\n\nWhen the\
-    \ criterion is not satisfied, thick-wall provisions apply and this node's thin-wall\
-    \ equation result must not be used as the final design thickness without further\
-    \ evaluation.\n\n## Evaluation order\n\n1. Calculate provisional `t` using `equations/wall_thickness.md`.\n\
-    2. Evaluate `t < D/6`.\n3. Record the decision in the execution trace and report.\n"
-interactions:
-- variable: d_input_mode
-  mode: decision
-  options:
-  - nps_lookup
-  - direct_od
-  default: nps_lookup
-  required: true
-  confirmation_required: false
-  question: 'Provide outside diameter D by nominal pipe size (NPS, looked up per ASME
-    B36.10) or enter the outside diameter directly (mm or in)?
-
-    '
-- variable: joint_category
-  mode: decision
-  options:
-  - seamless
-  - erw
-  - furnace_butt_welded
-  - forging
-  default: seamless
-  required: true
-  confirmation_required: true
-  question: 'Confirm the pipe/joint category for quality factor E lookup (Tables A-2
-    and A-3). Default is seamless pipe.
-
-    '
-inputs:
-- id: design_pressure
-  name: P
-  description: Internal design gage pressure
-  nomenclature_ref: 304.1.1
-  required: true
-  source: user_input
-  unit: Pa
-  allowed_units:
-  - Pa
-  - bar
-  - psi
-  validation: positive
-  requires_confirmation: false
-- id: nominal_pipe_size
-  name: NPS
-  description: Nominal pipe size for outside diameter lookup per ASME B36.10
-  nomenclature_ref: 304.1.1
-  required: true
-  source: user_input
-  unit: dimensionless
-  validation: non_empty
-  requires_confirmation: false
-  when:
-    field: d_input_mode
-    in:
-    - nps_lookup
-- id: outside_diameter
-  name: D
-  description: Outside diameter of pipe as measured
-  nomenclature_ref: 304.1.1
-  required: true
-  source: user_input
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-  validation: positive
-  requires_confirmation: false
-  when:
-    field: d_input_mode
-    in:
-    - direct_od
-- id: corrosion_allowance
-  name: c
-  description: Sum of mechanical allowances per ?304.1.1(b)
-  nomenclature_ref: 304.1.1
-  required: false
-  source: default
-  unit: mm
-  allowed_units:
-  - mm
-  - in
-  requires_confirmation: true
-- id: allowable_stress
-  name: S
-  description: Stress value from Table A-1 at design temperature
-  nomenclature_ref: 304.1.1
-  required: true
-  source: node_output
-  unit: Pa
-  allowed_units:
-  - Pa
-  - psi
-  validation: positive
-  requires_confirmation: false
-- id: weld_joint_efficiency
-  name: E
-  description: Quality factor from Tables A-2 and A-3
-  nomenclature_ref: 304.1.1
-  required: true
-  source: default
-  unit: dimensionless
-  default: 1.0
-  requires_confirmation: true
-- id: joint_category
-  name: joint_category
-  description: Pipe or joint category for E lookup in Tables A-2 and A-3
-  nomenclature_ref: 304.1.1
-  required: false
-  source: user_input
-  unit: dimensionless
-  validation: non_empty
-  requires_confirmation: false
-- id: weld_joint_strength_reduction_factor_W
-  name: W
-  description: Weld strength reduction factor per para. 302.3.5(e)
-  nomenclature_ref: 304.1.1
-  required: true
-  source: default
-  unit: dimensionless
-  default: 1.0
-  requires_confirmation: true
-- id: temperature_coefficient_Y
-  name: Y
-  description: Coefficient from Table 304.1.1 (t < D/6) or thick-wall equation
-  nomenclature_ref: 304.1.1
-  required: true
-  source: resolved
-  unit: dimensionless
-  default: 0.4
-  requires_confirmation: true
-kind: calculation
+metadata:
+  status: superseded
+  node_version: 1
+  source_revision_year: 2024
 edges:
+- type: belongs_to_authority
+  target: AUTH-ASME-B31.3
 - type: parent
   target: '304.1'
-- type: references
+- type: related_to
   target: 304.1.1
-- type: references
+- type: references_table
   target: B313-table-A-1
-- type: references
+- type: related_to
   target: 302.3.5
   subsection: e
-- type: references
+- type: related_to
   target: material_stress
 - type: implements
   target: param-t
+applicability:
+  applies_when:
+  - parameter: PARAM-pressure-loading
+    operator: equals
+    value: internal_pressure
+  - parameter: PARAM-straight-pipe-section
+    operator: equals
+    value: true
+referenced_equations:
+- asme_b313_mawp_pressure
+- asme_b313_thick_wall_y
+- asme_b313_304_1_2_wall_thickness
+limitations:
+- id: thin_wall_applicability
+  description: Thin-wall equation applicable when t < D/6
 ---
 
 # ASME B31.3 Paragraph 304.1.2

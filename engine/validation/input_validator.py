@@ -13,7 +13,7 @@ from engine.reference.nomenclature_resolver import (
     task_input_key,
 )
 from engine.reference.standards_reader import StandardsReader
-from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
+from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready, fact_scalar_value
 from models.validation import ComplianceStatus, LayerValidationResult, ValidationFinding, ValidationSeverity
 
 
@@ -25,7 +25,7 @@ class InputValidator:
         node_id: str,
         *,
         reader: StandardsReader,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         dependency_outputs: dict[str, Any] | None = None,
         skip_dependency_inputs: bool = False,
     ) -> LayerValidationResult:
@@ -73,7 +73,7 @@ class InputValidator:
 
             if lookup_key in task_inputs:
                 stored = task_inputs[lookup_key]
-                if bool(spec.get("requires_confirmation", False)) and not input_is_expansion_ready(
+                if bool(spec.get("requires_confirmation", False)) and not fact_is_expansion_ready(
                     stored
                 ):
                     errors.append(
@@ -89,7 +89,7 @@ class InputValidator:
                         )
                     )
                     continue
-                value = stored.value
+                value = fact_scalar_value(stored)
             elif source == "default" and spec.get("default") is not None:
                 if bool(spec.get("requires_confirmation", False)) and required:
                     errors.append(

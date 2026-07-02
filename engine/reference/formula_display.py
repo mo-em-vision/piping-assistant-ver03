@@ -238,20 +238,50 @@ def _primary_equation_data(reader: StandardsReader, node_id: str) -> dict[str, A
         if isinstance(metadata, dict) and metadata:
             return metadata
     equations = node.metadata.get("equations", []) or node.metadata.get("formulas", []) or []
+    preferred: dict[str, Any] = {}
+    fallback: dict[str, Any] = {}
     for equation in equations:
         if not isinstance(equation, dict):
             continue
-        file_ref = str(equation.get("file") or "").strip()
-        if file_ref:
-            text = reader.read_asset_text(node, file_ref)
-            if text:
-                metadata, _ = split_frontmatter(text)
-                if isinstance(metadata, dict) and metadata:
-                    return metadata
-        if equation.get("source"):
+        eq_id = str(equation.get("id") or "").strip()
+        if eq_id:
+            try:
+                eq_record = reader.load(eq_id)
+                data = dict(eq_record.metadata)
+            except FileNotFoundError:
+                data = {}
+        else:
+            data = {}
+        if not data:
+            file_ref = str(equation.get("file") or "").strip()
+            if file_ref:
+                text = reader.read_asset_text(node, file_ref)
+                if text:
+                    metadata, _ = split_frontmatter(text)
+                    if isinstance(metadata, dict) and metadata:
+                        data = metadata
+        if not data and equation.get("source"):
             metadata, _ = split_frontmatter(str(equation["source"]))
             if isinstance(metadata, dict) and metadata:
-                return metadata
+                data = metadata
+        if not data:
+            continue
+        executor = str(data.get("executor") or "").strip()
+        eq_id = str(equation.get("id") or data.get("id") or "").strip()
+        if (
+            executor == "calculate_wall_thickness"
+            or str(data.get("equation_id") or "") == "wall_thickness"
+            or eq_id == "asme_b313_304_1_2_wall_thickness"
+        ):
+            return data
+        if not preferred:
+            preferred = data
+        if not fallback:
+            fallback = data
+    if preferred:
+        return preferred
+    if fallback:
+        return fallback
     return {}
 
 
@@ -362,7 +392,11 @@ def _nomenclature_reference_link(
     except FileNotFoundError:
         return {"node_id": nomenclature_ref, "label": nomenclature_ref}
 
-    paragraph = str(record.metadata.get("paragraph", "")).strip()
+    paragraph = str(
+        record.metadata.get("paragraph")
+        or record.metadata.get("paragraph_number")
+        or ""
+    ).strip()
     label = f"§{paragraph}(b)" if paragraph else nomenclature_ref
     return {
         "node_id": nomenclature_ref,

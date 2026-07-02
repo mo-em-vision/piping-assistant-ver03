@@ -8,6 +8,24 @@ from typing import Iterator
 _LEGACY_NODE_FILENAMES = ("node.yaml", "node.yml", "node.md")
 
 
+_SIDECAR_FILENAMES = frozenset(
+    {
+        "execution.yaml",
+        "execution.yml",
+        "nomenclature.yaml",
+        "nomenclature.yml",
+        "runtime.yaml",
+        "runtime.yml",
+        "navigation.yaml",
+        "navigation.yml",
+    }
+)
+
+
+def _is_sidecar_source(path: Path) -> bool:
+    return path.name.lower() in _SIDECAR_FILENAMES
+
+
 def iter_node_source_paths(nodes_dir: Path) -> Iterator[Path]:
     """Yield node source files: legacy ``node.yaml`` and named ``{id}.yaml`` files."""
     if not nodes_dir.is_dir():
@@ -26,6 +44,8 @@ def iter_node_source_paths(nodes_dir: Path) -> Iterator[Path]:
             continue
         if path.name in _LEGACY_NODE_FILENAMES:
             continue
+        if _is_sidecar_source(path):
+            continue
         if path.suffix.lower() not in {".yaml", ".yml"}:
             continue
         seen.add(path)
@@ -36,6 +56,8 @@ def iter_node_source_paths(nodes_dir: Path) -> Iterator[Path]:
             continue
         if path.name in _LEGACY_NODE_FILENAMES:
             continue
+        if _is_sidecar_source(path):
+            continue
         seen.add(path)
         yield path
 
@@ -43,6 +65,8 @@ def iter_node_source_paths(nodes_dir: Path) -> Iterator[Path]:
         if path in seen:
             continue
         if path.name in _LEGACY_NODE_FILENAMES:
+            continue
+        if _is_sidecar_source(path):
             continue
         seen.add(path)
         yield path

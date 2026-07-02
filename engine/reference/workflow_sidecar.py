@@ -1,0 +1,167 @@
+"""Load workflow node sidecar files (runtime/navigation metadata)."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+from engine.reference.standards_markdown import split_frontmatter
+
+_RUNTIME_KEYS = (
+    "navigation",
+    "assumptions",
+    "interactions",
+    "provisional_assumptions",
+    "inputs",
+    "equations",
+    "conditions",
+    "nomenclature",
+    "texts",
+    "documentation",
+    "suggested_workflows",
+    "goal_output",
+    "engineering_intent",
+    "slug",
+    "title",
+    "purpose",
+    "status",
+    "version",
+)
+
+_PARAM_TO_FIELD: dict[str, str] = {
+    "PARAM-straight-pipe-section": "straight_pipe_section",
+    "PARAM-pressure-loading": "pressure_loading",
+    "PARAM-design-pressure": "design_pressure",
+    "PARAM-outside-diameter": "outside_diameter",
+    "PARAM-nominal-pipe-size": "nominal_pipe_size",
+    "PARAM-material-specification": "material",
+    "PARAM-design-temperature": "design_temperature",
+    "PARAM-external-design-pressure": "external_design_pressure",
+    "PARAM-weld-joint-efficiency": "weld_joint_efficiency",
+    "PARAM-weld-strength-reduction-factor-W": "weld_joint_strength_reduction_factor_W",
+    "PARAM-temperature-coefficient-Y": "temperature_coefficient_Y",
+    "PARAM-joint-category": "joint_category",
+    "PARAM-corrosion-allowance": "corrosion_allowance",
+    "PARAM-actual-wall-thickness": "actual_wall_thickness",
+    "PARAM-pipe-schedule": "pipe_schedule",
+    "PARAM-geometry-input-mode": "geometry_input_mode",
+    "PARAM-allowable-stress": "allowable_stress",
+    "PARAM-minimum-required-thickness": "minimum_required_thickness",
+    "PARAM-required-wall-thickness": "required_wall_thickness",
+    "PARAM-mawp": "mawp",
+}
+
+
+def workflow_sidecar_dir(record_path: Path, node_id: str) -> Path:
+    """Directory for sidecars: workflows/foo.yaml -> workflows/foo/."""
+    return record_path.parent / node_id
+
+
+def _load_yaml(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {}
+    text = path.read_text(encoding="utf-8")
+    meta, _body = split_frontmatter(text)
+    if isinstance(meta, dict) and meta:
+        return meta
+    loaded = yaml.safe_load(text)
+    return loaded if isinstance(loaded, dict) else {}
+
+
+def _param_to_field(param_id: str) -> str:
+    param = str(param_id or "").strip()
+    if param in _PARAM_TO_FIELD:
+        return _PARAM_TO_FIELD[param]
+    if param.startswith("PARAM-"):
+        return param.replace("PARAM-", "").replace("-", "_")
+    return param
+
+
+def _phases_to_navigation(phases: Any) -> dict[str, Any] | None:
+    if not isinstance(phases, list) or not phases:
+        return None
+    gate_fields: list[str] = []
+    phase_map: dict[str, list[str]] = {}
+    for item in phases:
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get("key") or "").strip()
+        if not key:
+            continue
+        fields = [
+            _param_to_field(str(param))
+            for param in (item.get("required_parameters") or [])
+            if str(param).strip()
+        ]
+        phase_map[key] = fields
+        if key in {"expansion_assumptions", "path_decisions"}:
+            gate_fields.extend(fields)
+    if not phase_map:
+        return None
+    return {
+        "assumption_gate_fields": list(dict.fromkeys(gate_fields)),
+        "phases": phase_map,
+    }
+
+
+def merge_workflow_sidecar_metadata(
+    metadata: dict[str, Any],
+    *,
+    record_path: Path | None = None,
+    node_id: str | None = None,
+) -> dict[str, Any]:
+    """Merge workflow sidecars and synthesize legacy runtime aliases."""
+    merged = dict(metadata)
+    if str(merged.get("type", "")) != "workflow":
+        return merged
+
+    if record_path is not None and node_id:
+        sidecar_dir = workflow_sidecar_dir(record_path, node_id)
+        flat_runtime = record_path.parent / f"{node_id}.runtime.yaml"
+        flat_navigation = record_path.parent / f"{node_id}.navigation.yaml"
+
+        for path in (
+            sidecar_dir / "runtime.yaml",
+            flat_runtime,
+            sidecar_dir / "navigation.yaml",
+            flat_navigation,
+        ):
+            if not path.is_file():
+                continue
+            data = _load_yaml(path)
+            if path.name.startswith("navigation"):
+                if data.get("navigation"):
+                    merged["navigation"] = data["navigation"]
+                elif data.get("phases") or data.get("assumption_gate_fields"):
+                    merged["navigation"] = data
+                else:
+                    merged["navigation"] = data
+                continue
+            for key in _RUNTIME_KEYS:
+                if key in data and data[key]:
+                    merged[key] = data[key]
+
+    if not merged.get("navigation"):
+        synthesized = _phases_to_navigation(merged.get("phases"))
+        if synthesized:
+            merged["navigation"] = synthesized
+
+    key = str(merged.get("key") or "").strip()
+    if key:
+        merged.setdefault("slug", key)
+        merged.setdefault("engineering_intent", key)
+    name = str(merged.get("name") or "").strip()
+    if name:
+        merged.setdefault("title", name)
+
+    goal_expansion = merged.get("goal_expansion") or {}
+    if isinstance(goal_expansion, dict):
+        root_goal = goal_expansion.get("root_goal") or {}
+        if isinstance(root_goal, dict):
+            target = str(root_goal.get("target_parameter") or "").strip()
+            if target:
+                merged.setdefault("goal_output", _param_to_field(target))
+
+    return merged

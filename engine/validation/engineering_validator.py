@@ -12,7 +12,7 @@ from engine.executor.unit_manager import convert_to_si
 from engine.reference.material_catalog_db import standards_root_from_pack_root
 from engine.reference.material_resolver import resolve_material_table_key
 from engine.reference.standards_reader import StandardsReader
-from models.input import EngineeringInput
+from models.fact import Fact, fact_scalar_value, fact_unit
 from models.validation import ComplianceStatus, LayerValidationResult, ValidationFinding, ValidationSeverity
 
 
@@ -24,7 +24,7 @@ class EngineeringValidator:
         node_id: str,
         *,
         reader: StandardsReader,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         overrides: list[str] | None = None,
     ) -> LayerValidationResult:
         record = reader.load(node_id)
@@ -132,7 +132,7 @@ class EngineeringValidator:
     def _validate_table_temperature(
         self,
         reader: StandardsReader,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         overrides: list[str],
     ) -> LayerValidationResult:
         errors: list[ValidationFinding] = []
@@ -143,11 +143,12 @@ class EngineeringValidator:
             return LayerValidationResult(status=ComplianceStatus.PASS)
 
         inp = task_inputs["design_temperature"]
-        material = str(task_inputs["material"].value)
-        if not isinstance(inp.value, (int, float)):
+        material = str(fact_scalar_value(task_inputs["material"]))
+        scalar = fact_scalar_value(inp)
+        if not isinstance(scalar, (int, float)):
             return LayerValidationResult(status=ComplianceStatus.PASS)
 
-        temp_f, _ = convert_to_si(float(inp.value), inp.unit, target_unit="f")
+        temp_f, _ = convert_to_si(float(scalar), fact_unit(inp), target_unit="f")
         try:
             table_data = reader.load_table("A-1")
         except FileNotFoundError:

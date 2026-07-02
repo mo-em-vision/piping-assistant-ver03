@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from ai.interaction_specs import default_pipe_wall_thickness_decision_interactions
+from engine.state.goal_projection import planning_projection
 from engine.executor.allowable_stress_resolver import apply_allowable_stress_lookup
 from engine.executor.coefficient_lookup import apply_coefficient_lookups
 from engine.executor.mawp_geometry_resolver import (
@@ -18,7 +19,8 @@ from engine.executor.unit_manager import normalize_unit
 from engine.reference.material_resolver import canonical_material_id
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
-from models.input import EngineeringInput, InputSource, InputStatus
+from engine.state.task_facts import deactivate_fact
+from models.fact import FactClass, ValidationStatus, fact_from_user_submission, fact_scalar_value
 from models.task import Task
 
 from api.parameter_edit import active_edit_parameter, clear_edit_session
@@ -187,23 +189,26 @@ def _parameter_status(task: Task, parameter_id: str) -> str:
     if active_edit_parameter(task) == parameter_id:
         return "pending"
 
-    existing = task.inputs.get(parameter_id)
+    existing = task.fact_store.active_fact(parameter_id)
     if existing is None:
         return "pending"
-    if existing.status == InputStatus.PROPOSED_DEFAULT:
+    if (
+        existing.fact_class == FactClass.DEFAULT_CONFIRMED
+        and existing.validation.status == ValidationStatus.PENDING
+    ):
         return "confirmation_required"
-    if existing.status in {InputStatus.CONFIRMED, InputStatus.USER_OVERRIDE}:
+    if existing.validation.status in {ValidationStatus.CONFIRMED, ValidationStatus.VALIDATED}:
         return "confirmed"
-    if existing.value is not None:
+    if fact_scalar_value(existing) is not None:
         return "pending"
     return "pending"
 
 
 def _current_value(task: Task, parameter_id: str) -> Any:
-    existing = task.inputs.get(parameter_id)
+    existing = task.fact_store.active_fact(parameter_id)
     if existing is None:
         return None
-    return existing.value
+    return fact_scalar_value(existing)
 
 
 def build_parameter_definitions(
@@ -211,9 +216,7 @@ def build_parameter_definitions(
     *,
     reader: StandardsReader | None = None,
 ) -> list[dict[str, Any]]:
-    planning = task.outputs.get("planning_summary") or {}
-    if not isinstance(planning, dict):
-        planning = {}
+    planning = planning_projection(task)
 
     requested_ids = _requested_parameter_ids(task, planning)
     submittable_ids = set(submittable_parameter_ids(task, planning))
@@ -224,7 +227,7 @@ def build_parameter_definitions(
     for parameter_id in requested_ids:
         spec = _base_spec(parameter_id)
         options = spec.get("options") or _INTERACTION_OPTIONS.get(parameter_id)
-        existing = task.inputs.get(parameter_id)
+        existing = task.fact_store.active_fact(parameter_id)
         payload: dict[str, Any] = {
             "name": parameter_id,
             "label": spec["label"],
@@ -272,10 +275,11 @@ def _requested_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]:
             if item_id not in requested_ids:
                 requested_ids.append(item_id)
 
-    for input_id, existing in task.inputs.items():
+    for input_id, existing in task.fact_store.active_facts().items():
         if (
             input_id != "straight_pipe_section"
-            and existing.status == InputStatus.PROPOSED_DEFAULT
+            and existing.fact_class == FactClass.DEFAULT_CONFIRMED
+            and existing.validation.status == ValidationStatus.PENDING
             and input_id not in requested_ids
         ):
             requested_ids.append(input_id)
@@ -354,9 +358,7 @@ def submit_task_input(
     standards_root: Path | None = None,
 ) -> Task:
     task = manager.get_task(task_id)
-    planning = task.outputs.get("planning_summary")
-    if not isinstance(planning, dict):
-        planning = {}
+    planning = planning_projection(task)
 
     allowed_ids = set(submittable_parameter_ids(task, planning))
     if parameter not in allowed_ids:
@@ -383,16 +385,14 @@ def submit_task_input(
     elif definition["type"] in {"dropdown", "checkbox", "material", "multi_select"}:
         resolved_unit = definition.get("default_unit", "dimensionless")
 
-    engineering_input = EngineeringInput(
-        input_id=parameter,
+    fact = fact_from_user_submission(
+        key=parameter,
         value=coerced,
         unit=resolved_unit,
-        source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-        default=definition.get("default_value"),
-        requires_confirmation=False,
+        task_id=task.task_id,
+        workflow_id=_task_workflow_id(task) or None,
     )
-    manager.store_input(task_id, engineering_input)
+    manager.store_input(task_id, fact)
 
     task = manager.get_task(task_id)
     workflow_id = _task_workflow_id(task)
@@ -434,17 +434,5 @@ def submit_task_input(
 
     if active_edit_parameter(task) == parameter:
         clear_edit_session(task)
-
-    planning = task.outputs.get("planning_summary")
-    if isinstance(planning, dict):
-        for key in ("missing_inputs", "missing_assumptions", "missing_execution_assumptions"):
-            items = planning.get(key)
-            if isinstance(items, list) and parameter in items:
-                planning[key] = [item for item in items if item != parameter]
-        phase_missing = planning.get("phase_missing")
-        if isinstance(phase_missing, dict):
-            for phase, fields in phase_missing.items():
-                if isinstance(fields, list) and parameter in fields:
-                    planning["phase_missing"][phase] = [item for item in fields if item != parameter]
 
     return manager.get_task(task_id)

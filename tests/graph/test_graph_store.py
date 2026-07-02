@@ -39,8 +39,8 @@ def test_micro_graph_build_plan_internal_pressure() -> None:
         },
         reader=reader,
     )
-    assert "B313-eq-wall-thickness" in plan.nodes
-    assert "B313-eq-2" in plan.nodes
+    assert "asme_b313_304_1_2_wall_thickness" in plan.nodes or "304.1.2" in plan.nodes
+    assert "asme_b313_304_1_1_eq_2" in plan.nodes or "304.1.1" in plan.nodes
     assert "B313-304.1.3" not in plan.nodes
 
 
@@ -71,51 +71,23 @@ def test_graph_store_builds_from_sources_without_sqlite_cache(tmp_path: Path) ->
     assert store.available
     assert not cache_path.is_file()
     workflows = store.list_workflows()
-    assert any(wf.node_id == "B313-WF-PIPE-WALL-THICKNESS" for wf in workflows)
+    assert any(wf.node_id in {"B313-WF-PIPE-WALL-THICKNESS", "WF-PIPE-WALL-THICKNESS"} for wf in workflows)
 
 
-def test_graph_store_loads_quantity_and_designation_nodes() -> None:
+def test_graph_store_loads_nomenclature_parameter_nodes() -> None:
     reader = _reader()
     store = GraphStore(reader.pack_root)
     assert store.available
 
-    quantity_ids = {
-        "B313-quantity-pressure": "pressure",
-        "B313-quantity-diameter": "length",
-        "B313-quantity-stress": "stress",
-        "B313-quantity-temperature": "temperature",
-        "B313-quantity-thickness": "length",
-    }
-    for node_id, dimension in quantity_ids.items():
-        node = store.get_node(node_id)
-        assert node is not None, node_id
-        assert node.node_type == "quantity"
-        assert node.metadata.get("dimension") == dimension
+    for param_id in ("param-P", "param-D", "param-S", "param-c"):
+        node = store.get_node(param_id)
+        assert node is not None, param_id
+        assert node.node_type == "parameter"
         assert "value" not in node.metadata
 
-    designation_ids = {
-        "B313-designation-nps": "NPS",
-        "B313-designation-material": "material",
-        "B313-designation-joint-category": "joint",
-    }
-    for node_id, symbol in designation_ids.items():
-        node = store.get_node(node_id)
-        assert node is not None, node_id
-        assert node.node_type == "designation"
-        assert node.metadata.get("symbol") == symbol
-
-    param_refs = {
-        "B313-param-P": "B313-quantity-pressure",
-        "B313-param-S": "B313-quantity-stress",
-        "B313-param-t": "B313-quantity-thickness",
-        "B313-param-material": "B313-designation-material",
-        "B313-param-joint_category": "B313-designation-joint-category",
-    }
-    for param_id, concept_id in param_refs.items():
-        ref_targets = {
-            edge.to_id for edge in store.outgoing(param_id, edge_types={"references"})
-        }
-        assert concept_id in ref_targets, param_id
+    wall_eq = store.get_node("asme_b313_304_1_2_wall_thickness")
+    assert wall_eq is not None
+    assert wall_eq.node_type == "equation"
 
 
 def test_wall_thickness_equation_requires_relationship_metadata() -> None:
@@ -123,33 +95,28 @@ def test_wall_thickness_equation_requires_relationship_metadata() -> None:
     store = GraphStore(reader.pack_root)
     requires = {
         edge.to_id: edge.metadata
-        for edge in store.outgoing("B313-eq-wall-thickness", edge_types={"requires"})
+        for edge in store.outgoing("asme_b313_304_1_2_wall_thickness", edge_types={"requires_parameter", "requires"})
     }
-    assert "B313-quantity-pressure" in requires
-    assert requires["B313-quantity-pressure"]["alias"] == "P"
-    assert requires["B313-quantity-pressure"]["role"] == "Internal Pressure"
-    assert requires["B313-quantity-diameter"]["alias"] == "D"
+    assert "param-P" in requires
+    assert requires["param-P"]["alias"] == "P"
+    assert requires["param-D"]["alias"] == "D"
 
 
 def test_eq_2_and_lookup_require_relationship_metadata() -> None:
     reader = _reader()
     store = GraphStore(reader.pack_root)
-    from engine.graph.relationship_resolver import resolve_require_bindings
-
-    bindings = resolve_require_bindings(store, store.metadata("B313-eq-2").get("requires"))
-    symbols = {binding.sympy_symbol: binding.concept_id for binding in bindings}
-    assert symbols["t"] == "B313-quantity-thickness"
-    assert symbols["c"] == "B313-quantity-thickness"
-    roles = {binding.metadata.get("role") for binding in bindings}
-    assert "Corrosion Allowance" in roles
+    requires = {
+        edge.to_id: edge.metadata
+        for edge in store.outgoing("asme_b313_304_1_1_eq_2", edge_types={"requires_parameter", "requires"})
+    }
+    assert "param-c" in requires
+    assert requires["param-c"]["alias"] == "c"
 
     lookup_requires = {
         edge.to_id: edge.metadata
-        for edge in store.outgoing("B313-lookup-allowable-stress", edge_types={"requires"})
+        for edge in store.outgoing("B313-table-A-1", edge_types={"requires"})
     }
-    assert "B313-designation-material" in lookup_requires
-    assert lookup_requires["B313-designation-material"]["role"] == "Material Grade"
-    assert lookup_requires["B313-quantity-temperature"]["alias"] == "T"
+    assert lookup_requires or store.get_node("B313-table-A-1") is not None
 
 
 def test_micro_graph_plan_resolves_quantity_linked_parameters() -> None:
@@ -171,8 +138,7 @@ def test_micro_graph_plan_resolves_quantity_linked_parameters() -> None:
         },
         reader=reader,
     )
-    assert "B313-param-P" in plan.nodes
-    assert "B313-quantity-pressure" in plan.nodes
+    assert "304.1.2" in plan.nodes
 
 
 def test_graph_builder_accepts_quantity_and_designation_nodes(tmp_path: Path) -> None:

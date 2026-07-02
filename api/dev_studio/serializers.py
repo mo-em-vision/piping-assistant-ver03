@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from engine.reference.graph_edge_schema import CANONICAL_EDGE_TYPES, STORED_EDGE_TYPES
+from engine.reference.relationship_taxonomy import KNOWLEDGE_EDGE_TYPES
 from engine.reference.graph_db import GraphEdgeRecord, GraphNodeRecord
 from engine.reference.node_types import CANONICAL_NODE_TYPES
 
@@ -78,7 +78,7 @@ NODE_TYPE_SCHEMAS: dict[str, dict[str, Any]] = {
 }
 
 GRAPH_EDGE_FIELDS = ["edges"]
-CANONICAL_EDGE_TYPE_LIST = sorted(STORED_EDGE_TYPES)
+CANONICAL_EDGE_TYPE_LIST = sorted(KNOWLEDGE_EDGE_TYPES)
 
 
 def node_summary(record: GraphNodeRecord) -> dict[str, Any]:

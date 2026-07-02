@@ -16,6 +16,7 @@ from api.workflow_bootstrap import (
 )
 from config.loader import CLIConfig
 from engine.reference.standards_reader import StandardsReader
+from engine.state.goal_projection import planning_projection
 from engine.state.state_manager import TaskStateManager
 from models.task import TaskStatus
 from tests.api.conftest import api_session_id
@@ -68,7 +69,7 @@ def test_bootstrap_new_task_activates_definition_node(
 
     bootstrap_new_task(task, "pipe_wall_thickness_design", config)
 
-    planning = task.outputs["planning_summary"]
+    planning = planning_projection(task)
     assert task.active_nodes == ["B313-304.1.1"]
     assert planning["active_definition_node"] == "B313-304.1.1"
     assert planning["current_phase"] == "path_decisions"

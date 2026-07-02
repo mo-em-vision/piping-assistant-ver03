@@ -13,6 +13,7 @@ from config.loader import CLIConfig
 from engine.graph.graph_engine import GraphEngine
 from engine.reference.standards_reader import StandardsReader
 from engine.router import Router
+from engine.state.goal_projection import planning_projection
 from engine.state.state_manager import TaskNotFoundError, TaskStateManager
 from models.task import TaskStatus
 from storage.migrate_legacy_sessions import migrate_legacy_sessions
@@ -116,8 +117,8 @@ class DesktopApiService:
             task.outputs.get("t_m") is None
             and task.outputs.get("minimum_required_thickness") is None
         )
-        planning = task.outputs.get("planning_summary") or {}
-        phase = planning.get("current_phase") if isinstance(planning, dict) else None
+        planning = planning_projection(task)
+        phase = planning.get("current_phase")
 
         needs_refresh = has_t and missing_tm and (
             task.status != TaskStatus.COMPLETED
@@ -431,7 +432,7 @@ class DesktopApiService:
             preview = graph.preview_plan(
                 task_id=task_id,
                 root_id=root_slug,
-                inputs=dict(task.inputs),
+                inputs=dict(task.fact_store.active_facts()),
             )
             try_complete_definition_equations(task, reader, preview.execution_order)
             manager.replace_task(task_id, task)

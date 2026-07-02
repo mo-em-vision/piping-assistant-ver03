@@ -9,7 +9,7 @@ from engine.graph.documentation_resolver import resolve_workflow_documentation
 from engine.presentation.presentation_engine import build_presentation
 from engine.reference.standards_reader import StandardsReader
 from engine.state.node_outputs import build_node_outputs
-from models.input import EngineeringInput
+from models.fact import Fact, fact_scalar_value, fact_unit
 from models.node_output import NodeOutput
 from models.task import Task
 from models.workflow_state import WorkflowState
@@ -22,7 +22,6 @@ _CONTROL_OUTPUT_KEYS = {
     "selected_root",
     "graph_root",
     "graph_version",
-    "planning_summary",
     "_execution_trace",
     "_validation_trace",
     "_lifecycle_events",
@@ -141,7 +140,7 @@ def _current_node(task: Task, progress: list[StepProgress]) -> str | None:
 
 def _variable_values(task: Task) -> dict[str, Any]:
     values: dict[str, Any] = {}
-    for key, engineering_input in task.inputs.items():
+    for key, engineering_input in task.fact_store.active_facts().items():
         values[key] = _input_value(engineering_input)
     for key, value in task.outputs.items():
         if key in _CONTROL_OUTPUT_KEYS or key.endswith("_lookup"):
@@ -150,12 +149,12 @@ def _variable_values(task: Task) -> dict[str, Any]:
     return values
 
 
-def _input_value(engineering_input: EngineeringInput) -> dict[str, Any]:
+def _input_value(fact: Fact) -> dict[str, Any]:
     return {
-        "value": engineering_input.value,
-        "unit": engineering_input.unit,
-        "source": engineering_input.source.value,
-        "status": engineering_input.status.value,
+        "value": fact_scalar_value(fact),
+        "unit": fact_unit(fact),
+        "source": fact.source.source_type.value,
+        "status": fact.validation.status.value,
     }
 
 

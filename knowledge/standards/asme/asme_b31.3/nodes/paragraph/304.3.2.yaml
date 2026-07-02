@@ -1,85 +1,40 @@
 ---
 id: 304.3.2
 type: paragraph
+key: b313_304_3_2
 title: Strength of Branch Connections
-version: '2026'
-status: draft
-created: '2026-06-28'
-modified: '2026-06-28'
-topic: branch_connections
-revision_year: 2024
-purpose: 'Establish when branch connections require reinforcement calculation and
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.2
+paragraph_class: definition
+description: Establish when branch connections require reinforcement calculation and
   when adequate strength may be assumed without calculation.
-
-  '
-engineering_intent: branch_connection_design
-subsections:
-- id: intro
-  label: ''
-  text: 'A branch opening weakens the run pipe; added reinforcement may be required
-    unless wall thickness is sufficient or an exception in (a)–(c) applies.
-
-    '
-- id: a
-  label: (a)
-  text: 'Listed branch type fittings (ASME B16.9, B16.11, MSS SP-97) may be assumed
-    adequate without calculation.
-
-    '
-- id: b
-  label: (b)
-  text: 'Listed threaded or socket welding couplings welded per §328.5.4 may be assumed
-    adequate when branch size and coupling class limits are satisfied.
-
-    '
-- id: c
-  label: (c)
-  text: 'Unlisted branch connection fittings require material listing and qualification
-    per §304.7.2.
-
-    '
-trace:
-  capture:
-  - paragraph_text
-  - decisions
-report:
-  section_title: Strength of Branch Connections — §304.3.2
-  include:
-  - node_reference
-  - paragraph_text
-  - decisions
-  explanation_required: true
-ai_hints:
-  explanation_focus: 'Distinguish branch connections that may be assumed adequate
-    from those requiring reinforcement calculation per §304.3.3.
-
-    '
-  common_questions:
-  - When can a tee be used without reinforcement calculation?
-  - What are the size limits for welded couplings under (b)?
-  avoid:
-  - Do not skip §304.3.3 calculation when none of (a)–(c) apply.
-kind: requirement
+metadata:
+  status: draft
+  node_version: 1
+  source_revision_year: 2024
 edges:
+- type: belongs_to_authority
+  target: AUTH-ASME-B31.3
 - type: parent
   target: '304.3'
-- type: references
+- type: related_to
   target: 304.3.1
 - type: depends_on
   target: 304.3.3
-- type: references
+- type: related_to
   target: 304.3.3
   reason: Reinforcement amount is determined per §304.3.3 when calculation is required.
-- type: references
+- type: related_to
   target: '303'
   reason: Listed branch fittings per §303.
-- type: references
+- type: related_to
   target: 328.5.4
   reason: Welded coupling branch connections.
-- type: references
+- type: related_to
   target: '300.2'
   reason: Unlisted branch connection fittings.
-- type: references
+- type: related_to
   target: 304.7.2
   reason: Qualification of unlisted fittings under subsection (c).
 ---

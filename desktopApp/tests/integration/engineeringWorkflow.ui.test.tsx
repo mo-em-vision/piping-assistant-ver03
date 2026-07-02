@@ -58,9 +58,10 @@ describe('engineering workflow UI (mock mode)', () => {
 
     const { useTaskStore } = await import('@/store/taskStore')
     await waitFor(() => {
-      expect(useTaskStore.getState().activeTaskState?.inputs.nominal_pipe_size?.display_value).toBe(
-        '6 NPS',
-      )
+      const fact = useTaskStore.getState().activeTaskState?.facts?.nominal_pipe_size as
+        | { display_value?: string }
+        | undefined
+      expect(fact?.display_value).toBe('6 NPS')
     })
 
     expect(screen.queryByRole('heading', { name: 'Engineering report' })).not.toBeInTheDocument()

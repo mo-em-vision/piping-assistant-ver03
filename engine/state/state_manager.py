@@ -7,9 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from engine.reference.standards_reader import StandardsReader
-
-from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
-from models.task import InputConflict, Task, TaskStatus
+from engine.state.task_facts import active_facts, fact_scalar_value, store_fact
+from models.fact import Fact
+from models.task import InputConflict, Task, TaskStatus, new_task
 from models.workflow_state import WorkflowState
 
 
@@ -46,7 +46,7 @@ class TaskStateManager:
         if task_id in self._tasks:
             raise TaskAlreadyExistsError(f"Task already exists: {task_id}")
 
-        task = Task(task_id=task_id, status=status)
+        task = new_task(task_id, status=status)
         self._tasks[task_id] = task
         self._step_progress[task_id] = {}
 
@@ -112,36 +112,14 @@ class TaskStateManager:
         task.active_nodes = list(active_nodes)
         return task
 
-    def store_input(self, task_id: str, engineering_input: EngineeringInput) -> Task:
+    def store_fact(self, task_id: str, fact: Fact) -> Task:
         task = self.get_task(task_id)
-        existing = task.inputs.get(engineering_input.input_id)
-
-        if existing is not None and existing.value != engineering_input.value:
-            if (
-                existing.status == InputStatus.PROPOSED_DEFAULT
-                and input_is_expansion_ready(engineering_input)
-            ):
-                pass
-            else:
-                task.conflicts.append(
-                    InputConflict(
-                        previous_calculation_invalid=True,
-                        reason="input changed",
-                        input_id=engineering_input.input_id,
-                        previous_value=existing.value,
-                        new_value=engineering_input.value,
-                    )
-                )
-        elif (
-            existing is not None
-            and existing.value == engineering_input.value
-            and existing.status == InputStatus.PROPOSED_DEFAULT
-            and input_is_expansion_ready(engineering_input)
-        ):
-            pass
-
-        task.inputs[engineering_input.input_id] = engineering_input
+        store_fact(task, fact)
         return task
+
+    def store_input(self, task_id: str, fact: Fact) -> Task:
+        """Store a runtime fact (legacy name retained for call-site compatibility)."""
+        return self.store_fact(task_id, fact)
 
     def store_parameter_registry(
         self,
@@ -212,18 +190,18 @@ class TaskStateManager:
         other = self.get_task(other_task_id)
         conflicts: list[InputConflict] = []
 
-        shared_keys = set(task.inputs) & set(other.inputs)
-        for input_id in shared_keys:
-            left = task.inputs[input_id]
-            right = other.inputs[input_id]
-            if left.value != right.value:
+        shared_keys = set(active_facts(task)) & set(active_facts(other))
+        for key in shared_keys:
+            left = active_facts(task)[key]
+            right = active_facts(other)[key]
+            if fact_scalar_value(left) != fact_scalar_value(right):
                 conflicts.append(
                     InputConflict(
                         previous_calculation_invalid=True,
                         reason="input changed",
-                        input_id=input_id,
-                        previous_value=left.value,
-                        new_value=right.value,
+                        input_id=key,
+                        previous_value=fact_scalar_value(left),
+                        new_value=fact_scalar_value(right),
                     )
                 )
 

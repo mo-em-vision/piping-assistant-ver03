@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any
 
-from models.input import EngineeringInput
+from models.fact import Fact, NumericValue, fact_scalar_value, fact_unit
 
 PSI_TO_PA = 6894.757293168
 BAR_TO_PA = 100_000.0
@@ -102,35 +102,34 @@ def convert_to_si(value: float, unit: str, *, target_unit: str | None = None) ->
     return _convert_legacy(value, unit, target_unit=target_unit)
 
 
-def prepare_engineering_input(
-    engineering_input: EngineeringInput,
+def prepare_fact(
+    fact: Fact,
     *,
     target_unit: str | None = None,
-) -> EngineeringInput:
-    """Return input with SI value while preserving original units."""
-    if not isinstance(engineering_input.value, (int, float)):
-        return engineering_input
+) -> Fact:
+    """Return fact with SI value while preserving original units."""
+    scalar = fact_scalar_value(fact)
+    if not isinstance(scalar, (int, float)):
+        return fact
 
-    original_value = (
-        engineering_input.original_value
-        if engineering_input.original_value is not None
-        else engineering_input.value
-    )
-    original_unit = engineering_input.original_unit or engineering_input.unit
+    original_value = fact.original_value if fact.original_value is not None else scalar
+    original_unit = fact.original_unit or fact_unit(fact)
 
     si_value, si_unit = convert_to_si(
-        float(engineering_input.value),
-        engineering_input.unit,
+        float(scalar),
+        fact_unit(fact),
         target_unit=target_unit,
     )
 
     return replace(
-        engineering_input,
-        value=si_value,
-        unit=si_unit,
+        fact,
+        value=NumericValue(amount=si_value, unit=si_unit),
         original_value=original_value,
         original_unit=original_unit,
     )
+
+
+prepare_engineering_input = prepare_fact
 
 
 def prepare_symbol_map(

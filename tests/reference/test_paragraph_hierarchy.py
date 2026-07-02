@@ -75,9 +75,9 @@ def test_eq_2_equation_loads_by_node_id(reader: StandardsReader) -> None:
 
 def test_eq_2_is_standalone_equation_node(reader: StandardsReader) -> None:
     record = reader.load("304.1.1-eq-2")
-    assert record.node_id == "304.1.1-eq-2"
+    assert record.node_id == "asme_b313_304_1_1_eq_2"
     assert record.metadata.get("type") == "equation"
-    assert record.metadata.get("equation_id") == "eq-2"
+    assert record.metadata.get("key") == "asme_b313_304_1_1_eq_2"
     assert record.metadata.get("parent_node_id") is None or record.metadata.get("edges")
 
 
@@ -89,12 +89,12 @@ def test_304_1_1_references_external_eq_2_graph_edge(reader: StandardsReader) ->
     assert node_meta.get("type") == "paragraph"
     assert node_meta.get("edges")
 
-    outgoing = store.outgoing("304.1.1", edge_types={"equation"})
+    outgoing = store.outgoing("304.1.1", edge_types={"references_equation", "equation"})
     assert len(outgoing) == 1
-    assert outgoing[0].to_id == "304.1.1-eq-2"
+    assert outgoing[0].to_id == "asme_b313_304_1_1_eq_2"
     assert (outgoing[0].metadata or {}).get("subsection") == "a"
 
-    incoming = store.incoming("304.1.1-eq-2", edge_types={"equation"})
+    incoming = store.incoming("asme_b313_304_1_1_eq_2", edge_types={"references_equation", "equation"})
     assert len(incoming) == 1
     assert incoming[0].from_id == "304.1.1"
-    assert store.get_node("304.1.1-eq-2") is not None
+    assert store.get_node("asme_b313_304_1_1_eq_2") is not None

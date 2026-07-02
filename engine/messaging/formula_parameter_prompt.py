@@ -19,7 +19,7 @@ from engine.reference.nomenclature_resolver import (
     spec_symbol,
 )
 from engine.reference.standards_reader import StandardsReader
-from models.input import EngineeringInput, InputStatus, input_is_expansion_ready
+from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready, fact_scalar_value, fact_unit
 from models.planning import NavigationPhase, NavigationPlan
 from models.task import Task
 
@@ -62,7 +62,7 @@ def resolve_focus_calculation_node(
     navigation_plan: NavigationPlan | None,
     reader: StandardsReader,
     *,
-    task_inputs: dict[str, EngineeringInput] | None = None,
+    task_inputs: dict[str, Fact] | None = None,
 ) -> str | None:
     """Return the calculation node that should drive the formula prompt."""
     if navigation_plan is None:
@@ -134,7 +134,7 @@ def build_formula_parameter_prompt(
     node_id = resolve_focus_calculation_node(
         navigation_plan,
         reader,
-        task_inputs=task.inputs,
+        task_inputs=task.fact_store.active_facts(),
     )
     if node_id is None:
         return None
@@ -147,14 +147,14 @@ def build_formula_parameter_prompt(
     known, missing = classify_formula_parameters(
         reader,
         node_id,
-        task_inputs=task.inputs,
+        task_inputs=task.fact_store.active_facts(),
         missing_input_ids=missing_input_ids or [],
         navigation_plan=navigation_plan,
     )
     if not missing:
         return None
 
-    context = summarize_path_context(task.inputs, navigation_plan)
+    context = summarize_path_context(dict(task.fact_store.active_facts()), navigation_plan)
     purpose = _purpose_line(eq_ctx)
     lines: list[str] = []
 
@@ -210,7 +210,7 @@ def classify_formula_parameters(
     reader: StandardsReader,
     node_id: str,
     *,
-    task_inputs: dict[str, EngineeringInput],
+    task_inputs: dict[str, Fact],
     missing_input_ids: list[str],
     navigation_plan: NavigationPlan | None = None,
 ) -> tuple[list[KnownParam], list[MissingParam]]:
@@ -286,7 +286,7 @@ def classify_formula_parameters(
 
 
 def summarize_path_context(
-    task_inputs: dict[str, EngineeringInput],
+    task_inputs: dict[str, Fact],
     navigation_plan: NavigationPlan | None,
 ) -> str:
     """Summarize confirmed decisions and inputs that led to the calculation node."""
@@ -295,7 +295,7 @@ def summarize_path_context(
     if task_inputs.get("straight_pipe_section") and _input_has_value(
         task_inputs["straight_pipe_section"]
     ):
-        val = task_inputs["straight_pipe_section"].value
+        val = fact_scalar_value(task_inputs["straight_pipe_section"])
         if val is True:
             fragments.append("straight pipe section")
 
@@ -315,21 +315,21 @@ def summarize_path_context(
         inp = task_inputs.get(input_id)
         if inp is None or not _input_has_value(inp):
             continue
-        if inp.requires_confirmation and not input_is_expansion_ready(inp):
+        if inp.requires_confirmation and not fact_is_expansion_ready(inp):
             continue
         if label:
-            fragments.append(f"{label} {inp.value}")
+            fragments.append(f"{label} {fact_scalar_value(inp)}")
         elif input_id == "design_pressure":
-            unit = inp.original_unit or inp.unit
-            fragments.append(f"design pressure {_format_scalar(inp.value)} {unit}")
+            unit = inp.original_unit or fact_unit(inp)
+            fragments.append(f"design pressure {_format_scalar(fact_scalar_value(inp))} {unit}")
         elif input_id == "design_temperature":
-            unit = inp.original_unit or inp.unit
-            fragments.append(f"design temperature {inp.value} {unit}")
+            unit = inp.original_unit or fact_unit(inp)
+            fragments.append(f"design temperature {fact_scalar_value(inp)} {unit}")
         elif input_id == "material":
-            fragments.append(f"material {inp.value}")
+            fragments.append(f"material {fact_scalar_value(inp)}")
         elif input_id == "outside_diameter":
-            unit = inp.original_unit or inp.unit
-            fragments.append(f"outside diameter {inp.value} {unit}")
+            unit = inp.original_unit or fact_unit(inp)
+            fragments.append(f"outside diameter {fact_scalar_value(inp)} {unit}")
 
     if navigation_plan and navigation_plan.path_decision:
         node = navigation_plan.path_decision.get("selected_node", "")
@@ -393,18 +393,18 @@ def _description_for(
     return symbol
 
 
-def _input_has_value(inp: EngineeringInput) -> bool:
-    if inp.status == InputStatus.PROPOSED_DEFAULT:
+def _input_has_value(inp: Fact) -> bool:
+    if inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
         return False
-    return inp.value is not None
+    return fact_scalar_value(inp) is not None
 
 
-def _is_known_input(inp: EngineeringInput) -> bool:
-    if inp.requires_confirmation and inp.status == InputStatus.PROPOSED_DEFAULT:
+def _is_known_input(inp: Fact) -> bool:
+    if inp.requires_confirmation and inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
         return False
-    if inp.status == InputStatus.PROPOSED_DEFAULT:
+    if inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
         return False
-    return inp.value is not None
+    return fact_scalar_value(inp) is not None
 
 
 def _resolve_known_display(
@@ -412,7 +412,7 @@ def _resolve_known_display(
     *,
     symbol: str,
     input_id: str,
-    task_inputs: dict[str, EngineeringInput],
+    task_inputs: dict[str, Fact],
     input_spec: dict[str, Any] | None,
 ) -> str | None:
     if symbol == "D":
@@ -422,10 +422,10 @@ def _resolve_known_display(
 
     inp = task_inputs.get(input_id)
     if inp is not None and _is_known_input(inp):
-        unit = inp.original_unit or inp.unit
+        unit = inp.original_unit or fact_unit(inp)
         if unit and unit != "dimensionless":
-            return f"{_format_scalar(inp.value)} {unit}"
-        return _format_scalar(inp.value)
+            return f"{_format_scalar(fact_scalar_value(inp))} {unit}"
+        return _format_scalar(fact_scalar_value(inp))
     return None
 
 
@@ -437,31 +437,31 @@ def _format_scalar(value: Any) -> str:
 
 def _resolve_d_display(
     reader: StandardsReader,
-    task_inputs: dict[str, EngineeringInput],
+    task_inputs: dict[str, Fact],
 ) -> str | None:
     mode = field_value("d_input_mode", task_inputs) or "nps_lookup"
     od = task_inputs.get("outside_diameter")
     if od is not None and _is_known_input(od):
-        unit = od.original_unit or od.unit
-        return f"{_format_scalar(od.value)} {unit}"
+        unit = od.original_unit or fact_unit(od)
+        return f"{_format_scalar(fact_scalar_value(od))} {unit}"
 
     if mode == "nps_lookup":
         nps = task_inputs.get("nominal_pipe_size")
         if nps is not None and _is_known_input(nps):
             try:
                 lookup = PipeDimensionLookup(reader.standards_root)
-                result = lookup.lookup(str(nps.value))
-                return f"{result.outside_diameter_mm} mm (NPS {nps.value}, ASME B36.10)"
+                result = lookup.lookup(str(fact_scalar_value(nps)))
+                return f"{result.outside_diameter_mm} mm (NPS {fact_scalar_value(nps)}, ASME B36.10)"
             except (ValueError, FileNotFoundError):
-                return f"NPS {nps.value} (lookup pending)"
+                return f"NPS {fact_scalar_value(nps)} (lookup pending)"
     return None
 
 
-def _resolve_s_display(task_inputs: dict[str, EngineeringInput]) -> str | None:
+def _resolve_s_display(task_inputs: dict[str, Fact]) -> str | None:
     s_inp = task_inputs.get("allowable_stress")
     if s_inp is not None and _is_known_input(s_inp):
-        unit = s_inp.original_unit or s_inp.unit
-        return f"{_format_scalar(s_inp.value)} {unit}"
+        unit = s_inp.original_unit or fact_unit(s_inp)
+        return f"{_format_scalar(fact_scalar_value(s_inp))} {unit}"
     return None
 
 
@@ -469,7 +469,7 @@ def _is_missing(
     symbol: str,
     input_id: str,
     input_spec: dict[str, Any] | None,
-    task_inputs: dict[str, EngineeringInput],
+    task_inputs: dict[str, Fact],
     phase_missing: set[str],
 ) -> bool:
     if symbol == "D":
@@ -505,7 +505,7 @@ def _is_missing(
     inp = task_inputs.get(input_id)
     if inp is not None and _is_known_input(inp):
         return False
-    if inp is not None and inp.status == InputStatus.PROPOSED_DEFAULT:
+    if inp is not None and inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
         return True
     return input_id in phase_missing or inp is None
 
@@ -517,7 +517,7 @@ def _missing_guidance(
     input_id: str,
     input_spec: dict[str, Any] | None,
     entry: NomenclatureEntry | None,
-    task_inputs: dict[str, EngineeringInput],
+    task_inputs: dict[str, Fact],
     record_metadata: dict[str, Any],
 ) -> str:
     if symbol == "D":
@@ -541,8 +541,8 @@ def _missing_guidance(
         return ". ".join(parts) + "."
 
     if inp := task_inputs.get(input_id):
-        if inp.status == InputStatus.PROPOSED_DEFAULT:
-            default_val = inp.default if inp.default is not None else inp.value
+        if inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
+            default_val = inp.default if inp.default is not None else fact_scalar_value(inp)
             condition = inp.default_condition or ""
             base = f"default is {default_val}"
             if condition:
@@ -594,7 +594,7 @@ def _options_for_parameter(
     *,
     symbol: str,
     input_id: str,
-    task_inputs: dict[str, EngineeringInput],
+    task_inputs: dict[str, Fact],
     input_spec: dict[str, Any] | None,
     interaction_specs: list,
 ) -> tuple[str, ...]:
@@ -613,13 +613,13 @@ def _options_for_parameter(
 
     inp = task_inputs.get(input_id)
     default_val: Any | None = None
-    if inp is not None and inp.status == InputStatus.PROPOSED_DEFAULT:
-        default_val = inp.default if inp.default is not None else inp.value
+    if inp is not None and inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
+        default_val = inp.default if inp.default is not None else fact_scalar_value(inp)
     elif input_spec and input_spec.get("default") is not None:
         default_val = input_spec.get("default")
 
     requires_confirm = bool(
-        (inp is not None and inp.status == InputStatus.PROPOSED_DEFAULT)
+        (inp is not None and inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING)
         or (input_spec and input_spec.get("requires_confirmation"))
     )
     if requires_confirm and default_val is not None:

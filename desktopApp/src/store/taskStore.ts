@@ -455,8 +455,8 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         activeTaskState: {
           ...state,
           parameters: nextParameters,
-          inputs: {
-            ...state.inputs,
+          facts: {
+            ...state.facts,
             [parameter]: {
               input_id: parameter,
               value,

@@ -1,80 +1,34 @@
 ---
 id: 304.3.1
 type: paragraph
+key: b313_304_3_1
 title: General — Branch Connections
-version: '2026'
-status: draft
-created: '2026-06-28'
-modified: '2026-06-28'
-topic: branch_connections
-revision_year: 2024
-purpose: 'Define scope and applicability of branch connection pressure design rules
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.1
+paragraph_class: definition
+description: Define scope and applicability of branch connection pressure design rules
   in §304.3.2 through §304.3.4, including geometric limits and qualification paths.
-
-  '
-engineering_intent: branch_connection_design
-subsections:
-- id: a
-  label: (a)
-  text: 'Except as provided in (b) below, the requirements in paras. 304.3.2 through
-    304.3.4 are applicable to listed fittings, welded couplings and unlisted fittings,
-    and welded direct branch connections.
-
-    '
-- id: b
-  label: (b)
-  text: 'Rules in paras. 304.3.2 through 304.3.4 are minimum requirements valid only
-    for branch connections meeting diameter-ratio, angle, and axis intersection limits
-    per Figure 304.3.3-1 nomenclature.
-
-    '
-- id: c
-  label: (c)
-  text: 'Where provisions of (a) and (b) are not met, pressure design shall be qualified
-    as required by para. 304.7.2.
-
-    '
-- id: d
-  label: (d)
-  text: 'Other design considerations relating to branch connections are stated in
-    para. 304.3.5.
-
-    '
-trace:
-  capture:
-  - paragraph_text
-  - decisions
-report:
-  section_title: General — §304.3.1 Branch Connections
-  include:
-  - node_reference
-  - paragraph_text
-  explanation_required: true
-ai_hints:
-  explanation_focus: 'Clarify when §304.3.2–304.3.4 apply directly versus when §304.7.2
-    qualification is required.
-
-    '
-  common_questions:
-  - When do branch connection rules not apply without qualification?
-  - What geometric limits apply under subsection (b)?
-  avoid:
-  - Do not treat (b) limits as optional when calculating reinforcement.
-kind: requirement
+metadata:
+  status: draft
+  node_version: 1
+  source_revision_year: 2024
 edges:
+- type: belongs_to_authority
+  target: AUTH-ASME-B31.3
 - type: parent
   target: '304.3'
-- type: references
+- type: related_to
   target: 304.3.2
-- type: references
+- type: related_to
   target: 304.3.3
-- type: references
+- type: related_to
   target: 304.7.2
   reason: Pressure design qualification when (a) and (b) limits are not met.
-- type: references
+- type: related_to
   target: 328.5.4
   reason: Direct weld branch connections per §328.5.4.
-- type: references
+- type: related_to
   target: '300.2'
   reason: Unlisted cast or forged branch connection fittings.
 ---

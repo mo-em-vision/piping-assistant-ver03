@@ -6,20 +6,30 @@ from pathlib import Path
 
 from engine.planner.planner import Planner
 from engine.reference.standards_reader import StandardsReader
+from engine.state.fact_migration import fact_from_engineering_input
+from engine.state.goal_projection import planning_projection
 from engine.state.state_manager import TaskStateManager
 from models.agent import AgentAction, IntentResult
 from models.input import EngineeringInput, InputSource, InputStatus
-from models.task import Task, TaskStatus
+from models.task import Task, new_task, TaskStatus
 from tests.acceptance.helpers import (
     confirmed_default_inputs,
     internal_pressure_assumption,
     straight_section_assumption,
 )
+from tests.helpers.facts import legacy_input, set_fact_from_input
 
 
 def _reader() -> StandardsReader:
     root = Path(__file__).resolve().parents[2]
     return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
+
+
+def _store_input(state: TaskStateManager, task_id: str, inp: EngineeringInput) -> None:
+    state.store_fact(
+        task_id,
+        fact_from_engineering_input(inp, task_id=task_id, workflow_id="pipe_wall_thickness_design"),
+    )
 
 
 def test_planner_pipe_wall_thickness_missing_inputs() -> None:
@@ -50,7 +60,7 @@ def test_planner_pipe_wall_thickness_missing_inputs() -> None:
     )
     assert plan.missing_inputs == []
     assert plan.action == AgentAction.REQUEST_INPUT
-    assert task.outputs.get("planning_summary") is not None
+    assert planning_projection(task)
 
 
 def test_planner_does_not_execute_calculations() -> None:
@@ -73,10 +83,11 @@ def test_planner_does_not_execute_calculations() -> None:
 def test_planner_expands_external_pressure_path() -> None:
     state = TaskStateManager()
     task = state.create_task("pipe-wall-external", status=TaskStatus.AWAITING_INPUT)
-    state.store_input("pipe-wall-external", straight_section_assumption())
-    state.store_input(
+    _store_input(state, "pipe-wall-external", straight_section_assumption())
+    _store_input(
+        state,
         "pipe-wall-external",
-        EngineeringInput(
+        legacy_input(
             input_id="pressure_loading",
             value="external_pressure",
             unit="dimensionless",
@@ -108,27 +119,32 @@ def test_planner_expands_external_pressure_path() -> None:
 def test_planner_requests_default_confirmations_for_internal_path() -> None:
     state = TaskStateManager()
     task = state.create_task("pipe-wall-defaults", status=TaskStatus.AWAITING_INPUT)
-    state.store_input("pipe-wall-defaults", straight_section_assumption())
-    state.store_input("pipe-wall-defaults", internal_pressure_assumption())
-    state.store_input(
+    _store_input(state, "pipe-wall-defaults", straight_section_assumption())
+    _store_input(state, "pipe-wall-defaults", internal_pressure_assumption())
+    _store_input(
+        state,
         "pipe-wall-defaults",
-        EngineeringInput("design_pressure", 500, "psi", InputSource.USER),
+        legacy_input("design_pressure", 500, "psi", source=InputSource.USER),
     )
-    state.store_input(
+    _store_input(
+        state,
         "pipe-wall-defaults",
         EngineeringInput(
             "d_input_mode", "direct_od", "dimensionless", InputSource.USER, status=InputStatus.CONFIRMED
         ),
     )
-    state.store_input(
+    _store_input(
+        state,
         "pipe-wall-defaults",
         EngineeringInput("outside_diameter", 10, "in", InputSource.USER),
     )
-    state.store_input(
+    _store_input(
+        state,
         "pipe-wall-defaults",
         EngineeringInput("material", "SA-106B", "dimensionless", InputSource.USER),
     )
-    state.store_input(
+    _store_input(
+        state,
         "pipe-wall-defaults",
         EngineeringInput("design_temperature", 200, "F", InputSource.USER),
     )
@@ -150,11 +166,12 @@ def test_planner_requests_default_confirmations_for_internal_path() -> None:
 def test_planner_proposes_path_when_defaults_confirmed() -> None:
     state = TaskStateManager()
     task = state.create_task("pipe-wall-ready", status=TaskStatus.AWAITING_INPUT)
-    state.store_input("pipe-wall-ready", straight_section_assumption())
-    state.store_input("pipe-wall-ready", internal_pressure_assumption())
+    _store_input(state, "pipe-wall-ready", straight_section_assumption())
+    _store_input(state, "pipe-wall-ready", internal_pressure_assumption())
     for engineering_input in confirmed_default_inputs().values():
-        state.store_input("pipe-wall-ready", engineering_input)
-    state.store_input(
+        _store_input(state, "pipe-wall-ready", engineering_input)
+    _store_input(
+        state,
         "pipe-wall-ready",
         EngineeringInput(
             "d_input_mode",
@@ -164,29 +181,28 @@ def test_planner_proposes_path_when_defaults_confirmed() -> None:
             status=InputStatus.CONFIRMED,
         ),
     )
-    state.store_input(
+    _store_input(
+        state,
         "pipe-wall-ready",
         EngineeringInput("design_pressure", 500, "psi", InputSource.USER),
     )
-    state.store_input(
-        "pipe-wall-ready",
-        EngineeringInput(
-            "d_input_mode", "direct_od", "dimensionless", InputSource.USER, status=InputStatus.CONFIRMED
-        ),
-    )
-    state.store_input(
+    _store_input(
+        state,
         "pipe-wall-ready",
         EngineeringInput("outside_diameter", 10, "in", InputSource.USER),
     )
-    state.store_input(
+    _store_input(
+        state,
         "pipe-wall-ready",
         EngineeringInput("material", "SA-106B", "dimensionless", InputSource.USER),
     )
-    state.store_input(
+    _store_input(
+        state,
         "pipe-wall-ready",
         EngineeringInput("design_temperature", 200, "F", InputSource.USER),
     )
-    state.store_input(
+    _store_input(
+        state,
         "pipe-wall-ready",
         EngineeringInput(
             input_id="joint_category",
@@ -196,7 +212,8 @@ def test_planner_proposes_path_when_defaults_confirmed() -> None:
             status=InputStatus.CONFIRMED,
         ),
     )
-    state.store_input(
+    _store_input(
+        state,
         "pipe-wall-ready",
         EngineeringInput(
             input_id="corrosion_allowance",
@@ -223,7 +240,7 @@ def test_planner_proposes_path_when_defaults_confirmed() -> None:
 
 def test_planner_ambiguous_integrity_request() -> None:
     state = TaskStateManager()
-    task = Task(task_id="ambiguous", status=TaskStatus.ACTIVE)
+    task = new_task("ambiguous", status=TaskStatus.ACTIVE)
     planner = Planner(_reader(), state=state)
     intent = IntentResult(
         intent=None,

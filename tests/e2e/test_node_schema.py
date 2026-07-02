@@ -6,6 +6,8 @@ import pytest
 
 from engine.reference.standards_reader import StandardsReader
 from tests.acceptance.helpers import confirmed_default_inputs, internal_pressure_assumption
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
 
 
 ROOT_NODES = ("pipe_wall_thickness_design",)

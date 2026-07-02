@@ -7,11 +7,14 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from engine.graph.graph_store import GraphStore
 from engine.reference.node_types import is_section_node
 from engine.reference.graph_compile import LEGACY_NODE_ID_ALIASES, parse_dependency_node_ref
 from engine.reference.graph_edge_schema import edge_target, iter_stored_edges
+from engine.reference.relationship_taxonomy import DEPENDENCY_TRAVERSAL_TYPES
 from engine.reference.embedded_nodes import find_embedded_body, iter_embedded_node_sources
+from engine.reference.equation_sidecar import merge_equation_sidecar_metadata
+from engine.reference.paragraph_sidecar import merge_paragraph_sidecar_metadata
+from engine.reference.workflow_sidecar import merge_workflow_sidecar_metadata
 from engine.reference.pack_graph_db import resolve_pack_graph_db
 from engine.reference.pack_nodes_db import resolve_pack_nodes_db
 from engine.reference.pack_tables_db import resolve_pack_tables_db
@@ -46,7 +49,7 @@ class NodeRecord:
     def depends_on(self) -> list[str]:
         deps: list[str] = []
         for item in iter_stored_edges(self.metadata):
-            if str(item.get("type") or "") not in {"depends_on", "references", "table", "uses"}:
+            if str(item.get("type") or "") not in DEPENDENCY_TRAVERSAL_TYPES:
                 continue
             target = edge_target(item)
             if target:
@@ -106,12 +109,14 @@ class StandardsReader:
         self._tables_db = StandardsTablesDatabase(self.tables_db_path)
         self._nodes_db = StandardsNodesDatabase(self.nodes_db_path)
         self._tasks_db = StandardsTasksDatabase(self.tasks_db_path)
-        self._graph_store: GraphStore | None = None
+        self._graph_store: Any | None = None
         self._node_path_cache: dict[str, Path | None] = {}
         self._node_record_cache: dict[str, NodeRecord] = {}
 
     @property
-    def graph_store(self) -> GraphStore:
+    def graph_store(self) -> "GraphStore":
+        from engine.graph.graph_store import GraphStore
+
         if self._graph_store is None:
             self._graph_store = GraphStore(self.pack_root)
         return self._graph_store
@@ -302,6 +307,57 @@ class StandardsReader:
                     )
         return None
 
+    def _enrich_equation_record(self, record: NodeRecord) -> NodeRecord:
+        if str(record.metadata.get("type", "")) != "equation":
+            return record
+        metadata = merge_equation_sidecar_metadata(
+            record.metadata,
+            record_path=record.path,
+            node_id=record.node_id,
+        )
+        if metadata is record.metadata:
+            return record
+        return NodeRecord(
+            node_id=record.node_id,
+            path=record.path,
+            metadata=metadata,
+            body=record.body,
+        )
+
+    def _enrich_paragraph_record(self, record: NodeRecord) -> NodeRecord:
+        if str(record.metadata.get("type", "")) != "paragraph":
+            return record
+        metadata = merge_paragraph_sidecar_metadata(
+            record.metadata,
+            record_path=record.path,
+            node_id=record.node_id,
+        )
+        if metadata is record.metadata:
+            return record
+        return NodeRecord(
+            node_id=record.node_id,
+            path=record.path,
+            metadata=metadata,
+            body=record.body,
+        )
+
+    def _enrich_workflow_record(self, record: NodeRecord) -> NodeRecord:
+        if str(record.metadata.get("type", "")) != "workflow":
+            return record
+        metadata = merge_workflow_sidecar_metadata(
+            record.metadata,
+            record_path=record.path,
+            node_id=record.node_id,
+        )
+        if metadata is record.metadata:
+            return record
+        return NodeRecord(
+            node_id=record.node_id,
+            path=record.path,
+            metadata=metadata,
+            body=record.body,
+        )
+
     def _enrich_standard_section_record(self, record: NodeRecord) -> NodeRecord:
         if not is_section_node(record.metadata):
             return record
@@ -451,8 +507,11 @@ class StandardsReader:
                 else:
                     raise FileNotFoundError(f"Node not found in standards pack: {node_id}")
 
-        self._node_record_cache[node_id] = record
-        return record
+        enriched = self._enrich_workflow_record(
+            self._enrich_equation_record(self._enrich_paragraph_record(record))
+        )
+        self._node_record_cache[node_id] = enriched
+        return self._node_record_cache[node_id]
 
     def load_subsection(self, node_id: str, subsection_id: str) -> NodeSubsection:
         """Load a structured subsection without treating it as a graph node."""

@@ -18,6 +18,8 @@ from tests.acceptance.helpers import (
     sample_inputs,
 )
 from tests.e2e.scenario_loader import load_scenario
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
 
 
 FAILURE_SCENARIOS = [

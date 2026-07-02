@@ -27,7 +27,8 @@ def build_replay_frames(
                 variables=dict(workflow_state.variable_values),
                 outputs=_user_outputs(outputs),
                 planner_state={
-                    "planning_summary": outputs.get("planning_summary") or {},
+                    "goals": {},
+                    "planning_summary": {},
                 },
                 context={
                     "current_node": workflow_state.current_node,
@@ -49,6 +50,7 @@ def build_replay_frames(
 
         decision = (planner_decisions or {}).get(step.node_id)
         planner_state: dict[str, Any] = {
+            "goals": outputs.get("goals") or {},
             "planning_summary": outputs.get("planning_summary") or {},
         }
         if decision is not None:

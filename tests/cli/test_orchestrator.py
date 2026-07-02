@@ -5,8 +5,9 @@ from __future__ import annotations
 from ai.agents.intent_agent import IntentAgent
 from cli.orchestrator import ChatOrchestrator
 from engine.state.state_manager import TaskStateManager
-from models.input import InputStatus
+from models.fact import ValidationStatus
 from tests.agents.conftest import FakeLLMClient
+from tests.helpers.facts import fact_get_value
 
 
 def test_orchestrator_returns_waiting_input_for_pipe_thickness() -> None:
@@ -41,9 +42,9 @@ def test_orchestrator_extracts_partial_inputs_on_follow_up() -> None:
     assert second.task_id == task_id
 
     task = manager.get_task(task_id)
-    assert task.inputs["design_pressure"].value == 500.0
-    assert task.inputs["material"].value == "astm_a106_gr_b"
-    assert task.inputs["design_temperature"].value == 85.0
+    assert fact_get_value(task, "design_pressure") == 500.0
+    assert fact_get_value(task, "material") == "astm_a106_gr_b"
+    assert fact_get_value(task, "design_temperature") == 85.0
     assert "pressure_loading" not in (second.data.get("missing_inputs") or [])
 
 
@@ -62,7 +63,7 @@ def test_orchestrator_advances_after_internal_pressure_reply() -> None:
     assert "pressure_loading" not in (second.data.get("missing_inputs") or [])
 
     task = manager.get_task(task_id)
-    assert task.inputs["pressure_loading"].value == "internal_pressure"
+    assert fact_get_value(task, "pressure_loading") == "internal_pressure"
 
 
 def test_orchestrator_confirms_proposed_default() -> None:
@@ -81,7 +82,7 @@ def test_orchestrator_confirms_proposed_default() -> None:
     assert task_id is not None
 
     task = manager.get_task(task_id)
-    assert task.inputs["weld_joint_efficiency"].status == InputStatus.CONFIRMED
+    assert task.fact_store.active_fact("weld_joint_efficiency").validation.status == ValidationStatus.CONFIRMED
 
 
 def test_orchestrator_accepts_numbered_pressure_loading_choice() -> None:
@@ -96,7 +97,7 @@ def test_orchestrator_accepts_numbered_pressure_loading_choice() -> None:
     task_id = response.task_id
     assert task_id is not None
     task = manager.get_task(task_id)
-    assert task.inputs["pressure_loading"].value == "external_pressure"
+    assert fact_get_value(task, "pressure_loading") == "external_pressure"
 
 
 def test_orchestrator_shows_formula_prompt_after_internal_pressure() -> None:
@@ -141,8 +142,8 @@ def test_orchestrator_symbol_labeled_input_updates_known_parameters() -> None:
     task_id = response.task_id
     assert task_id is not None
     task = manager.get_task(task_id)
-    assert task.inputs["design_pressure"].value == 8.0
-    assert task.inputs["outside_diameter"].value == 4.0
+    assert fact_get_value(task, "design_pressure") == 8.0
+    assert fact_get_value(task, "outside_diameter") == 4.0
     assert "Value: 8 bar" in response.message
     assert "Value: 4 in" in response.message or "Value: 4.0 in" in response.message
     assert "Known parameters:" in response.message

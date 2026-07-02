@@ -53,6 +53,9 @@ def calculate_wall_thickness(
     equation_meta: dict[str, Any] | None = None,
     **_: Any,
 ) -> CalculationResult:
+    file_ref = "equations/wall_thickness.md"
+    if equation_meta and equation_meta.get("file"):
+        file_ref = str(equation_meta["file"])
     return _run_formula(
         calculation_id="B313-304.1.2:wall_thickness",
         node_dir=node_dir,
@@ -60,8 +63,8 @@ def calculate_wall_thickness(
         reader=reader,
         record=record,
         equation_meta=equation_meta,
-        file_ref="equations/wall_thickness.md",
-        fallback_node_id="B313-304.1.2",
+        file_ref=file_ref,
+        fallback_node_id="304.1.2",
     )
 
 
@@ -137,6 +140,9 @@ def calculate_minimum_required_thickness(
     equation_meta: dict[str, Any] | None = None,
     **_: Any,
 ) -> CalculationResult:
+    file_ref = "304.1.1/equations/eq-2.md"
+    if equation_meta and equation_meta.get("file"):
+        file_ref = str(equation_meta["file"])
     return _run_formula(
         calculation_id="304.1.1:eq-2",
         node_dir=node_dir,
@@ -144,7 +150,7 @@ def calculate_minimum_required_thickness(
         reader=reader,
         record=record,
         equation_meta=equation_meta,
-        file_ref="304.1.1/equations/eq-2.md",
+        file_ref=file_ref,
         fallback_node_id="304.1.1",
     )
 
@@ -158,6 +164,9 @@ def calculate_pressure_design_thickness(
     equation_meta: dict[str, Any] | None = None,
     **_: Any,
 ) -> CalculationResult:
+    file_ref = "equations/pressure_design_thickness.md"
+    if equation_meta and equation_meta.get("file"):
+        file_ref = str(equation_meta["file"])
     return _run_formula(
         calculation_id="B313-MAWP-PRESSURE-DESIGN:pressure_design_thickness",
         node_dir=node_dir,
@@ -165,8 +174,8 @@ def calculate_pressure_design_thickness(
         reader=reader,
         record=record,
         equation_meta=equation_meta,
-        file_ref="equations/pressure_design_thickness.md",
-        fallback_node_id="B313-MAWP-SECTION",
+        file_ref=file_ref,
+        fallback_node_id="WF-MAWP",
     )
 
 
@@ -179,6 +188,9 @@ def calculate_mawp(
     equation_meta: dict[str, Any] | None = None,
     **_: Any,
 ) -> CalculationResult:
+    file_ref = "equations/mawp_pressure.md"
+    if equation_meta and equation_meta.get("file"):
+        file_ref = str(equation_meta["file"])
     return _run_formula(
         calculation_id="B313-MAWP-CALCULATION:mawp_pressure",
         node_dir=node_dir,
@@ -186,8 +198,8 @@ def calculate_mawp(
         reader=reader,
         record=record,
         equation_meta=equation_meta,
-        file_ref="equations/mawp_pressure.md",
-        fallback_node_id="B313-304.1.2",
+        file_ref=file_ref,
+        fallback_node_id="WF-MAWP",
     )
 
 

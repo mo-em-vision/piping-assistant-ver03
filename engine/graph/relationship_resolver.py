@@ -7,7 +7,7 @@ from typing import Any
 
 from engine.graph.graph_store import GraphStore
 from engine.graph.param_priority import require_target_id
-from engine.reference.graph_compile import relationship_metadata
+from engine.reference.relationship_taxonomy import PARAMETER_CONCEPT_TRAVERSAL_TYPES, REQUIRES_TRAVERSAL_TYPES
 from engine.reference.node_types import (
     is_designation_node,
     is_quantity_node,
@@ -44,7 +44,7 @@ def find_parameter_for_concept(
 ) -> str | None:
     """Map a quantity/designation node to the parameter that references it."""
     candidates: list[str] = []
-    for edge in store.incoming(concept_id, edge_types={"references"}):
+    for edge in store.incoming(concept_id, edge_types=PARAMETER_CONCEPT_TRAVERSAL_TYPES):
         param_id = edge.from_id
         if store.node_type(param_id) != "parameter":
             continue
@@ -93,7 +93,7 @@ def resolve_require_binding(
 def node_requires_items(store: GraphStore, node_id: str) -> list[dict[str, Any]]:
     """Return requires entries from compiled ``requires`` edges on a node."""
     items: list[dict[str, Any]] = []
-    for edge in store.outgoing(node_id, edge_types={"requires"}):
+    for edge in store.outgoing(node_id, edge_types=REQUIRES_TRAVERSAL_TYPES):
         item: dict[str, Any] = {"target": edge.to_id, "node_id": edge.to_id}
         if edge.metadata:
             item.update(edge.metadata)

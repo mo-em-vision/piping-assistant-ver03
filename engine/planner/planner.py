@@ -176,16 +176,17 @@ class Planner:
             )
 
         root_slug = self._graph.normalize_root_id(selected.root_id)
-        existing_inputs = dict(task.inputs) if task else {}
+        existing_inputs = dict(task.fact_store.active_facts()) if task else {}
 
         if task is not None:
             proposed = self._graph.resolve_and_propose_path_inputs(
                 root_slug,
                 existing_inputs=existing_inputs,
+                task_id=task.task_id,
             )
             if proposed:
                 self._state.persist_proposed_inputs(task.task_id, proposed)
-                existing_inputs = dict(self._state.get_task(task.task_id).inputs)
+                existing_inputs = dict(self._state.get_task(task.task_id).fact_store.active_facts())
 
         existing_ids = set(existing_inputs.keys())
 
@@ -425,6 +426,8 @@ class Planner:
             "missing_assumptions": plan.missing_assumptions,
             "missing_execution_assumptions": plan.missing_execution_assumptions,
             "missing_inputs": plan.missing_inputs,
+            "current_phase": plan.current_phase.value,
+            "phase_missing": plan.phase_missing,
             "path_decision": plan.path_decision,
             "confidence": plan.confidence,
             "action": plan.action.value,

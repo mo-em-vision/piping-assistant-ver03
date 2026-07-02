@@ -23,7 +23,7 @@ from engine.graph.navigation_phases import allowed_fields_for_phase
 from engine.graph.workflow_navigation import load_workflow_navigation
 from models.agent import AgentAction, AgentContext
 from models.planning import NavigationPhase
-from models.input import EngineeringInput, InputStatus
+from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready
 from models.task import TaskStatus
 
 from cli.responses import CLIResponse
@@ -259,30 +259,31 @@ class ChatOrchestrator:
         symbol_map = self._symbol_map_for_task(task)
         result = extract_pipe_wall_thickness_inputs(
             message,
+            task_id=task_id,
             pending_interactions=pending_decisions,
             pending_value_confirmations=pending_values,
-            existing_inputs=task.inputs,
+            existing_inputs=task.fact_store.active_facts(),
             allowed_fields=allowed_fields,
             symbol_map=symbol_map,
         )
         task = self.state_manager.get_task(task_id)
-        for inp in result.extracted.values():
-            if self._should_store_input(task.inputs.get(inp.input_id), inp):
-                self.state_manager.store_input(task_id, inp)
+        for fact in result.extracted.values():
+            if self._should_store_input(task.fact_store.active_fact(fact.key), fact):
+                self.state_manager.store_input(task_id, fact)
         return result
 
     @staticmethod
     def _should_store_input(
-        existing: EngineeringInput | None,
-        incoming: EngineeringInput,
+        existing: Fact | None,
+        incoming: Fact,
     ) -> bool:
         if existing is None:
             return True
-        if existing.status == InputStatus.PROPOSED_DEFAULT:
+        if existing.fact_class == FactClass.DEFAULT_CONFIRMED:
             return True
-        if existing.status == InputStatus.PENDING:
+        if existing.validation.status == ValidationStatus.PENDING:
             return True
-        if existing.status in {InputStatus.CONFIRMED, InputStatus.USER_OVERRIDE}:
+        if existing.validation.status == ValidationStatus.CONFIRMED:
             return False
         return True
 
@@ -293,7 +294,7 @@ class ChatOrchestrator:
         from engine.graph.node_interaction import pending_value_confirmations
 
         specs = self._path_interaction_specs(task)
-        pending = pending_value_confirmations(specs, task.inputs)
+        pending = pending_value_confirmations(specs, task.fact_store.active_facts())
         return tuple(pending)
 
     def _pending_decision_interactions(
@@ -304,7 +305,7 @@ class ChatOrchestrator:
 
         specs = self._path_interaction_specs(task)
         if specs:
-            pending = pending_decision_interactions(specs, task.inputs)
+            pending = pending_decision_interactions(specs, task.fact_store.active_facts())
             if pending:
                 return tuple(pending)
         return default_pipe_wall_thickness_decision_interactions()
@@ -319,7 +320,7 @@ class ChatOrchestrator:
         plan = engine.build_plan(
             task_id=task.task_id,
             root_id=slug,
-            inputs=task.inputs,
+            inputs=task.fact_store.active_facts(),
             reader=self.standards_reader,
         )
         node_ids = [
@@ -343,7 +344,7 @@ class ChatOrchestrator:
         plan = engine.build_plan(
             task_id=task.task_id,
             root_id=slug,
-            inputs=task.inputs,
+            inputs=task.fact_store.active_facts(),
             reader=self.standards_reader,
         )
         node_ids = [
@@ -353,7 +354,7 @@ class ChatOrchestrator:
         ]
         nav = NavigationPlan(selected_nodes=node_ids)
         node_id = resolve_focus_calculation_node(
-            nav, self.standards_reader, task_inputs=task.inputs
+            nav, self.standards_reader, task_inputs=task.fact_store.active_facts()
         ) or "B313-304.1.2"
         return build_symbol_map(
             self.standards_reader,

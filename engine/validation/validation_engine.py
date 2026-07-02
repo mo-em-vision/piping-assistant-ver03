@@ -10,7 +10,7 @@ from engine.reference.node_types import is_section_node
 from engine.reference.standards_reader import StandardsReader
 from models.event import EventType
 from models.execution import ExecutionPlan
-from models.input import EngineeringInput
+from models.fact import Fact
 from models.task import Task
 from models.validation import (
     ComplianceStatus,
@@ -86,7 +86,7 @@ class ValidationEngine:
         self,
         node_id: str,
         *,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         dependency_outputs: dict[str, Any],
         prior_nodes_completed: set[str],
         overrides: list[str] | None = None,

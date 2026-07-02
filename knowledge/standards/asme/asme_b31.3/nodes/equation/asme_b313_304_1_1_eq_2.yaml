@@ -1,30 +1,46 @@
 ---
-id: 304.1.1-eq-2
+id: asme_b313_304_1_1_eq_2
 type: equation
-equation_id: eq-2
+key: asme_b313_304_1_1_eq_2
 name: Minimum Required Pipe Wall Thickness
-display: t_m = t + c
-nomenclature_ref: 304.1.1
-status: superseded
-variables:
-  t:
-    symbol: t
-    description: Pressure design thickness from §304.1.2 or §304.1.3
-    unit: mm
-  c:
-    symbol: c
-    description: Sum of mechanical, corrosion, and erosion allowances
-    unit: mm
-steps:
-- name: compute_minimum_required_thickness
-  description: Combine pressure design thickness with corrosion allowance
-  expressions:
-  - expression: t + c
-    assign: t_m
-executor: calculate_minimum_required_thickness
+equation_class: calculation
+calculation_kind: function
+description: Minimum Required Pipe Wall Thickness
+authority:
+  authorized_by:
+  - 304.1.1
+  authority_context_required: true
+requires:
+- symbol: t
+  required: true
+  description: Pressure design thickness from §304.1.2 or §304.1.3
+  parameter: param-t
+- symbol: c
+  required: true
+  description: Sum of mechanical, corrosion, and erosion allowances
+  parameter: param-c
+calculates:
+- symbol: t
+  parameter: param-t
 edges:
+- type: authorized_by
+  target: 304.1.1
 - type: parent
   target: 304.1.1
+- type: requires_parameter
+  target: param-t
+  alias: t
+- type: requires_parameter
+  target: param-c
+  alias: c
+- type: calculates_parameter
+  target: param-t
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: eq-2
+display:
+  text: t_m = t + c
 ---
 
 # Minimum Required Thickness (eq. 2)

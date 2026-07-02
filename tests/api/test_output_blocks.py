@@ -8,23 +8,25 @@ from models.task import TaskStatus
 from api.output_blocks import build_display_outputs
 from api.serializers import task_state
 from tests.acceptance.helpers import run_completed_workflow
+from engine.state.task_facts import deactivate_fact
+from tests.helpers.facts import fact_get_value, legacy_input, set_fact_from_input
+from tests.helpers.goals import task_with_planning
 
 
 def test_preview_outputs_for_awaiting_input_task(standards_reader) -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test06", status=TaskStatus.AWAITING_INPUT)
-    task.outputs = {
-        "workflow": "pipe_wall_thickness_design",
-        "planning_summary": {
-            "goal": "pipe wall thickness design",
-            "action": "request_input",
-            "active_definition_node": "B313-304.1.1",
-            "missing_inputs": ["material", "design_pressure"],
-            "missing_assumptions": ["straight_pipe_section"],
-            "current_phase": "expansion_assumptions",
-            "phase_missing": {"expansion_assumptions": ["straight_pipe_section"]},
-        },
+    planning = {
+        "goal": "pipe wall thickness design",
+        "action": "request_input",
+        "active_definition_node": "B313-304.1.1",
+        "missing_inputs": ["material", "design_pressure"],
+        "missing_assumptions": ["straight_pipe_section"],
+        "current_phase": "expansion_assumptions",
+        "phase_missing": {"expansion_assumptions": ["straight_pipe_section"]},
     }
+    task.outputs = {"workflow": "pipe_wall_thickness_design"}
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     task.active_nodes = ["B313-304.1.1"]
     manager.replace_task(task.task_id, task)
 
@@ -81,20 +83,16 @@ def test_completed_workflow_with_nps_includes_schedule_recommendation(
     task_id = "pipe-wall-thickness-desi-test13"
     run_completed_workflow(state_manager, standards_reader, task_id)
     task = state_manager.get_task(task_id)
-    task.inputs["d_input_mode"] = EngineeringInput(
-        input_id="d_input_mode",
+    set_fact_from_input(task, legacy_input(input_id="d_input_mode",
         value="nps_lookup",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["nominal_pipe_size"] = EngineeringInput(
-        input_id="nominal_pipe_size",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="nominal_pipe_size",
         value="2",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
+        status=InputStatus.CONFIRMED,))
     task.outputs["outside_diameter_lookup"] = {
         "nps": "2",
         "outside_diameter_mm": 60.325,
@@ -127,20 +125,19 @@ def test_task_state_includes_display_outputs(
 def test_path_preview_equation_resolves_variable_descriptions(standards_reader) -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test09", status=TaskStatus.AWAITING_INPUT)
-    task.outputs = {
-        "workflow": "pipe_wall_thickness_design",
-        "planning_summary": {
-            "goal": "pipe wall thickness design",
-            "action": "request_input",
-            "active_definition_node": "B313-304.1.1",
-            "path_decision": {
-                "pressure_loading": "internal_pressure",
-                "selected_node": "B313-304.1.2",
-            },
-            "missing_inputs": ["material", "design_pressure"],
-            "current_phase": "formula_parameters",
+    planning = {
+        "goal": "pipe wall thickness design",
+        "action": "request_input",
+        "active_definition_node": "B313-304.1.1",
+        "path_decision": {
+            "pressure_loading": "internal_pressure",
+            "selected_node": "B313-304.1.2",
         },
+        "missing_inputs": ["material", "design_pressure"],
+        "current_phase": "formula_parameters",
     }
+    task.outputs = {"workflow": "pipe_wall_thickness_design"}
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     task.active_nodes = ["B313-304.1.1", "B313-304.1.2"]
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
@@ -181,7 +178,7 @@ def test_post_calculation_outputs_before_corrosion_allowance(standards_reader, s
     task_id = "pipe-wall-thickness-desi-test12"
     run_completed_workflow(state_manager, standards_reader, task_id)
     task = state_manager.get_task(task_id)
-    task.inputs.pop("corrosion_allowance", None)
+    deactivate_fact(task, "corrosion_allowance")
     task.outputs.pop("minimum_required_thickness", None)
     task.outputs.pop("t_m", None)
     task.status = TaskStatus.AWAITING_INPUT

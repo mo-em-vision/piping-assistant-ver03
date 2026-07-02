@@ -24,8 +24,10 @@ from .execution import (
     NodeExecutionResult,
     NodeExecutionStatus,
 )
+from .fact import Fact, FactClass, SourceType, ValidationStatus, fact_is_expansion_ready
+from .fact_store import FactStore
 from .graph import EdgeType, GraphEdge, GraphVersion
-from .input import EngineeringInput, InputLimits, InputSource, InputStatus
+from .input import InputLimits, InputSource, InputStatus, ParameterDescriptor, ResolutionMethod, ResolutionRef
 from .planning import NavigationPlan, StructuredIntent, WorkflowCandidate
 from .validation import (
     ComplianceStatus,
@@ -58,9 +60,20 @@ from .standard_node import (
     OutputType,
     StandardNode,
 )
-from .task import InputConflict, Task, TaskStatus
+from .authority_context import (
+    ActiveAuthority,
+    AuthorityContext,
+    AuthorityContextStatus,
+    authority_context_for_execution,
+    authority_context_from_dict,
+    authority_context_to_dict,
+    new_authority_context_id,
+)
+from .execution_context import ExecutionContext, ExecutionContextStatus
+from .task import InputConflict, Task, TaskStatus, new_task
 
 __all__ = [
+    "ActiveAuthority",
     "AgentAction",
     "AgentContext",
     "AlternativePathRecord",
@@ -71,13 +84,17 @@ __all__ = [
     "ContextResult",
     "DependencyType",
     "EdgeType",
-    "EngineeringInput",
     "Event",
-    "EventType",
+    "AuthorityContext",
+    "AuthorityContextStatus",
     "ExecutionConfiguration",
-    "ExecutionPlan",
+    "ExecutionContext",
+    "ExecutionContextStatus",
     "ExecutionResult",
     "ExecutionStatus",
+    "Fact",
+    "FactClass",
+    "FactStore",
     "FormulaDefinition",
     "GraphEdge",
     "GraphVersion",
@@ -98,6 +115,7 @@ __all__ = [
     "NodeRequiredInput",
     "OutputType",
     "OverrideConfirmation",
+    "ParameterDescriptor",
     "PlannerResult",
     "QuantityResult",
     "ReportData",
@@ -109,12 +127,17 @@ __all__ = [
     "ReportTraversalStep",
     "ReportVersionInfo",
     "ReportWarning",
+    "ResolutionMethod",
+    "ResolutionRef",
     "RoutingResult",
     "RuleValidation",
+    "SourceType",
     "StandardNode",
     "StandardOption",
     "StructuredIntent",
     "SynthesisResult",
+    "new_authority_context_id",
+    "new_task",
     "Task",
     "TaskStatus",
     "TraceabilityEntry",
@@ -122,9 +145,11 @@ __all__ = [
     "ValidationOverride",
     "ValidationResult",
     "ValidationSeverity",
+    "ValidationStatus",
     "WorkflowCandidate",
     "WorkflowLifecycleEvent",
     "WorkflowLifecycleEventType",
     "WorkflowParameter",
     "WorkflowState",
+    "fact_is_expansion_ready",
 ]

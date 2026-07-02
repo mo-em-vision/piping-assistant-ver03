@@ -64,17 +64,24 @@ scripts/build_standards_tables_db.py → standards_tables.StandardsTablesDatabas
 |------|---------|-------------|-------------------|
 | `__init__.py` | Public exports | `StandardsReader`, path helpers | external packages |
 | `asme_b31_3_table_ids.py` | Canonical B31.3 table ID strings | `TABLE_*`, `asme_b31_3_table_id` | executor lookups, api, scripts |
+| `authority_registry.py` | Standard slug → canonical `AUTH-*` id | `standard_primary_authority`, `STANDARD_PRIMARY_AUTHORITY` | `authority_context_sync`, migration |
 | `coefficient_resolver.py` | E, W, Y table/formula resolution | `lookup_*`, `propose_coefficient_defaults` | `node_runner`, `workflow_bootstrap`, tests |
 | `embedded_nodes.py` | Parse embedded child sources in metadata | `iter_embedded_node_sources`, `find_embedded_body` | `graph_builder`, `formula_loader`, scripts |
 | `formula_display.py` | Equation display strings from nodes | `load_equation_context`, `resolve_equation_display_variables` | `api/node_display`, messaging, reports |
 | `graph_cache.py` | PackGraph SQLite cache R/W | `build_or_load_graph`, `write_graph_cache` | `graph_store`, `unit_resolver`, dev_studio |
-| `graph_compile.py` | Metadata → semantic edges | `compile_metadata_edges`, `node_aliases` | `graph_builder`, dev_studio graph_sync |
+| `graph_compile.py` | Metadata → semantic edges | `compile_metadata_edges`, `node_aliases`, `validate_edge_item` | `graph_builder`, dev_studio graph_sync |
+| `graph_edge_schema.py` | Canonical edge types and metadata | `CANONICAL_EDGE_TYPES`, `REVERSE_EDGE_TYPE`, `workflow_anchor_target` | graph_compile, relationship_taxonomy, lazy_expander |
+| `relationship_taxonomy.py` | Relationship taxonomy vocabulary | `KNOWLEDGE_EDGE_TYPES`, `normalize_authoring_edge`, `expand_edge_types_for_query` | graph_compile, relationship_validator, traversal |
+| `relationship_validator.py` | Taxonomy edge validation | `validate_edge_item`, `validate_edges_for_node` | node validators, graph_compile |
 | `graph_db.py` | SQLite graph nodes/edges | `GraphDatabase`, `GraphNodeRecord`, `GraphEdgeRecord` | graph_builder, graph_store, lazy_expander |
 | `graph_db.py` schemas | — | migration helpers | internal |
 | `material_catalog_db.py` | Global material search index | `GlobalMaterialCatalog`, `search_materials` | api/desktop_service, material lookups |
 | `material_ids.py` | Canonical material ID format | `make_material_id`, `ASTM_*` constants | tables scripts, lookups |
 | `material_resolver.py` | Token → table key | `canonical_material_id` | engineering_validator, tests |
 | `nomenclature_resolver.py` | Symbol definitions from definition nodes | `load_nomenclature`, `resolve_input_spec` | graph, node_interaction, messaging |
+| `paragraph_sidecar.py` | Merge paragraph sidecars (`nomenclature.yaml`, `execution.yaml`) | `merge_paragraph_sidecar_metadata` | `standards_reader`, `graph_builder`, `node_interaction`, `assumption_checker` |
+| `equation_sidecar.py` | Merge equation execution sidecars (`equation/{id}/execution.yaml`) | `merge_equation_sidecar_metadata` | `standards_reader`, `graph_builder`, `formula_loader` |
+| `workflow_sidecar.py` | Merge workflow runtime sidecars (`workflows/{id}/runtime.yaml`) | `merge_workflow_sidecar_metadata` | `standards_reader`, `graph_builder`, `node_interaction`, `assumption_checker` |
 | `node_types.py` | Type/kind predicates | `is_ui_parameter`, `canonical_type`, … | widespread |
 | `pack_graph_db.py` | Path resolver | `resolve_pack_graph_db` | graph_store, graph_cache, dev_studio |
 | `pack_nodes_db.py` | Path resolver | `resolve_pack_nodes_db` | standards_reader, scripts |

@@ -9,7 +9,7 @@ from engine.graph.conditions import GraphCycleError, when_clause_matches
 from engine.graph.graph_store import GraphStore
 from engine.reference.graph_db import GraphEdgeRecord
 from models.graph import EdgeType, GraphEdge
-from models.input import EngineeringInput
+from models.fact import Fact
 
 
 _TRAVERSAL_EDGE_TYPES = frozenset(
@@ -27,7 +27,6 @@ _TRAVERSAL_EDGE_TYPES = frozenset(
         "dependency",
         "depends_on",
         "contains",
-        "references",
         "equation",
         "implements",
         "anchors_to",
@@ -37,7 +36,7 @@ _TRAVERSAL_EDGE_TYPES = frozenset(
 
 def _edge_active(
     edge: GraphEdgeRecord,
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
 ) -> bool:
     when = edge.metadata.get("when") if edge.metadata else None
     if when and isinstance(when, dict):
@@ -81,7 +80,7 @@ def dfs_collect(
     store: GraphStore,
     start_id: str,
     *,
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
     edge_types: set[str] | None = None,
     visit: Callable[[str], bool] | None = None,
 ) -> tuple[list[str], list[GraphEdgeRecord]]:
@@ -103,10 +102,13 @@ def dfs_collect(
         visited.add(node_id)
         order.append(node_id)
         for edge in store.outgoing(node_id, edge_types=edge_types):
+            if edge.to_id == node_id:
+                continue
             if not _edge_active(edge, inputs):
                 continue
             edges.append(edge)
-            walk(edge.to_id, visiting.copy())
+            walk(edge.to_id, visiting)
+        visiting.discard(node_id)
 
     walk(start_id, set())
     return order, edges
@@ -125,7 +127,7 @@ def topological_order(
     for edge in edges:
         from_id = edge.from_id if hasattr(edge, "from_id") else edge.from_node  # type: ignore[union-attr]
         to_id = edge.to_id if hasattr(edge, "to_id") else edge.to_node  # type: ignore[union-attr]
-        if from_id not in nodes or to_id not in nodes:
+        if from_id not in nodes or to_id not in nodes or from_id == to_id:
             continue
         adjacency[from_id].append(to_id)
         in_degree[to_id] = in_degree.get(to_id, 0) + 1

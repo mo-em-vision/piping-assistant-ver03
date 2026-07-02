@@ -17,11 +17,12 @@ from engine.reports.formatters import render_markdown
 from engine.reports.report_data import build_report_from_task
 from engine.reports.report_generator import ReportGenerator
 from engine.reference.standards_reader import StandardsReader
+from engine.state.fact_migration import fact_from_engineering_input
 from engine.state.state_manager import TaskStateManager
 from engine.validation.validation_engine import ValidationEngine
 from models.agent import IntentResult
 from models.execution import ExecutionPlan, ExecutionResult, ExecutionStatus
-from models.input import EngineeringInput, InputSource, InputStatus
+from tests.helpers.facts import fact_get_unit, fact_get_value, legacy_input
 from models.planning import NavigationPlan
 from models.task import Task, TaskStatus
 from models.validation import ComplianceStatus
@@ -62,8 +63,8 @@ class ScenarioRunResult:
 
 def expected_wall_thickness(task: Task) -> float:
     """Compute expected t from stored task outputs and inputs."""
-    p_pa, _ = convert_to_si(float(task.inputs["design_pressure"].value), task.inputs["design_pressure"].unit)
-    d_mm, _ = convert_to_si(float(task.inputs["outside_diameter"].value), task.inputs["outside_diameter"].unit)
+    p_pa, _ = convert_to_si(float(fact_get_value(task, "design_pressure")), fact_get_unit(task, "design_pressure"))
+    d_mm, _ = convert_to_si(float(fact_get_value(task, "outside_diameter")), fact_get_unit(task, "outside_diameter"))
     s_pa = float(task.outputs.get("allowable_stress", task.outputs.get("S", 0)))
     e = 1.0
     w = 1.0
@@ -116,7 +117,13 @@ class ScenarioRunner:
     def _apply_given(self, scenario: Scenario, task_id: str) -> None:
         given = scenario.given
         for input_id, spec in given.get("inputs", {}).items():
-            self.state.store_input(task_id, _engineering_input(input_id, spec))
+            self.state.store_input(
+                task_id,
+                fact_from_engineering_input(
+                    _engineering_input(input_id, spec),
+                    task_id=task_id,
+                ),
+            )
 
         overrides = given.get("validation_overrides")
         if overrides:
@@ -129,7 +136,13 @@ class ScenarioRunner:
             return self._run_full_pipeline(scenario, task_id, include_planner=False)
         if action == "update_input":
             for input_id, spec in step.get("inputs", {}).items():
-                self.state.store_input(task_id, _engineering_input(input_id, spec))
+                self.state.store_input(
+                    task_id,
+                    fact_from_engineering_input(
+                        _engineering_input(input_id, spec),
+                        task_id=task_id,
+                    ),
+                )
             return self._snapshot_task(task_id)
         raise ValueError(f"Unknown scenario step action: {action}")
 
@@ -165,7 +178,7 @@ class ScenarioRunner:
         plan = self.graph.build_plan(
             task_id=task_id,
             root_id=root,
-            inputs=dict(task.inputs),
+            inputs=dict(task.fact_store.active_facts()),
             reader=self.reader,
         )
         snapshot.execution_plan = plan
@@ -352,15 +365,13 @@ class ScenarioRunner:
                 assert phrase in markdown, f"{scenario}: report markdown missing {phrase!r}"
 
 
-def _engineering_input(input_id: str, spec: dict[str, Any]) -> EngineeringInput:
+def _engineering_input(input_id: str, spec: dict[str, Any]):
     value = spec["value"]
     unit = str(spec.get("unit", "dimensionless"))
-    return EngineeringInput(
-        input_id=input_id,
-        value=value,
-        unit=unit,
-        source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
+    return legacy_input(
+        input_id,
+        value,
+        unit,
         original_value=value if isinstance(value, (int, float)) else None,
         original_unit=unit if unit != "dimensionless" else None,
     )

@@ -12,6 +12,18 @@ Parameter nodes define **contextual engineering roles** — not values, units, r
 |------|------|
 | [nodes/](nodes/) | Canonical parameter ontology (`PARAM-*.yaml`) |
 
+## Canonical parameters
+
+| Node | Class | Dimension | Concept |
+|------|-------|-----------|---------|
+| `PARAM-design-pressure` | physical_quantity | `DIM-pressure` | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
+| `PARAM-allowable-stress` | physical_quantity | `DIM-pressure` | [`CONCEPT-allowable-stress`](../concepts/nodes/CONCEPT-allowable-stress.yaml) |
+| `PARAM-design-temperature` | environmental_condition | `DIM-temperature` | [`CONCEPT-temperature`](../concepts/nodes/CONCEPT-temperature.yaml) |
+| `PARAM-corrosion-allowance` | geometric_quantity | `DIM-length` | [`CONCEPT-wall-thickness`](../concepts/nodes/CONCEPT-wall-thickness.yaml) |
+| `PARAM-material-specification` | material_designation | `DIM-material-designation` | [`CONCEPT-material`](../concepts/nodes/CONCEPT-material.yaml) |
+
+Parameter nodes define **contextual roles only** — no `value`, `unit`, `resolution`, or runtime state (see template forbidden fields).
+
 ## Four-layer model
 
 ```
@@ -26,6 +38,8 @@ CONCEPT-*  ──has_parameter──►  PARAM-*  ──has_dimension──►  
 | Unit | [`../units/`](../units/) | Conversion between unit symbols |
 
 Authoring template: [`docs/node-templates/Parameter Node.md`](../../../docs/node-templates/Parameter%20Node.md).
+
+Runtime counterparts: values are Facts; objectives are Goals; both live in the per-task **Execution Context** ([`docs/node-templates/Execution Context.md`](../../../docs/node-templates/Execution%20Context.md), [`models/execution_context.py`](../../../models/execution_context.py)). **Authority Context** ([`docs/node-templates/Authority Context.md`](../../../docs/node-templates/Authority%20Context.md), [`models/authority_context.py`](../../../models/authority_context.py)) records which standards govern the execution — not as nodes under `knowledge/`.
 
 ## Compile
 

@@ -18,16 +18,22 @@ Ver03 is a **Python engineering backend** plus an **Electron + React desktop cli
 
 Do **not** move engineering rules, formulas, or workflow logic into the frontend.
 
+## Runtime execution context
+
+Mutable runtime state (Facts, Goals, decisions, assumptions, validation, trace refs) lives in [`models/execution_context.py`](models/execution_context.py) on each `Task` — not in `knowledge/`. See [`docs/node-templates/Execution Context.md`](docs/node-templates/Execution%20Context.md).
+
+**Authority Context** (active governing standards) is a peer object on each `Task`: [`models/authority_context.py`](models/authority_context.py). See [`docs/node-templates/Authority Context.md`](docs/node-templates/Authority%20Context.md). Linked to the execution context via `authority_context_id` / `execution_context_id`. `active_authorities[].authority_id` references immutable [`AUTH-*` Authority nodes](knowledge/global/authorities/) — see [`docs/node-templates/Authority Node.md`](docs/node-templates/Authority%20Node.md).
+
 ## Micro-graph data flow
 
 Standards micro-graph nodes follow: **Markdown/YAML → GraphBuilder → PackGraph → SQLite cache**.
 
-- Source of truth: `knowledge/standards/*/nodes/**/node.{yaml,md}` — section nodes use `node.yaml` (structure) plus optional `node.md` (paragraph trace and embedded child `source:` blocks)
+- Source of truth: `knowledge/standards/*/nodes/**/node.{yaml,md}` — **paragraph** nodes use flat `nodes/paragraph/{id}.yaml` plus optional sidecars (`{id}/nomenclature.yaml`, `{id}/execution.yaml`) for executor metadata; **equation** nodes use `nodes/equation/asme_b313_*.yaml` plus `equation/{id}/execution.yaml` sidecars (ids prefixed `asme_` per pack); section nodes use `node.yaml` (structure) plus optional `node.md` (paragraph trace and embedded child `source:` blocks)
 - **Graph relationships:** every node uses `edges: [{type, target}]` only (outgoing). See [`docs/node-templates/_relationship_schema.md`](docs/node-templates/_relationship_schema.md). Nomenclature prose traces use `citations`.
 - Embedded children in metadata containers (`equations`, `assumptions`, `texts`, …) compile as first-class nodes via `engine/reference/embedded_nodes.py`
 - Runtime: `GraphStore` / `build_or_load_graph()` compile sources into a `PackGraph` in memory
 - SQLite (`*_graph.db`) is an optional performance cache only; rebuild with `python scripts/build_graph_db.py`
-- Canonical node types: `workflow`, `definition`, `calculation`, `equation`, `parameter`, `quantity`, `designation`, `text`, `unit` — use `kind` metadata for variants (e.g. `parameter` + `kind: assumption`)
+- Canonical node types: `workflow`, `paragraph`, `definition`, `calculation`, `equation`, `parameter`, `quantity`, `designation`, `text`, `unit`, `concept`, `authority` — use `kind` metadata for variants (e.g. `parameter` + `kind: assumption`, `paragraph` + `kind: calculation`)
 
 ## Development order
 
@@ -39,7 +45,7 @@ Structure → data flow → backend connection → visualization → interaction
 - Frontend: `cd desktopApp && npm run test:run`
 - MVP smoke: `cd desktopApp && npm run verify:mvp`
 - Release gate: `cd desktopApp && npm run verify:release`
-- After changing standards markdown/YAML: `python scripts/build_all_standards_dbs.py` then re-run backend tests
+- After changing standards markdown/YAML: `python scripts/build_graph_db.py` and `python scripts/build_standards_nodes_db.py` (or `python scripts/build_all_standards_dbs.py`) then re-run backend tests
 
 ## Node Dev Studio (development only)
 

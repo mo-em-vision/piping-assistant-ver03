@@ -1,0 +1,62 @@
+---
+id: asme_b313_304_3_3_eq_7
+type: equation
+key: asme_b313_304_3_3_eq_7
+name: Run Pipe Excess Thickness Area
+equation_class: calculation
+calculation_kind: algebraic
+description: Run Pipe Excess Thickness Area
+authority:
+  authorized_by:
+  - 304.3.3
+  authority_context_required: true
+requires:
+- symbol: d_2
+  required: true
+  description: Half width of reinforcement zone
+- symbol: d_1
+  required: true
+  description: Effective length removed from pipe at branch
+- symbol: T_h
+  required: true
+  description: Run pipe wall thickness
+- symbol: t_h
+  required: true
+  description: Pressure design thickness of run pipe
+- symbol: c
+  required: true
+  description: Corrosion allowance
+  parameter: param-c
+calculates:
+- symbol: A_2
+  parameter: PARAM-run-excess-thickness-area
+edges:
+- type: authorized_by
+  target: 304.3.3
+- type: parent
+  target: 304.3.3
+- type: requires_parameter
+  target: param-c
+  alias: c
+- type: calculates_parameter
+  target: PARAM-run-excess-thickness-area
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: eq-7
+display:
+  text: A_2 = (2d_2 - d_1)(T_h - t_h - c)
+---
+
+# Area A_2 (eq. 7)
+
+## Human-readable equation
+
+```
+$$
+A_2 = (2d_2 - d_1)(T_h - t_h - c)
+\tag{7}
+$$
+```
+
+Area $A_2$ is the area resulting from excess thickness in the run pipe wall.

@@ -15,7 +15,7 @@ from .blocks import (
     render_warnings,
     render_workflow_documentation,
 )
-from .inputs import engineering_inputs_from_parameters
+from .inputs import facts_from_parameters
 
 
 def build_presentation(
@@ -26,7 +26,7 @@ def build_presentation(
     if not store.available:
         return ()
 
-    inputs = engineering_inputs_from_parameters(workflow_state.parameters)
+    inputs = facts_from_parameters(workflow_state.parameters)
     blocks: list[dict[str, Any]] = []
     blocks.extend(render_workflow_documentation(workflow_state, store))
     blocks.extend(render_lifecycle_context(workflow_state))

@@ -32,7 +32,7 @@ def _discover_workflows(standards_root: Path) -> list[dict[str, Any]]:
                 continue
             rel = path.relative_to(pack_root).as_posix()
             source_rel_path = f"{standard_slug}/{rel}"
-            task_slug = str(metadata.get("slug") or path.stem).strip()
+            task_slug = str(metadata.get("slug") or metadata.get("key") or path.stem).strip()
             discovered.append(
                 {
                     "node_id": node_id,

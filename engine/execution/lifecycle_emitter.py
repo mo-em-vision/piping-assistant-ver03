@@ -10,7 +10,7 @@ from engine.graph.documentation_resolver import resolve_node_documentation
 from engine.graph.graph_store import GraphStore
 from engine.graph.node_behaviors import is_executable_equation
 from engine.reference.node_types import canonical_type
-from models.input import EngineeringInput
+from models.fact import Fact
 from models.node_documentation import NodeDocumentation
 from models.task import Task
 from models.workflow_lifecycle import WorkflowLifecycleEvent, WorkflowLifecycleEventType
@@ -122,7 +122,7 @@ class WorkflowLifecycleEmitter:
     def build_context(
         task: Task,
         *,
-        inputs: dict[str, EngineeringInput] | None = None,
+        inputs: dict[str, Fact] | None = None,
     ) -> dict[str, Any]:
         return build_doc_context(task, inputs=inputs)
 

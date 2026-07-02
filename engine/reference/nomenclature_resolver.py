@@ -13,9 +13,10 @@ from engine.reference.graph_edge_schema import (
     edge_targets,
     iter_stored_edges,
 )
+from engine.reference.paragraph_sidecar import merge_paragraph_sidecar_metadata
 from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.standards_reader import StandardsReader
-from models.input import EngineeringInput
+from models.fact import Fact
 
 
 @dataclass(frozen=True)
@@ -39,7 +40,7 @@ class NomenclatureEntry:
 
 def input_applies(
     spec: dict[str, Any],
-    task_inputs: dict[str, EngineeringInput],
+    task_inputs: dict[str, Fact],
 ) -> bool:
     when = spec.get("when")
     if not when or not isinstance(when, dict):
@@ -58,8 +59,13 @@ def input_applies(
 def load_nomenclature(reader: StandardsReader, node_id: str) -> dict[str, NomenclatureEntry]:
     """Load symbol definitions from a definition node's ``nomenclature`` block."""
     record = reader.load(node_id)
+    metadata = merge_paragraph_sidecar_metadata(
+        record.metadata,
+        record_path=record.path,
+        node_id=record.node_id,
+    )
     entries: dict[str, NomenclatureEntry] = {}
-    for item in record.metadata.get("nomenclature", []) or []:
+    for item in metadata.get("nomenclature", []) or []:
         if not isinstance(item, dict):
             continue
         symbol = str(item.get("symbol", "")).strip()

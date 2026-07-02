@@ -8,6 +8,7 @@ from engine.executor.executor import execute_workflow
 from engine.graph.graph_engine import GraphEngine
 from engine.planner.planner import Planner
 from engine.reports.report_data import build_report_from_task
+from engine.state.goal_projection import planning_projection
 from engine.state.state_manager import TaskStateManager
 from models.execution import ExecutionStatus
 from models.task import TaskStatus
@@ -23,6 +24,8 @@ from tests.acceptance.helpers import (
     sample_inputs,
     straight_section_assumption,
 )
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
 
 
 class TestMvpDefinition:
@@ -116,7 +119,7 @@ def test_mvp_acceptance_checklist(
         plan = plan_pipe_thickness(standards_reader, state_manager, task)
         stored = state_manager.get_task(task.task_id)
         assert plan.missing_assumptions or plan.phase_missing.get("expansion_assumptions")
-        assert stored.outputs.get("planning_summary") is not None
+        assert planning_projection(stored)
 
     elif criterion_id == "graph_finds_required_nodes":
         plan = GraphEngine().build_plan(

@@ -8,9 +8,10 @@ from engine.graph.graph_store import GraphStore
 from engine.graph.param_priority import parameter_collection_priority
 from engine.reference.node_types import is_designation_node, is_quantity_node
 from engine.reference.parameter_metadata import parameter_concept_id
+from engine.reference.relationship_taxonomy import PARAMETER_CONCEPT_TRAVERSAL_TYPES
 from engine.reference.standards_reader import StandardsReader
 from engine.units.unit_registry import get_unit_registry
-from models.input import EngineeringInput, InputSource, ResolutionMethod
+from models.fact import Fact, FactClass, fact_scalar_value, fact_unit
 from models.task import Task
 from models.workflow_state import WorkflowParameter
 
@@ -19,7 +20,6 @@ _CONTROL_OUTPUT_KEYS = {
     "selected_root",
     "graph_root",
     "graph_version",
-    "planning_summary",
     "_execution_trace",
     "_validation_trace",
 }
@@ -48,12 +48,12 @@ def build_workflow_parameters(
     param_index = _param_nodes_by_input_id(store, active)
 
     parameters: dict[str, WorkflowParameter] = {}
-    for name, engineering_input in task.inputs.items():
+    for name, fact in task.fact_store.active_facts().items():
         param_node_id = param_index.get(name)
-        parameters[name] = _parameter_from_input(
+        parameters[name] = _parameter_from_fact(
             store,
             name=name,
-            engineering_input=engineering_input,
+            fact=fact,
             param_node_id=param_node_id,
             active_nodes=active,
         )
@@ -80,16 +80,16 @@ def build_workflow_parameters(
 
 def _parameters_without_graph(task: Task) -> dict[str, WorkflowParameter]:
     parameters: dict[str, WorkflowParameter] = {}
-    for name, engineering_input in task.inputs.items():
+    for name, fact in task.fact_store.active_facts().items():
         parameters[name] = WorkflowParameter(
             name=name,
-            value=engineering_input.value,
+            value=fact_scalar_value(fact),
             dimension=None,
-            unit=engineering_input.unit,
+            unit=fact_unit(fact),
             priority=_DEFAULT_PRIORITY,
-            source=_workflow_source_from_input(engineering_input),
-            status=engineering_input.status.value,
-            symbol=engineering_input.symbol,
+            source=_workflow_source_from_fact(fact),
+            status=fact.validation.status.value,
+            symbol=fact.symbol,
         )
     for name, value in task.outputs.items():
         if name in _CONTROL_OUTPUT_KEYS or name.endswith("_lookup") or name.endswith("_unit"):
@@ -168,7 +168,7 @@ def _concept_metadata(
 ) -> tuple[str | None, str | None, bool]:
     if not param_node_id:
         return None, None, False
-    for edge in store.outgoing(param_node_id, edge_types={"references"}):
+    for edge in store.outgoing(param_node_id, edge_types=PARAMETER_CONCEPT_TRAVERSAL_TYPES | {"has_dimension"}):
         ref_meta = store.metadata(edge.to_id)
         ref_type = store.node_type(edge.to_id) or ""
         if is_quantity_node(ref_meta, ref_type):
@@ -197,38 +197,37 @@ def _unit_fields(
     return canonical, allowed, unit_id
 
 
-def _parameter_from_input(
+def _parameter_from_fact(
     store: GraphStore,
     *,
     name: str,
-    engineering_input: EngineeringInput,
+    fact: Fact,
     param_node_id: str | None,
     active_nodes: set[str],
 ) -> WorkflowParameter:
     concept_id, dimension, is_designation = _concept_metadata(store, param_node_id)
     meta = store.metadata(param_node_id) if param_node_id else {}
-    symbol = engineering_input.symbol or (
-        str(meta.get("symbol", "")).strip() if meta else None
-    )
+    symbol = fact.symbol or (str(meta.get("symbol", "")).strip() if meta else None)
     priority = (
         parameter_collection_priority(store, param_node_id, active_nodes)
         if param_node_id
         else _DEFAULT_PRIORITY
     )
+    unit = fact_unit(fact)
     canonical_unit, allowed_units, unit_id = _unit_fields(
         meta,
         dimension=dimension,
         is_designation=is_designation,
-        unit=engineering_input.unit,
+        unit=unit,
     )
     return WorkflowParameter(
         name=name,
-        value=engineering_input.value,
+        value=fact_scalar_value(fact),
         dimension=dimension,
-        unit=engineering_input.unit,
+        unit=unit,
         priority=priority,
-        source=_workflow_source_from_input(engineering_input),
-        status=engineering_input.status.value,
+        source=_workflow_source_from_fact(fact),
+        status=fact.validation.status.value,
         symbol=symbol or None,
         param_node_id=param_node_id,
         concept_id=concept_id or parameter_concept_id(meta),
@@ -255,8 +254,9 @@ def _parameter_from_output(
         if param_node_id
         else _DEFAULT_PRIORITY
     )
-    if name in task.inputs:
-        source = _workflow_source_from_input(task.inputs[name])
+    active = task.fact_store.active_fact(name)
+    if active is not None:
+        source = _workflow_source_from_fact(active)
     else:
         source = "derived"
     output_unit = _output_unit(task, name)
@@ -283,20 +283,18 @@ def _parameter_from_output(
     )
 
 
-def _workflow_source_from_input(engineering_input: EngineeringInput) -> str:
-    if engineering_input.resolution_method == ResolutionMethod.EQUATION:
+def _workflow_source_from_fact(fact: Fact) -> str:
+    if fact.fact_class == FactClass.CALCULATED:
         return "equation"
-    if engineering_input.resolution_method == ResolutionMethod.TABLE_LOOKUP:
+    if fact.fact_class == FactClass.LOOKED_UP:
         return "lookup"
-    if engineering_input.resolution_method == ResolutionMethod.DEFAULT_CONFIRMED:
+    if fact.fact_class == FactClass.DEFAULT_CONFIRMED:
         return "default"
-    if engineering_input.source == InputSource.USER:
+    if fact.fact_class == FactClass.USER_SUPPLIED:
         return "user_input"
-    if engineering_input.source == InputSource.TABLE:
+    if fact.source.source_type.value == "table_lookup":
         return "lookup"
-    if engineering_input.source == InputSource.DEFAULT:
-        return "default"
-    if engineering_input.source == InputSource.NODE:
+    if fact.source.source_type.value == "equation":
         return "equation"
     return "derived"
 
@@ -305,6 +303,7 @@ def _output_unit(task: Task, key: str) -> str:
     unit_key = f"{key}_unit"
     if unit_key in task.outputs:
         return str(task.outputs[unit_key])
-    if key in task.inputs:
-        return task.inputs[key].unit
+    active = task.fact_store.active_fact(key)
+    if active is not None:
+        return fact_unit(active)
     return "dimensionless"

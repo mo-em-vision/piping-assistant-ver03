@@ -19,6 +19,9 @@ from engine.reference.node_types import normalize_node_metadata
 from engine.reference.graph_db import GraphEdgeRecord, GraphNodeRecord
 from engine.reference.node_sources import iter_node_source_paths, source_rel_path
 from engine.reference.nomenclature_parameters import iter_nomenclature_parameters
+from engine.reference.equation_sidecar import merge_equation_sidecar_metadata
+from engine.reference.paragraph_sidecar import merge_paragraph_sidecar_metadata
+from engine.reference.workflow_sidecar import merge_workflow_sidecar_metadata
 from engine.reference.standards_markdown import merge_dual_node_frontmatter, split_frontmatter
 
 
@@ -30,6 +33,34 @@ class _DiscoveredSourceNode:
     body: str
     source_rel_path: str
     source_path: Path
+
+
+def _enrich_source_metadata(path: Path, metadata: dict[str, Any]) -> dict[str, Any]:
+    node_id = str(metadata.get("id") or path.stem).strip()
+    node_type = str(metadata.get("type", ""))
+    if node_type == "paragraph":
+        return merge_paragraph_sidecar_metadata(
+            metadata,
+            record_path=path,
+            node_id=node_id,
+        )
+    if node_type == "equation":
+        return merge_equation_sidecar_metadata(
+            metadata,
+            record_path=path,
+            node_id=node_id,
+        )
+    if node_type == "workflow":
+        return merge_workflow_sidecar_metadata(
+            metadata,
+            record_path=path,
+            node_id=node_id,
+        )
+    return metadata
+
+
+def _enrich_paragraph_source_metadata(path: Path, metadata: dict[str, Any]) -> dict[str, Any]:
+    return _enrich_source_metadata(path, metadata)
 
 
 def compute_source_fingerprint(pack_root: Path) -> str:
@@ -44,6 +75,12 @@ def compute_source_fingerprint(pack_root: Path) -> str:
         stat = path.stat()
         rel = path.relative_to(pack_root).as_posix()
         parts.append(f"{rel}:{stat.st_mtime_ns}:{stat.st_size}")
+        sidecar_dir = path.parent / path.stem
+        if sidecar_dir.is_dir():
+            for sidecar_path in sorted(sidecar_dir.glob("*.yaml")):
+                side_stat = sidecar_path.stat()
+                side_rel = sidecar_path.relative_to(pack_root).as_posix()
+                parts.append(f"{side_rel}:{side_stat.st_mtime_ns}:{side_stat.st_size}")
 
     payload = "\n".join(parts).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
@@ -64,6 +101,7 @@ def discover_micro_graph_sources(pack_root: Path) -> list[_DiscoveredSourceNode]
         seen_paths.add(path)
         text = path.read_text(encoding="utf-8")
         metadata, body = split_frontmatter(text)
+        metadata = _enrich_source_metadata(path, metadata)
         node_id = str(metadata.get("id") or path.stem).strip()
         node_type = str(metadata.get("type") or "node").strip()
         if not node_id or not is_micro_graph_node(metadata, node_type):
@@ -105,7 +143,7 @@ def discover_micro_graph_sources(pack_root: Path) -> list[_DiscoveredSourceNode]
         merged_by_id[item.node_id] = _DiscoveredSourceNode(
             node_id=item.node_id,
             node_type=item.node_type,
-            metadata=metadata,
+            metadata=_enrich_source_metadata(item.source_path, metadata),
             body=body,
             source_rel_path=item.source_rel_path,
             source_path=item.source_path,
@@ -115,16 +153,40 @@ def discover_micro_graph_sources(pack_root: Path) -> list[_DiscoveredSourceNode]
     for item in list(by_id.values()):
         text = item.source_path.read_text(encoding="utf-8")
         metadata, body = split_frontmatter(text)
+        metadata = _enrich_source_metadata(item.source_path, metadata)
         for embedded in iter_embedded_node_sources(
             parent_id=item.node_id,
             parent_source_rel_path=item.source_rel_path,
             metadata=metadata,
         ):
+            if embedded.node_id == item.node_id:
+                alt_id = str(embedded.metadata.get("equation_id") or "").strip()
+                if alt_id and alt_id != item.node_id:
+                    embedded_meta = dict(embedded.metadata)
+                    embedded_meta["id"] = alt_id
+                    by_id[alt_id] = _DiscoveredSourceNode(
+                        node_id=alt_id,
+                        node_type=embedded.node_type,
+                        metadata=embedded_meta,
+                        body=embedded.body,
+                        source_rel_path=embedded.source_rel_path,
+                        source_path=item.source_path,
+                    )
+                continue
             if not is_micro_graph_node(embedded.metadata, embedded.node_type):
                 continue
             existing = by_id.get(embedded.node_id)
             if existing is not None and existing.source_path != item.source_path:
                 if existing.source_path.parent.name == embedded.node_id:
+                    continue
+                if (
+                    embedded.node_type == "equation"
+                    and existing.node_type == "equation"
+                    and "/equation/" in existing.source_rel_path.replace("\\", "/")
+                    and len(existing.metadata.get("edges") or []) >= len(
+                        embedded.metadata.get("edges") or []
+                    )
+                ):
                     continue
             by_id[embedded.node_id] = _DiscoveredSourceNode(
                 node_id=embedded.node_id,

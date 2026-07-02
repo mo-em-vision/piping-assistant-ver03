@@ -13,6 +13,8 @@ from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import TaskStatus
 from tests.acceptance.helpers import (
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
     DEFINITION_SECTION_NODE,
     MATERIAL_STRESS_NODE,
     PIPE_WALL_THICKNESS_ROOT,
@@ -65,13 +67,11 @@ def test_complete_definition_equation_after_corrosion_input(standards_reader) ->
         "B313-eq-2",
     )
 
-    task.inputs["corrosion_allowance"] = EngineeringInput(
-        input_id="corrosion_allowance",
+    set_fact_from_input(task, legacy_input(input_id="corrosion_allowance",
         value=0.5,
         unit="mm",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
+        status=InputStatus.CONFIRMED,))
 
     assert try_complete_definition_equations(task, standards_reader, execution_order) is True
     assert task.outputs.get("minimum_required_thickness") is not None

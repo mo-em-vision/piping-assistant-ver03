@@ -16,6 +16,9 @@ from api.equation_inputs_display import (
     primary_formula_inputs_complete,
 )
 from api.output_blocks import build_display_outputs
+from tests.helpers.facts import fact_get_value, populate_task_facts
+from tests.helpers.goals import task_with_planning
+from models.fact import SourceType, ValidationStatus
 
 _ALL_AWAITING_ROWS = [
     {"symbol": "", "definition": "Design material", "value": AWAITING_USER_INPUT},
@@ -42,7 +45,7 @@ def test_format_value_with_unit_for_display_converts_pascal_to_mpa() -> None:
 def test_build_formula_inputs_table_rows_from_task_inputs() -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test01", status=TaskStatus.AWAITING_INPUT)
-    task.inputs = {
+    populate_task_facts(task, {
         "material": EngineeringInput(
             input_id="material",
             value="A106 Gr A",
@@ -57,7 +60,7 @@ def test_build_formula_inputs_table_rows_from_task_inputs() -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-    }
+    })
 
     rows = build_formula_inputs_table_rows(task)
     assert rows[0] == {
@@ -76,7 +79,7 @@ def test_build_formula_inputs_table_rows_from_task_inputs() -> None:
 def test_design_temperature_value_uses_degree_celsius_symbol() -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test-temp", status=TaskStatus.AWAITING_INPUT)
-    task.inputs = {
+    populate_task_facts(task, {
         "design_temperature": EngineeringInput(
             input_id="design_temperature",
             value=38.0,
@@ -84,7 +87,7 @@ def test_design_temperature_value_uses_degree_celsius_symbol() -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-    }
+    })
 
     rows = build_formula_inputs_table_rows(task)
     assert rows[2] == {
@@ -97,7 +100,7 @@ def test_design_temperature_value_uses_degree_celsius_symbol() -> None:
 def test_outside_diameter_value_includes_nps_and_hides_nps_row() -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test-nps-d", status=TaskStatus.AWAITING_INPUT)
-    task.inputs = {
+    populate_task_facts(task, {
         "nominal_pipe_size": EngineeringInput(
             input_id="nominal_pipe_size",
             value="4",
@@ -120,7 +123,7 @@ def test_outside_diameter_value_includes_nps_and_hides_nps_row() -> None:
             source=InputSource.TABLE,
             status=InputStatus.CONFIRMED,
         ),
-    }
+    })
     task.outputs = {
         "outside_diameter_lookup": {
             "standard": "asme_b36.10",
@@ -147,7 +150,7 @@ def test_outside_diameter_value_includes_nps_and_hides_nps_row() -> None:
 def test_nps_row_hidden_before_nominal_pipe_size_entered() -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test-nps-await", status=TaskStatus.AWAITING_INPUT)
-    task.inputs = {
+    populate_task_facts(task, {
         "material": EngineeringInput(
             input_id="material",
             value="A106 Gr A",
@@ -155,7 +158,7 @@ def test_nps_row_hidden_before_nominal_pipe_size_entered() -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-    }
+    })
 
     rows = build_formula_inputs_table_rows(
         task,
@@ -175,7 +178,7 @@ def test_nps_row_hidden_before_nominal_pipe_size_entered() -> None:
 def test_direct_outside_diameter_keeps_nps_row_hidden_without_nps_suffix() -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test-direct-d", status=TaskStatus.AWAITING_INPUT)
-    task.inputs = {
+    populate_task_facts(task, {
         "d_input_mode": EngineeringInput(
             input_id="d_input_mode",
             value="direct_od",
@@ -190,7 +193,7 @@ def test_direct_outside_diameter_keeps_nps_row_hidden_without_nps_suffix() -> No
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-    }
+    })
 
     rows = build_formula_inputs_table_rows(
         task,
@@ -210,7 +213,7 @@ def test_direct_outside_diameter_keeps_nps_row_hidden_without_nps_suffix() -> No
 def test_weld_joint_efficiency_includes_joint_category_in_table() -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test-e", status=TaskStatus.AWAITING_INPUT)
-    task.inputs = {
+    populate_task_facts(task, {
         "joint_category": EngineeringInput(
             input_id="joint_category",
             value="seamless",
@@ -225,7 +228,7 @@ def test_weld_joint_efficiency_includes_joint_category_in_table() -> None:
             source=InputSource.TABLE,
             status=InputStatus.CONFIRMED,
         ),
-    }
+    })
 
     rows = build_formula_inputs_table_rows(task)
     assert rows[5] == {
@@ -240,7 +243,7 @@ def test_weld_joint_efficiency_includes_joint_category_in_table() -> None:
 def test_allowable_stress_value_includes_asme_b31_3_lookup_context() -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test-s-lookup", status=TaskStatus.AWAITING_INPUT)
-    task.inputs = {
+    populate_task_facts(task, {
         "material": EngineeringInput(
             input_id="material",
             value="SA-106B",
@@ -255,7 +258,7 @@ def test_allowable_stress_value_includes_asme_b31_3_lookup_context() -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-    }
+    })
     task.outputs = {
         "allowable_stress": 193_000_000,
         "allowable_stress_unit": "Pa",
@@ -276,7 +279,7 @@ def test_allowable_stress_value_includes_asme_b31_3_lookup_context() -> None:
 def test_build_formula_inputs_table_rows_include_coefficients() -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test04", status=TaskStatus.AWAITING_INPUT)
-    task.inputs = {
+    populate_task_facts(task, {
         "weld_joint_efficiency": EngineeringInput(
             input_id="weld_joint_efficiency",
             value=1.0,
@@ -298,7 +301,7 @@ def test_build_formula_inputs_table_rows_include_coefficients() -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-    }
+    })
     task.outputs = {"allowable_stress": 193_000_000, "allowable_stress_unit": "Pa"}
 
     rows = build_formula_inputs_table_rows(task)
@@ -351,7 +354,7 @@ def test_build_formula_inputs_input_table_has_headers() -> None:
 def test_primary_formula_inputs_complete(standards_reader) -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test02", status=TaskStatus.AWAITING_INPUT)
-    task.inputs = {
+    populate_task_facts(task, {
         "material": EngineeringInput(
             input_id="material",
             value="A106 Gr A",
@@ -373,7 +376,7 @@ def test_primary_formula_inputs_complete(standards_reader) -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-    }
+    })
     planning = {"missing_inputs": ["nominal_pipe_size"]}
 
     assert primary_formula_inputs_complete(task, planning) is True
@@ -382,18 +385,17 @@ def test_primary_formula_inputs_complete(standards_reader) -> None:
 def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test03", status=TaskStatus.AWAITING_INPUT)
-    task.outputs = {
-        "workflow": "pipe_wall_thickness_design",
-        "planning_summary": {
-            "path_decision": {
-                "pressure_loading": "internal_pressure",
-                "selected_node": "B313-304.1.2",
-            },
-            "missing_inputs": ["design_temperature"],
-            "current_phase": "formula_parameters",
+    planning = {
+        "path_decision": {
+            "pressure_loading": "internal_pressure",
+            "selected_node": "B313-304.1.2",
         },
+        "missing_inputs": ["design_temperature"],
+        "current_phase": "formula_parameters",
     }
-    task.inputs = {
+    task.outputs = {"workflow": "pipe_wall_thickness_design"}
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    populate_task_facts(task, {
         "material": EngineeringInput(
             input_id="material",
             value="A106 Gr A",
@@ -408,7 +410,7 @@ def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-    }
+    })
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     ids = [block["id"] for block in blocks]
@@ -434,22 +436,23 @@ def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
 def test_allowable_stress_not_emitted_as_standalone_result_block(standards_reader) -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test10", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "goal": "pipe wall thickness design",
+        "action": "request_input",
+        "active_definition_node": "B313-304.1.1",
+        "path_decision": {
+            "pressure_loading": "internal_pressure",
+            "selected_node": "B313-304.1.2",
+        },
+        "missing_inputs": ["design_pressure"],
+        "current_phase": "formula_parameters",
+    }
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
         "allowable_stress": 193_000_000,
         "allowable_stress_unit": "Pa",
-        "planning_summary": {
-            "goal": "pipe wall thickness design",
-            "action": "request_input",
-            "active_definition_node": "B313-304.1.1",
-            "path_decision": {
-                "pressure_loading": "internal_pressure",
-                "selected_node": "B313-304.1.2",
-            },
-            "missing_inputs": ["design_pressure"],
-            "current_phase": "formula_parameters",
-        },
     }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     task.active_nodes = ["B313-304.1.1", "B313-304.1.2"]
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)

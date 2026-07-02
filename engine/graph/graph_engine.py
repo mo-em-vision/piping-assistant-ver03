@@ -8,6 +8,8 @@ from typing import Any
 
 from engine.graph.assumption_checker import (
     AssumptionEvaluation,
+    _merge_evaluations,
+    evaluate_node_expansion_assumptions,
     evaluate_path_expansion_assumptions,
     field_value,
     normalize_assumption_value,
@@ -29,7 +31,8 @@ from engine.reference.nomenclature_resolver import input_applies
 from engine.reference.standards_reader import StandardsReader
 from models.execution import ExecutionPlan
 from models.graph import EdgeType, GraphEdge, GraphVersion
-from models.input import EngineeringInput, ParameterDescriptor
+from models.fact import Fact, fact_from_user_submission, proposed_default_fact
+from models.input import ParameterDescriptor
 from models.planning import WorkflowCandidate
 
 
@@ -138,7 +141,7 @@ class GraphEngine:
         *,
         root_id: str,
         reader: StandardsReader,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
         plan: ExecutionPlan | None = None,
     ) -> ExecutionPlan:
         if plan is not None:
@@ -152,7 +155,7 @@ class GraphEngine:
         )
 
     @staticmethod
-    def _expansion_inputs_ready(inputs: dict[str, EngineeringInput] | None) -> bool:
+    def _expansion_inputs_ready(inputs: dict[str, Fact] | None) -> bool:
         data = inputs or {}
         for field_name in ("straight_pipe_section", "pressure_loading"):
             if field_value(field_name, data) is None:
@@ -164,7 +167,7 @@ class GraphEngine:
         *,
         task_id: str,
         root_id: str,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
         reader: StandardsReader,
         lazy: bool = False,
     ) -> ExecutionPlan:
@@ -313,7 +316,7 @@ class GraphEngine:
         self,
         root_id: str,
         reader: StandardsReader,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
     ) -> dict[str, Any] | None:
         slug = normalize_root_id(root_id)
         micro = self._micro_engine(reader)
@@ -328,7 +331,7 @@ class GraphEngine:
         *,
         task_id: str,
         root_id: str,
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
         horizon: int = 1,
     ) -> None:
         slug = normalize_root_id(root_id)
@@ -343,7 +346,7 @@ class GraphEngine:
         root_id: str,
         reader: StandardsReader,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
     ) -> bool:
         """Return True when expansion assumptions are satisfied."""
         slug = normalize_root_id(root_id)
@@ -367,7 +370,7 @@ class GraphEngine:
         root_id: str,
         reader: StandardsReader,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
     ) -> dict[str, ParameterDescriptor]:
         """Build parameter registry descriptors from graph parameter nodes."""
         slug = normalize_root_id(root_id)
@@ -397,7 +400,7 @@ class GraphEngine:
         reader: StandardsReader,
         *,
         existing_inputs: set[str] | None = None,
-        task_inputs: dict[str, EngineeringInput] | None = None,
+        task_inputs: dict[str, Fact] | None = None,
         plan: ExecutionPlan | None = None,
     ) -> list[str]:
         """Collect required user-provided inputs for a workflow root (no execution)."""
@@ -450,7 +453,7 @@ class GraphEngine:
         root_id: str,
         reader: StandardsReader,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
         plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         """Check expansion assumptions along the filtered workflow path."""
@@ -458,7 +461,42 @@ class GraphEngine:
         micro = self._micro_engine(reader)
         if micro is not None and self.uses_micro_graph(reader, slug):
             resolved = self._resolve_micro_root(slug, reader)
-            return micro.evaluate_assumptions(resolved, existing_inputs or {})
+            inputs = existing_inputs or {}
+            evaluation = micro.evaluate_assumptions(resolved, inputs)
+            evaluation = _merge_evaluations(
+                evaluation,
+                evaluate_node_expansion_assumptions(reader.load(resolved), existing_inputs=inputs),
+            )
+            resolved_plan = self._resolve_plan(
+                root_id=slug,
+                reader=reader,
+                inputs=inputs,
+                plan=plan,
+            )
+            root_interactions = collect_root_interactions(reader, slug)
+            path_interactions = collect_path_interactions(reader, resolved_plan.execution_order)
+            for skipped in resolved_plan.skipped_nodes:
+                if not skipped.get("pending"):
+                    continue
+                field_name = str(skipped.get("field", ""))
+                if not field_name or field_name in evaluation.missing_fields:
+                    continue
+                evaluation.missing_fields.append(field_name)
+                evaluation.field_nodes[field_name] = str(skipped.get("node_id", ""))
+                interaction = find_interaction(path_interactions, field_name)
+                if interaction is None:
+                    interaction = find_interaction(root_interactions, field_name)
+                if interaction is not None:
+                    evaluation.field_questions[field_name] = question_for_interaction(interaction)
+                else:
+                    evaluation.field_questions[field_name] = question_for(
+                        NodeAssumptionSpec(
+                            id="pressure_loading_case",
+                            description="Confirm pressure loading case",
+                            field=field_name,
+                        )
+                    )
+            return evaluation
         inputs = existing_inputs or {}
         resolved_plan = self._resolve_plan(
             root_id=slug,
@@ -501,9 +539,10 @@ class GraphEngine:
         root_id: str,
         reader: StandardsReader,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        task_id: str,
+        existing_inputs: dict[str, Fact] | None = None,
         plan: ExecutionPlan | None = None,
-    ) -> dict[str, EngineeringInput]:
+    ) -> dict[str, Fact]:
         """Propose default values for value-resolution specs on the active path."""
         slug = normalize_root_id(root_id)
         resolved_plan = self._resolve_plan(
@@ -513,10 +552,11 @@ class GraphEngine:
             plan=plan,
         )
         specs = collect_path_interactions(reader, resolved_plan.execution_order)
-        proposed = propose_default_values(specs, existing_inputs or {})
-        proposed.update(propose_decision_defaults(specs, existing_inputs or {}))
+        proposed = propose_default_values(specs, existing_inputs or {}, task_id=task_id)
+        proposed.update(
+            propose_decision_defaults(specs, existing_inputs or {}, task_id=task_id)
+        )
         from engine.reference.coefficient_resolver import propose_coefficient_defaults
-        from models.input import proposed_default_input
 
         coeff_defaults = propose_coefficient_defaults(
             reader.pack_root,
@@ -525,26 +565,34 @@ class GraphEngine:
         for input_id, (value, condition) in coeff_defaults.items():
             if input_id in (existing_inputs or {}) or input_id in proposed:
                 continue
-            proposed[input_id] = proposed_default_input(
+            proposed[input_id] = proposed_default_fact(
                 input_id,
                 value,
+                task_id=task_id,
                 unit="dimensionless",
                 default=value,
                 default_condition=condition,
             )
-        proposed.update(self._propose_provisional_assumptions(reader, resolved_plan.execution_order, existing_inputs or {}))
+        proposed.update(
+            self._propose_provisional_assumptions(
+                reader,
+                resolved_plan.execution_order,
+                existing_inputs or {},
+                task_id=task_id,
+            )
+        )
         return proposed
 
     @staticmethod
     def _propose_provisional_assumptions(
         reader: StandardsReader,
         execution_order: tuple[str, ...] | list[str],
-        existing_inputs: dict[str, EngineeringInput],
-    ) -> dict[str, EngineeringInput]:
+        existing_inputs: dict[str, Fact],
+        *,
+        task_id: str,
+    ) -> dict[str, Fact]:
         """Propose thin_wall and other provisional assumptions from node metadata."""
-        from models.input import InputSource, InputStatus, ResolutionMethod
-
-        proposed: dict[str, EngineeringInput] = {}
+        proposed: dict[str, Fact] = {}
         for node_id in execution_order:
             record = reader.load(node_id)
             for item in record.metadata.get("provisional_assumptions", []) or []:
@@ -554,15 +602,13 @@ class GraphEngine:
                 if not field_name or field_name in existing_inputs:
                     continue
                 default = item.get("default", True)
-                proposed[field_name] = EngineeringInput(
-                    input_id=field_name,
+                proposed[field_name] = fact_from_user_submission(
+                    key=field_name,
                     value=default,
                     unit="dimensionless",
-                    source=InputSource.SYSTEM,
-                    status=InputStatus.CONFIRMED,
+                    task_id=task_id,
+                    collected_at_node=record.node_id,
                     description=str(item.get("description", "")),
-                    introduced_at_node=record.node_id,
-                    resolution_method=ResolutionMethod.SYSTEM,
                 )
         return proposed
 
@@ -571,7 +617,7 @@ class GraphEngine:
         root_id: str,
         reader: StandardsReader,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
         plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         """Check value confirmations required before full path expansion."""
@@ -603,7 +649,7 @@ class GraphEngine:
         node_ids: list[str] | tuple[str, ...],
         reader: StandardsReader,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
     ) -> list[str]:
         """Return node ids whose value requirements are confirmed for expansion."""
         inputs = existing_inputs or {}
@@ -622,7 +668,7 @@ class GraphEngine:
         root_id: str,
         reader: StandardsReader,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
         plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         """Check execution assumptions for nodes on the filtered workflow path."""
@@ -651,7 +697,7 @@ class GraphEngine:
         node_versions: dict[str, str],
         *,
         visiting: set[str],
-        inputs: dict[str, EngineeringInput],
+        inputs: dict[str, Fact],
         skipped_nodes: list[dict[str, str]],
     ) -> None:
         if node_id in visiting:

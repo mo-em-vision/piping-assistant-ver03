@@ -7,12 +7,11 @@ from pathlib import Path
 from engine.executor.lookup_engine import LookupEngine
 from engine.reference.asme_b31_3_table_ids import TABLE_A_1
 from engine.reference.standards_paths import resolve_standard_pack
-from models.input import (
-    EngineeringInput,
-    InputSource,
-    InputStatus,
-    ResolutionMethod,
-    ResolutionRef,
+from engine.state.task_facts import (
+    deactivate_fact,
+    fact_scalar_value,
+    fact_unit,
+    store_lookup_numeric_fact,
 )
 from models.task import Task
 
@@ -28,22 +27,22 @@ LOOKUP_CONFIG = {
 def _clear_allowable_stress(task: Task) -> None:
     for key in ("allowable_stress", "S", "allowable_stress_lookup", "allowable_stress_unit", "S_unit"):
         task.outputs.pop(key, None)
-    task.inputs.pop("allowable_stress", None)
+    deactivate_fact(task, "allowable_stress")
 
 
 def _material_and_temperature_ready(task: Task) -> tuple[str, float, str] | None:
-    material_input = task.inputs.get("material")
-    temp_input = task.inputs.get("design_temperature")
-    if material_input is None or material_input.value is None:
+    material_input = task.fact_store.active_fact("material")
+    temp_input = task.fact_store.active_fact("design_temperature")
+    if material_input is None or fact_scalar_value(material_input) is None:
         return None
-    if temp_input is None or temp_input.value is None:
+    if temp_input is None or fact_scalar_value(temp_input) is None:
         return None
 
-    material = str(material_input.value).strip()
+    material = str(fact_scalar_value(material_input)).strip()
     if not material:
         return None
 
-    return material, float(temp_input.value), str(temp_input.unit or "F")
+    return material, float(fact_scalar_value(temp_input)), str(fact_unit(temp_input) or "F")
 
 
 def apply_allowable_stress_lookup(task: Task, standards_root: Path) -> None:
@@ -87,28 +86,16 @@ def apply_allowable_stress_lookup(task: Task, standards_root: Path) -> None:
         "interpolated": result.trace.interpolated,
     }
 
-    task.inputs["allowable_stress"] = EngineeringInput(
-        input_id="allowable_stress",
-        value=stress_pa,
+    store_lookup_numeric_fact(
+        task,
+        key="allowable_stress",
+        amount=stress_pa,
         unit="Pa",
-        source=InputSource.TABLE,
-        status=InputStatus.CONFIRMED,
+        table_ref=B31_3_TABLE_REF,
         symbol="S",
         description="Allowable stress from ASME B31.3 Table A-1 (sample)",
-        resolution_method=ResolutionMethod.TABLE_LOOKUP,
-        resolution_ref=ResolutionRef(table=B31_3_TABLE_REF),
     )
 
-    planning = task.outputs.get("planning_summary")
-    if isinstance(planning, dict):
-        for key in ("missing_inputs", "missing_assumptions", "missing_execution_assumptions"):
-            items = planning.get(key)
-            if isinstance(items, list):
-                planning[key] = [item for item in items if item != "allowable_stress"]
-        phase_missing = planning.get("phase_missing")
-        if isinstance(phase_missing, dict):
-            for phase, fields in list(phase_missing.items()):
-                if isinstance(fields, list):
-                    planning["phase_missing"][phase] = [
-                        item for item in fields if item != "allowable_stress"
-                    ]
+    from engine.state.goal_satisfaction import refresh_goal_satisfaction
+
+    refresh_goal_satisfaction(task)

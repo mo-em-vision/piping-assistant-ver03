@@ -12,6 +12,9 @@ from engine.state.node_outputs import build_node_outputs
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import TaskStatus
 from tests.acceptance.helpers import sample_inputs
+from tests.helpers.facts import fact_get_value, legacy_input
+from engine.state.fact_migration import fact_from_engineering_input
+from models.fact import SourceType, ValidationStatus
 
 
 def _reader() -> StandardsReader:
@@ -50,9 +53,7 @@ def test_selection_output_includes_material() -> None:
     task_id = "node-outputs-selection"
     manager.create_task(task_id)
     manager.store_input(
-        task_id,
-        EngineeringInput(
-            input_id="material",
+        task_id, fact_from_engineering_input(legacy_input(input_id="material",
             value="astm_a106_gr_b",
             unit="dimensionless",
             source=InputSource.USER,
@@ -105,7 +106,9 @@ def test_workflow_state_serializes_node_outputs() -> None:
         manager.store_input(task_id, engineering_input)
     execute_workflow(task_id, "pipe_wall_thickness_design", state=manager, reader=reader)
 
-    payload = json_safe(manager.get_workflow_state(task_id, reader=reader))
+    payload = json_safe(manager.get_workflow_state(task_id, reader=reader), task_id=
+        task_id, workflow_id=str(manager.get_task(
+        task_id).outputs.get('workflow') or '')))
     assert payload["version"] == "6"
     assert "node_outputs" in payload
     assert "B313-eq-wall-thickness" in payload["node_outputs"]

@@ -8,7 +8,7 @@ from cli.orchestrator import ChatOrchestrator
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
 from models.agent import AgentAction, IntentResult
-from models.task import Task, TaskStatus
+from models.task import Task, new_task, TaskStatus
 from tests.agents.conftest import FakeLLMClient
 
 
@@ -17,7 +17,7 @@ class TestAiBoundaryAcceptance:
 
     def test_input_agent_requests_information_without_calculating(self) -> None:
         agent = InputAgent(client=None)
-        task = Task(task_id="acceptance-ai-input", status=TaskStatus.AWAITING_INPUT)
+        task = new_task("acceptance-ai-input", status=TaskStatus.AWAITING_INPUT)
 
         result = agent.analyze(task, workflow=PIPE_WALL_THICKNESS_DESIGN)
 

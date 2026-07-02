@@ -10,7 +10,7 @@ from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from models.agent import AlternativePathRecord
 from models.execution import ExecutionPlan
-from models.input import EngineeringInput
+from models.fact import Fact
 from models.planning import WorkflowCandidate
 from models.task import Task
 
@@ -42,7 +42,7 @@ class GraphTools:
         root_id: str,
         *,
         existing_inputs: set[str] | None = None,
-        task_inputs: dict[str, EngineeringInput] | None = None,
+        task_inputs: dict[str, Fact] | None = None,
         plan: ExecutionPlan | None = None,
     ) -> list[str]:
         return self._engine.required_user_inputs(
@@ -57,7 +57,7 @@ class GraphTools:
         self,
         root_id: str,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
         plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         return self._engine.evaluate_execution_assumptions(
@@ -71,7 +71,7 @@ class GraphTools:
         self,
         root_id: str,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
         plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         return self._engine.evaluate_assumptions(
@@ -86,7 +86,7 @@ class GraphTools:
         *,
         task_id: str,
         root_id: str,
-        inputs: dict[str, EngineeringInput] | None = None,
+        inputs: dict[str, Fact] | None = None,
         lazy: bool = False,
     ) -> ExecutionPlan:
         slug = normalize_root_id(root_id)
@@ -102,7 +102,7 @@ class GraphTools:
         self,
         root_id: str,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
     ) -> list:
         from engine.graph.node_interaction import (
             collect_root_interactions,
@@ -117,12 +117,14 @@ class GraphTools:
         self,
         root_id: str,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        task_id: str,
+        existing_inputs: dict[str, Fact] | None = None,
         plan: ExecutionPlan | None = None,
-    ) -> dict[str, EngineeringInput]:
+    ) -> dict[str, Fact]:
         return self._engine.resolve_and_propose_path_inputs(
             root_id,
             self._reader,
+            task_id=task_id,
             existing_inputs=existing_inputs,
             plan=plan,
         )
@@ -131,7 +133,7 @@ class GraphTools:
         self,
         root_id: str,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
         plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         return self._engine.evaluate_expansion_interactions(
@@ -145,7 +147,7 @@ class GraphTools:
         self,
         node_ids: list[str],
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
     ) -> list[str]:
         return self._engine.expansion_ready_nodes(
             node_ids,
@@ -157,7 +159,7 @@ class GraphTools:
         self,
         root_id: str,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
     ) -> bool:
         return self._engine.expansion_gate_ready(
             root_id,
@@ -169,7 +171,7 @@ class GraphTools:
         self,
         root_id: str,
         *,
-        existing_inputs: dict[str, EngineeringInput] | None = None,
+        existing_inputs: dict[str, Fact] | None = None,
     ):
         return self._engine.seed_parameter_registry(
             root_id,
@@ -207,13 +209,25 @@ class StateTools:
         active_nodes: list[str],
         planning_summary: dict[str, Any],
     ) -> Task:
+        from engine.state.goal_migration import goals_from_planning_summary
+        from engine.state.goal_satisfaction import refresh_goal_satisfaction
+
         task = self._state.get_task(task_id)
         if workflow:
             self._state.store_output(task_id, "workflow", workflow)
         if selected_root:
             self._state.store_output(task_id, "selected_root", selected_root)
         self._state.set_active_nodes(task_id, active_nodes)
-        self._state.store_output(task_id, "planning_summary", planning_summary)
+        task = self._state.get_task(task_id)
+        task.outputs["selected_nodes"] = list(planning_summary.get("selected_nodes") or active_nodes)
+        task.outputs["path_decision"] = planning_summary.get("path_decision")
+        task.execution_context.goal_store = goals_from_planning_summary(
+            planning_summary,
+            task_id=task_id,
+            workflow_id=workflow or selected_root,
+        )
+        refresh_goal_satisfaction(task)
+        self._state.replace_task(task_id, task)
         return task
 
     def record_alternative_path(
@@ -238,12 +252,12 @@ class StateTools:
     def persist_proposed_inputs(
         self,
         task_id: str,
-        proposed: dict[str, EngineeringInput],
+        proposed: dict[str, Fact],
     ) -> Task:
-        for engineering_input in proposed.values():
+        for fact in proposed.values():
             task = self._state.get_task(task_id)
-            if engineering_input.input_id not in task.inputs:
-                self._state.store_input(task_id, engineering_input)
+            if fact.key not in task.fact_store.active_facts():
+                self._state.store_input(task_id, fact)
         return self._state.get_task(task_id)
 
     def persist_parameter_registry(

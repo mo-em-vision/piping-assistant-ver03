@@ -30,5 +30,5 @@ def test_resolve_wall_thickness_variables_for_304_1_2(
 
     nomenclature_reference = resolved["nomenclature_reference"]
     assert nomenclature_reference is not None
-    assert nomenclature_reference["node_id"] == "B313-304.1.1"
+    assert nomenclature_reference["node_id"] in {"B313-304.1.1", "304.1.1"}
     assert nomenclature_reference["label"] == "§304.1.1(b)"

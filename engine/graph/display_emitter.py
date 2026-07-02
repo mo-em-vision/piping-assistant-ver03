@@ -12,14 +12,15 @@ from engine.graph.node_behaviors import (
     is_reference_designation,
     is_reference_quantity,
 )
-from engine.reference.graph_edge_schema import edge_targets, workflow_anchor_target
-from models.input import EngineeringInput
+from engine.reference.graph_edge_schema import workflow_anchor_target
+from engine.reference.relationship_taxonomy import CONTAINS_TRAVERSAL_TYPES, PARAMETER_CONCEPT_TRAVERSAL_TYPES
+from models.fact import Fact
 
 
 def _referenced_concept(store: GraphStore, node_id: str) -> dict[str, str]:
     """Dimension or designation symbol from parameter → quantity/designation links."""
     concept: dict[str, str] = {}
-    for edge in store.outgoing(node_id, edge_types={"references"}):
+    for edge in store.outgoing(node_id, edge_types=PARAMETER_CONCEPT_TRAVERSAL_TYPES | {"has_dimension"}):
         ref_meta = store.metadata(edge.to_id)
         ref_type = store.node_type(edge.to_id) or ""
         if is_reference_quantity(ref_meta, ref_type):
@@ -36,7 +37,7 @@ def _referenced_concept(store: GraphStore, node_id: str) -> dict[str, str]:
 def _parameter_table_row(
     store: GraphStore,
     node_id: str,
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
     edge_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     meta = store.metadata(node_id)
@@ -93,7 +94,7 @@ def emit_initiation_blocks(
     store: GraphStore,
     root_id: str,
     *,
-    inputs: dict[str, EngineeringInput] | None = None,
+    inputs: dict[str, Fact] | None = None,
 ) -> list[dict[str, Any]]:
     """Text blocks shown when a workflow opens."""
     blocks: list[dict[str, Any]] = []
@@ -110,7 +111,7 @@ def emit_initiation_blocks(
         title = _doc_text(root_doc, "title") or str(root.metadata.get("title", ""))
         blocks.append(_text_block(root_id, "initiation", initiation_text, title or None))
 
-    for edge in store.outgoing(root_id, edge_types={"contains"}):
+    for edge in store.outgoing(root_id, edge_types=CONTAINS_TRAVERSAL_TYPES):
         node = store.get_node(edge.to_id)
         if node and node.node_type == "text" and node.metadata.get("role") == "initiation":
             node_doc = _resolve_node_documentation(store, node.node_id, context=context)
@@ -128,7 +129,7 @@ def emit_initiation_blocks(
 
     anchors = workflow_anchor_target(root.metadata)
     if isinstance(anchors, str):
-        for edge in store.outgoing(anchors, edge_types={"contains"}):
+        for edge in store.outgoing(anchors, edge_types=CONTAINS_TRAVERSAL_TYPES):
             node = store.get_node(edge.to_id)
             if node and node.node_type == "text" and node.metadata.get("role") == "initiation":
                 node_doc = _resolve_node_documentation(store, node.node_id, context=context)
@@ -149,7 +150,7 @@ def emit_initiation_blocks(
 def emit_equation_blocks(
     store: GraphStore,
     equation_id: str,
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
     *,
     result: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
@@ -227,7 +228,7 @@ def emit_equation_blocks(
 def emit_active_context(
     store: GraphStore,
     expansion: ExpansionState,
-    inputs: dict[str, EngineeringInput],
+    inputs: dict[str, Fact],
     *,
     focus_node_id: str | None = None,
 ) -> list[dict[str, Any]]:

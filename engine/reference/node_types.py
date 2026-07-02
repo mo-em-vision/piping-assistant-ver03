@@ -16,6 +16,7 @@ CANONICAL_NODE_TYPES = frozenset(
         "unit",
         "dimension",
         "concept",
+        "authority",
     }
 )
 RUNTIME_NODE_FIELDS = frozenset({"value", "user_input", "runtime_unit", "runtime_units"})
@@ -44,7 +45,7 @@ def normalize_node_metadata(
     meta = dict(metadata)
     explicit_kind = meta.get("kind")
     if node_type in CANONICAL_NODE_TYPES:
-        if node_type in {"quantity", "designation", "concept"}:
+        if node_type in {"quantity", "designation", "concept", "authority"}:
             for field in RUNTIME_NODE_FIELDS:
                 meta.pop(field, None)
         if node_type == "paragraph" and explicit_kind is None:

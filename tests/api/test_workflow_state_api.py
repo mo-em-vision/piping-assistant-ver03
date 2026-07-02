@@ -15,6 +15,8 @@ from engine.state import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
 from tests.acceptance.helpers import sample_inputs
 from tests.api.conftest import api_session_id
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
 
 
 def _service(tmp_path: Path, project_root: Path) -> DesktopApiService:

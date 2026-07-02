@@ -44,7 +44,12 @@ class TestStandardsCoverage:
         assert standards_reader.tables_db_path.is_file()
         assert standards_reader.load_table("A-1")["materials"]
 
-        equation_path = wall_node.path.parent / "equations" / "wall_thickness.md"
+        equation_path = (
+            standards_reader.pack_root
+            / "nodes"
+            / "equation"
+            / "asme_b313_304_1_2_wall_thickness.yaml"
+        )
         assert equation_path.exists()
 
     def test_future_standard_architecture_supports_multiple_packs(self, project_root: Path) -> None:

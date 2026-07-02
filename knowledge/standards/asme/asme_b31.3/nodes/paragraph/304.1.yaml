@@ -1,10 +1,20 @@
 ---
-id: 304.1
+id: '304.1'
 type: paragraph
+key: b313_304_1
 title: Design of Straight Pipe
-status: draft
-revision_year: 2024
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: '304.1'
+paragraph_class: definition
+description: Design of Straight Pipe
+metadata:
+  status: draft
+  node_version: 1
+  source_revision_year: 2024
 edges:
+- type: belongs_to_authority
+  target: AUTH-ASME-B31.3
 - type: parent
   target: '304'
 ---

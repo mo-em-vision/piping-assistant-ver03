@@ -10,7 +10,7 @@ from api.desktop_service import ApiError, DesktopApiService
 from api.serializers import _task_display_name
 from cli.session_store import _task_from_dict, _task_to_dict
 from config.loader import CLIConfig
-from models.task import Task, TaskStatus
+from models.task import Task, TaskStatus, new_task
 
 
 @pytest.fixture
@@ -95,11 +95,12 @@ def test_rename_missing_task_returns_not_found(temp_service: DesktopApiService) 
 
 
 def test_task_display_name_prefers_custom_display_name() -> None:
-    task = Task(
-        task_id="pipe-wall-thickness-desi-test01",
+    task = new_task(
+        "pipe-wall-thickness-desi-test01",
         status=TaskStatus.AWAITING_INPUT,
-        outputs={"workflow": "pipe_wall_thickness_design", "display_name": "Custom Title"},
+        workflow_id="pipe_wall_thickness_design",
     )
+    task.outputs["display_name"] = "Custom Title"
     assert _task_display_name(task) == "Custom Title"
 
     round_trip = _task_from_dict(_task_to_dict(task))

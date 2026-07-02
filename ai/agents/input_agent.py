@@ -175,7 +175,7 @@ class InputAgent(BaseAgent):
         return [
             input_id
             for input_id in assumption_fields + required
-            if input_id not in task.inputs
+            if task.fact_store.active_fact(input_id) is None
         ]
 
     @staticmethod
@@ -214,7 +214,7 @@ class InputAgent(BaseAgent):
         payload = self.complete_json(
             (
                 f"Task ID: {task.task_id}\n"
-                f"Known inputs: {list(task.inputs.keys())}\n"
+                f"Known inputs: {list(task.fact_store.active_facts().keys())}\n"
                 f"Missing inputs: {missing}\n"
                 f"Context:\n{self.format_context(context.__dict__ if context else None)}"
             ),

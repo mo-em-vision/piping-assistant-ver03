@@ -15,6 +15,9 @@ from engine.inspection.replay import build_replay_frames, build_replay_snapshot
 from engine.inspection.trace import build_execution_trace
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
+from engine.state.authority_context_projection import authority_context_full
+from engine.state.execution_context_projection import execution_context_full
+from engine.state.goal_projection import goals_to_api_dict, planning_projection
 from engine.state.workflow_state import build_workflow_state
 from models.task import Task
 
@@ -69,7 +72,10 @@ def build_inspection_payload(
             "planner_decisions": {
                 node_id: decision.to_dict() for node_id, decision in planner_decisions.items()
             },
-            "planning_summary": outputs.get("planning_summary") or {},
+            "goals": goals_to_api_dict(task),
+            "execution_context": execution_context_full(task),
+            "authority_context": authority_context_full(task),
+            "planning_summary": planning_projection(task),
             "provenance_index": [record.to_dict() for record in provenance_index],
             "provenance_warnings": provenance_warnings or list(outputs.get("_provenance_warnings") or []),
             "workflow_state": _workflow_state_dict(workflow_state),

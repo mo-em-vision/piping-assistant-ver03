@@ -11,11 +11,14 @@ from engine.executor.executor import execute_workflow
 from engine.planner.planner import Planner
 from engine.reports.report_data import build_report_from_task
 from engine.reference.standards_reader import StandardsReader
+from engine.state.fact_migration import fact_from_engineering_input
 from engine.state.state_manager import TaskStateManager
 from models.agent import IntentResult
 from models.execution import ExecutionResult, ExecutionStatus
+from models.fact import fact_scalar_value
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import Task, TaskStatus
+from tests.helpers.facts import fact_get_value
 
 PIPE_WALL_THICKNESS_ROOT = "pipe_wall_thickness_design"
 WALL_THICKNESS_NODE = "B313-304.1.2"
@@ -162,9 +165,17 @@ def create_task_with_inputs(
     inputs: dict[str, EngineeringInput] | None = None,
     status: TaskStatus = TaskStatus.AWAITING_INPUT,
 ) -> Task:
-    manager.create_task(task_id, status=status)
+    task = manager.create_task(task_id, status=status)
+    workflow_id = str(task.outputs.get("workflow") or "")
     for engineering_input in (inputs or sample_inputs()).values():
-        manager.store_input(task_id, engineering_input)
+        manager.store_input(
+            task_id,
+            fact_from_engineering_input(
+                engineering_input,
+                task_id=task_id,
+                workflow_id=workflow_id,
+            ),
+        )
     return manager.get_task(task_id)
 
 
@@ -178,8 +189,17 @@ def run_completed_workflow(
     if task_id not in {task.task_id for task in manager.list_tasks()}:
         create_task_with_inputs(manager, task_id, inputs=inputs)
     elif inputs:
+        task = manager.get_task(task_id)
+        workflow_id = str(task.outputs.get("workflow") or "")
         for engineering_input in inputs.values():
-            manager.store_input(task_id, engineering_input)
+            manager.store_input(
+                task_id,
+                fact_from_engineering_input(
+                    engineering_input,
+                    task_id=task_id,
+                    workflow_id=workflow_id,
+                ),
+            )
 
     return execute_workflow(task_id, PIPE_WALL_THICKNESS_ROOT, state=manager, reader=reader)
 
@@ -232,7 +252,10 @@ def audit_payload(task: Task) -> dict[str, Any]:
     return {
         "graph_version": task.outputs.get("graph_version"),
         "node_versions": _node_versions_from_trace(task),
-        "inputs": {key: inp.value for key, inp in task.inputs.items()},
+        "inputs": {
+            key: fact_scalar_value(fact)
+            for key, fact in task.fact_store.active_facts().items()
+        },
         "validation_events": task.outputs.get("_validation_trace"),
         "execution_trace": task.outputs.get("_execution_trace"),
         "report_data": report,

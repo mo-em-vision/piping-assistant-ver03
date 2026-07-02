@@ -1,0 +1,29 @@
+---
+id: AUTH-ASME-B36.10M
+type: authority
+key: asme_b36_10m
+name: ASME B36.10M
+authority_class: dimensional_standard
+publisher: ASME
+title: Welded and Seamless Wrought Steel Pipe
+description: 'Dimensional standard defining sizes, outside diameters, wall thicknesses,
+  and schedules for welded and seamless wrought steel pipe.
+
+  '
+scope:
+  domain:
+  - piping
+  concept:
+  - CONCEPT-pipe-dimensions
+contains:
+  tables:
+  - TABLE-B36.10M-pipe-dimensions
+edges:
+- type: constrains_parameter
+  target: PARAM-outside-diameter
+- type: constrains_parameter
+  target: PARAM-nominal-wall-thickness
+metadata:
+  status: active
+  version: 1
+---

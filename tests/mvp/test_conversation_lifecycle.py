@@ -8,6 +8,8 @@ from engine.reports.report_generator import ReportGenerator
 from engine.state.state_manager import TaskStateManager
 from tests.acceptance.helpers import run_completed_workflow, sample_inputs
 from tests.agents.conftest import FakeLLMClient
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
 
 
 class TestConversationLifecycle:
@@ -97,10 +99,10 @@ class TestConversationLifecycle:
         assert second.status != "clarify"
 
         task = manager.get_task(task_id)
-        assert "material" in task.inputs
-        assert "design_temperature" in task.inputs
-        assert task.inputs["design_temperature"].value == 85.0
-        assert "design_pressure" not in task.inputs
+        assert task.fact_store.active_fact("material") is not None
+        assert task.fact_store.active_fact("design_temperature") is not None
+        assert task.fact_store.active_facts()["design_temperature"].value == 85.0
+        assert task.fact_store.active_fact("design_pressure") is None
 
         missing = second.data.get("missing_inputs") or []
         assert "pressure_loading" not in missing

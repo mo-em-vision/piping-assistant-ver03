@@ -8,9 +8,11 @@ import pytest
 
 from engine.graph.graph_engine import GraphCycleError, GraphEngine, normalize_root_id
 from engine.reference.standards_reader import StandardsReader
+from models.fact import fact_scalar_value
 from models.graph import EdgeType, GraphEdge
-from models.input import EngineeringInput, InputSource, InputStatus
+from models.input import InputSource, InputStatus
 from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
+from tests.helpers.facts import facts_from_inputs, legacy_input
 
 
 def _reader() -> StandardsReader:
@@ -36,10 +38,13 @@ def test_build_plan_internal_pressure_path() -> None:
     plan = GraphEngine().build_plan(
         task_id="pipe-wall-thickness-design-test",
         root_id="pipe_wall_thickness_design",
-        inputs={
-            "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
-        },
+        inputs=facts_from_inputs(
+            {
+                "straight_pipe_section": straight_section_assumption(),
+                "pressure_loading": internal_pressure_assumption(),
+            },
+            task_id="pipe-wall-thickness-design-test",
+        ),
         reader=reader,
     )
 
@@ -54,16 +59,18 @@ def test_build_plan_external_pressure_path() -> None:
     plan = GraphEngine().build_plan(
         task_id="pipe-wall-thickness-design-test",
         root_id="pipe_wall_thickness_design",
-        inputs={
-            "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": EngineeringInput(
-                input_id="pressure_loading",
-                value="external_pressure",
-                unit="dimensionless",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
-            ),
-        },
+        inputs=facts_from_inputs(
+            {
+                "straight_pipe_section": straight_section_assumption(),
+                "pressure_loading": legacy_input(
+                    "pressure_loading",
+                    "external_pressure",
+                    source=InputSource.USER,
+                    status=InputStatus.CONFIRMED,
+                ),
+            },
+            task_id="pipe-wall-thickness-design-test",
+        ),
         reader=reader,
     )
 
@@ -77,21 +84,19 @@ def test_build_plan_includes_dependencies() -> None:
     plan = GraphEngine().build_plan(
         task_id="task-deps",
         root_id="pipe_wall_thickness_design",
-        inputs={
-            "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
-            "design_pressure": EngineeringInput(
-                input_id="design_pressure",
-                value=500,
-                unit="psi",
-                source=InputSource.USER,
-            ),
-        },
+        inputs=facts_from_inputs(
+            {
+                "straight_pipe_section": straight_section_assumption(),
+                "pressure_loading": internal_pressure_assumption(),
+                "design_pressure": legacy_input("design_pressure", 500, "psi"),
+            },
+            task_id="task-deps",
+        ),
         reader=reader,
     )
 
     assert plan.task_id == "task-deps"
-    assert plan.inputs["design_pressure"].value == 500
+    assert fact_scalar_value(plan.inputs["design_pressure"]) == 500
     assert len(plan.dependencies) >= 2
     assert plan.graph_version is not None
 
@@ -131,10 +136,13 @@ def test_required_user_inputs() -> None:
     required = GraphEngine().required_user_inputs(
         "pipe_wall_thickness_design",
         reader,
-        task_inputs={
-            "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
-        },
+        task_inputs=facts_from_inputs(
+            {
+                "straight_pipe_section": straight_section_assumption(),
+                "pressure_loading": internal_pressure_assumption(),
+            },
+            task_id="required-inputs-test",
+        ),
     )
 
     assert "design_pressure" in required

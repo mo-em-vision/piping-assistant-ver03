@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from engine.graph.doc_templates import build_doc_context, render_doc_template
 from models.input import EngineeringInput, InputSource, InputStatus
-from models.task import Task, TaskStatus
+from models.task import Task, new_task, TaskStatus
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
 
 
 def test_render_doc_template_substitutes_known_keys() -> None:
@@ -28,15 +30,13 @@ def test_render_doc_template_handles_numeric_values() -> None:
 
 
 def test_build_doc_context_from_task_inputs() -> None:
-    task = Task(task_id="doc-context", status=TaskStatus.ACTIVE)
-    task.inputs["design_pressure"] = EngineeringInput(
-        input_id="design_pressure",
+    task = new_task("doc-context", status=TaskStatus.ACTIVE)
+    set_fact_from_input(task, legacy_input(input_id="design_pressure",
         value=1_000_000,
         unit="Pa",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,
-        symbol="P",
-    )
+        symbol="P",))
     context = build_doc_context(task)
     assert context["design_pressure"] == 1_000_000
     assert context["P"] == 1_000_000

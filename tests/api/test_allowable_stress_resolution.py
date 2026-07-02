@@ -9,6 +9,9 @@ import pytest
 from api.parameter_definitions import submit_task_input
 from engine.state.state_manager import TaskStateManager
 from models.task import TaskStatus
+from tests.helpers.facts import fact_get_value, legacy_input, populate_task_facts, set_fact_from_input
+from tests.helpers.goals import task_with_planning
+from models.fact import SourceType, ValidationStatus
 
 
 @pytest.fixture(scope="module")
@@ -18,15 +21,14 @@ def standards_root() -> Path:
 
 def _pipe_wall_task(manager: TaskStateManager, task_id: str, *, missing: list[str]) -> None:
     task = manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
-    task.outputs = {
-        "workflow": "pipe_wall_thickness_design",
-        "planning_summary": {
-            "missing_inputs": list(missing),
-            "missing_assumptions": [],
-            "current_phase": "parameter_gathering",
-            "phase_missing": {"parameter_gathering": list(missing)},
-        },
+    planning = {
+        "missing_inputs": list(missing),
+        "missing_assumptions": [],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": list(missing)},
     }
+    task.outputs = {"workflow": "pipe_wall_thickness_design"}
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
 
 
@@ -94,7 +96,7 @@ def test_allowable_stress_resolver_updates_on_temperature_change(standards_root:
 
     manager = TaskStateManager()
     task = manager.create_task("s-resolver-test01", status=TaskStatus.AWAITING_INPUT)
-    task.inputs = {
+    populate_task_facts(task, {
         "material": EngineeringInput(
             input_id="material",
             value="SA-106B",
@@ -109,16 +111,14 @@ def test_allowable_stress_resolver_updates_on_temperature_change(standards_root:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-    }
+    })
     apply_allowable_stress_lookup(task, standards_root)
     assert task.outputs["allowable_stress"] == pytest.approx(207_000_000)
 
-    task.inputs["design_temperature"] = EngineeringInput(
-        input_id="design_temperature",
+    set_fact_from_input(task, legacy_input(input_id="design_temperature",
         value=400,
         unit="F",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
+        status=InputStatus.CONFIRMED,))
     apply_allowable_stress_lookup(task, standards_root)
     assert task.outputs["allowable_stress"] == pytest.approx(179_000_000)

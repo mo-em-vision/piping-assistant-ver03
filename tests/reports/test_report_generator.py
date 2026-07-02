@@ -10,7 +10,9 @@ from engine.reports.report_generator import ReportGenerator
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource
-from models.task import Task, TaskStatus
+from models.task import Task, new_task, TaskStatus
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus
 
 
 def _reader() -> StandardsReader:
@@ -19,7 +21,7 @@ def _reader() -> StandardsReader:
 
 
 def test_build_pipe_wall_thickness_report_incomplete() -> None:
-    task = Task(task_id="pipe-wall-thickness-design-abc", status=TaskStatus.AWAITING_INPUT)
+    task = new_task("pipe-wall-thickness-design-abc", status=TaskStatus.AWAITING_INPUT)
     report = build_report_from_task(task, _reader())
 
     assert report.workflow == "pipe_wall_thickness_design"
@@ -30,15 +32,13 @@ def test_build_pipe_wall_thickness_report_incomplete() -> None:
 
 
 def test_build_report_with_inputs() -> None:
-    task = Task(task_id="pipe-wall-thickness-design-xyz", status=TaskStatus.ACTIVE)
-    task.inputs["design_pressure"] = EngineeringInput(
-        input_id="design_pressure",
+    task = new_task("pipe-wall-thickness-design-xyz", status=TaskStatus.ACTIVE)
+    set_fact_from_input(task, legacy_input(input_id="design_pressure",
         value=500,
         unit="psi",
         source=InputSource.USER,
         original_value=500,
-        original_unit="psi",
-    )
+        original_unit="psi",))
     report = build_report_from_task(task, _reader())
 
     assert len(report.input_entries) == 1
@@ -46,7 +46,7 @@ def test_build_report_with_inputs() -> None:
 
 
 def test_render_markdown_contains_sections() -> None:
-    task = Task(task_id="pipe-wall-thickness-design-md", status=TaskStatus.AWAITING_INPUT)
+    task = new_task("pipe-wall-thickness-design-md", status=TaskStatus.AWAITING_INPUT)
     report = build_report_from_task(task, _reader())
     md = render_markdown(report)
 

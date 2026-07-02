@@ -69,12 +69,9 @@ _ABSORBED_NO_FILE = {
     "B313-eq-2-intro",
     "B313-eq-2-result",
     "B313-lookup-allowable-stress",
-    "B313-eq-2",
-    "B313-eq-wall-thickness",
     "B313-eq-wall-thickness-intro",
     "B313-eq-wall-thickness-result",
     "B313-eq-mawp",
-    "B313-304.1.1-init-text",
     "B313-assumption-straight-pipe",
 }
 
@@ -124,14 +121,19 @@ def build_b313_legacy_aliases() -> dict[str, str]:
     aliases["B313-interaction-pressure-loading"] = "WF-PIPE-WALL-THICKNESS"
     aliases["B313-304.1.1-init-text"] = "WF-PIPE-WALL-THICKNESS"
     aliases["B313-assumption-straight-pipe"] = "WF-PIPE-WALL-THICKNESS"
-    aliases["B313-eq-mawp"] = "WF-MAWP"
-    aliases["B313-eq-2"] = "304.1.1-eq-2"
+    aliases["B313-eq-mawp"] = "asme_b313_mawp_pressure"
+    aliases["B313-eq-2"] = "asme_b313_304_1_1_eq_2"
+    aliases["304.1.1-eq-2"] = "asme_b313_304_1_1_eq_2"
     aliases["B313-eq-2-intro"] = "304.1.1"
     aliases["B313-eq-2-result"] = "304.1.1"
-    aliases["B313-eq-wall-thickness"] = "304.1.2"
+    aliases["B313-eq-wall-thickness"] = "asme_b313_304_1_2_wall_thickness"
     aliases["B313-eq-wall-thickness-intro"] = "304.1.2"
     aliases["B313-eq-wall-thickness-result"] = "304.1.2"
     aliases["B313-lookup-allowable-stress"] = "B313-table-A-1"
+    aliases["wall_thickness"] = "asme_b313_304_1_2_wall_thickness"
+    aliases["thick_wall_y"] = "asme_b313_thick_wall_y"
+    aliases["mawp_pressure"] = "asme_b313_mawp_pressure"
+    aliases["pressure_design_thickness"] = "asme_b313_pressure_design_thickness"
 
     for old in _ABSORBED_NO_FILE:
         if old not in aliases:

@@ -190,7 +190,10 @@ export interface TaskStateDto {
     submittable_parameters?: string[]
     step_progress: Array<{ step_id: string; status: string; result: unknown }>
   }
-  inputs: Record<string, unknown>
+  facts: Record<string, unknown>
+  goals?: Record<string, unknown>
+  execution_context?: Record<string, unknown>
+  authority_context?: Record<string, unknown>
   outputs: Record<string, unknown>
   warnings: string[]
   parameters: ParameterDefinitionDto[]

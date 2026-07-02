@@ -33,7 +33,7 @@ lookups:
   table_id: asme_b31.3_A-3
   lookup_rule: material_and_joint_category
 edges:
-- type: parameter
+- type: introduces_parameter
   target: quality_factor
 ---
 

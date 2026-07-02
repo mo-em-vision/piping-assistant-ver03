@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { buildTableViewerContext } from '@/utils/tableViewerContext'
 import type { TaskStateDto } from '@/types/backend/api'
 
-function buildTaskState(inputs: Record<string, unknown>): TaskStateDto {
+function buildTaskState(facts: Record<string, unknown>): TaskStateDto {
   return {
     task_id: 'task-1',
     name: 'Demo task',
@@ -19,7 +19,7 @@ function buildTaskState(inputs: Record<string, unknown>): TaskStateDto {
       missing_assumptions: [],
       step_progress: [],
     },
-    inputs,
+    facts,
     outputs: {},
     warnings: [],
     parameters: [],

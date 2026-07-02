@@ -13,6 +13,12 @@ from enum import Enum
 from typing import Any, Mapping, Sequence
 
 from engine.graph.assumption_checker import field_value, normalize_assumption_value
+from engine.reference.paragraph_sidecar import (
+    merge_paragraph_sidecar_metadata,
+    parse_applicability_as_assumptions,
+    parse_applicability_as_interactions,
+)
+from engine.reference.workflow_sidecar import merge_workflow_sidecar_metadata
 from engine.reference.node_types import is_section_node, parameter_input_id
 from engine.reference.nomenclature_resolver import (
     default_question,
@@ -22,12 +28,16 @@ from engine.reference.nomenclature_resolver import (
     load_nomenclature_for_node,
 )
 from engine.reference.standards_reader import NodeRecord, StandardsReader
-from models.input import (
-    EngineeringInput,
-    InputSource,
-    InputStatus,
-    input_is_expansion_ready,
-    proposed_default_input,
+from models.fact import (
+    Fact,
+    FactClass,
+    SourceType,
+    ValidationStatus,
+    fact_from_user_submission,
+    fact_is_expansion_ready,
+    fact_scalar_value,
+    fact_unit,
+    proposed_default_fact,
 )
 
 
@@ -80,6 +90,11 @@ def parse_interactions(metadata: dict[str, Any], node_id: str) -> list[NodeInter
         spec = _interaction_from_dict(item, node_id)
         if spec is not None:
             specs.append(spec)
+    if not specs:
+        for item in parse_applicability_as_interactions(metadata, node_id):
+            spec = _interaction_from_dict(item, node_id)
+            if spec is not None:
+                specs.append(spec)
     return specs
 
 
@@ -270,11 +285,24 @@ def nomenclature_interactions(
 
 def load_node_interactions(record: NodeRecord, reader: StandardsReader | None = None) -> list[NodeInteractionSpec]:
     """Collect all interaction specs declared on a single node."""
+    node_type = str(record.metadata.get("type", ""))
+    if node_type == "workflow":
+        metadata = merge_workflow_sidecar_metadata(
+            record.metadata,
+            record_path=record.path,
+            node_id=record.node_id,
+        )
+    else:
+        metadata = merge_paragraph_sidecar_metadata(
+            record.metadata,
+            record_path=record.path,
+            node_id=record.node_id,
+        )
     specs: list[NodeInteractionSpec] = []
-    specs.extend(parse_interactions(record.metadata, record.node_id))
-    specs.extend(parse_value_requirements(record.metadata, record.node_id))
+    specs.extend(parse_interactions(metadata, record.node_id))
+    specs.extend(parse_value_requirements(metadata, record.node_id))
 
-    for item in record.metadata.get("assumptions", []) or []:
+    for item in metadata.get("assumptions", []) or []:
         if isinstance(item, dict):
             bridged = interaction_from_assumption(item, record.node_id)
             if bridged is not None:
@@ -282,8 +310,8 @@ def load_node_interactions(record: NodeRecord, reader: StandardsReader | None = 
 
     nomenclature: dict = {}
     if reader is not None:
-        nomenclature = load_nomenclature_for_node(reader, record.metadata)
-        for dep in record.metadata.get("depends_on", []) or []:
+        nomenclature = load_nomenclature_for_node(reader, metadata)
+        for dep in metadata.get("depends_on", []) or []:
             if isinstance(dep, dict) and dep.get("node_id"):
                 dep_id = str(dep["node_id"])
                 try:
@@ -299,14 +327,14 @@ def load_node_interactions(record: NodeRecord, reader: StandardsReader | None = 
                 except FileNotFoundError:
                     continue
 
-    for item in record.metadata.get("inputs", []) or []:
+    for item in metadata.get("inputs", []) or []:
         if isinstance(item, dict):
             merged = enrich_input_spec(item, nomenclature if nomenclature else None)
             bridged = interaction_from_input(merged, record.node_id)
             if bridged is not None:
                 specs.append(bridged)
 
-    if is_section_node(record.metadata) and reader is not None:
+    if is_section_node(metadata) and reader is not None:
         specs.extend(_micro_graph_interactions(record, reader))
 
     return _dedupe_by_variable(specs)
@@ -314,12 +342,12 @@ def load_node_interactions(record: NodeRecord, reader: StandardsReader | None = 
 
 def propose_decision_defaults(
     specs: Sequence[NodeInteractionSpec],
-    existing_inputs: Mapping[str, EngineeringInput | Any],
-) -> dict[str, EngineeringInput]:
+    existing_inputs: Mapping[str, Fact | Any],
+    *,
+    task_id: str,
+) -> dict[str, Fact]:
     """Auto-apply decision defaults that do not require confirmation."""
-    from models.input import InputStatus, proposed_default_input
-
-    proposed: dict[str, EngineeringInput] = {}
+    proposed: dict[str, Fact] = {}
     for spec in specs:
         if spec.mode != InteractionMode.DECISION:
             continue
@@ -328,21 +356,21 @@ def propose_decision_defaults(
         if spec.variable in existing_inputs:
             continue
         if spec.confirmation_required:
-            proposed[spec.variable] = proposed_default_input(
+            proposed[spec.variable] = proposed_default_fact(
                 spec.variable,
                 spec.default,
+                task_id=task_id,
                 unit=spec.unit,
                 default=spec.default,
                 default_condition=spec.default_condition,
             )
             continue
-        proposed[spec.variable] = EngineeringInput(
-            input_id=spec.variable,
+        proposed[spec.variable] = fact_from_user_submission(
+            key=spec.variable,
             value=spec.default,
             unit=spec.unit,
-            source=InputSource.USER,
-            status=InputStatus.CONFIRMED,
-            original_value=spec.default,
+            task_id=task_id,
+            symbol=spec.symbol,
         )
     return proposed
 
@@ -485,7 +513,7 @@ def find_interaction(
 
 def question_for_interaction(
     spec: NodeInteractionSpec,
-    existing_inputs: Mapping[str, EngineeringInput | Any] | None = None,
+    existing_inputs: Mapping[str, Fact | Any] | None = None,
 ) -> str:
     label = spec.symbol or spec.variable
     condition_text = spec.default_condition or (
@@ -496,15 +524,17 @@ def question_for_interaction(
 
     if existing_inputs and spec.variable in existing_inputs:
         raw = existing_inputs[spec.variable]
-        if isinstance(raw, EngineeringInput) and raw.status == InputStatus.PROPOSED_DEFAULT:
+        if isinstance(raw, Fact) and raw.fact_class == FactClass.DEFAULT_CONFIRMED and raw.validation.status == ValidationStatus.PENDING:
             condition = raw.default_condition or spec.default_condition
+            value = fact_scalar_value(raw)
+            unit = fact_unit(raw)
             if condition:
                 return (
-                    f"For {label}: the default is {raw.value} {raw.unit} when "
+                    f"For {label}: the default is {value} {unit} when "
                     f"{condition}. Confirm or enter another value."
                 )
             return (
-                f"The default value for {label} is {raw.value} {raw.unit}. "
+                f"The default value for {label} is {value} {unit}. "
                 f"Confirm or provide another value."
             )
     if spec.question:
@@ -534,21 +564,21 @@ def question_for_interaction(
 
 def is_interaction_satisfied(
     spec: NodeInteractionSpec,
-    existing_inputs: Mapping[str, EngineeringInput | Any],
+    existing_inputs: Mapping[str, Fact | Any],
 ) -> bool:
     if spec.variable not in existing_inputs:
         return not spec.required
 
     raw = existing_inputs[spec.variable]
-    if isinstance(raw, EngineeringInput):
-        if spec.confirmation_required and not input_is_expansion_ready(raw):
-            if raw.status == InputStatus.PROPOSED_DEFAULT:
+    if isinstance(raw, Fact):
+        if spec.confirmation_required and not fact_is_expansion_ready(raw):
+            if raw.fact_class == FactClass.DEFAULT_CONFIRMED and raw.validation.status == ValidationStatus.PENDING:
                 return False
-            if raw.status not in {InputStatus.CONFIRMED, InputStatus.USER_OVERRIDE}:
+            if raw.validation.status != ValidationStatus.CONFIRMED:
                 return False
-        if raw.requires_confirmation and not input_is_expansion_ready(raw):
+        if raw.requires_confirmation and not fact_is_expansion_ready(raw):
             return False
-        value = normalize_assumption_value(raw.value)
+        value = normalize_assumption_value(fact_scalar_value(raw))
     else:
         value = normalize_assumption_value(raw)
 
@@ -621,7 +651,7 @@ def extract_decision_responses(
 
 def evaluate_pending_interactions(
     specs: Sequence[NodeInteractionSpec],
-    existing_inputs: Mapping[str, EngineeringInput | Any],
+    existing_inputs: Mapping[str, Fact | Any],
     *,
     phase: str = "expansion",
 ) -> InteractionEvaluation:
@@ -658,10 +688,11 @@ def evaluate_pending_interactions(
 
         stored = existing_inputs.get(spec.variable)
         if (
-            isinstance(stored, EngineeringInput)
-            and stored.status == InputStatus.PROPOSED_DEFAULT
+            isinstance(stored, Fact)
+            and stored.fact_class == FactClass.DEFAULT_CONFIRMED
+            and stored.validation.status == ValidationStatus.PENDING
         ):
-            result.pending_confirmations[spec.variable] = stored.value
+            result.pending_confirmations[spec.variable] = fact_scalar_value(stored)
         elif spec.default is not None and spec.variable not in existing_inputs:
             result.pending_confirmations[spec.variable] = spec.default
 
@@ -670,10 +701,12 @@ def evaluate_pending_interactions(
 
 def propose_default_values(
     specs: Sequence[NodeInteractionSpec],
-    existing_inputs: Mapping[str, EngineeringInput | Any],
-) -> dict[str, EngineeringInput]:
+    existing_inputs: Mapping[str, Fact | Any],
+    *,
+    task_id: str,
+) -> dict[str, Fact]:
     """Auto-propose node defaults for value-resolution specs awaiting confirmation."""
-    proposed: dict[str, EngineeringInput] = {}
+    proposed: dict[str, Fact] = {}
     for spec in specs:
         if spec.mode != InteractionMode.VALUE_RESOLUTION:
             continue
@@ -685,9 +718,10 @@ def propose_default_values(
             continue
         if spec.variable in existing_inputs:
             continue
-        proposed[spec.variable] = proposed_default_input(
+        proposed[spec.variable] = proposed_default_fact(
             spec.variable,
             spec.default,
+            task_id=task_id,
             unit=spec.unit,
             default=spec.default,
             default_condition=spec.default_condition,
@@ -697,7 +731,7 @@ def propose_default_values(
 
 def pending_value_confirmations(
     specs: Sequence[NodeInteractionSpec],
-    existing_inputs: Mapping[str, EngineeringInput | Any],
+    existing_inputs: Mapping[str, Fact | Any],
 ) -> list[NodeInteractionSpec]:
     """Return value-resolution specs awaiting user confirmation."""
     pending: list[NodeInteractionSpec] = []
@@ -714,7 +748,7 @@ def pending_value_confirmations(
 
 def node_expansion_ready(
     record: NodeRecord,
-    existing_inputs: Mapping[str, EngineeringInput | Any],
+    existing_inputs: Mapping[str, Fact | Any],
     *,
     reader: StandardsReader | None = None,
 ) -> bool:
@@ -732,7 +766,7 @@ def node_expansion_ready(
 
 def evaluate_node_interactions(
     record: NodeRecord,
-    existing_inputs: Mapping[str, EngineeringInput | Any],
+    existing_inputs: Mapping[str, Fact | Any],
     *,
     phase: str = "execution",
     reader: StandardsReader | None = None,
@@ -745,19 +779,18 @@ def interaction_input_from_response(
     spec: NodeInteractionSpec,
     value: Any,
     *,
+    task_id: str,
     original_value: str | None = None,
-    status: InputStatus = InputStatus.CONFIRMED,
-    source: InputSource = InputSource.USER,
-) -> EngineeringInput:
-    """Build a stored EngineeringInput after the executor validates a response."""
-    return EngineeringInput(
-        input_id=spec.variable,
+    validation_status: ValidationStatus = ValidationStatus.CONFIRMED,
+) -> Fact:
+    """Build a stored fact after the executor validates a response."""
+    return fact_from_user_submission(
+        key=spec.variable,
         value=value,
         unit=spec.unit,
-        source=source,
-        status=status,
-        original_value=original_value or value,
-        requires_confirmation=spec.confirmation_required,
+        task_id=task_id,
+        symbol=spec.symbol,
+        validation_status=validation_status,
     )
 
 
@@ -809,7 +842,7 @@ def _decision_patterns(spec: NodeInteractionSpec) -> list[tuple[re.Pattern[str],
 
 def pending_decision_interactions(
     specs: Sequence[NodeInteractionSpec],
-    existing_inputs: Mapping[str, EngineeringInput | Any],
+    existing_inputs: Mapping[str, Fact | Any],
 ) -> list[NodeInteractionSpec]:
     """Return decision interactions that still need a user selection."""
     pending: list[NodeInteractionSpec] = []

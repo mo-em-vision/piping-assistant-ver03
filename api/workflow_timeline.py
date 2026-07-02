@@ -8,7 +8,8 @@ from engine.graph.assumption_checker import field_value
 from engine.graph.navigation_phases import allowed_fields_for_phase
 from engine.graph.graph_timeline import graph_input_step_order, graph_step_titles
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
-from models.input import InputStatus
+from engine.state.task_facts import active_facts
+from models.fact import Fact, FactClass, ValidationStatus, fact_scalar_value
 from models.planning import NavigationPhase
 from models.task import Task
 
@@ -119,8 +120,8 @@ def is_pipe_wall_thickness_task(task: Task) -> bool:
         return True
     if "pipe_wall_thickness" in workflow.lower():
         return True
-    loading = task.inputs.get("pressure_loading")
-    loading_value = getattr(loading, "value", None) if loading is not None else None
+    loading = task.fact_store.active_fact("pressure_loading")
+    loading_value = fact_scalar_value(loading) if loading is not None else None
     return loading_value in {"internal_pressure", "external_pressure"}
 
 
@@ -142,7 +143,7 @@ def revealed_pipe_wall_input_ids(task: Task, planning: dict[str, Any]) -> list[s
     current_phase = str(planning.get("current_phase") or "")
 
     revealed: set[str] = set()
-    for input_id in task.inputs:
+    for input_id in task.fact_store.active_facts():
         if input_id not in _HIDDEN_TIMELINE_INPUTS:
             revealed.add(input_id)
 
@@ -180,7 +181,7 @@ def revealed_pipe_wall_input_ids(task: Task, planning: dict[str, Any]) -> list[s
 
 
 def _mawp_geometry_mode(task: Task) -> str | None:
-    mode = field_value("geometry_input_mode", task.inputs)
+    mode = field_value("geometry_input_mode", active_facts(task))
     if mode in {"nps_and_schedule", "direct_od_and_thickness"}:
         return str(mode)
     return None
@@ -200,7 +201,7 @@ def revealed_mawp_input_ids(task: Task, planning: dict[str, Any]) -> list[str]:
     current_phase = str(planning.get("current_phase") or "")
 
     revealed: set[str] = set()
-    for input_id in task.inputs:
+    for input_id in task.fact_store.active_facts():
         if input_id not in _MAWP_HIDDEN_TIMELINE_INPUTS:
             revealed.add(input_id)
 
@@ -300,12 +301,12 @@ def _unconfirmed_proposed_defaults_for_phase(
 ) -> list[str]:
     hidden = _hidden_timeline_inputs(task)
     extras: list[str] = []
-    for input_id, existing in task.inputs.items():
+    for input_id, existing in task.fact_store.active_facts().items():
         if (
             input_id in allowed_ids
             and input_id not in phase_fields
             and input_id not in hidden
-            and existing.status == InputStatus.PROPOSED_DEFAULT
+            and _is_proposed_default(existing)
         ):
             extras.append(input_id)
     return extras
@@ -346,10 +347,10 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
             if item_id not in requested_ids:
                 requested_ids.append(item_id)
 
-    for input_id, existing in task.inputs.items():
+    for input_id, existing in task.fact_store.active_facts().items():
         if (
             input_id not in hidden
-            and existing.status == InputStatus.PROPOSED_DEFAULT
+            and _is_proposed_default(existing)
             and input_id not in requested_ids
             and (not is_mawp_task(task) or _mawp_step_applies(task, input_id))
         ):
@@ -382,12 +383,19 @@ def workflow_input_step_done(task: Task, step_id: str, all_missing: set[str]) ->
     return pipe_wall_input_step_done(task, step_id, all_missing)
 
 
+def _is_proposed_default(fact: Fact) -> bool:
+    return (
+        fact.fact_class == FactClass.DEFAULT_CONFIRMED
+        and fact.validation.status == ValidationStatus.PENDING
+    )
+
+
 def pipe_wall_input_step_done(task: Task, step_id: str, all_missing: set[str]) -> bool:
-    existing = task.inputs.get(step_id)
+    existing = task.fact_store.active_fact(step_id)
     if existing is not None:
-        if existing.status == InputStatus.PROPOSED_DEFAULT:
+        if _is_proposed_default(existing):
             return False
-        if existing.value is not None and step_id not in all_missing:
+        if fact_scalar_value(existing) is not None and step_id not in all_missing:
             return True
 
     if step_id == "allowable_stress":
@@ -397,26 +405,30 @@ def pipe_wall_input_step_done(task: Task, step_id: str, all_missing: set[str]) -
 
 
 def mawp_input_step_done(task: Task, step_id: str, all_missing: set[str]) -> bool:
-    existing = task.inputs.get(step_id)
+    existing = task.fact_store.active_fact(step_id)
     if existing is not None:
-        if existing.status == InputStatus.PROPOSED_DEFAULT:
+        if _is_proposed_default(existing):
             return False
-        if existing.value is not None and step_id not in all_missing:
+        if fact_scalar_value(existing) is not None and step_id not in all_missing:
             return True
 
     if step_id == "allowable_stress":
         return task.outputs.get("allowable_stress") is not None or task.outputs.get("S") is not None
 
-    if step_id == "outside_diameter" and task.inputs.get("outside_diameter") is not None:
-        od = task.inputs["outside_diameter"]
-        if od.value is not None and od.status != InputStatus.PROPOSED_DEFAULT and step_id not in all_missing:
+    od = task.fact_store.active_fact("outside_diameter")
+    if step_id == "outside_diameter" and od is not None:
+        if (
+            fact_scalar_value(od) is not None
+            and not _is_proposed_default(od)
+            and step_id not in all_missing
+        ):
             return True
 
-    if step_id == "actual_wall_thickness" and task.inputs.get("actual_wall_thickness") is not None:
-        thickness = task.inputs["actual_wall_thickness"]
+    thickness = task.fact_store.active_fact("actual_wall_thickness")
+    if step_id == "actual_wall_thickness" and thickness is not None:
         if (
-            thickness.value is not None
-            and thickness.status != InputStatus.PROPOSED_DEFAULT
+            fact_scalar_value(thickness) is not None
+            and not _is_proposed_default(thickness)
             and step_id not in all_missing
         ):
             return True

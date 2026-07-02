@@ -1,10 +1,20 @@
 ---
-id: 304
+id: '304'
 type: paragraph
+key: b313_304
 title: 304 Pressure Design of Components
-status: draft
-revision_year: 2024
-edges: []
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: '304'
+paragraph_class: definition
+description: 304 Pressure Design of Components
+metadata:
+  status: draft
+  node_version: 1
+  source_revision_year: 2024
+edges:
+- type: belongs_to_authority
+  target: AUTH-ASME-B31.3
 ---
 
 # ASME B31.3 §304 — Pressure Design of Components

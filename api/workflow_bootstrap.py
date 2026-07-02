@@ -21,8 +21,13 @@ from engine.planner.planner import _INPUT_QUESTIONS
 from engine.planner.tools import GraphTools
 from engine.reference.standards_reader import StandardsReader
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
+from engine.state.task_facts import active_facts, store_fact, store_user_fact
+from engine.planner.goal_builder import refresh_goal_tree
+from engine.state.goal_projection import planning_projection
+from engine.state.decision_recorder import migrate_path_decision_to_context
+from engine.state.execution_context_sync import refresh_execution_context_for_task
 from models.agent import AgentAction
-from models.input import EngineeringInput, InputSource, InputStatus
+from models.fact import Fact, fact_scalar_value
 from models.planning import NavigationPhase
 from models.task import Task, TaskStatus
 from api.material_catalog_service import warm_material_catalog
@@ -116,7 +121,7 @@ def refresh_task_planning(
     *,
     propose_defaults: bool = True,
 ) -> None:
-    """Recompute planning_summary and active_nodes from current task inputs."""
+    """Recompute goal tree and active_nodes from current task inputs."""
     workflow_id = str(task.outputs.get("workflow") or task.outputs.get("selected_root") or "")
     if not workflow_id:
         return
@@ -127,7 +132,7 @@ def refresh_task_planning(
     uses_micro = engine.uses_micro_graph(reader, root_slug)
     if root_slug == MAWP_DESIGN:
         apply_geometry_input_mode_default(task)
-    existing_inputs = dict(task.inputs)
+    existing_inputs = dict(active_facts(task))
 
     lazy_plan = uses_micro and not engine.expansion_gate_ready(
         root_slug, reader, existing_inputs=existing_inputs
@@ -141,7 +146,7 @@ def refresh_task_planning(
     if propose_defaults:
         added = _apply_proposed_path_inputs(task, graph, root_slug, plan=preview)
         if added:
-            existing_inputs = dict(task.inputs)
+            existing_inputs = dict(active_facts(task))
             preview = graph.preview_plan(
                 task_id=task.task_id,
                 root_id=root_slug,
@@ -149,7 +154,7 @@ def refresh_task_planning(
             )
 
     apply_coefficient_lookups(task, reader.standards_root)
-    existing_inputs = dict(task.inputs)
+    existing_inputs = dict(active_facts(task))
 
     exec_nodes = _execution_nodes(reader, preview.execution_order)
 
@@ -226,47 +231,22 @@ def refresh_task_planning(
     elif definition_node:
         active_nodes = [definition_node] + [node for node in active_nodes if node != definition_node]
 
-    try:
-        if uses_micro:
-            micro = engine._micro_engine(reader)
-            if micro is not None:
-                resolved = engine._resolve_micro_root(root_slug, reader)
-                wf = micro.store.get_node(resolved)
-                goal = str(wf.metadata.get("title") if wf else workflow_id)
-            else:
-                goal = workflow_id.replace("_", " ")
-        else:
-            root_record = reader.load(root_slug)
-            goal = str(root_record.metadata.get("title") or root_record.metadata.get("purpose") or workflow_id)
-    except FileNotFoundError:
-        goal = workflow_id.replace("_", " ")
-
-    action = AgentAction.REQUEST_INPUT if phased.all_missing else AgentAction.PROPOSE_PATH
-    if phased.blocked_nodes:
-        action = AgentAction.CLARIFY
-
-    task.outputs["planning_summary"] = {
-        "goal": goal,
-        "intent": workflow_id,
-        "selected_root": root_slug,
-        "selected_nodes": exec_nodes,
-        "active_definition_node": definition_node,
-        "missing_assumptions": missing_assumptions,
-        "missing_execution_assumptions": missing_execution,
-        "missing_inputs": missing_inputs,
-        "current_phase": phased.current_phase.value,
-        "phase_missing": phased.phase_missing,
-        "phase_questions": phased.phase_questions,
-        "phase_allowed_fields": nav_config.phase_allowlists(),
-        "path_decision": _path_decision(existing_inputs, exec_nodes),
-        "confidence": 1.0,
-        "action": action.value,
-    }
+    task.outputs["active_definition_node"] = definition_node
+    task.outputs["path_decision"] = _path_decision(existing_inputs, exec_nodes)
+    task.outputs["phase_allowed_fields"] = nav_config.phase_allowlists()
+    task.outputs["selected_nodes"] = exec_nodes
     if uses_micro:
-        task.outputs["planning_summary"]["graph_input_order"] = list(
-            graph_input_step_order(reader, preview)
-        )
-        task.outputs["planning_summary"]["graph_step_titles"] = graph_step_titles(reader, preview)
+        task.outputs["graph_input_order"] = list(graph_input_step_order(reader, preview))
+        task.outputs["graph_step_titles"] = graph_step_titles(reader, preview)
+
+    refresh_goal_tree(
+        task,
+        reader,
+        preview=preview,
+        question_map=question_map,
+        phased=phased,
+        root_slug=root_slug,
+    )
     task.active_nodes = active_nodes
 
     _apply_post_execution_definition_planning(
@@ -278,10 +258,11 @@ def refresh_task_planning(
         plan=preview,
     )
 
-    planning_summary = task.outputs.get("planning_summary")
-    if isinstance(planning_summary, dict) and "material" in submittable_parameter_ids(
-        task, planning_summary
-    ):
+    migrate_path_decision_to_context(task)
+    refresh_execution_context_for_task(task, workflow_id=workflow_id, reader=reader)
+
+    planning = planning_projection(task)
+    if "material" in submittable_parameter_ids(task, planning):
         warm_material_catalog(reader.standards_root)
 
     if uses_micro:
@@ -289,7 +270,7 @@ def refresh_task_planning(
             reader,
             task_id=task.task_id,
             root_id=root_slug,
-            inputs=dict(task.inputs),
+            inputs=dict(active_facts(task)),
             horizon=1,
         )
 
@@ -301,9 +282,7 @@ def task_ready_for_execution(task: Task) -> bool:
     if workflow not in _SUPPORTED_PLANNING_WORKFLOWS:
         return False
 
-    planning = task.outputs.get("planning_summary") or {}
-    if not isinstance(planning, dict):
-        return False
+    planning = planning_projection(task)
 
     if (
         workflow == PIPE_WALL_THICKNESS_DESIGN
@@ -343,7 +322,7 @@ def maybe_execute_ready_workflow(
         preview = graph.preview_plan(
             task_id=task_id,
             root_id=root_slug,
-            inputs=dict(task.inputs),
+            inputs=dict(active_facts(task)),
         )
         try_complete_definition_equations(task, reader, preview.execution_order)
         manager.replace_task(task_id, task)
@@ -367,7 +346,7 @@ def _apply_post_execution_definition_planning(
     pending = pending_definition_equation_inputs(task, reader, execution_order)
     if not pending and has_execution_trace(task):
         if task.outputs.get("required_thickness") is not None and task.outputs.get("minimum_required_thickness") is None:
-            if "corrosion_allowance" not in task.inputs:
+            if "corrosion_allowance" not in active_facts(task):
                 pending = ["corrosion_allowance"]
     if not pending:
         if task.outputs.get("t") is not None or task.outputs.get("required_thickness") is not None:
@@ -378,24 +357,34 @@ def _apply_post_execution_definition_planning(
 
     proposed = graph.resolve_and_propose_path_inputs(
         root_slug,
-        existing_inputs=dict(task.inputs),
+        existing_inputs=dict(active_facts(task)),
         plan=plan,
+        task_id=task.task_id,
     )
     for input_id in pending:
-        if input_id in proposed and input_id not in task.inputs:
-            task.inputs[input_id] = proposed[input_id]
+        if input_id in proposed and input_id not in active_facts(task):
+            store_fact(task, proposed[input_id])
 
-    planning = task.outputs.get("planning_summary")
-    if not isinstance(planning, dict):
-        return
+    from engine.state.task_goals import expand_goal
+    from models.goal import input_goal
 
     phase_key = NavigationPhase.DEFINITION_EQUATION_COMPLETION.value
-    planning["current_phase"] = phase_key
-    planning["action"] = AgentAction.REQUEST_INPUT.value
-    planning["missing_execution_assumptions"] = list(pending)
-    phase_missing = dict(planning.get("phase_missing") or {})
-    phase_missing[phase_key] = list(pending)
-    planning["phase_missing"] = phase_missing
+    roots = task.goal_store.roots()
+    root_id = roots[0].id if roots else None
+    for input_id in pending:
+        if root_id and not any(g.key == f"input-{input_id}" for g in task.goal_store.goals.values()):
+            child = input_goal(
+                key=f"input-{input_id}",
+                name=f"Provide {input_id.replace('_', ' ')}",
+                target_parameter=input_id,
+                task_id=task.task_id,
+                prompt=f"Provide {input_id.replace('_', ' ')}",
+                workflow_id=str(task.outputs.get("workflow") or ""),
+                parent_goal=root_id,
+                phase=phase_key,
+            )
+            expand_goal(task, root_id, child)
+
     task.status = TaskStatus.AWAITING_INPUT
 
 
@@ -408,13 +397,14 @@ def _apply_proposed_path_inputs(
 ) -> bool:
     proposed = graph.resolve_and_propose_path_inputs(
         root_slug,
-        existing_inputs=dict(task.inputs),
+        existing_inputs=dict(active_facts(task)),
         plan=plan,
+        task_id=task.task_id,
     )
     added = False
-    for input_id, engineering_input in proposed.items():
-        if input_id not in task.inputs:
-            task.inputs[input_id] = engineering_input
+    for input_id, fact in proposed.items():
+        if input_id not in active_facts(task):
+            store_fact(task, fact)
             added = True
     return added
 
@@ -437,21 +427,10 @@ def bootstrap_new_task(task: Task, workflow_id: str, config: CLIConfig) -> None:
     task.outputs["selected_root"] = workflow_id
 
     if workflow_id not in _SUPPORTED_PLANNING_WORKFLOWS:
-        task.outputs["planning_summary"] = {
-            "goal": workflow_id.replace("_", " "),
-            "intent": workflow_id,
-            "selected_root": workflow_id,
-            "selected_nodes": [],
-            "missing_assumptions": [],
-            "missing_execution_assumptions": [],
-            "missing_inputs": [],
-            "current_phase": NavigationPhase.READY.value,
-            "phase_missing": {},
-            "phase_questions": {},
-            "path_decision": None,
-            "confidence": 1.0,
-            "action": AgentAction.REQUEST_INPUT.value,
-        }
+        from engine.planner.goal_builder import build_goal_tree
+
+        reader = standards_reader_for_config(config)
+        build_goal_tree(task, reader)
         return
 
     reader = standards_reader_for_config(config)
@@ -463,25 +442,22 @@ def bootstrap_new_task(task: Task, workflow_id: str, config: CLIConfig) -> None:
 
 def _apply_default_expansion_assumptions(task: Task) -> None:
     """Straight-pipe scope is confirmed at task selection; assume true when the task opens."""
-    if task.inputs.get("straight_pipe_section") is not None:
+    if task.fact_store.active_fact("straight_pipe_section") is not None:
         return
-    task.inputs["straight_pipe_section"] = EngineeringInput(
-        input_id="straight_pipe_section",
-        value=True,
+    store_user_fact(
+        task,
+        "straight_pipe_section",
+        True,
         unit="dimensionless",
-        source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-        default=True,
-        requires_confirmation=False,
     )
 
 
 def _path_decision(
-    inputs: dict[str, Any],
+    inputs: dict[str, Fact],
     exec_nodes: list[str],
 ) -> dict[str, Any] | None:
     loading = inputs.get("pressure_loading")
-    value = getattr(loading, "value", None) if loading is not None else None
+    value = fact_scalar_value(loading) if loading is not None else None
     if value == "internal_pressure" and "B313-304.1.2" in exec_nodes:
         return {"pressure_loading": "internal_pressure", "selected_node": "B313-304.1.2"}
     if value == "external_pressure" and "B313-304.1.3" in exec_nodes:

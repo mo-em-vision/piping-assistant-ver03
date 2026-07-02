@@ -12,7 +12,14 @@ from engine.graph.node_interaction import (
     match_decision_in_message,
     resolve_interaction_value,
 )
-from models.input import EngineeringInput, InputSource, InputStatus
+from models.fact import (
+    Fact,
+    FactClass,
+    ValidationStatus,
+    fact_from_user_submission,
+    fact_scalar_value,
+    fact_unit,
+)
 
 _CONFIRM_PATTERN = re.compile(
     r"^(?:confirm|yes|use\s+default|ok|accept)(?:\s+the\s+default)?\.?$",
@@ -24,19 +31,22 @@ def extract_interaction_responses(
     message: str,
     pending: Sequence[NodeInteractionSpec],
     *,
-    existing_inputs: Mapping[str, EngineeringInput] | None = None,
-) -> dict[str, EngineeringInput]:
+    existing_inputs: Mapping[str, Fact] | None = None,
+) -> dict[str, Fact]:
     """Parse user text for pending decision interactions and return canonical values."""
-    extracted: dict[str, EngineeringInput] = {}
+    extracted: dict[str, Fact] = {}
     if not message.strip() or not pending:
         return extracted
 
     if extract_confirmation_intent(message) and existing_inputs:
         for spec in pending:
             stored = existing_inputs.get(spec.variable)
-            if not isinstance(stored, EngineeringInput):
+            if not isinstance(stored, Fact):
                 continue
-            if stored.status != InputStatus.PROPOSED_DEFAULT:
+            if (
+                stored.fact_class != FactClass.DEFAULT_CONFIRMED
+                or stored.validation.status != ValidationStatus.PENDING
+            ):
                 continue
             extracted[spec.variable] = confirm_proposed_input(spec, stored)
             return extracted
@@ -50,9 +60,13 @@ def extract_interaction_responses(
         canonical = resolve_interaction_value(spec, raw_match)
         if canonical is None:
             continue
+        task_id = ""
+        if existing_inputs and existing_inputs.get(spec.variable) is not None:
+            task_id = existing_inputs[spec.variable].provenance.task_id or ""
         extracted[variable] = interaction_input_from_response(
             spec,
             canonical,
+            task_id=task_id,
             original_value=message.strip(),
         )
     return extracted
@@ -66,7 +80,9 @@ def extract_confirmation_intent(message: str) -> bool:
 def extract_value_override(
     message: str,
     spec: NodeInteractionSpec,
-) -> EngineeringInput | None:
+    *,
+    task_id: str = "",
+) -> Fact | None:
     """Parse a labeled numeric override for a pending value requirement."""
     labels = [spec.variable, spec.variable.replace("_", " ")]
     if spec.symbol:
@@ -88,42 +104,45 @@ def extract_value_override(
         return interaction_input_from_response(
             spec,
             value,
+            task_id=task_id,
             original_value=message.strip(),
-            status=InputStatus.USER_OVERRIDE,
-            source=InputSource.USER,
+            validation_status=ValidationStatus.CONFIRMED,
         )
     return None
 
 
 def confirm_proposed_input(
     spec: NodeInteractionSpec,
-    existing: EngineeringInput,
-) -> EngineeringInput:
+    existing: Fact,
+) -> Fact:
     """Upgrade a proposed default to a confirmed user value."""
-    return EngineeringInput(
-        input_id=existing.input_id,
-        value=existing.value,
-        unit=existing.unit,
-        source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-        default=existing.default,
-        requires_confirmation=spec.confirmation_required,
-        original_value=existing.original_value or existing.value,
+    return fact_from_user_submission(
+        key=existing.key,
+        value=fact_scalar_value(existing),
+        unit=fact_unit(existing),
+        task_id=existing.provenance.task_id or "",
+        validation_status=ValidationStatus.CONFIRMED,
     )
 
 
 def resolve_pending_value_responses(
     message: str,
     pending: Sequence[NodeInteractionSpec],
-    existing_inputs: Mapping[str, EngineeringInput],
-) -> dict[str, EngineeringInput]:
+    existing_inputs: Mapping[str, Fact],
+) -> dict[str, Fact]:
     """Resolve confirm or override replies for pending value confirmations."""
-    resolved: dict[str, EngineeringInput] = {}
+    resolved: dict[str, Fact] = {}
     if not message.strip() or not pending:
         return resolved
 
+    task_id = ""
+    for fact in existing_inputs.values():
+        if fact.provenance.task_id:
+            task_id = fact.provenance.task_id
+            break
+
     for spec in pending:
-        override = extract_value_override(message, spec)
+        override = extract_value_override(message, spec, task_id=task_id)
         if override is not None:
             resolved[spec.variable] = override
 
@@ -135,9 +154,12 @@ def resolve_pending_value_responses(
 
     for spec in pending:
         stored = existing_inputs.get(spec.variable)
-        if not isinstance(stored, EngineeringInput):
+        if not isinstance(stored, Fact):
             continue
-        if stored.status != InputStatus.PROPOSED_DEFAULT:
+        if (
+            stored.fact_class != FactClass.DEFAULT_CONFIRMED
+            or stored.validation.status != ValidationStatus.PENDING
+        ):
             continue
         resolved[spec.variable] = confirm_proposed_input(spec, stored)
         break

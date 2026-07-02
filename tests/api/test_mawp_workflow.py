@@ -9,6 +9,7 @@ import pytest
 from api.desktop_service import DesktopApiService
 from api.serializers import WORKFLOW_CATALOG, workflow_catalog
 from api.workflow_timeline import is_mawp_task, revealed_mawp_input_ids
+from engine.state.goal_projection import planning_projection
 from engine.router import MAWP_DESIGN
 from engine.state.state_manager import TaskStateManager
 
@@ -43,7 +44,8 @@ def test_mawp_bootstrap_planning(temp_service: DesktopApiService) -> None:
     project = temp_service.create_project("MAWP Project")
     state = temp_service.create_task(MAWP_DESIGN, project["id"])
     assert state["workflow_id"] == MAWP_DESIGN
-    planning = state["outputs"]["planning_summary"]
+    task = temp_service._load_manager().get_task(state["task_id"])
+    planning = planning_projection(task)
     assert planning["selected_root"] == MAWP_DESIGN
     assert planning["current_phase"] in {
         "expansion_assumptions",

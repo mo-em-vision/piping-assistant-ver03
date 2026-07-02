@@ -6,10 +6,13 @@ from datetime import datetime, timezone
 
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
-from models.task import Task, TaskStatus
+from models.task import Task, TaskStatus, new_task
 
 from api.json_encoding import dumps as json_dumps
 from api.serializers import task_state, task_summary, workflow_catalog
+from tests.helpers.facts import fact_get_value, legacy_input, set_fact_from_input
+from tests.helpers.goals import task_with_planning
+from models.fact import ValidationStatus
 
 
 def test_workflow_catalog_includes_pipe_wall_thickness() -> None:
@@ -20,11 +23,12 @@ def test_workflow_catalog_includes_pipe_wall_thickness() -> None:
 
 
 def test_task_summary_uses_workflow_metadata() -> None:
-    task = Task(
-        task_id="pipe-wall-thickness-desi-test01",
+    task = new_task(
+        "pipe-wall-thickness-desi-test01",
         status=TaskStatus.AWAITING_INPUT,
-        outputs={"workflow": "pipe_wall_thickness_design"},
+        workflow_id="pipe_wall_thickness_design",
     )
+    task.outputs["workflow"] = "pipe_wall_thickness_design"
     summary = task_summary(task)
     assert summary["name"] == "Pipe Thickness Calculation"
     assert summary["workflow_id"] == "pipe_wall_thickness_design"
@@ -33,43 +37,34 @@ def test_task_summary_uses_workflow_metadata() -> None:
 def test_task_state_includes_curated_timeline() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test02", status=TaskStatus.AWAITING_INPUT)
-    task.inputs["material"] = EngineeringInput(
-        input_id="material",
+    set_fact_from_input(task, legacy_input(input_id="material",
         value="SA-106B",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["design_pressure"] = EngineeringInput(
-        input_id="design_pressure",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="design_pressure",
         value=8.0,
         unit="bar",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["straight_pipe_section"] = EngineeringInput(
-        input_id="straight_pipe_section",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="straight_pipe_section",
         value=True,
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["pressure_loading"] = EngineeringInput(
-        input_id="pressure_loading",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.outputs = {
-        "workflow": "pipe_wall_thickness_design",
-        "planning_summary": {
-            "missing_inputs": ["nominal_pipe_size"],
-            "missing_assumptions": [],
-            "current_phase": "parameter_gathering",
-            "phase_missing": {"parameter_gathering": ["nominal_pipe_size"]},
-        },
+        status=InputStatus.CONFIRMED,))
+    planning = {
+        "missing_inputs": ["nominal_pipe_size"],
+        "missing_assumptions": [],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": ["nominal_pipe_size"]},
     }
+    task.outputs = {"workflow": "pipe_wall_thickness_design"}
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
 
     state = task_state(task, manager)
@@ -97,58 +92,49 @@ def test_task_state_includes_curated_timeline() -> None:
 def test_task_state_timeline_includes_coefficient_parameters() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test06", status=TaskStatus.AWAITING_INPUT)
-    task.inputs["pressure_loading"] = EngineeringInput(
-        input_id="pressure_loading",
+    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["material"] = EngineeringInput(
-        input_id="material",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="material",
         value="SA-106B",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["design_pressure"] = EngineeringInput(
-        input_id="design_pressure",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="design_pressure",
         value=8.0,
         unit="bar",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["design_temperature"] = EngineeringInput(
-        input_id="design_temperature",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="design_temperature",
         value=200.0,
         unit="C",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["nominal_pipe_size"] = EngineeringInput(
-        input_id="nominal_pipe_size",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="nominal_pipe_size",
         value="10",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
+        status=InputStatus.CONFIRMED,))
+    planning = {
+        "missing_inputs": [],
+        "missing_assumptions": [],
+        "current_phase": "coefficient_resolution",
+        "phase_missing": {
+            "coefficient_resolution": [
+                "joint_category",
+                "weld_joint_efficiency",
+                "weld_joint_strength_reduction_factor_W",
+                "temperature_coefficient_Y",
+            ],
+        },
+    }
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
         "allowable_stress": 193.0,
-        "planning_summary": {
-            "missing_inputs": [],
-            "missing_assumptions": [],
-            "current_phase": "coefficient_resolution",
-            "phase_missing": {
-                "coefficient_resolution": [
-                    "joint_category",
-                    "weld_joint_efficiency",
-                    "weld_joint_strength_reduction_factor_W",
-                    "temperature_coefficient_Y",
-                ],
-            },
-        },
     }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
 
     state = task_state(task, manager)
@@ -167,27 +153,27 @@ def test_task_state_timeline_includes_coefficient_parameters() -> None:
 def test_task_state_timeline_formats_allowable_stress_in_mpa() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test13", status=TaskStatus.AWAITING_INPUT)
-    task.inputs["pressure_loading"] = EngineeringInput(
-        input_id="pressure_loading",
+    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["material"] = EngineeringInput(
-        input_id="material",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="material",
         value="SA-106B",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["design_temperature"] = EngineeringInput(
-        input_id="design_temperature",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="design_temperature",
         value=400.0,
         unit="F",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
+        status=InputStatus.CONFIRMED,))
+    planning = {
+        "missing_inputs": ["design_pressure"],
+        "missing_assumptions": [],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": ["design_pressure"]},
+    }
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
         "allowable_stress": 193_000_000,
@@ -198,13 +184,8 @@ def test_task_state_timeline_formats_allowable_stress_in_mpa() -> None:
             "material": "SA-106B",
             "design_temperature_f": 400.0,
         },
-        "planning_summary": {
-            "missing_inputs": ["design_pressure"],
-            "missing_assumptions": [],
-            "current_phase": "parameter_gathering",
-            "phase_missing": {"parameter_gathering": ["design_pressure"]},
-        },
     }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
 
     state = task_state(task, manager)
@@ -219,30 +200,27 @@ def test_task_state_timeline_formats_allowable_stress_in_mpa() -> None:
 def test_task_state_report_step_active_after_thickness_complete() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test07", status=TaskStatus.AWAITING_INPUT)
-    task.inputs["material"] = EngineeringInput(
-        input_id="material",
+    set_fact_from_input(task, legacy_input(input_id="material",
         value="SA-106B",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["design_pressure"] = EngineeringInput(
-        input_id="design_pressure",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="design_pressure",
         value=8.0,
         unit="bar",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
+        status=InputStatus.CONFIRMED,))
+    planning = {
+        "missing_inputs": [],
+        "missing_assumptions": [],
+        "current_phase": "ready",
+    }
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
         "required_thickness": 12.5,
         "thickness_unit": "mm",
-        "planning_summary": {
-            "missing_inputs": [],
-            "missing_assumptions": [],
-            "current_phase": "ready",
-        },
     }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
 
     state = task_state(task, manager)
@@ -258,26 +236,25 @@ def test_task_state_report_step_active_after_thickness_complete() -> None:
 def test_task_state_report_pending_during_definition_equation_completion() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test12", status=TaskStatus.AWAITING_INPUT)
-    task.inputs["pressure_loading"] = EngineeringInput(
-        input_id="pressure_loading",
+    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
+        status=InputStatus.CONFIRMED,))
+    planning = {
+        "missing_inputs": [],
+        "missing_assumptions": [],
+        "missing_execution_assumptions": ["corrosion_allowance"],
+        "current_phase": "definition_equation_completion",
+        "phase_missing": {"definition_equation_completion": ["corrosion_allowance"]},
+    }
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
         "required_thickness": 0.084,
         "t": 0.084,
-        "planning_summary": {
-            "missing_inputs": [],
-            "missing_assumptions": [],
-            "missing_execution_assumptions": ["corrosion_allowance"],
-            "current_phase": "definition_equation_completion",
-            "phase_missing": {"definition_equation_completion": ["corrosion_allowance"]},
-        },
         "_execution_trace": [{"node_id": "B313-304.1.2", "trace": {"calculation": {"steps": []}}}],
     }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
 
     state = task_state(task, manager)
@@ -298,8 +275,8 @@ def test_thickness_timeline_display_is_rounded_with_units() -> None:
     task.outputs = {
         "workflow": "B313-PIPE-WALL-THICKNESS-DESIGN",
         "required_thickness": 0.25946870333750355,
-        "planning_summary": {},
     }
+    task_with_planning(task, {}, workflow_id="B313-PIPE-WALL-THICKNESS-DESIGN")
     manager.replace_task(task.task_id, task)
 
     timeline = task_state(task, manager)["progress"]["timeline"]
@@ -311,33 +288,27 @@ def test_thickness_timeline_display_is_rounded_with_units() -> None:
 def test_completed_pipe_wall_timeline_omits_internal_assumption_steps() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test09", status=TaskStatus.COMPLETED)
-    task.inputs["pressure_loading"] = EngineeringInput(
-        input_id="pressure_loading",
+    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["d_input_mode"] = EngineeringInput(
-        input_id="d_input_mode",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="d_input_mode",
         value="nps_lookup",
         unit="dimensionless",
         source=InputSource.SYSTEM,
-        status=InputStatus.CONFIRMED,
-    )
-    task.inputs["thin_wall"] = EngineeringInput(
-        input_id="thin_wall",
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="thin_wall",
         value=True,
         unit="dimensionless",
         source=InputSource.SYSTEM,
-        status=InputStatus.CONFIRMED,
-    )
+        status=InputStatus.CONFIRMED,))
     task.outputs = {
         "workflow": "B313-PIPE-WALL-THICKNESS-DESIGN",
         "required_thickness": 2.25,
         "t": 2.25,
-        "planning_summary": {},
     }
+    task_with_planning(task, {}, workflow_id="B313-PIPE-WALL-THICKNESS-DESIGN")
     manager.replace_task(task.task_id, task)
 
     timeline_ids = [step["id"] for step in task_state(task, manager)["progress"]["timeline"]]
@@ -365,12 +336,12 @@ def test_task_state_includes_calculation_error_when_invalidated() -> None:
 def test_task_state_is_json_serializable_when_step_progress_contains_datetime() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test08", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "current_phase": "coefficient_resolution",
+        "phase_missing": {"coefficient_resolution": ["weld_joint_efficiency"]},
+    }
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
-        "planning_summary": {
-            "current_phase": "coefficient_resolution",
-            "phase_missing": {"coefficient_resolution": ["weld_joint_efficiency"]},
-        },
         "_execution_trace": [
             {
                 "node_id": "B313-304.1.2",
@@ -378,6 +349,7 @@ def test_task_state_is_json_serializable_when_step_progress_contains_datetime() 
             }
         ],
     }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
     manager.store_step_progress(
         task.task_id,

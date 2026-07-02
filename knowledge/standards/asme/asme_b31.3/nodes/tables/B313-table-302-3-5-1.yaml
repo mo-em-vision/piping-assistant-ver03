@@ -25,11 +25,11 @@ edges:
 - type: depends_on
   target: 302.3.5
   subsection: e
-- type: parameter
+- type: introduces_parameter
   target: weld_joint_strength_reduction_factor_W
-- type: parameter
+- type: introduces_parameter
   target: MAT-catalog
-- type: parameter
+- type: introduces_parameter
   target: DIM-temperature
 ---
 

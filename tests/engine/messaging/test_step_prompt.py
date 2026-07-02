@@ -10,8 +10,9 @@ from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from models.agent import IntentResult
 from models.planning import NavigationPhase, NavigationPlan
-from models.task import Task, TaskStatus
+from models.task import Task, new_task, TaskStatus
 from tests.acceptance.helpers import straight_section_assumption
+from engine.state.fact_migration import fact_from_engineering_input
 
 
 def _reader() -> StandardsReader:
@@ -50,7 +51,7 @@ def test_pressure_loading_prompt_lists_numbered_options() -> None:
     reader = _reader()
     state = TaskStateManager()
     task = state.create_task("step-decision", status=TaskStatus.AWAITING_INPUT)
-    state.store_input(task.task_id, straight_section_assumption())
+    state.store_input(task.task_id, fact_from_engineering_input(straight_section_assumption(), task_id=task.task_id))
     planner = Planner(reader, state=state)
     intent = IntentResult(
         intent="pipe_wall_thickness_design",
@@ -77,7 +78,7 @@ def test_pressure_loading_prompt_lists_numbered_options() -> None:
 
 def test_formula_prompt_not_used_during_assumption_phase() -> None:
     reader = _reader()
-    task = Task(task_id="t1", status=TaskStatus.AWAITING_INPUT)
+    task = new_task("t1", status=TaskStatus.AWAITING_INPUT)
     plan = NavigationPlan(
         current_phase=NavigationPhase.EXPANSION_ASSUMPTIONS,
         selected_nodes=["B313-304.1.1"],

@@ -7,6 +7,7 @@ from typing import Any
 from api.equation_inputs_display import _SYMBOL_TO_INPUT_ID, _format_scalar, _format_unit_for_display
 from api.output_blocks import _NODE_REFERENCES, _format_number
 from engine.reference.standards_reader import StandardsReader
+from models.fact import fact_scalar_value, fact_unit
 from models.task import Task
 
 _SYMBOL_LABELS: dict[str, str] = {
@@ -154,14 +155,15 @@ def _row_for_symbol(
     resolved_inputs: dict[str, Any],
 ) -> dict[str, str]:
     input_id = _SYMBOL_TO_INPUT_ID.get(symbol, symbol)
-    engineering_input = task.inputs.get(input_id)
+    fact = task.fact_store.active_fact(input_id)
     unit = ""
     display_value = _format_number(si_value)
 
-    if engineering_input is not None and engineering_input.value is not None:
-        display_value = _format_scalar(engineering_input.value)
-        if engineering_input.unit and engineering_input.unit not in {"dimensionless", "Pa"}:
-            unit = _format_unit_for_display(engineering_input.unit)
+    if fact is not None and fact_scalar_value(fact) is not None:
+        display_value = _format_scalar(fact_scalar_value(fact))
+        fact_unit_value = fact_unit(fact)
+        if fact_unit_value and fact_unit_value not in {"dimensionless", "Pa"}:
+            unit = _format_unit_for_display(fact_unit_value)
         elif symbol in resolved_inputs:
             unit_key = f"{symbol}_unit"
             if unit_key in resolved_inputs:

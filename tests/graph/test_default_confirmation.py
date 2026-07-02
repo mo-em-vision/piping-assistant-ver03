@@ -25,6 +25,9 @@ from models.agent import AgentAction, IntentResult
 from models.input import EngineeringInput, InputSource, InputStatus, proposed_default_input
 from models.task import TaskStatus
 from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
+from tests.helpers.facts import fact_get_value
+from models.fact import SourceType, ValidationStatus, fact_scalar_value
+from engine.state.fact_migration import fact_from_engineering_input
 
 
 def _reader() -> StandardsReader:
@@ -55,7 +58,7 @@ def test_propose_default_values_creates_proposed_default() -> None:
     proposed = propose_default_values([spec], {})
 
     assert "coefficient" in proposed
-    assert proposed["coefficient"].status == InputStatus.PROPOSED_DEFAULT
+    assert proposed["coefficient"].status == ValidationStatus.PENDING
     assert proposed["coefficient"].value == 0.4
 
 
@@ -71,7 +74,7 @@ def test_confirm_upgrades_proposed_default() -> None:
     proposed = proposed_default_input("weld_joint_efficiency", 1.0, unit="dimensionless")
     confirmed = confirm_proposed_input(spec, proposed)
 
-    assert confirmed.status == InputStatus.CONFIRMED
+    assert confirmed.status == ValidationStatus.CONFIRMED
     assert confirmed.value == 1.0
 
 
@@ -93,7 +96,7 @@ def test_resolve_confirm_for_first_pending_proposed() -> None:
         {"weld_joint_efficiency": proposed},
     )
 
-    assert resolved["weld_joint_efficiency"].status == InputStatus.CONFIRMED
+    assert resolved["weld_joint_efficiency"].status == ValidationStatus.CONFIRMED
 
 
 def test_no_default_remains_missing() -> None:
@@ -113,11 +116,9 @@ def test_planner_proposes_defaults_for_internal_path() -> None:
     reader = _reader()
     state = TaskStateManager()
     task = state.create_task("pipe-wall-defaults", status=TaskStatus.AWAITING_INPUT)
-    state.store_input("pipe-wall-defaults", straight_section_assumption())
-    state.store_input("pipe-wall-defaults", internal_pressure_assumption())
-    state.store_input(
-        "pipe-wall-defaults",
-        EngineeringInput("design_pressure", 500, "psi", InputSource.USER),
+    state.store_input("pipe-wall-defaults", fact_from_engineering_input(straight_section_assumption(), task_id="pipe-wall-defaults"))
+    state.store_input("pipe-wall-defaults", fact_from_engineering_input(internal_pressure_assumption(), task_id="pipe-wall-defaults"))
+    state.store_input("pipe-wall-defaults", fact_from_engineering_input(legacy_input("design_pressure", 500, "psi", InputSource.USER),
     )
     state.store_input(
         "pipe-wall-defaults",
@@ -153,7 +154,7 @@ def test_planner_proposes_defaults_for_internal_path() -> None:
     plan = planner.plan(intent, task)
     task = state.get_task("pipe-wall-defaults")
 
-    assert task.inputs["weld_joint_efficiency"].status == InputStatus.PROPOSED_DEFAULT
+    assert task.fact_store.active_facts()["weld_joint_efficiency"].status == ValidationStatus.PENDING
     assert "weld_joint_efficiency" in plan.missing_execution_assumptions
     assert plan.action == AgentAction.REQUEST_INPUT
     assert plan.questions
@@ -169,11 +170,9 @@ def test_planner_expands_after_all_defaults_confirmed() -> None:
     reader = _reader()
     state = TaskStateManager()
     task = state.create_task("pipe-wall-ready", status=TaskStatus.AWAITING_INPUT)
-    state.store_input("pipe-wall-ready", straight_section_assumption())
-    state.store_input("pipe-wall-ready", internal_pressure_assumption())
-    state.store_input(
-        "pipe-wall-ready",
-        EngineeringInput("design_pressure", 500, "psi", InputSource.USER),
+    state.store_input("pipe-wall-ready", straight_section_assumption(), task_id="pipe-wall-defaults"))
+    state.store_input("pipe-wall-ready", fact_from_engineering_input(internal_pressure_assumption(), task_id="pipe-wall-ready"))
+    state.store_input("pipe-wall-ready", fact_from_engineering_input(legacy_input("design_pressure", 500, "psi", InputSource.USER),
     )
     state.store_input(
         "pipe-wall-ready",
@@ -225,24 +224,21 @@ def test_planner_expands_after_all_defaults_confirmed() -> None:
         confidence=0.95,
     )
 
-    first = planner.plan(intent, state.get_task("pipe-wall-ready"))
+    first = planner.plan(intent, state.get_task("pipe-wall-ready"), task_id="pipe-wall-ready"))
     assert first.action == AgentAction.REQUEST_INPUT
 
     task = state.get_task("pipe-wall-ready")
     for input_id in ("weld_joint_efficiency", "weld_joint_strength_reduction_factor_W", "temperature_coefficient_Y"):
-        proposed = task.inputs[input_id]
-        state.store_input(
-            "pipe-wall-ready",
-            EngineeringInput(
-                input_id=proposed.input_id,
-                value=proposed.value,
+        proposed = task.fact_store.active_fact(input_id)
+        state.store_input("pipe-wall-ready", fact_from_engineering_input(legacy_input(input_id=proposed.input_id,
+                value=fact_scalar_value(proposed),
                 unit=proposed.unit,
                 source=InputSource.USER,
                 status=InputStatus.CONFIRMED,
             ),
         )
 
-    second = planner.plan(intent, state.get_task("pipe-wall-ready"))
+    second = planner.plan(intent, state.get_task("pipe-wall-ready"), task_id="pipe-wall-ready"))
     assert second.action == AgentAction.PROPOSE_PATH
     assert "B313-304.1.2" in second.selected_nodes or "B313-eq-wall-thickness" in second.selected_nodes
 

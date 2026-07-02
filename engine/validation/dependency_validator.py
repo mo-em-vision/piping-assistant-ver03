@@ -7,7 +7,7 @@ from typing import Any
 from engine.reference.graph_compile import parse_dependency_node_ref
 from engine.reference.node_types import is_section_node
 from engine.reference.standards_reader import StandardsReader
-from models.input import EngineeringInput
+from models.fact import Fact
 from models.validation import ComplianceStatus, LayerValidationResult, ValidationFinding, ValidationSeverity
 
 
@@ -35,7 +35,7 @@ class DependencyValidator:
         node_id: str,
         *,
         reader: StandardsReader,
-        task_inputs: dict[str, EngineeringInput],
+        task_inputs: dict[str, Fact],
         dependency_outputs: dict[str, Any],
         prior_nodes_completed: set[str],
     ) -> LayerValidationResult:

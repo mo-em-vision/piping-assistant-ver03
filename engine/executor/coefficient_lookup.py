@@ -12,13 +12,13 @@ from engine.reference.coefficient_resolver import (
     lookup_y_coefficient,
 )
 from engine.reference.standards_paths import resolve_standard_pack
-from models.input import (
-    EngineeringInput,
-    InputSource,
-    InputStatus,
-    ResolutionMethod,
-    ResolutionRef,
+from engine.state.task_facts import (
+    active_facts,
+    fact_scalar_value,
+    fact_unit,
+    store_lookup_numeric_fact,
 )
+from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready
 from models.task import Task
 
 from engine.reference.asme_b31_3_table_ids import (
@@ -43,6 +43,8 @@ def _input_value(existing_inputs: dict[str, Any], input_id: str) -> Any | None:
     raw = existing_inputs.get(input_id)
     if raw is None:
         return None
+    if isinstance(raw, Fact):
+        return fact_scalar_value(raw)
     if hasattr(raw, "value"):
         return raw.value
     return raw
@@ -52,19 +54,23 @@ def _input_ready(existing_inputs: dict[str, Any], input_id: str) -> bool:
     raw = existing_inputs.get(input_id)
     if raw is None:
         return False
-    if isinstance(raw, EngineeringInput):
-        if raw.value is None or str(raw.value).strip() == "":
+    if isinstance(raw, Fact):
+        value = fact_scalar_value(raw)
+        if value is None or str(value).strip() == "":
             return False
-        return raw.status in {InputStatus.CONFIRMED, InputStatus.USER_OVERRIDE}
+        return fact_is_expansion_ready(raw)
     return True
 
 
-def _should_auto_apply(existing: EngineeringInput | None) -> bool:
+def _should_auto_apply(existing: Fact | None) -> bool:
     if existing is None:
         return True
-    if existing.status == InputStatus.USER_OVERRIDE:
-        return False
-    return existing.status in {InputStatus.PROPOSED_DEFAULT, InputStatus.PENDING}
+    if existing.fact_class == FactClass.USER_SUPPLIED and existing.validation.status == ValidationStatus.CONFIRMED:
+        if existing.original_value is not None:
+            return False
+    return existing.validation.status in {
+        ValidationStatus.PENDING,
+    } or existing.fact_class == FactClass.DEFAULT_CONFIRMED
 
 
 def _set_table_coefficient(
@@ -76,39 +82,27 @@ def _set_table_coefficient(
     description: str,
     table_ref: str,
 ) -> None:
-    task.inputs[input_id] = EngineeringInput(
-        input_id=input_id,
-        value=value,
+    store_lookup_numeric_fact(
+        task,
+        key=input_id,
+        amount=value,
         unit="dimensionless",
-        source=InputSource.TABLE,
-        status=InputStatus.CONFIRMED,
-        requires_confirmation=False,
+        table_ref=table_ref,
         symbol=symbol,
         description=description,
-        resolution_method=ResolutionMethod.TABLE_LOOKUP,
-        resolution_ref=ResolutionRef(table=table_ref),
     )
     _remove_from_planning_missing(task, input_id)
 
 
 def _remove_from_planning_missing(task: Task, input_id: str) -> None:
-    planning = task.outputs.get("planning_summary")
-    if not isinstance(planning, dict):
-        return
-    for key in ("missing_inputs", "missing_assumptions", "missing_execution_assumptions"):
-        items = planning.get(key)
-        if isinstance(items, list):
-            planning[key] = [item for item in items if item != input_id]
-    phase_missing = planning.get("phase_missing")
-    if isinstance(phase_missing, dict):
-        for phase, fields in list(phase_missing.items()):
-            if isinstance(fields, list):
-                planning["phase_missing"][phase] = [item for item in fields if item != input_id]
+    from engine.state.goal_satisfaction import refresh_goal_satisfaction
+
+    refresh_goal_satisfaction(task)
 
 
 def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
     """Look up E, W, and Y when their prerequisite inputs are confirmed."""
-    existing_inputs = dict(task.inputs)
+    existing_inputs = active_facts(task)
     pack_root = resolve_standard_pack(standards_root, B31_3_SLUG)
 
     material = _input_value(existing_inputs, "material")
@@ -116,15 +110,15 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
     design_temperature = _input_value(existing_inputs, "design_temperature")
     temp_input = existing_inputs.get("design_temperature")
     temp_unit = "F"
-    if isinstance(temp_input, EngineeringInput):
-        temp_unit = str(temp_input.unit or "F")
+    if isinstance(temp_input, Fact):
+        temp_unit = str(fact_unit(temp_input) or "F")
 
     material_ready = _input_ready(existing_inputs, "material")
     joint_ready = _input_ready(existing_inputs, "joint_category")
     temperature_ready = _input_ready(existing_inputs, "design_temperature")
 
     if material_ready and joint_ready:
-        existing = task.inputs.get("weld_joint_efficiency")
+        existing = task.fact_store.active_fact("weld_joint_efficiency")
         if _should_auto_apply(existing):
             try:
                 e_value = lookup_quality_factor(
@@ -147,7 +141,7 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
                 )
 
     if material_ready and joint_ready and temperature_ready:
-        existing = task.inputs.get("weld_joint_strength_reduction_factor_W")
+        existing = task.fact_store.active_fact("weld_joint_strength_reduction_factor_W")
         if _should_auto_apply(existing):
             try:
                 w_value = lookup_w_factor(
@@ -170,7 +164,7 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
                 )
 
     if temperature_ready and _thin_wall_assumed(existing_inputs):
-        existing = task.inputs.get("temperature_coefficient_Y")
+        existing = task.fact_store.active_fact("temperature_coefficient_Y")
         if _should_auto_apply(existing):
             try:
                 y_value, _ = lookup_y_coefficient(

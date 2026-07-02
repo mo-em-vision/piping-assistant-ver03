@@ -6,8 +6,9 @@ from typing import Any
 
 from engine.graph.graph_store import GraphStore
 from engine.reference.node_types import is_lookup_node
+from engine.reference.relationship_taxonomy import PARAMETER_CONCEPT_TRAVERSAL_TYPES
 from engine.reference.standards_reader import StandardsReader
-from models.input import EngineeringInput, InputStatus
+from models.fact import Fact, ValidationStatus, fact_is_expansion_ready, fact_scalar_value, fact_unit
 from models.node_output import NodeOutput
 from models.task import Task, TaskStatus
 
@@ -251,13 +252,13 @@ def _attach_selection_outputs(
             continue
         if not _references_designation(store, node.node_id):
             continue
-        engineering_input = task.inputs.get(input_id)
-        if not _is_confirmed_selection(engineering_input):
+        fact = task.fact_store.active_fact(input_id)
+        if not _is_confirmed_selection(fact):
             continue
         item = _param_output(
             store,
             node.node_id,
-            value=engineering_input.value,
+            value=fact_scalar_value(fact),
             task=task,
         )
         if item is not None:
@@ -265,7 +266,7 @@ def _attach_selection_outputs(
 
 
 def _references_designation(store: GraphStore, param_node_id: str) -> bool:
-    for edge in store.outgoing(param_node_id, edge_types={"references"}):
+    for edge in store.outgoing(param_node_id, edge_types=PARAMETER_CONCEPT_TRAVERSAL_TYPES):
         if store.node_type(edge.to_id) == "designation":
             return True
     return False
@@ -310,8 +311,10 @@ def _attach_workflow_completion(
         goal_value = None
         if goal_input_id:
             goal_value = task.outputs.get(goal_input_id)
-            if goal_value is None and goal_input_id in task.inputs:
-                goal_value = task.inputs[goal_input_id].value
+            if goal_value is None:
+                goal_fact = task.fact_store.active_fact(goal_input_id)
+                if goal_fact is not None:
+                    goal_value = fact_scalar_value(goal_fact)
         if goal_value is not None:
             item = _param_output(store, goal_param, value=goal_value, task=task)
             if item is not None:
@@ -322,22 +325,20 @@ def _resolve_unit(task: Task, input_id: str, param_meta: dict[str, Any]) -> str:
     unit_key = f"{input_id}_unit"
     if unit_key in task.outputs:
         return str(task.outputs[unit_key])
-    if input_id in task.inputs:
-        return task.inputs[input_id].unit
+    fact = task.fact_store.active_fact(input_id)
+    if fact is not None:
+        return fact_unit(fact)
     if input_id == "thickness" and "required_thickness_unit" in task.outputs:
         return str(task.outputs["required_thickness_unit"])
     return str(param_meta.get("unit") or "dimensionless")
 
 
-def _is_confirmed_selection(engineering_input: EngineeringInput | None) -> bool:
-    if engineering_input is None:
+def _is_confirmed_selection(fact: Fact | None) -> bool:
+    if fact is None:
         return False
-    if engineering_input.value is None:
+    if fact_scalar_value(fact) is None:
         return False
-    return engineering_input.status in {
-        InputStatus.CONFIRMED,
-        InputStatus.USER_OVERRIDE,
-    }
+    return fact_is_expansion_ready(fact)
 
 
 def _dedupe_outputs(outputs: list[NodeOutput]) -> list[NodeOutput]:

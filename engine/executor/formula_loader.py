@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from engine.reference.embedded_nodes import find_embedded_body
-from engine.reference.standards_markdown import split_frontmatter
+from engine.reference.standards_markdown import split_frontmatter, compose_frontmatter
 from engine.reference.standards_reader import NodeRecord, StandardsReader
 
 
@@ -68,6 +68,13 @@ def read_formula_text(
 
     refs: list[str] = []
     if equation_meta:
+        eq_id = str(equation_meta.get("id") or "").strip()
+        if reader is not None and eq_id:
+            try:
+                eq_record = reader.load(eq_id)
+                return compose_frontmatter(eq_record.metadata, eq_record.body)
+            except FileNotFoundError:
+                pass
         for key in ("file", "id", "equation_id"):
             value = str(equation_meta.get(key) or "").strip()
             if value:
