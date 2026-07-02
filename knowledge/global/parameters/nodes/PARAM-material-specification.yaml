@@ -1,0 +1,33 @@
+---
+id: PARAM-material-specification
+type: parameter
+key: material_specification
+name: Material Specification
+parameter_class: material_designation
+dimension: DIM-material-designation
+description: >
+  Material specification or designation used to resolve allowable stress,
+  material properties, and applicable standard limits.
+canonical_symbol: material
+aliases:
+  - pipe material
+  - material
+  - material grade
+introduced_by:
+  - B313-304.1.1
+  - B313-302.3.5
+edges:
+  - type: has_dimension
+    target: DIM-material-designation
+  - type: introduced_by
+    target: B313-304.1.1
+  - type: introduced_by
+    target: B313-302.3.5
+  - type: used_by
+    target: B313-table-A-1
+  - type: used_by
+    target: MAT-catalog
+metadata:
+  status: active
+  version: 1
+---

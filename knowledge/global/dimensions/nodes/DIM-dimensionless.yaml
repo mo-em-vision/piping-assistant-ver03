@@ -1,0 +1,14 @@
+---
+id: DIM-dimensionless
+type: dimension
+key: dimensionless
+name: Dimensionless
+canonical_unit: UNIT-dimensionless
+description: Ratios, counts, factors, and other quantities without physical units.
+edges:
+  - type: references
+    target: UNIT-dimensionless
+metadata:
+  status: active
+  version: 1
+---

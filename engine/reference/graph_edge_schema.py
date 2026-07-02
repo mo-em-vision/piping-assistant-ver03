@@ -32,6 +32,10 @@ CANONICAL_EDGE_TYPES = frozenset(
         "related_to",
         "derived_from",
         "alias_of",
+        "has_dimension",
+        "dimension_of",
+        "introduced_by",
+        "introduces",
     }
 )
 
@@ -81,6 +85,10 @@ REVERSE_EDGE_TYPE: dict[str, str] = {
     "related_to": "related_to",
     "derived_from": "derived_from",
     "alias_of": "alias_of",
+    "has_dimension": "dimension_of",
+    "dimension_of": "has_dimension",
+    "introduced_by": "introduces",
+    "introduces": "introduced_by",
 }
 
 FORWARD_EDGE_TYPE: dict[str, str] = {value: key for key, value in REVERSE_EDGE_TYPE.items()}

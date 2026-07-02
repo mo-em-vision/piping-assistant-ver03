@@ -6,14 +6,17 @@ name: Pressure
 canonical_unit: UNIT-Pa
 description: Force per unit area. Stress quantities share this dimension.
 aliases:
-- stress
+  - stress
 edges:
-- type: references
-  target: UNIT-Pa
-- type: references
-  target: UNIT-MPa
-- type: references
-  target: UNIT-psi
-- type: references
-  target: UNIT-bar
+  - type: references
+    target: UNIT-Pa
+  - type: references
+    target: UNIT-MPa
+  - type: references
+    target: UNIT-psi
+  - type: references
+    target: UNIT-bar
+metadata:
+  status: active
+  version: 1
 ---

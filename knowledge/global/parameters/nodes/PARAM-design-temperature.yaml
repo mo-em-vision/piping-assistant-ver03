@@ -1,0 +1,32 @@
+---
+id: PARAM-design-temperature
+type: parameter
+key: design_temperature
+name: Design Temperature
+parameter_class: environmental_condition
+dimension: DIM-temperature
+description: >
+  Metal or fluid temperature used as the basis for material property lookups
+  and design calculations.
+canonical_symbol: T
+aliases:
+  - metal temperature
+  - design metal temperature
+  - operating temperature
+introduced_by:
+  - B313-302.3.5
+edges:
+  - type: has_dimension
+    target: DIM-temperature
+  - type: introduced_by
+    target: B313-302.3.5
+  - type: used_by
+    target: B313-table-A-1
+  - type: used_by
+    target: B313-table-304-1-1-1
+  - type: used_by
+    target: B313-table-302-3-5-1
+metadata:
+  status: active
+  version: 1
+---

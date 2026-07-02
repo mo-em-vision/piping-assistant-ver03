@@ -6,10 +6,13 @@ name: Temperature
 canonical_unit: UNIT-K
 description: Thermodynamic temperature and customary temperature scales.
 edges:
-- type: references
-  target: UNIT-K
-- type: references
-  target: UNIT-degC
-- type: references
-  target: UNIT-degF
+  - type: references
+    target: UNIT-K
+  - type: references
+    target: UNIT-degC
+  - type: references
+    target: UNIT-degF
+metadata:
+  status: active
+  version: 1
 ---

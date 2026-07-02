@@ -1,0 +1,14 @@
+---
+id: DIM-material-designation
+type: dimension
+key: material_designation
+name: Material Designation
+canonical_unit: UNIT-dimensionless
+description: Material specification, grade, or designation used to resolve properties and limits.
+edges:
+  - type: references
+    target: UNIT-dimensionless
+metadata:
+  status: active
+  version: 1
+---

@@ -1,0 +1,26 @@
+---
+id: PARAM-design-pressure
+type: parameter
+key: design_pressure
+name: Design Pressure
+parameter_class: physical_quantity
+dimension: DIM-pressure
+description: >
+  Pressure used as the basis for engineering design calculations.
+canonical_symbol: P
+aliases:
+  - design pressure
+  - internal design pressure
+introduced_by:
+  - B313-304.1.2
+edges:
+  - type: has_dimension
+    target: DIM-pressure
+  - type: introduced_by
+    target: B313-304.1.2
+  - type: used_by
+    target: 304.1.2
+metadata:
+  status: active
+  version: 1
+---

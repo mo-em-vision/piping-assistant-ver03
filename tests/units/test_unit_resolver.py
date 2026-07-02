@@ -102,17 +102,44 @@ def test_unit_pack_compiles() -> None:
 
 def test_physical_dimensions_pack_compiles() -> None:
     from engine.graph.graph_builder import GraphBuilder
+    from engine.reference.graph_cache import write_graph_cache
+    from engine.reference.graph_edge_schema import edge_targets
     from pathlib import Path
 
     pack_root = Path(__file__).resolve().parents[2] / "knowledge" / "global" / "dimensions"
     graph = GraphBuilder(pack_root).build()
     assert "DIM-pressure" in graph.nodes
     assert "DIM-velocity" in graph.nodes
+    assert "DIM-dimensionless" in graph.nodes
+    assert "DIM-material-designation" in graph.nodes
     pressure = graph.nodes["DIM-pressure"]
-    assert set(pressure.metadata.get("references", [])) == {
+    assert set(edge_targets(pressure.metadata, "references")) == {
         "UNIT-Pa",
         "UNIT-MPa",
         "UNIT-psi",
         "UNIT-bar",
     }
     assert pressure.metadata.get("canonical_unit") == "UNIT-Pa"
+    write_graph_cache(pack_root, graph)
+
+
+def test_parameter_pack_compiles() -> None:
+    from engine.graph.graph_builder import GraphBuilder
+    from engine.reference.graph_cache import write_graph_cache
+    from pathlib import Path
+
+    pack_root = Path(__file__).resolve().parents[2] / "knowledge" / "global" / "parameters"
+    graph = GraphBuilder(pack_root).build()
+    assert "PARAM-design-pressure" in graph.nodes
+    assert "PARAM-corrosion-allowance" in graph.nodes
+    assert "PARAM-material-specification" in graph.nodes
+    param = graph.nodes["PARAM-design-pressure"]
+    assert param.metadata.get("dimension") == "DIM-pressure"
+    assert param.metadata.get("parameter_class") == "physical_quantity"
+    has_dim = [
+        edge
+        for edge in graph.edges
+        if edge.from_id == "PARAM-design-pressure" and edge.edge_type == "has_dimension"
+    ]
+    assert len(has_dim) == 0  # DIM nodes live in a separate pack
+    write_graph_cache(pack_root, graph)

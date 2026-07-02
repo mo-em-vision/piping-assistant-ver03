@@ -1,0 +1,29 @@
+---
+id: PARAM-allowable-stress
+type: parameter
+key: allowable_stress
+name: Allowable Stress
+parameter_class: physical_quantity
+dimension: DIM-pressure
+description: >
+  Basic allowable stress in tension for metals at the design metal temperature,
+  used in pressure design equations.
+canonical_symbol: S
+aliases:
+  - allowable stress
+  - basic allowable stress
+introduced_by:
+  - B313-304.1.1
+edges:
+  - type: has_dimension
+    target: DIM-pressure
+  - type: introduced_by
+    target: B313-304.1.1
+  - type: used_by
+    target: B313-table-A-1
+  - type: used_by
+    target: 304.1.2
+metadata:
+  status: active
+  version: 1
+---

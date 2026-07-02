@@ -6,10 +6,13 @@ name: Length
 canonical_unit: UNIT-mm
 description: Linear distance, thickness, diameter, and other length measures.
 edges:
-- type: references
-  target: UNIT-m
-- type: references
-  target: UNIT-mm
-- type: references
-  target: UNIT-in
+  - type: references
+    target: UNIT-m
+  - type: references
+    target: UNIT-mm
+  - type: references
+    target: UNIT-in
+metadata:
+  status: active
+  version: 1
 ---

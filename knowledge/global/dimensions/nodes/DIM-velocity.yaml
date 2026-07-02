@@ -6,8 +6,11 @@ name: Velocity
 canonical_unit: UNIT-m_s
 description: Speed — distance per unit time.
 edges:
-- type: references
-  target: UNIT-m_s
-- type: references
-  target: UNIT-ft_s
+  - type: references
+    target: UNIT-m_s
+  - type: references
+    target: UNIT-ft_s
+metadata:
+  status: active
+  version: 1
 ---

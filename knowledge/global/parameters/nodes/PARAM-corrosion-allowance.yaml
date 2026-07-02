@@ -1,0 +1,28 @@
+---
+id: PARAM-corrosion-allowance
+type: parameter
+key: corrosion_allowance
+name: Corrosion Allowance
+parameter_class: geometric_quantity
+dimension: DIM-length
+description: >
+  Additional wall thickness allowance provided to account for expected
+  corrosion, erosion, or mechanical allowance over the service life.
+canonical_symbol: c
+aliases:
+  - corrosion allowance
+  - mechanical allowance
+  - allowance
+introduced_by:
+  - B313-304.1.1
+edges:
+  - type: has_dimension
+    target: DIM-length
+  - type: introduced_by
+    target: B313-304.1.1
+  - type: used_by
+    target: 304.1.1-eq-2
+metadata:
+  status: active
+  version: 1
+---

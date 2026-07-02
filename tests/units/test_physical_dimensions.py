@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from engine.reference.graph_edge_schema import edge_targets
 from engine.reference.standards_markdown import split_frontmatter
 
 
@@ -25,7 +26,7 @@ def test_physical_dimension_nodes_reference_existing_units() -> None:
         meta, _body = split_frontmatter(path.read_text(encoding="utf-8"))
         assert meta["type"] == "dimension"
         assert meta["canonical_unit"] in unit_ids
-        for unit_id in meta.get("references", []):
+        for unit_id in edge_targets(meta, "references"):
             assert unit_id in unit_ids, f"{path.name} references unknown unit {unit_id!r}"
 
 

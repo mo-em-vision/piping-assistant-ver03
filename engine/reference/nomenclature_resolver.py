@@ -8,6 +8,7 @@ from typing import Any
 from engine.graph.assumption_checker import field_value, normalize_assumption_value
 from engine.reference.knowledge_paths import dimensions_root, materials_root
 from engine.reference.graph_edge_schema import edge_target, edge_targets, iter_stored_edges
+from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput
 

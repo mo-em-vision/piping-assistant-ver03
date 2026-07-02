@@ -53,6 +53,11 @@ def units_root(*, project_root: Path | None = None) -> Path:
     return global_root(project_root=project_root) / "units"
 
 
+def parameters_root(*, project_root: Path | None = None) -> Path:
+    """Global canonical parameter ontology pack root."""
+    return global_root(project_root=project_root) / "parameters"
+
+
 def materials_root(
     *,
     project_root: Path | None = None,
