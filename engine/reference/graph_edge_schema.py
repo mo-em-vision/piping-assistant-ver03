@@ -42,6 +42,12 @@ CANONICAL_EDGE_TYPES = frozenset(
         "converted_from",
         "belongs_to_dimension",
         "includes_unit",
+        "has_parameter",
+        "parameter_of",
+        "specializes",
+        "generalizes",
+        "constrained_by",
+        "constrains",
     }
 )
 
@@ -101,6 +107,12 @@ REVERSE_EDGE_TYPE: dict[str, str] = {
     "converted_from": "converts_to",
     "belongs_to_dimension": "includes_unit",
     "includes_unit": "belongs_to_dimension",
+    "has_parameter": "parameter_of",
+    "parameter_of": "has_parameter",
+    "specializes": "generalizes",
+    "generalizes": "specializes",
+    "constrained_by": "constrains",
+    "constrains": "constrained_by",
 }
 
 FORWARD_EDGE_TYPE: dict[str, str] = {value: key for key, value in REVERSE_EDGE_TYPE.items()}

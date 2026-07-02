@@ -11,7 +11,7 @@ Source-of-truth for standards graph nodes, lookup tables, material catalogs, and
 ```
 knowledge/
 ├── standards/          # Per-standard packs (asme, api, astm) + cross-pack indexes
-└── global/             # Shared ontologies (dimensions, units, datatypes)
+└── global/             # Shared ontologies (concepts, parameters, dimensions, units, datatypes)
 ```
 
 ## Entry Points

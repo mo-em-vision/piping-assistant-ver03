@@ -1,0 +1,23 @@
+---
+id: CONCEPT-temperature
+type: concept
+key: temperature
+name: Temperature
+concept_class: physical_quantity
+dimension: DIM-temperature
+description: >
+  The engineering concept of metal or fluid temperature used as the basis
+  for material property lookups and design calculations.
+aliases:
+  - metal temperature
+  - design metal temperature
+  - operating temperature
+edges:
+  - type: has_dimension
+    target: DIM-temperature
+  - type: has_parameter
+    target: PARAM-design-temperature
+metadata:
+  status: active
+  version: 1
+---

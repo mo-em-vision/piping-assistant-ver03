@@ -11,7 +11,8 @@ Cross-pack registries and graph node packs that are not tied to a single ASME/AP
 | Folder | Was | Role |
 |--------|-----|------|
 | [materials/](materials/) | Global material registry (`registry.yaml`) and search catalog (`materials.db`) |
-| [parameters/](parameters/) | Canonical engineering concepts (`PARAM-*`) referencing dimension nodes |
+| [concepts/](concepts/) | Engineering concept ontology (`CONCEPT-*`) grouping semantic meaning |
+| [parameters/](parameters/) | Canonical parameter roles (`PARAM-*`) referencing dimension nodes |
 | [dimensions/](dimensions/) | Pipe NPS registry + physical dimension nodes (`DIM-*`) with `allows_unit` edges |
 | [units/](units/) | Global unit graph (`UNIT-mm`, `UNIT-MPa`, …) with `belongs_to_dimension` and `converts_to` edges |
 | [datatypes/](datatypes/) | *(new)* | Placeholder for future datatype ontology nodes |
@@ -23,7 +24,8 @@ Cross-pack registries and graph node packs that are not tied to a single ASME/AP
 | `materials/registry.yaml` | Material slug → ASTM table DB registry |
 | `materials/supplemental.yaml` | Supplemental non-ASTM material entries |
 | `dimensions/registry.yaml` | Pipe dimension source registry |
-| `parameters/nodes/PARAM-*.yaml` | Canonical parameters (pressure, temperature, material, …) with `has_dimension` edges |
+| `concepts/nodes/CONCEPT-*.yaml` | Engineering concepts (pressure, wall thickness, material, …) with `has_parameter` edges |
+| `parameters/nodes/PARAM-*.yaml` | Canonical parameters (design pressure, corrosion allowance, …) with `has_dimension` edges |
 | `dimensions/nodes/DIM-*.yaml` | Physical dimensions (pressure, length, …) with `allows_unit` edges to unit nodes |
 | `units/index.md` | Unit pack manifest |
 | `units/nodes/UNIT-*.yaml` | Unit graph nodes (14 flat YAML files) |
@@ -38,7 +40,7 @@ Cross-pack registries and graph node packs that are not tied to a single ASME/AP
 
 **Active:** `materials/`, `dimensions/`, and `units/` are on the execution path for material search, NPS lookup, and unit conversion.
 
-**Forward-looking:** `parameters/` — canonical concept ontology; standards packs will migrate to reference `PARAM-*` nodes.
+**Forward-looking:** `concepts/` and `parameters/` — ontology layers; standards packs will migrate to reference `CONCEPT-*` and `PARAM-*` nodes.
 
 **Inactive:** `datatypes/` — empty placeholder only.
 
@@ -51,15 +53,18 @@ load_material_registry(standards_root)
   → knowledge/global/materials/materials.db (search index)
 ```
 
-## Execution trace — parameters and dimensions
+## Execution trace — concepts, parameters, and dimensions
 
 ```
+Concept node (CONCEPT-pressure)
+  → has_parameter → PARAM-design-pressure
+  → has_dimension → DIM-pressure
 Parameter node (PARAM-design-pressure)
   → has_dimension → DIM-pressure
 Dimension node (DIM-pressure)
   → allows_unit → UNIT-Pa, UNIT-MPa, UNIT-psi, UNIT-bar
 Unit nodes (UNIT-*)
-  → dimension: pressure (string key matching DIM-* .key)
+  → belongs_to_dimension → DIM-pressure
 ```
 
 ## Execution trace — pipe dimensions

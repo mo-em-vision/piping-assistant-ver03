@@ -1,0 +1,20 @@
+---
+id: CONCEPT-material
+type: concept
+key: material
+name: Material
+concept_class: material
+dimension: null
+description: >
+  The engineering concept of material identity, including specification,
+  grade, product form, and material family.
+aliases:
+  - engineering material
+  - construction material
+edges:
+  - type: has_parameter
+    target: PARAM-material-specification
+metadata:
+  status: active
+  version: 1
+---

@@ -1,0 +1,24 @@
+---
+id: CONCEPT-wall-thickness
+type: concept
+key: wall_thickness
+name: Wall Thickness
+concept_class: geometric_quantity
+dimension: DIM-length
+description: >
+  The engineering concept of pipe, vessel, or component wall thickness.
+  This concept includes nominal, measured, required, minimum, ordered,
+  and corroded wall thickness parameters.
+aliases:
+  - thickness
+  - pipe wall thickness
+  - component thickness
+edges:
+  - type: has_dimension
+    target: DIM-length
+  - type: has_parameter
+    target: PARAM-corrosion-allowance
+metadata:
+  status: active
+  version: 1
+---

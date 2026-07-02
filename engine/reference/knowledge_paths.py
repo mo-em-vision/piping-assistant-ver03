@@ -58,6 +58,11 @@ def parameters_root(*, project_root: Path | None = None) -> Path:
     return global_root(project_root=project_root) / "parameters"
 
 
+def concepts_root(*, project_root: Path | None = None) -> Path:
+    """Global engineering concept ontology pack root."""
+    return global_root(project_root=project_root) / "concepts"
+
+
 def materials_root(
     *,
     project_root: Path | None = None,

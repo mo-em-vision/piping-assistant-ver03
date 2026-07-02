@@ -1,0 +1,24 @@
+---
+id: CONCEPT-pressure
+type: concept
+key: pressure
+name: Pressure
+concept_class: physical_quantity
+dimension: DIM-pressure
+description: >
+  The engineering concept of pressure as force per unit area. This concept
+  includes design pressure, operating pressure, test pressure, allowable
+  pressure, and other pressure-related parameters.
+aliases:
+  - stress pressure
+  - internal pressure
+  - external pressure
+edges:
+  - type: has_dimension
+    target: DIM-pressure
+  - type: has_parameter
+    target: PARAM-design-pressure
+metadata:
+  status: active
+  version: 1
+---

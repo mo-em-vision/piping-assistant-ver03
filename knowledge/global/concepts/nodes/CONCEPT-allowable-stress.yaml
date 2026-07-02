@@ -1,0 +1,23 @@
+---
+id: CONCEPT-allowable-stress
+type: concept
+key: allowable_stress
+name: Allowable Stress
+concept_class: physical_quantity
+dimension: DIM-pressure
+description: >
+  The engineering concept of basic allowable stress in tension for metals
+  at design metal temperature, used in pressure design equations.
+aliases:
+  - allowable stress
+  - basic allowable stress
+  - stress limit
+edges:
+  - type: has_dimension
+    target: DIM-pressure
+  - type: has_parameter
+    target: PARAM-allowable-stress
+metadata:
+  status: active
+  version: 1
+---
