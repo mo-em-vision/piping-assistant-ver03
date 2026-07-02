@@ -11,6 +11,7 @@ from engine.units.unit_ids import (
     canonical_si_unit_id,
     normalize_unit_key,
     symbol_from_unit_id,
+    unit_dimension_key,
     unit_id_from_legacy_symbol,
 )
 
@@ -70,19 +71,21 @@ class UnitResolver:
             for alias in meta.get("aliases") or []:
                 if isinstance(alias, str) and alias.strip():
                     alias_to_id[normalize_unit_key(alias)] = node_id
-            dimension = str(meta.get("dimension") or "").strip().lower()
+            dimension = unit_dimension_key(meta)
             if dimension:
                 dimensions[node_id] = dimension
 
         for edge in graph.edges:
-            if edge.edge_type != "converts_to":
+            if edge.edge_type not in {"converts_to", "derived_from"}:
                 continue
             meta = edge.metadata or {}
             factor = float(meta.get("factor", 1.0))
             offset = float(meta.get("offset", 0.0))
-            edges.setdefault(edge.from_id, []).append(
-                (edge.to_id, _AffineStep(factor=factor, offset=offset))
-            )
+            step = _AffineStep(factor=factor, offset=offset)
+            edges.setdefault(edge.from_id, []).append((edge.to_id, step))
+            if factor != 0.0:
+                inverse = _AffineStep(factor=1.0 / factor, offset=-offset / factor)
+                edges.setdefault(edge.to_id, []).append((edge.from_id, inverse))
 
         self._alias_to_id = alias_to_id
         self._edges = edges

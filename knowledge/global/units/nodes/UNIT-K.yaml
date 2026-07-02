@@ -2,9 +2,21 @@
 id: UNIT-K
 type: unit
 symbol: K
-dimension: temperature
-description: Kelvin (SI)
+name: Kelvin
+dimension: DIM-temperature
+description: >
+  SI base unit of thermodynamic temperature.
 aliases:
-- k
-edges: []
+  - k
+  - kelvin
+conversion:
+  target: UNIT-K
+  factor: 1
+  offset: 0
+edges:
+  - type: belongs_to_dimension
+    target: DIM-temperature
+metadata:
+  status: active
+  version: 1
 ---

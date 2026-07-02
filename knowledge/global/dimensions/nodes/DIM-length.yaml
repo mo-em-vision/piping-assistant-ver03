@@ -3,14 +3,16 @@ id: DIM-length
 type: dimension
 key: length
 name: Length
+dimension_kind: physical
 canonical_unit: UNIT-mm
-description: Linear distance, thickness, diameter, and other length measures.
+description: >
+  Linear distance, thickness, diameter, and other length measures.
 edges:
-  - type: references
+  - type: allows_unit
     target: UNIT-m
-  - type: references
+  - type: allows_unit
     target: UNIT-mm
-  - type: references
+  - type: allows_unit
     target: UNIT-in
 metadata:
   status: active

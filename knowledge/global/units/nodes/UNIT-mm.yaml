@@ -2,9 +2,20 @@
 id: UNIT-mm
 type: unit
 symbol: mm
-dimension: length
-description: Millimeter (SI)
+name: Millimeter
+dimension: DIM-length
+description: >
+  SI length unit equal to one thousandth of a meter.
 aliases:
-- MM
-edges: []
+  - MM
+conversion:
+  target: UNIT-mm
+  factor: 1
+  offset: 0
+edges:
+  - type: belongs_to_dimension
+    target: DIM-length
+metadata:
+  status: active
+  version: 1
 ---

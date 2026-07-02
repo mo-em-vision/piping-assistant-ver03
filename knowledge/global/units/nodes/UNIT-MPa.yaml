@@ -2,10 +2,24 @@
 id: UNIT-MPa
 type: unit
 symbol: MPa
-dimension: pressure
-description: Megapascal
-edges:
-- type: derived_from
+name: Megapascal
+dimension: DIM-pressure
+description: >
+  Pressure unit equal to one million pascals.
+aliases:
+  - mpa
+conversion:
   target: UNIT-Pa
   factor: 1000000.0
+  offset: 0
+edges:
+  - type: belongs_to_dimension
+    target: DIM-pressure
+  - type: converts_to
+    target: UNIT-Pa
+    factor: 1000000.0
+    offset: 0
+metadata:
+  status: active
+  version: 1
 ---

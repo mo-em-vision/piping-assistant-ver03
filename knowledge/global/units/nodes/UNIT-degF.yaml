@@ -2,16 +2,27 @@
 id: UNIT-degF
 type: unit
 symbol: degF
-dimension: temperature
-description: Degrees Fahrenheit
+name: Degree Fahrenheit
+dimension: DIM-temperature
+description: >
+  Fahrenheit temperature scale.
 aliases:
-- f
-- F
-- degf
-- °f
-edges:
-- type: derived_from
+  - F
+  - °F
+  - fahrenheit
+  - degf
+conversion:
   target: UNIT-K
   factor: 0.5555555555555556
   offset: 255.37222222222223
+edges:
+  - type: belongs_to_dimension
+    target: DIM-temperature
+  - type: converts_to
+    target: UNIT-K
+    factor: 0.5555555555555556
+    offset: 255.37222222222223
+metadata:
+  status: active
+  version: 1
 ---

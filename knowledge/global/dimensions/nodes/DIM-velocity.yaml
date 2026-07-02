@@ -3,12 +3,14 @@ id: DIM-velocity
 type: dimension
 key: velocity
 name: Velocity
+dimension_kind: physical
 canonical_unit: UNIT-m_s
-description: Speed — distance per unit time.
+description: >
+  Speed — distance per unit time.
 edges:
-  - type: references
+  - type: allows_unit
     target: UNIT-m_s
-  - type: references
+  - type: allows_unit
     target: UNIT-ft_s
 metadata:
   status: active

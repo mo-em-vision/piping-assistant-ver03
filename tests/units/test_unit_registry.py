@@ -35,7 +35,7 @@ def test_stress_aliases_to_pressure_units(registry: UnitRegistry) -> None:
 
 def test_units_for_length_dimension(registry: UnitRegistry) -> None:
     units = set(registry.units_for_dimension("length"))
-    assert units == {"UNIT-mm", "UNIT-in"}
+    assert units == {"UNIT-mm", "UNIT-m", "UNIT-in"}
 
 
 def test_designation_parameter_only_dimensionless(registry: UnitRegistry) -> None:

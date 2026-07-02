@@ -9,7 +9,7 @@ Quantity kinds (pressure, length, temperature, velocity, …) and their allowed 
 | [nodes/](nodes/) | Physical dimension ontology (`DIM-*.yaml`) |
 | [registry.yaml](registry.yaml) | Pipe NPS/schedule dimension source registry (ASME B36.10) |
 
-Dimension nodes reference unit node ids under [`../units/nodes/`](../units/nodes/).
+Dimension nodes declare allowed unit nodes via `allows_unit` edges under [`../units/nodes/`](../units/nodes/).
 
 ## Compile
 

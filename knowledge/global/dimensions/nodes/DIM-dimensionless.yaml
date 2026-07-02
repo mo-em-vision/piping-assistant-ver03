@@ -3,10 +3,12 @@ id: DIM-dimensionless
 type: dimension
 key: dimensionless
 name: Dimensionless
+dimension_kind: dimensionless
 canonical_unit: UNIT-dimensionless
-description: Ratios, counts, factors, and other quantities without physical units.
+description: >
+  Ratios, counts, coefficients, factors, and other quantities without physical units.
 edges:
-  - type: references
+  - type: allows_unit
     target: UNIT-dimensionless
 metadata:
   status: active

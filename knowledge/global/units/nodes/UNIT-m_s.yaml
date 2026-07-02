@@ -2,10 +2,21 @@
 id: UNIT-m_s
 type: unit
 symbol: m/s
-dimension: velocity
-description: Meters per second (SI)
+name: Meter per Second
+dimension: DIM-velocity
+description: >
+  SI velocity unit equal to one meter traveled per second.
 aliases:
-- mps
-- m_s
-edges: []
+  - mps
+  - m_s
+conversion:
+  target: UNIT-m_s
+  factor: 1
+  offset: 0
+edges:
+  - type: belongs_to_dimension
+    target: DIM-velocity
+metadata:
+  status: active
+  version: 1
 ---

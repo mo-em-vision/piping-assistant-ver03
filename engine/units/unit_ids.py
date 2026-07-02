@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 _LEGACY_SYMBOL_TO_UNIT_ID: dict[str, str] = {
     "pa": "UNIT-Pa",
     "psi": "UNIT-psi",
@@ -72,10 +74,18 @@ def normalize_dimension(dimension: str | None) -> str | None:
     """Map quantity dimension keys to registry dimensions."""
     if dimension is None:
         return None
-    text = dimension.strip().lower()
+    text = dimension.strip()
     if not text:
         return None
+    if text.upper().startswith("DIM-"):
+        text = text[4:]
+    text = text.lower().replace("-", "_")
     return _DIMENSION_ALIASES.get(text, text)
+
+
+def unit_dimension_key(metadata: dict[str, Any]) -> str | None:
+    """Resolve registry dimension key from unit node metadata."""
+    return normalize_dimension(str(metadata.get("dimension") or "") or None)
 
 
 def canonical_si_unit_id(dimension: str) -> str | None:

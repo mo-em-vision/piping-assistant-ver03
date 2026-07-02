@@ -2,12 +2,24 @@
 id: UNIT-in
 type: unit
 symbol: in
-dimension: length
-description: Inch
+name: Inch
+dimension: DIM-length
+description: >
+  Customary length unit equal to 25.4 millimeters.
 aliases:
-- inch
-edges:
-- type: derived_from
+  - inch
+conversion:
   target: UNIT-mm
   factor: 25.4
+  offset: 0
+edges:
+  - type: belongs_to_dimension
+    target: DIM-length
+  - type: converts_to
+    target: UNIT-mm
+    factor: 25.4
+    offset: 0
+metadata:
+  status: active
+  version: 1
 ---

@@ -2,13 +2,25 @@
 id: UNIT-ft_s
 type: unit
 symbol: ft/s
-dimension: velocity
-description: Feet per second
+name: Foot per Second
+dimension: DIM-velocity
+description: >
+  Velocity unit equal to one foot traveled per second.
 aliases:
-- fps
-- ft_s
-edges:
-- type: derived_from
+  - fps
+  - ft_s
+conversion:
   target: UNIT-m_s
   factor: 0.3048
+  offset: 0
+edges:
+  - type: belongs_to_dimension
+    target: DIM-velocity
+  - type: converts_to
+    target: UNIT-m_s
+    factor: 0.3048
+    offset: 0
+metadata:
+  status: active
+  version: 1
 ---

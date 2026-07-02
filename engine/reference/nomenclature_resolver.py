@@ -7,7 +7,12 @@ from typing import Any
 
 from engine.graph.assumption_checker import field_value, normalize_assumption_value
 from engine.reference.knowledge_paths import dimensions_root, materials_root
-from engine.reference.graph_edge_schema import edge_target, edge_targets, iter_stored_edges
+from engine.reference.graph_edge_schema import (
+    dimension_allowed_unit_ids,
+    edge_target,
+    edge_targets,
+    iter_stored_edges,
+)
 from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput
@@ -157,15 +162,14 @@ def resolve_dimension_input_spec(input_spec: dict[str, Any]) -> dict[str, Any]:
     if key and not merged.get("dimension"):
         merged["dimension"] = key
 
-    canonical = str(dim_meta.get("canonical_unit", "")).strip()
-    if canonical and not merged.get("canonical_unit"):
-        merged["canonical_unit"] = canonical
+    raw_canonical = dim_meta.get("canonical_unit")
+    if raw_canonical is not None:
+        canonical = str(raw_canonical).strip()
+        if canonical and canonical.lower() != "null" and not merged.get("canonical_unit"):
+            merged["canonical_unit"] = canonical
 
     if not merged.get("allowed_units"):
-        allowed: list[str] = []
-        for ref in edge_targets(dim_meta, "references"):
-            if ref:
-                allowed.append(ref)
+        allowed = dimension_allowed_unit_ids(dim_meta)
         if allowed:
             merged["allowed_units"] = allowed
 
@@ -198,15 +202,14 @@ def resolve_dimension_output_spec(output_spec: dict[str, Any]) -> dict[str, Any]
     if key and not merged.get("dimension"):
         merged["dimension"] = key
 
-    canonical = str(dim_meta.get("canonical_unit", "")).strip()
-    if canonical and not merged.get("canonical_unit"):
-        merged["canonical_unit"] = canonical
+    raw_canonical = dim_meta.get("canonical_unit")
+    if raw_canonical is not None:
+        canonical = str(raw_canonical).strip()
+        if canonical and canonical.lower() != "null" and not merged.get("canonical_unit"):
+            merged["canonical_unit"] = canonical
 
     if not merged.get("allowed_units"):
-        allowed: list[str] = []
-        for ref in edge_targets(dim_meta, "references"):
-            if ref:
-                allowed.append(ref)
+        allowed = dimension_allowed_unit_ids(dim_meta)
         if allowed:
             merged["allowed_units"] = allowed
 

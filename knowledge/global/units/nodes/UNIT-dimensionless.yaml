@@ -1,11 +1,23 @@
 ---
 id: UNIT-dimensionless
 type: unit
-symbol: dimensionless
-dimension: dimensionless
-description: Dimensionless quantity
+symbol: "1"
+name: Dimensionless
+dimension: DIM-dimensionless
+description: >
+  Unit used for ratios, factors, coefficients, and pure numbers.
 aliases:
-- '1'
-- ''
-edges: []
+  - dimensionless
+  - none
+  - "-"
+conversion:
+  target: UNIT-dimensionless
+  factor: 1
+  offset: 0
+edges:
+  - type: belongs_to_dimension
+    target: DIM-dimensionless
+metadata:
+  status: active
+  version: 1
 ---

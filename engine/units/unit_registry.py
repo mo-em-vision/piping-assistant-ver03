@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from engine.reference.parameter_metadata import normalize_allowed_units
-from engine.units.unit_ids import normalize_dimension, symbol_from_unit_id
+from engine.units.unit_ids import normalize_dimension, symbol_from_unit_id, unit_dimension_key
 from engine.units.unit_resolver import UnitResolver, get_unit_resolver
 
 
@@ -32,7 +32,7 @@ class UnitRegistry:
         for node_id, record in graph.nodes.items():
             if record.node_type != "unit":
                 continue
-            dimension = str(record.metadata.get("dimension") or "").strip().lower()
+            dimension = unit_dimension_key(record.metadata)
             if dimension:
                 grouped.setdefault(dimension, set()).add(node_id)
         self._by_dimension = {

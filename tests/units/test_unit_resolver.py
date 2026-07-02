@@ -103,7 +103,7 @@ def test_unit_pack_compiles() -> None:
 def test_physical_dimensions_pack_compiles() -> None:
     from engine.graph.graph_builder import GraphBuilder
     from engine.reference.graph_cache import write_graph_cache
-    from engine.reference.graph_edge_schema import edge_targets
+    from engine.reference.graph_edge_schema import dimension_allowed_unit_ids
     from pathlib import Path
 
     pack_root = Path(__file__).resolve().parents[2] / "knowledge" / "global" / "dimensions"
@@ -113,7 +113,7 @@ def test_physical_dimensions_pack_compiles() -> None:
     assert "DIM-dimensionless" in graph.nodes
     assert "DIM-material-designation" in graph.nodes
     pressure = graph.nodes["DIM-pressure"]
-    assert set(edge_targets(pressure.metadata, "references")) == {
+    assert set(dimension_allowed_unit_ids(pressure.metadata)) == {
         "UNIT-Pa",
         "UNIT-MPa",
         "UNIT-psi",

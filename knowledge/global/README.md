@@ -12,8 +12,8 @@ Cross-pack registries and graph node packs that are not tied to a single ASME/AP
 |--------|-----|------|
 | [materials/](materials/) | Global material registry (`registry.yaml`) and search catalog (`materials.db`) |
 | [parameters/](parameters/) | Canonical engineering concepts (`PARAM-*`) referencing dimension nodes |
-| [dimensions/](dimensions/) | Pipe NPS registry + physical dimension nodes (`DIM-*`) referencing unit nodes |
-| [units/](units/) | Global unit graph (`UNIT-mm`, `UNIT-MPa`, …) and `derived_from` edges |
+| [dimensions/](dimensions/) | Pipe NPS registry + physical dimension nodes (`DIM-*`) with `allows_unit` edges |
+| [units/](units/) | Global unit graph (`UNIT-mm`, `UNIT-MPa`, …) with `belongs_to_dimension` and `converts_to` edges |
 | [datatypes/](datatypes/) | *(new)* | Placeholder for future datatype ontology nodes |
 
 ## Entry Points
@@ -24,7 +24,7 @@ Cross-pack registries and graph node packs that are not tied to a single ASME/AP
 | `materials/supplemental.yaml` | Supplemental non-ASTM material entries |
 | `dimensions/registry.yaml` | Pipe dimension source registry |
 | `parameters/nodes/PARAM-*.yaml` | Canonical parameters (pressure, temperature, material, …) with `has_dimension` edges |
-| `dimensions/nodes/DIM-*.yaml` | Physical dimensions (pressure, length, …) with `references` to unit nodes |
+| `dimensions/nodes/DIM-*.yaml` | Physical dimensions (pressure, length, …) with `allows_unit` edges to unit nodes |
 | `units/index.md` | Unit pack manifest |
 | `units/nodes/UNIT-*.yaml` | Unit graph nodes (14 flat YAML files) |
 
@@ -57,7 +57,7 @@ load_material_registry(standards_root)
 Parameter node (PARAM-design-pressure)
   → has_dimension → DIM-pressure
 Dimension node (DIM-pressure)
-  → references → UNIT-Pa, UNIT-MPa, UNIT-psi, UNIT-bar
+  → allows_unit → UNIT-Pa, UNIT-MPa, UNIT-psi, UNIT-bar
 Unit nodes (UNIT-*)
   → dimension: pressure (string key matching DIM-* .key)
 ```

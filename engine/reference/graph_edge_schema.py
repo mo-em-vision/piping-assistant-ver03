@@ -36,6 +36,12 @@ CANONICAL_EDGE_TYPES = frozenset(
         "dimension_of",
         "introduced_by",
         "introduces",
+        "allows_unit",
+        "allowed_by",
+        "converts_to",
+        "converted_from",
+        "belongs_to_dimension",
+        "includes_unit",
     }
 )
 
@@ -89,6 +95,12 @@ REVERSE_EDGE_TYPE: dict[str, str] = {
     "dimension_of": "has_dimension",
     "introduced_by": "introduces",
     "introduces": "introduced_by",
+    "allows_unit": "allowed_by",
+    "allowed_by": "allows_unit",
+    "converts_to": "converted_from",
+    "converted_from": "converts_to",
+    "belongs_to_dimension": "includes_unit",
+    "includes_unit": "belongs_to_dimension",
 }
 
 FORWARD_EDGE_TYPE: dict[str, str] = {value: key for key, value in REVERSE_EDGE_TYPE.items()}
@@ -160,6 +172,14 @@ def edge_targets(metadata: dict[str, Any], *edge_types: str) -> list[str]:
         if target:
             targets.append(target)
     return targets
+
+
+def dimension_allowed_unit_ids(metadata: dict[str, Any]) -> list[str]:
+    """Return unit node ids allowed for a dimension (prefers ``allows_unit`` edges)."""
+    allowed = edge_targets(metadata, "allows_unit")
+    if allowed:
+        return allowed
+    return edge_targets(metadata, "references")
 
 
 def workflow_anchor_target(metadata: dict[str, Any]) -> str | None:

@@ -2,12 +2,26 @@
 id: UNIT-psi
 type: unit
 symbol: psi
-dimension: pressure
-description: Pounds per square inch
+name: Pound per Square Inch
+dimension: DIM-pressure
+description: >
+  Pressure unit equal to one pound-force per square inch.
 aliases:
-- PSI
-edges:
-- type: derived_from
+  - PSI
+  - lb/in2
+  - lbf/in2
+conversion:
   target: UNIT-Pa
   factor: 6894.757293168
+  offset: 0
+edges:
+  - type: belongs_to_dimension
+    target: DIM-pressure
+  - type: converts_to
+    target: UNIT-Pa
+    factor: 6894.757293168
+    offset: 0
+metadata:
+  status: active
+  version: 1
 ---

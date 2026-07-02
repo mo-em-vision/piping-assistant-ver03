@@ -2,13 +2,25 @@
 id: UNIT-m
 type: unit
 symbol: m
-dimension: length
-description: Meter (SI)
+name: Meter
+dimension: DIM-length
+description: >
+  SI base unit of length.
 aliases:
-- meter
-- metre
-edges:
-- type: derived_from
+  - meter
+  - metre
+conversion:
   target: UNIT-mm
   factor: 1000.0
+  offset: 0
+edges:
+  - type: belongs_to_dimension
+    target: DIM-length
+  - type: converts_to
+    target: UNIT-mm
+    factor: 1000.0
+    offset: 0
+metadata:
+  status: active
+  version: 1
 ---

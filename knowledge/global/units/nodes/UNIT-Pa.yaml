@@ -2,12 +2,21 @@
 id: UNIT-Pa
 type: unit
 symbol: Pa
-dimension: pressure
-description: Pascal (SI)
+name: Pascal
+dimension: DIM-pressure
+description: >
+  SI pressure unit equal to one newton per square meter.
 aliases:
-- pa
+  - pa
+  - pascal
+conversion:
+  target: UNIT-Pa
+  factor: 1
+  offset: 0
 edges:
-- type: derived_from
-  target: UNIT-MPa
-  factor: 1.0e-06
+  - type: belongs_to_dimension
+    target: DIM-pressure
+metadata:
+  status: active
+  version: 1
 ---

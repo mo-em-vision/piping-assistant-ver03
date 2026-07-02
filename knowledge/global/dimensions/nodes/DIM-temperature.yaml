@@ -3,14 +3,16 @@ id: DIM-temperature
 type: dimension
 key: temperature
 name: Temperature
+dimension_kind: physical
 canonical_unit: UNIT-K
-description: Thermodynamic temperature and customary temperature scales.
+description: >
+  Thermodynamic temperature and customary temperature scales.
 edges:
-  - type: references
+  - type: allows_unit
     target: UNIT-K
-  - type: references
+  - type: allows_unit
     target: UNIT-degC
-  - type: references
+  - type: allows_unit
     target: UNIT-degF
 metadata:
   status: active

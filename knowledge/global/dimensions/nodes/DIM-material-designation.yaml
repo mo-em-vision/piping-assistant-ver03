@@ -3,11 +3,12 @@ id: DIM-material-designation
 type: dimension
 key: material_designation
 name: Material Designation
-canonical_unit: UNIT-dimensionless
-description: Material specification, grade, or designation used to resolve properties and limits.
-edges:
-  - type: references
-    target: UNIT-dimensionless
+dimension_kind: categorical
+canonical_unit: null
+description: >
+  Material specification, grade, or designation used to resolve properties,
+  limits, allowable stresses, and material-dependent engineering rules.
+edges: []
 metadata:
   status: active
   version: 1
