@@ -12,7 +12,7 @@ expected_authorities:
 - AUTH-ASME-B31.3
 - AUTH-ASME-B36.10M
 entry_points:
-- paragraph: 304.1.2
+- paragraph: 304.1.2-a
   role: definition_anchor
 expected_parameters:
 - PARAM-straight-pipe-section
@@ -22,9 +22,10 @@ expected_parameters:
 - PARAM-outside-diameter
 - PARAM-actual-wall-thickness
 - PARAM-corrosion-allowance
-- PARAM-material-specification
+- PARAM-material-grade
+- PARAM-metallurgical-group
 - PARAM-design-temperature
-- PARAM-joint-category
+- PARAM-pipe-construction-type
 - PARAM-weld-joint-efficiency
 - PARAM-weld-strength-reduction-factor-W
 - PARAM-temperature-coefficient-Y
@@ -51,12 +52,13 @@ phases:
   - PARAM-outside-diameter
   - PARAM-actual-wall-thickness
   - PARAM-corrosion-allowance
-  - PARAM-material-specification
+  - PARAM-material-grade
   - PARAM-design-temperature
 - key: coefficient_resolution
   purpose: Resolve coefficients required by the MAWP equation.
   required_parameters:
-  - PARAM-joint-category
+  - PARAM-metallurgical-group
+  - PARAM-pipe-construction-type
   - PARAM-weld-joint-efficiency
   - PARAM-weld-strength-reduction-factor-W
   - PARAM-temperature-coefficient-Y
@@ -84,36 +86,18 @@ report:
   - conclusion
 edges:
 - type: depends_on
-  target: B313-table-A-1
+  target: asme-b313-table-A-1
 - type: requires_parameter
   target: WF-PIPE-WALL-THICKNESS
 - type: starts_from_paragraph
-  target: 304.1.2
+  target: 304.1.2-a
 - type: may_use_equation
-  target: asme_b313_pressure_design_thickness
+  target: asme-b313-pressure-design-thickness
 - type: may_use_equation
-  target: asme_b313_mawp_pressure
+  target: asme-b313-mawp-pressure
 metadata:
   status: draft
   version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---
-
-Calculate maximum allowable working pressure for piping components.
-
-# Maximum Allowable Working Pressure — Definition
-
-This workflow guides you through calculating the Maximum Allowable Working
-Pressure (MAWP) of piping components according to ASME B31.3.
-
-## Governing relationships
-
-1. Pressure design thickness: `t = t_actual - c`
-2. Maximum Allowable Working Pressure: `MAWP = 2SEWt / (D - 2Yt)`
-
-# MAWP Calculation
-
-Computes `MAWP = 2SEWt / (D - 2Yt)` per §304.1.2.
-
-# Pressure Design Thickness
-
-Computes `t = t_actual - c` before MAWP calculation.

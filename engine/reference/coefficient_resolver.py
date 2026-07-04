@@ -98,6 +98,7 @@ def lookup_y_coefficient(
     design_temperature: float,
     design_temperature_unit: str = "F",
     material: str | None = None,
+    metallurgical_group: str | None = None,
 ) -> tuple[float, bool]:
     """Return Y from Table 304.1.1-1 at design temperature."""
     from engine.reference.standards_tables import flatten_lookup_table_rows
@@ -105,7 +106,10 @@ def lookup_y_coefficient(
     table_data = _load_table(pack_root, TABLE_304_1_1)
     temp_f = temperature_to_fahrenheit(design_temperature, design_temperature_unit)
     rows = flatten_lookup_table_rows(table_data)
-    if material:
+    group_token = str(metallurgical_group or "").strip()
+    if group_token:
+        rows = _filter_y_rows_for_material(rows, group_token)
+    elif material:
         rows = _filter_y_rows_for_material(rows, material)
     elif rows:
         rows = [row for row in rows if row.get("material_id") == "ferritic_steels"] or rows
@@ -137,7 +141,7 @@ def _filter_y_rows_for_material(rows: list[dict[str, Any]], material: str) -> li
 
 
 def compute_thick_wall_y(*, inside_diameter: float, outside_diameter: float, corrosion_allowance: float = 0.0) -> float:
-    """Thick-wall Y per §304.1.1(b): Y = (d + 2c) / (D + d + 2c)."""
+    """Thick-wall Y per §304.1.1-b: Y = (d + 2c) / (D + d + 2c)."""
     d = inside_diameter
     d_val = d + 2.0 * corrosion_allowance
     denom = outside_diameter + d + 2.0 * corrosion_allowance
@@ -267,10 +271,22 @@ def propose_coefficient_defaults(
             raw_temp = temp.value
             temp_unit = getattr(temp, "unit", "F") or "F"
         try:
+            group_raw = existing_inputs.get("metallurgical_group")
+            group_value = None
+            if group_raw is not None:
+                group_value = group_raw.value if hasattr(group_raw, "value") else group_raw
+            material_raw = existing_inputs.get("material")
+            material_value = None
+            if material_raw is not None:
+                material_value = (
+                    material_raw.value if hasattr(material_raw, "value") else material_raw
+                )
             y_value, _ = lookup_y_coefficient(
                 pack_root,
                 design_temperature=float(raw_temp),
                 design_temperature_unit=str(temp_unit),
+                metallurgical_group=str(group_value) if group_value else None,
+                material=str(material_value) if material_value and not group_value else None,
             )
             proposed["temperature_coefficient_Y"] = (
                 y_value,
@@ -327,7 +343,7 @@ def propose_coefficient_defaults(
         if w_value is not None:
             proposed["weld_joint_strength_reduction_factor_W"] = (
                 w_value,
-                "Table 302.3.5-1 per §302.3.5(e)",
+                "Table 302.3.5-1 per §302.3.5-e",
             )
 
     return proposed

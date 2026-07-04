@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.reference.graph_compile import validate_no_links_metadata
+from engine.validation.node_revision_metadata import validate_revision_metadata
+
 ALLOWED_AUTHORITY_CLASSES = frozenset(
     {
         "design_code",
@@ -57,6 +60,8 @@ def validate_authority_node(meta: dict[str, Any]) -> list[str]:
         issues.append(f"unknown authority_class: {meta['authority_class']}")
     if not meta.get("description"):
         issues.append("missing description")
+    issues.extend(validate_revision_metadata(meta))
+    issues.extend(validate_no_links_metadata(meta))
     for field in _FORBIDDEN_FIELDS:
         if field in meta:
             issues.append(f"forbidden field: {field}")

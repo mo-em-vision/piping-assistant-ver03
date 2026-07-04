@@ -31,10 +31,7 @@ lookups:
 edges:
 - type: introduces_parameter
   target: mechanical_properties
+metadata:
+  last_revision: 2026-07-04
+  edited_by: admin
 ---
-
-# ASTM A106 — Material Properties
-
-> **Development reference data — verify against licensed ASTM A106/A106M for production use.**
-
-Lookup for seamless carbon steel pipe grades **A106 Gr A**, **A106 Gr B**, and **A106 Gr C**, including chemical composition limits and minimum mechanical properties.

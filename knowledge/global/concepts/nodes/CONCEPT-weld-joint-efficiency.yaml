@@ -1,0 +1,29 @@
+---
+id: CONCEPT-weld-joint-efficiency
+type: concept
+key: weld_joint_efficiency
+name: Weld Joint Efficiency
+concept_class: factor
+dimension: null
+description: >
+  Dimensionless factor representing the efficiency assigned to a welded
+  joint based on weld type, examination extent, construction requirements,
+  or governing authority rules.
+aliases:
+  - joint efficiency
+  - weld joint efficiency
+  - quality factor
+  - joint quality factor
+edges:
+  - type: has_parameter
+    target: PARAM-weld-joint-efficiency
+  - type: used_by
+    target: asme-b313-table-A-2
+  - type: used_by
+    target: asme-b313-table-A-3
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

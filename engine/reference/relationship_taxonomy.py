@@ -39,24 +39,32 @@ _AUTHORITY = frozenset(
     }
 )
 
-# --- Paragraph / equation / workflow (knowledge) ---
+# --- Paragraph / equation / lookup / validation_rule / workflow (knowledge) ---
 _PARAGRAPH_EQ_WF = frozenset(
     {
         "introduces_parameter",
         "references_concept",
         "references_equation",
+        "references_lookup",
+        "references_validation_rule",
         "references_table",
         "constrains_parameter",
         "redirects_to",
         "authorized_by",
         "requires_parameter",
         "calculates_parameter",
+        "returns_parameter",
+        "reads_table",
         "validates_parameter",
+        "constrains_equation",
+        "creates_warning",
         "depends_on_equation",
         "uses_authority",
         "may_use_authority",
         "starts_from_paragraph",
         "may_use_equation",
+        "may_use_lookup",
+        "may_use_validation_rule",
         "may_create_goal",
     }
 )
@@ -126,6 +134,8 @@ RUNTIME_ONLY_EDGE_TYPES = frozenset(
         "included_in_report",
         "explains",
         "supports_conclusion",
+        "produces_validation_result",
+        "blocks_goal",
     }
 )
 
@@ -166,6 +176,8 @@ REFERENCE_ROLE_TO_TAXONOMY: dict[str, str] = {
     "refines_authority": "refines_authority",
     "references_authority": "references_authority",
     "references_equation": "references_equation",
+    "references_lookup": "references_lookup",
+    "references_validation_rule": "references_validation_rule",
     "references_table": "references_table",
     "references_concept": "references_concept",
     "introduces_parameter": "introduces_parameter",
@@ -191,6 +203,10 @@ TAXONOMY_TO_LEGACY_QUERY_ALIASES: dict[str, frozenset[str]] = {
     "contains_table": frozenset({"table", "contains"}),
     "constrains_parameter": frozenset({"constrains"}),
     "may_use_equation": frozenset({"equation"}),
+    "may_use_lookup": frozenset({"lookup"}),
+    "references_lookup": frozenset({"requires_lookup"}),
+    "reads_table": frozenset({"table", "used_by_lookup"}),
+    "returns_parameter": frozenset({"parameter"}),
     "depends_on_equation": frozenset({"depends_on", "equation"}),
     "redirects_to": frozenset({"next"}),
     "related_to": frozenset({"references"}),
@@ -211,6 +227,8 @@ DEPENDENCY_TRAVERSAL_TYPES = frozenset(
         "references",
         "references_table",
         "references_equation",
+        "references_lookup",
+        "reads_table",
         "belongs_to_authority",
         "references_authority",
         "table",
@@ -249,19 +267,43 @@ RELATIONSHIP_RULES: dict[str, RelationshipRule] = {
     ),
     "contains_paragraph": RelationshipRule(source_types=frozenset({"authority"})),
     "contains_table": RelationshipRule(source_types=frozenset({"authority"}), target_prefixes=frozenset({"B313-table", "TABLE-"})),
-    "authorized_by": RelationshipRule(source_types=frozenset({"equation"})),
+    "authorized_by": RelationshipRule(
+        source_types=frozenset({"equation", "lookup", "validation_rule"}),
+    ),
     "requires_parameter": RelationshipRule(
-        source_types=frozenset({"equation", "workflow", "paragraph", "calculation"}),
+        source_types=frozenset({"equation", "lookup", "validation_rule", "workflow", "paragraph", "calculation"}),
         target_prefixes=frozenset({"PARAM-", "param-"}),
     ),
     "calculates_parameter": RelationshipRule(
         source_types=frozenset({"equation", "calculation"}),
         target_prefixes=frozenset({"PARAM-", "param-"}),
     ),
+    "returns_parameter": RelationshipRule(
+        source_types=frozenset({"lookup"}),
+        target_prefixes=frozenset({"PARAM-", "param-"}),
+    ),
+    "reads_table": RelationshipRule(
+        source_types=frozenset({"lookup"}),
+        target_prefixes=frozenset({"B313-table", "TABLE-"}),
+    ),
+    "validates_parameter": RelationshipRule(
+        source_types=frozenset({"validation_rule", "rule"}),
+        target_prefixes=frozenset({"PARAM-", "param-"}),
+    ),
+    "constrains_equation": RelationshipRule(
+        source_types=frozenset({"validation_rule"}),
+    ),
+    "creates_warning": RelationshipRule(
+        source_types=frozenset({"validation_rule"}),
+    ),
     "references_equation": RelationshipRule(source_types=frozenset({"paragraph", "workflow"})),
-    "references_table": RelationshipRule(source_types=frozenset({"paragraph", "equation", "workflow"})),
+    "references_lookup": RelationshipRule(source_types=frozenset({"paragraph", "workflow"})),
+    "references_validation_rule": RelationshipRule(source_types=frozenset({"paragraph", "workflow"})),
+    "references_table": RelationshipRule(source_types=frozenset({"paragraph", "workflow"})),
     "starts_from_paragraph": RelationshipRule(source_types=frozenset({"workflow"})),
     "may_use_equation": RelationshipRule(source_types=frozenset({"workflow"})),
+    "may_use_lookup": RelationshipRule(source_types=frozenset({"workflow"})),
+    "may_use_validation_rule": RelationshipRule(source_types=frozenset({"workflow"})),
     "introduces_parameter": RelationshipRule(
         source_types=frozenset({"paragraph"}),
         target_prefixes=frozenset({"PARAM-", "param-"}),
@@ -338,6 +380,13 @@ def normalize_authoring_edge(
         return normalized
 
     if not allow_legacy:
+        return None
+
+    if edge_type == "requires_lookup":
+        normalized["type"] = "references_lookup"
+        return normalized
+
+    if edge_type == "used_by_lookup":
         return None
 
     if edge_type == "references":

@@ -1,0 +1,25 @@
+---
+id: PARAM-metallurgical-group
+type: parameter
+key: metallurgical_group
+name: Metallurgical Group
+parameter_class: selection
+description: >
+  Metallurgical family used to resolve material-dependent coefficients and
+  table groupings (e.g. ferritic steels, austenitic steels) per Table 304.1.1-1.
+canonical_symbol: metallurgical_group
+aliases:
+  - material family
+  - base metal group
+  - metallurgical family
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: used_by
+    target: asme-b313-table-304-1-1-1
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

@@ -99,7 +99,7 @@ def test_classify_marks_unconfirmed_defaults_as_missing() -> None:
     reader = _reader()
     known, missing = classify_formula_parameters(
         reader,
-        "B313-304.1.2",
+        "304.1.2-a",
         task_inputs=facts_from_inputs(
             {
                 "design_pressure": legacy_input("design_pressure", 500.0, "psi"),

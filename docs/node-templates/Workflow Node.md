@@ -18,6 +18,8 @@ Which Parameters are expected.
 Which Equations, Paragraphs, and validation checks may participate.
 ```
 
+Do **not** author a top-level `links` metadata block — object relationships belong in typed `edges` only ([`_relationship_schema.md`](_relationship_schema.md#on-disk-rule)).
+
 ```yaml
 ---
 id: WF-pipe-wall-thickness-design
@@ -48,7 +50,7 @@ entry_points:
   - paragraph: B313-304.1.1
     role: definition_anchor
 
-  - paragraph: B313-304.1.2
+  - paragraph: 304.1.2-a
     role: internal_pressure_branch
 
   - paragraph: B313-304.1.3
@@ -139,6 +141,9 @@ edges:
 
   - type: may_use_equation
     target: EQ-B313-wall-thickness
+
+  - type: may_use_lookup
+    target: LOOKUP-B313-material-allowable-stress
 
   - type: may_create_goal
     target: GOALTEMPLATE-required-wall-thickness
@@ -283,7 +288,7 @@ entry_points:
   - paragraph: B313-304.1.1
     role: definition_anchor
 
-  - paragraph: B313-304.1.2
+  - paragraph: 304.1.2-a
     role: internal_pressure_branch
 ```
 
@@ -360,7 +365,7 @@ branches:
     selected_when:
       parameter: PARAM-pressure-loading
       value: internal_pressure
-    entry_point: B313-304.1.2
+    entry_point: 304.1.2-a
 
   - key: external_pressure
     selected_when:
@@ -504,6 +509,8 @@ requires_parameter
 produces_parameter
 may_create_goal
 may_use_equation
+may_use_lookup
+may_use_validation_rule
 requires_validation
 has_phase
 has_branch
@@ -520,6 +527,9 @@ edges:
 
   - type: may_use_equation
     target: EQ-B313-wall-thickness
+
+  - type: may_use_lookup
+    target: LOOKUP-B313-material-allowable-stress
 
   - type: requires_parameter
     target: PARAM-design-pressure

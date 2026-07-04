@@ -27,7 +27,7 @@ from models.report import (
 from models.task import Task, TaskStatus
 
 ROOT_SLUG = "pipe_wall_thickness_design"
-WALL_THICKNESS_NODE = "B313-304.1.2"
+WALL_THICKNESS_NODE = "304.1.2-a"
 
 REQUIRED_INPUTS = ("design_pressure", "outside_diameter", "material", "design_temperature")
 
@@ -233,7 +233,7 @@ def _pipe_wall_conclusion(status: str, missing: list[str], outputs: dict[str, An
         thickness = format_report_number(t_m)
         return (
             f"The minimum required pipe wall thickness is {thickness} {unit}. The selected pipe schedule "
-            "must provide a nominal wall thickness not less than this value per ASME B31.3 §304.1.1(a). "
+            "must provide a nominal wall thickness not less than this value per ASME B31.3 §304.1.1-a. "
             "Refer to the engineering analysis section for the governing equation, substituted "
             "calculation, and schedule recommendation."
         )

@@ -12,6 +12,10 @@ from engine.reference.graph_edge_schema import (
     STORED_EDGE_TYPES,
     edge_target,
 )
+from engine.reference.asme_b313_node_ids import resolve_pack_node_ref
+from engine.reference.qualified_paragraph_ref import (
+    paragraph_subsection_letter,
+)
 from engine.reference.relationship_taxonomy import (
     DISCOURAGED_GENERIC_TYPES,
     KNOWLEDGE_EDGE_TYPES,
@@ -50,6 +54,26 @@ def validate_edge_item(
         issues.append(f"type not storable: {edge_type}")
     if not target:
         issues.append("missing target")
+    subsection = str(item.get("subsection") or "").strip()
+    if subsection and target:
+        resolved_target = resolve_pack_node_ref(target) or target
+        target_letter = paragraph_subsection_letter(resolved_target)
+        if target_letter:
+            if target_letter == subsection.lower():
+                issues.append(
+                    f"subsection {subsection!r} is redundant when target is a lettered paragraph id ({target!r})"
+                )
+            else:
+                section = resolved_target.rsplit("-", 1)[0]
+                issues.append(
+                    f"use full paragraph id {section}-{subsection} instead of "
+                    f"target {target!r} with subsection {subsection!r}"
+                )
+        else:
+            issues.append(
+                f"use full paragraph id instead of target + subsection "
+                f"(e.g. {resolved_target}-{subsection})"
+            )
     for key in item:
         if key in EDGE_ROUTING_KEYS:
             continue

@@ -388,7 +388,7 @@ def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
     planning = {
         "path_decision": {
             "pressure_loading": "internal_pressure",
-            "selected_node": "B313-304.1.2",
+            "selected_node": "304.1.2-a",
         },
         "missing_inputs": ["design_temperature"],
         "current_phase": "formula_parameters",
@@ -416,7 +416,7 @@ def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
     ids = [block["id"] for block in blocks]
     assert not any(block_id.startswith("path-preview-inputs-table") for block_id in ids)
 
-    equation = next(block for block in blocks if block["id"] == "path-preview-equation-B313-304.1.2")
+    equation = next(block for block in blocks if block["id"] == "path-preview-equation-304.1.2-a")
     assert "variables" not in equation
     assert equation["input_table"]["columns"][0]["label"] == "Symbol"
     assert equation["input_table"]["columns"][1]["label"] == "Definition"
@@ -442,7 +442,7 @@ def test_allowable_stress_not_emitted_as_standalone_result_block(standards_reade
         "active_definition_node": "B313-304.1.1",
         "path_decision": {
             "pressure_loading": "internal_pressure",
-            "selected_node": "B313-304.1.2",
+            "selected_node": "304.1.2-a",
         },
         "missing_inputs": ["design_pressure"],
         "current_phase": "formula_parameters",
@@ -453,7 +453,7 @@ def test_allowable_stress_not_emitted_as_standalone_result_block(standards_reade
         "allowable_stress_unit": "Pa",
     }
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
-    task.active_nodes = ["B313-304.1.1", "B313-304.1.2"]
+    task.active_nodes = ["B313-304.1.1", "304.1.2-a"]
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     assert not any(

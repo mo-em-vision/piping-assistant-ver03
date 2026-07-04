@@ -24,6 +24,87 @@ When adding paragraph text, formulas, tables, parameters, or workflows:
 5. Collection `priority` on equation `requires` entries for direct sympy inputs; on parameter nodes for lookup keys only. Questions and resolution live on `parameter`, `assumption`, and `interaction` nodes.
 6. If content does not fit an existing template field, ask the user before adding new template fields.
 
+## Revision metadata (required on every node)
+
+Every knowledge node YAML must include revision fields under `metadata:`:
+
+```yaml
+metadata:
+  last_revision: YYYY-MM-DD   # ISO date of last edit
+  edited_by: admin            # editor id or username
+```
+
+- On **create or edit**, set `last_revision` to today's date and `edited_by` to the current editor (default `admin` when unknown).
+- Paragraph nodes also require `metadata.source_revision_year` (edition year from the governing standard).
+- Validators reject nodes missing `last_revision` or `edited_by`; Dev Studio stamps them automatically on save via `stamp_revision_metadata`.
+
+## ASME B31.3 pack node ids (`asme-b313-` prefix)
+
+Use one consistent pack prefix for **all** ASME B31.3 node ids and cross-pack references:
+
+| Context | Rule | Example |
+| --- | --- | --- |
+| Pack node `id` | `asme-b313-` + hyphenated slug | `asme-b313-table-A-1`, `asme-b313-304-1-1-eq-2` |
+| Paragraph inside pack | bare paragraph id (no pack prefix) | `304.1.1-a`, `302.3.5-e` |
+| Cross-pack edge / `introduced_by` | always `asme-b313-` qualified form | `asme-b313-304-1-2-a`, `asme-b313-table-A-1` |
+
+Do **not** mix legacy prefixes (`B313-`, `asme_b313_`) on new or edited nodes. Helpers: [`engine/reference/asme_b313_node_ids.py`](engine/reference/asme_b313_node_ids.py).
+
+## Paragraph hierarchy (`hierarchy` metadata only)
+
+Parent/child structure for **paragraph** nodes belongs in a `hierarchy` block — never in `edges`:
+
+```yaml
+hierarchy:
+  parent: '304.1'
+  children: []
+```
+
+| Rule | Detail |
+| --- | --- |
+| Leaf paragraphs | `children: []` |
+| Section nodes | `children:` lists ordered child paragraph ids |
+| Forbidden edge types | `parent`, `child`, `children`, `next`, `previous` on paragraph `edges` |
+| Sibling order | Ordered `children` on the parent section — not `hierarchy.next` / `hierarchy.previous` |
+
+Equations and validation rules declare governing paragraphs in the `authority` block — not as `edges`:
+
+```yaml
+authority:
+  authorized_by:
+    - 304.1.2-a
+  authority_context_required: true
+```
+
+| Rule | Detail |
+| --- | --- |
+| Governing paragraph | Non-empty `authority.authorized_by` list of paragraph node ids |
+| Runtime flag | `authority_context_required: true` when execution needs active authority context |
+| Forbidden | `authorized_by` on `edges`; `parent` / `child` structural edges |
+
+The graph compiler emits `authorized_by` edges from `authority.authorized_by` at build time.
+
+## Parameter traceability (`introduced_by` section only)
+
+Global parameter nodes declare where a symbol is introduced in the top-level `introduced_by` list — not as `edges`:
+
+```yaml
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: has_dimension
+    target: DIM-pressure
+  - type: used_by
+    target: asme-b313-304-1-2-a
+```
+
+| Rule | Detail |
+| --- | --- |
+| Introducing paragraph | Non-empty `introduced_by` list with pack-qualified paragraph ids |
+| Forbidden | `introduced_by` on `edges` |
+
+The graph compiler emits `introduced_by` edges from the top-level list at build time.
+
 **Quantity vs parameter vs designation:** physical measurables → `quantity` + linked `parameter`; classifications (NPS, schedule) → `designation` + linked `parameter`; task prompts and `input_id` always live on `parameter`. Equations `require` parameter nodes, not quantity nodes directly.
 
 Workflows are defined by `type: workflow` nodes — not `standards/tasks/*/root.md`.

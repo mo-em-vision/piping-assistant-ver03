@@ -1,0 +1,29 @@
+---
+id: 304.3.3-b
+type: paragraph
+key: b313_304_3_3_b
+title: Reinforcement of Welded Branch Connections — Required Area
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.3-b
+text:
+  original: >
+    (b) Required Reinforcement Area. The reinforcement area, A_1, required for a branch
+    connection under internal pressure is: A_1 = t_h d_1 (2 sin β) ... eq. (6). For a
+    branch connection under external pressure, area A_1 is one-half the area calculated
+    by eq. (6), using as t_h the thickness required for external pressure.
+hierarchy:
+  parent: '304.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: references_equation
+    target: asme-b313-304-3-3-eq-6
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

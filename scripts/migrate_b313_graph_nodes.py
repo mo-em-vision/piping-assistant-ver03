@@ -17,7 +17,7 @@ NODES = PACK / "nodes"
 
 SECTION_ID_REPLACEMENTS = {
     "B313-304.1.1-SECTION": "B313-304.1.1",
-    "B313-304.1.2-SECTION": "B313-304.1.2",
+    "304.1.2-a-SECTION": "304.1.2-a",
     "B313-304.1.3-SECTION": "B313-304.1.3",
 }
 
@@ -25,7 +25,7 @@ MOVE_MAP: dict[str, str] = {
     "B313-WF-PIPE-WALL-THICKNESS": "B313-WF-PIPE-WALL-THICKNESS",
     "B313-WF-MAWP": "B313-WF-MAWP",
     "B313-304.1.1-SECTION": "B313-304.1.1",
-    "B313-304.1.2-SECTION": "B313-304.1.2",
+    "304.1.2-a-SECTION": "304.1.2-a",
     "B313-304.1.3-SECTION": "B313-304.1.3",
     "B313-MAWP-SECTION": "B313-MAWP-SECTION",
     "B313-304.1.1-init-text": "B313-304.1.1-init-text",
@@ -46,7 +46,7 @@ PARAM_PREFIX = "B313-param-"
 
 LEGACY_SUPERSEDE = [
     NODES / "B313-304.1.1" / "node.md",
-    NODES / "B313-304.1.2" / "node.md",
+    NODES / "304.1.2-a" / "node.md",
     NODES / "B313-304.1.3" / "node.md",
     NODES / "B313-304.1.1" / "equations" / "eq_2_minimum_required_thickness.md",
 ]

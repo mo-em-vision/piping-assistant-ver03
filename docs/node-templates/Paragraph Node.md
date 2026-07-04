@@ -1,127 +1,86 @@
-# Paragraph Node Template
+# Paragraph Node 
 
-> **Implementation:** B31.3 paragraph sources at [`knowledge/standards/asme/asme_b31.3/nodes/paragraph/`](../../knowledge/standards/asme/asme_b31.3/nodes/paragraph/) (on-disk ids such as `304.1.1`, not `B313-*`). Validator: [`engine/validation/paragraph_node_validator.py`](../../engine/validation/paragraph_node_validator.py). Executor-critical legacy fields (nomenclature, interactions, inputs, equations) live in sidecars under `paragraph/{id}/nomenclature.yaml` and `paragraph/{id}/execution.yaml`, merged at load time by [`engine/reference/paragraph_sidecar.py`](../../engine/reference/paragraph_sidecar.py) and [`engine/graph/graph_builder.py`](../../engine/graph/graph_builder.py). Runtime `B313-*` ids are aliases only — see [`engine/reference/b313_legacy_aliases.py`](../../engine/reference/b313_legacy_aliases.py). Linked authority: [`Authority Node`](Authority%20Node.md) (`AUTH-ASME-B31.3`).
+A Paragraph node represents one exact subdivision of an authoritative source.
 
-## Canonical edge mapping (template → stored YAML)
+A Paragraph node is an authority text anchor.
 
-On-disk YAML uses native taxonomy edge types. Legacy transport is accepted only via migration/import.
+It stores the original standard text and connects that text to related engineering objects via typed `edges` (Concepts, Parameters, Equations, Lookups, Tables, Validation Rules, and other Paragraphs).
 
-| Template edge | Stored `edges` entry |
-|---------------|----------------------|
-| `belongs_to_authority` | `{type: belongs_to_authority, target: AUTH-*}` |
-| `introduces_parameter` | `{type: introduces_parameter, target: PARAM-*}` or virtual `param-*` from nomenclature |
-| `references_equation` | `{type: references_equation, target: <equation-node-id>}` |
-| `references_table` | `{type: references_table, target: <table-node-id>}` |
-| `depends_on` | `{type: depends_on, target: ...}` or `{type: related_to, target: ...}` |
-| Section parent | `{type: parent, target: <paragraph-number>}` |
-
-See [`_relationship_schema.md`](_relationship_schema.md) for the full edge vocabulary and legacy import map.
-
-A Paragraph node represents a specific authoritative statement, clause, section, note, or subsection from an Authority.
-
-A Paragraph belongs to an Authority.  
-A Paragraph may introduce Parameters, reference Concepts, constrain Equations, define applicability, and justify engineering decisions.
-
-A Paragraph does **not** store runtime values.  
-A Paragraph does **not** execute calculations by itself.  
-A Paragraph is an authority anchor.
+A Paragraph node should not contain runtime values, calculation results, execution state, or excessive interpretation.
 
 ```yaml
 ---
-id: B313-304.1.2
+id: 304.1.2-a
 type: paragraph
 
-key: b313_304_1_2
-title: Straight Pipe Under Internal Pressure
-
+key: b313_304_1_2_a
 authority: AUTH-ASME-B31.3
 edition: 2024
 
-paragraph_number: "304.1.2"
-section: "304"
-subsection: "304.1.2"
+paragraph_number: 304.1.2-a
+title: Straight Pipe Under Internal Pressure — Thin Wall
 
-paragraph_class: calculation_requirement
+text:
+  original: >
+    [Insert exact original paragraph text here.]
 
-description: >
-  Defines the internal pressure design thickness equation and applicability
-  requirements for straight pipe subject to internal pressure.
-
-introduced_parameters:
-  - PARAM-design-pressure
-  - PARAM-outside-diameter
-  - PARAM-allowable-stress
-  - PARAM-weld-joint-efficiency
-  - PARAM-weld-strength-reduction-factor-W
-  - PARAM-temperature-coefficient-Y
-  - PARAM-required-wall-thickness
-
-referenced_concepts:
-  - CONCEPT-pressure
-  - CONCEPT-wall-thickness
-  - CONCEPT-temperature
-  - CONCEPT-material
-  - CONCEPT-weld-joint
-
-referenced_equations:
-  - EQ-B313-wall-thickness
-
-applicability:
-  applies_when:
-    - parameter: PARAM-pressure-loading
-      operator: equals
-      value: internal_pressure
-
-    - parameter: PARAM-straight-pipe-section
-      operator: equals
-      value: true
-
-limitations:
-  - id: LIMIT-B313-thin-wall
-    description: >
-      Thin-wall equation is applicable only when the calculated thickness
-      satisfies the applicable thickness-to-diameter criterion.
-    related_parameter: PARAM-thin-wall-applicability
-
-dependencies:
-  - type: requires_lookup
-    target: LOOKUP-B313-material-allowable-stress
-
-  - type: references_paragraph
-    target: B313-302.3.5
+hierarchy:
+  parent: '304.1'
+  children: []
 
 edges:
   - type: belongs_to_authority
     target: AUTH-ASME-B31.3
 
-  - type: introduces_parameter
-    target: PARAM-required-wall-thickness
-
   - type: references_concept
-    target: CONCEPT-wall-thickness
+    target: CONCEPT-pressure
+
+  - type: references_parameter
+    target: PARAM-design-pressure
 
   - type: references_equation
     target: EQ-B313-wall-thickness
 
-  - type: depends_on
-    target: B313-302.3.5
-
 metadata:
   status: active
-  node_version: 1
   source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---
-
-# Paragraph Text
-
-[Insert exact standard paragraph text here.]
-
----
-
-# Engineering Notes
-
-[Optional internal explanation. Must not replace or alter the authoritative text.]
 ```
+
+---
+
+# Subsection naming
+
+ASME B31.3 pack paragraph ids use **bare ids** (no `B313-` prefix). Lettered subsections use a hyphen suffix.
+
+| Concept | Rule | Example |
+| --- | --- | --- |
+| `id` / filename | `{section}-{lowercase_letter}` | `304.1.2-a`, `302.3.5-e` |
+| `paragraph_number` | Same as `id` | `304.1.2-a` — not `304.1.2(a)` |
+| `key` | Underscore machine key | `b313_304_1_2_a` |
+| `text.original` prose | Official citation with parentheses is fine | `**(a)**` in body text |
+| `edges[].target` | Subsection node id | `302.3.5-e` — not `302.3.5` + `subsection: e` |
+| Unlettered paragraph | Single unsuffixed id | `304.1.3` |
+| Preamble before (b) | Unsuffixed base + lettered children | `304.3.1`, `304.3.1-b`, `304.3.1-c` |
+
+**Edge targets:** use the full lettered paragraph `id` in `target`. Do **not** add a separate `subsection` field on edges when a dedicated paragraph node exists (e.g. `target: 302.3.5-e`, not `target: 302.3.5` with `subsection: e`).
+
+**Hierarchy traversal** (parent chain and children) belongs in the `hierarchy` block only:
+
+```yaml
+hierarchy:
+  parent: '304.1'
+  children: []
+```
+
+Sibling read order is the **ordered `children` list on the parent** section node (e.g. `304.1` lists `304.1.1-a`, `304.1.1-b`, `304.1.2-a`, …). Do **not** author `hierarchy.previous` or `hierarchy.next`.
+
+Do **not** use `related_to` edges for parent/sibling sequencing. Do **not** add `parent`, `child`, `next`, or `previous` graph edges on paragraph nodes — use `hierarchy` metadata only. Workflow execution order uses **workflow** `next` edges.
+
+See also [`.cursor/rules/paragraph-subsection-naming.mdc`](../../.cursor/rules/paragraph-subsection-naming.mdc).
 
 ---
 
@@ -130,21 +89,20 @@ metadata:
 A Paragraph node answers:
 
 ```text
-Which authoritative statement supports this engineering requirement, equation, limitation, or decision?
+What does the original authority text say, and what engineering objects is this text connected to?
 ```
 
-Examples:
+It should not answer:
 
 ```text
-ASME B31.3 §304.1.1
-ASME B31.3 §304.1.2
-ASME B31.3 §302.3.5
-API 570 inspection interval clause
-ASTM A106 chemical composition requirement
+How is this equation executed?
+How is this table queried?
+Is this execution compliant?
+Which branch is currently active?
+What value did the user provide?
 ```
 
-Paragraphs are not generic content blocks.  
-They are traceability anchors for engineering authority.
+Those belong to other nodes.
 
 ---
 
@@ -152,418 +110,248 @@ They are traceability anchors for engineering authority.
 
 |Field|Purpose|
 |---|---|
-|`id`|Stable paragraph identity.|
+|`id`|Stable paragraph node identity.|
 |`type`|Must be `paragraph`.|
-|`key`|Machine-safe paragraph key.|
-|`title`|Human-readable title.|
-|`authority`|Parent `AUTH-*` node.|
-|`edition`|Authority edition used for this paragraph text.|
-|`paragraph_number`|Official paragraph, clause, or section number.|
-|`paragraph_class`|Role of the paragraph.|
-|`description`|Short engineering description.|
-|`metadata.source_revision_year`|Published standard year.|
+|`key`|Machine-safe key.|
+|`authority`|Parent Authority node.|
+|`edition`|Standard edition.|
+|`paragraph_number`|Same as `id` (hyphen form for subsections).|
+|`text.original`|Exact original paragraph text.|
+|`metadata.source_revision_year`|Source revision year.|
+|`metadata.last_revision`|ISO date of last content edit.|
+|`metadata.edited_by`|Editor id (currently `admin`).|
 
 ---
 
-# Recommended `paragraph_class` values
+# Recommended fields
 
-```yaml
-definition
-calculation_requirement
-lookup_requirement
-applicability_requirement
-validation_requirement
-limitation
-exception
-note
-table_reference
-figure_reference
-inspection_requirement
-testing_requirement
-acceptance_criteria
-reporting_requirement
-```
+|Field|Purpose|
+|---|---|
+|`title`|Short display title, if useful.|
+|`hierarchy.parent`|Parent paragraph or section.|
+|`hierarchy.children`|Child subsections (order = sibling read order).|
+|`edges`|Typed graph relationships (sole linkage mechanism).|
 
 ---
 
-# Paragraph vs Authority
+# Paragraph granularity
+
+Use one node per meaningful source subdivision.
+
+Good:
 
 ```text
-Authority = source document or governing source.
-Paragraph = specific authoritative statement inside that source.
+304.1.1-a
+304.1.1-b
+304.1.3
 ```
 
-Example:
+Avoid stuffing multiple independent subsections into one node.
+
+Bad:
 
 ```text
-AUTH-ASME-B31.3
-  └── B313-304.1.2
+B313-304.1
+  contains all of 304.1.1, 304.1.2, 304.1.3, 304.1.4 as one large text block
 ```
 
-The Authority tells us where the requirement comes from.  
-The Paragraph tells us the exact clause used.
+Each subsection should be independently addressable because different subsections may connect to different Parameters, Equations, Tables, or Validation Rules.
 
 ---
 
-# Paragraph vs Concept
+# Nomenclature paragraphs
 
-A Paragraph may mention or introduce a Concept, but it does not own the Concept.
+When `metadata.kind: nomenclature` (e.g. `304.1.1-b`), the paragraph **defines symbols only**. Author:
 
-Example:
+- `belongs_to_authority`
+- `introduces_parameter` — one edge per symbol introduced in `text.original`
+
+Do **not** author on nomenclature paragraphs:
+
+- `references_table`, `references_concept`, `references_equation`, `related_to`
+- a `links` metadata block (knowledge nodes use `edges` only)
+
+Table and lookup relationships belong on the corresponding global [`PARAM-*`](../../knowledge/global/parameters/nodes/) nodes via `used_by` edges. Graph traversal reaches tables through `introduces_parameter` → `PARAM-*` → `used_by` → table/lookup.
+
+Prose traces (e.g. W cites para. 302.3.5(e)) stay in the nomenclature sidecar `citations` block when they must not expand execution.
+
+---
+
+# Original text field
+
+The Paragraph node should have a dedicated original text field:
 
 ```yaml
-referenced_concepts:
-  - CONCEPT-pressure
-  - CONCEPT-wall-thickness
+text:
+  original: >
+    [Exact original paragraph text.]
 ```
 
-Correct:
+`source_language` is set once in the pack root [`pack.yaml`](../../knowledge/standards/asme/asme_b31.3/pack.yaml) and inherited by all child nodes at load time. Do **not** repeat it on paragraph nodes.
 
-```text
-ASME B31.3 references the concept of pressure.
-```
+Do not hide the original text in free-form Markdown below the YAML
 
-Incorrect:
 
-```text
-ASME B31.3 owns the concept of pressure.
-```
 
 ---
 
-# Paragraph vs Parameter
+# Interpretation should live outside Paragraph nodes
 
-A Paragraph may introduce a Parameter in a standard-specific context.
-
-Example:
+Paragraph nodes should not contain heavy interpretation fields such as:
 
 ```yaml
-introduced_parameters:
-  - PARAM-design-pressure
-  - PARAM-required-wall-thickness
-```
-
-This means the Paragraph uses or defines the role of those Parameters within the standard.
-
-It does not mean runtime values live in the Paragraph.
-
----
-
-# Paragraph vs Equation
-
-A Paragraph may reference or authorize an Equation.
-
-Example:
-
-```yaml
-referenced_equations:
-  - EQ-B313-wall-thickness
-```
-
-The Paragraph provides authority.  
-The Equation provides deterministic mathematical structure.  
-The Execution Layer evaluates the Equation using Facts.
-
----
-
-# Paragraph text
-
-The exact paragraph text should live below the frontmatter.
-
-```markdown
-# Paragraph Text
-
-[Exact standard paragraph text.]
-```
-
-This supports:
-
-```text
-traceability
-audit
-reporting
-human review
-authority chain explanation
-```
-
-The Paragraph Text should not be paraphrased inside the authoritative text block.
-
-Optional explanation may be added separately:
-
-```markdown
-# Engineering Notes
-```
-
-Engineering Notes are not authority.  
-They are interpretation aids.
-
----
-
-# Applicability model
-
-Paragraph applicability should be structured.
-
-```yaml
+paragraph_class:
 applicability:
-  applies_when:
-    - parameter: PARAM-pressure-loading
-      operator: equals
-      value: internal_pressure
-
-  does_not_apply_when:
-    - parameter: PARAM-pressure-loading
-      operator: equals
-      value: external_pressure
-```
-
-Recommended operators:
-
-```yaml
-equals
-not_equals
-greater_than
-greater_than_or_equal
-less_than
-less_than_or_equal
-in
-not_in
-exists
-not_exists
-```
-
-Applicability is evaluated during planning, graph expansion, validation, or execution readiness.
-
----
-
-# Limitations model
-
-Limitations should be structured and traceable.
-
-```yaml
 limitations:
-  - id: LIMIT-B313-thin-wall
-    description: >
-      Thin-wall equation is only valid when the required condition is satisfied.
-    related_parameter: PARAM-thin-wall-applicability
-    severity: blocking
-```
-
-Recommended severities:
-
-```yaml
-info
-warning
-blocking
-requires_override
-```
-
----
-
-# Exceptions model
-
-```yaml
 exceptions:
-  - id: EXCEPTION-B313-external-pressure
-    description: >
-      This paragraph does not govern external pressure design.
-    redirects_to: B313-304.1.3
+calculation_logic:
+validation_logic:
 ```
 
-Exceptions should not be hidden in prose only.  
-They should be machine-readable when they affect execution path.
+Those should move to dedicated nodes.
+
+Use:
+
+```text
+Equation node
+  for formulas
+
+Lookup node
+  for table lookup behavior
+
+Validation Rule node
+  for compliance/applicability checks
+
+Applicability Rule node
+  for branch activation logic
+
+Table node
+  for structured authority data
+
+Workflow node
+  for task patterns
+```
+
+The Paragraph connects to them via typed `edges`.
 
 ---
 
-# Example: definition paragraph
+# Example: paragraph node with text and edges
 
 ```yaml
 ---
-id: B313-304.1.1
+id: 304.1.2-a
 type: paragraph
 
-key: b313_304_1_1
-title: Straight Pipe General Requirements
-
+key: b313_304_1_2_a
 authority: AUTH-ASME-B31.3
 edition: 2024
 
-paragraph_number: "304.1.1"
-paragraph_class: definition
+paragraph_number: 304.1.2-a
+title: Straight Pipe Under Internal Pressure — Thin Wall
 
-description: >
-  Introduces general requirements and nomenclature for pressure design
-  thickness of straight pipe.
+text:
+  original: >
+    [Exact original paragraph text.]
 
-introduced_parameters:
-  - PARAM-required-wall-thickness
-  - PARAM-corrosion-allowance
-  - PARAM-minimum-required-thickness
-
-referenced_equations:
-  - EQ-B313-minimum-required-thickness
+hierarchy:
+  parent: '304.1'
+  children: []
 
 edges:
   - type: belongs_to_authority
     target: AUTH-ASME-B31.3
 
-  - type: introduces_parameter
-    target: PARAM-corrosion-allowance
+  - type: references_concept
+    target: CONCEPT-pressure
 
-  - type: references_equation
-    target: EQ-B313-minimum-required-thickness
-
-metadata:
-  status: active
-  node_version: 1
-  source_revision_year: 2024
----
-
-# Paragraph Text
-
-[Exact paragraph text.]
-```
-
----
-
-# Example: material standard paragraph
-
-```yaml
----
-id: ASTM-A106-chemical-composition
-type: paragraph
-
-key: astm_a106_chemical_composition
-title: Chemical Composition Requirements
-
-authority: AUTH-ASTM-A106
-edition: 2024
-
-paragraph_number: "Chemical Composition"
-paragraph_class: material_requirement
-
-description: >
-  Defines chemical composition limits for ASTM A106 material grades.
-
-referenced_concepts:
-  - CONCEPT-material
-  - CONCEPT-chemical-composition
-
-introduced_parameters:
-  - PARAM-carbon-content
-  - PARAM-manganese-content
-  - PARAM-phosphorus-content
-  - PARAM-sulfur-content
-
-referenced_tables:
-  - TABLE-ASTM-A106-chemical-composition
-
-edges:
-  - type: belongs_to_authority
-    target: AUTH-ASTM-A106
-
-  - type: references_table
-    target: TABLE-ASTM-A106-chemical-composition
-
-  - type: constrains_parameter
-    target: PARAM-carbon-content
-
-metadata:
-  status: active
-  node_version: 1
-  source_revision_year: 2024
----
-
-# Paragraph Text
-
-[Exact source text.]
-```
-
----
-
-# Allowed relationships
-
-Paragraph nodes may use:
-
-```yaml
-belongs_to_authority
-references_concept
-introduces_parameter
-defines_requirement
-references_equation
-references_table
-references_figure
-depends_on
-constrains_parameter
-validates_parameter
-redirects_to
-supersedes
-superseded_by
-```
-
-Example:
-
-```yaml
-edges:
-  - type: belongs_to_authority
-    target: AUTH-ASME-B31.3
-
-  - type: introduces_parameter
+  - type: references_parameter
     target: PARAM-design-pressure
 
   - type: references_equation
     target: EQ-B313-wall-thickness
 
-  - type: references_table
-    target: TABLE-B313-allowable-stress
+  - type: references_validation_rule
+    target: VALRULE-B313-thin-wall-applicability
+
+metadata:
+  status: active
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---
 ```
 
 ---
 
-# Report behavior
+# Relationship rule
 
-A Paragraph should appear in reports when it:
+Paragraph graph edges should be **typed references** to engineering objects, plus optional `related_to` for **cross-paragraph citations that appear in `text.original`**.
 
-```text
-authorized a calculation
-introduced a required Parameter
-defined an applicability condition
-created a warning or limitation
-provided a table or equation reference
-affected a decision path
+## `hierarchy` vs `edges`
+
+| Concern | Where it lives | Examples |
+| --- | --- | --- |
+| Parent / children | `hierarchy` metadata only | `parent: '304.1'`, `children: [304.1.1-a, 304.1.1-b, …]` |
+| Prose cross-reference to another paragraph | `related_to` edge only | Text cites “para. 304” → `related_to: '304'` |
+
+**Do not** author a `links` metadata block — all object linkage belongs in typed `edges` ([`_relationship_schema.md`](_relationship_schema.md#on-disk-rule)). Use `related_to` for paragraph cross-references cited in `text.original` that should appear in the graph. Definitional back-references in nomenclature that must not expand execution may be omitted from `edges` when `hierarchy` already provides navigation context.
+
+**Do not** use `related_to` for:
+
+- parent/child structure (use `hierarchy.parent` / `hierarchy.children`)
+- “see also” navigation when the authority text does not cite that paragraph
+
+Runtime planners and hierarchy helpers resolve ancestor chains and subsection order from `hierarchy`, not from `related_to`.
+
+## Recommended graph edge types
+
+```yaml
+belongs_to_authority
+references_concept
+references_parameter
+references_equation
+references_lookup
+references_table
+references_validation_rule
+introduces_parameter
+related_to                # only when text.original cites the target paragraph
 ```
 
-Reports should show:
+**Forbidden** structural edge types on paragraph nodes: `parent`, `child`, `next`, `previous`.
 
-```text
-authority name
-edition
-paragraph number
-title
-reason used
-relevant text or controlled excerpt
-related equation/table/decision
+Avoid stronger execution relationships from Paragraph nodes, such as:
+
+```yaml
+requires_parameter
+calculates_parameter
+validates_parameter
+reads_table
 ```
+
+Those belong to Equation, Lookup, Validation Rule, or Workflow nodes.
 
 ---
 
 # Forbidden fields
 
-Paragraph nodes must not contain runtime execution state.
-
-Forbidden:
+Paragraph nodes must not contain:
 
 ```yaml
 runtime_value:
 fact_value:
-user_input:
 execution_id:
 task_id:
 calculation_result:
-selected_for_execution:
+lookup_result:
+validation_result:
+user_input:
+current_status:
 active_in_context:
 ```
 
-Paragraphs also should not contain canonical Concept or Parameter definitions except through references.
+Paragraph nodes also should not contain executable formulas, lookup rules, or validation conditions.
 
 ---
 
@@ -573,23 +361,23 @@ A Paragraph node is invalid if:
 
 1. `type` is not `paragraph`.
     
-2. It has no parent Authority.
+2. It has no parent `authority`.
     
-3. It has no paragraph number, clause identifier, or equivalent source locator.
+3. It has no `paragraph_number`.
     
-4. It stores runtime values.
+4. It has no `text.original`.
     
-5. It duplicates Authority-level metadata unnecessarily.
+5. It stores runtime values.
     
-6. It redefines Concepts instead of referencing them.
+6. It stores execution state.
     
-7. It redefines Parameters instead of introducing or referencing them.
+7. It stores calculation results.
     
-8. It references an Equation without an authority relationship when the Equation is standard-derived.
+8. It contains executable lookup or validation logic.
     
-9. It has machine-relevant applicability or exceptions only in prose.
+9. It combines multiple independently addressable subsections into one node.
     
-10. It lacks source edition metadata.
+10. It references unknown Concepts, Parameters, Equations, Tables, Lookups, or Validation Rules.
     
 
 ---
@@ -597,11 +385,17 @@ A Paragraph node is invalid if:
 # Conceptual rule
 
 ```text
-Authority defines the source.
-Paragraph defines the authoritative statement.
-Concept defines engineering meaning.
-Parameter defines contextual engineering role.
-Equation defines deterministic relationship.
-Fact records runtime value.
-Report explains which Paragraph justified the result.
+Paragraph = original authority text and traceability anchor.
+
+Equation = mathematical relationship.
+
+Lookup = table query behavior.
+
+Validation Rule = compliance or applicability check.
+
+Table = authoritative structured data.
+
+Fact = runtime value.
+
+Authority Context = which authority is active during execution.
 ```

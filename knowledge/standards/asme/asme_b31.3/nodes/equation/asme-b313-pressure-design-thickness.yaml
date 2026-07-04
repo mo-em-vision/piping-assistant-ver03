@@ -1,0 +1,42 @@
+---
+id: asme-b313-pressure-design-thickness
+type: equation
+key: asme-b313-pressure-design-thickness
+name: Pressure Design Thickness from Actual Thickness
+equation_class: calculation
+calculation_kind: function
+description: Pressure Design Thickness from Actual Thickness
+authority:
+  authorized_by:
+  - 304.1.2-a
+  authority_context_required: true
+requires:
+- symbol: t_actual
+  required: true
+  description: Actual or ordered wall thickness
+  parameter: PARAM-measured-wall-thickness
+- symbol: c
+  required: true
+  description: Corrosion allowance
+  parameter: PARAM-corrosion-allowance
+calculates:
+- symbol: t
+  parameter: PARAM-required-wall-thickness
+edges:
+- type: requires_parameter
+  target: PARAM-measured-wall-thickness
+  alias: t_actual
+- type: requires_parameter
+  target: PARAM-corrosion-allowance
+  alias: c
+- type: calculates_parameter
+  target: PARAM-required-wall-thickness
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: pressure_design_thickness
+  last_revision: 2026-07-04
+  edited_by: admin
+display:
+  text: t = t_actual - c
+---

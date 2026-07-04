@@ -1,0 +1,29 @@
+variables:
+  L_4:
+    symbol: L_4
+    description: Height of reinforcement zone outside run pipe
+    unit: mm
+  T_b:
+    symbol: T_b
+    description: Branch pipe wall thickness
+    unit: mm
+  t_b:
+    symbol: t_b
+    description: Pressure design thickness of branch pipe
+    unit: mm
+  c:
+    symbol: c
+    description: Corrosion allowance
+    unit: mm
+  beta:
+    symbol: β
+    description: Smaller angle between axes of branch and run
+    unit: deg
+outputs:
+- symbol: A_3
+  name: branch_excess_thickness_area
+  unit: mm2
+  type: quantity
+equation_id: eq-8
+nomenclature_ref: 304.3.3-a
+display: A_3 = 2L_4(T_b - t_b - c)/\sin(\beta)

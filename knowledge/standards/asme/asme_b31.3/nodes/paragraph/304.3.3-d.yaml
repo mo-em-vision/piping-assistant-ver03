@@ -1,0 +1,27 @@
+---
+id: 304.3.3-d
+type: paragraph
+key: b313_304_3_3_d
+title: Reinforcement of Welded Branch Connections — Reinforcement Zone
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.3-d
+text:
+  original: >
+    (d) Reinforcement Zone. The reinforcement zone is a parallelogram whose length
+    extends a distance, d_2, on each side of the centerline of the branch pipe and whose
+    width starts at the inside surface of the run pipe (in its corroded condition) and
+    extends beyond the outside surface of the run pipe a perpendicular distance, L_4.
+hierarchy:
+  parent: '304.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

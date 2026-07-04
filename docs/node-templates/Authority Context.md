@@ -61,8 +61,8 @@ authority_hierarchy:
 
 applicable_paragraphs:
   - B313-304.1.1
-  - B313-304.1.2
-  - B313-302.3.5
+  - 304.1.2-a
+  - 302.3.5-e
 
 applicable_tables:
   - TABLE-B313-allowable-stress
@@ -210,7 +210,7 @@ The Authority Context may record the paragraphs that became active during execut
 ```yaml
 applicable_paragraphs:
   - B313-304.1.1
-  - B313-304.1.2
+  - 304.1.2-a
 ```
 
 This list is not necessarily known at task creation.  
@@ -322,8 +322,8 @@ active_authorities:
 
 applicable_paragraphs:
   - B313-304.1.1
-  - B313-304.1.2
-  - B313-302.3.5
+  - 304.1.2-a
+  - 302.3.5-e
 
 applicable_tables:
   - TABLE-B313-allowable-stress
@@ -396,10 +396,10 @@ Authority Context determines whether those paragraphs are active.
 
 ```text
 AUTH-ASME-B31.3
-  └── Paragraph B313-304.1.2
+  └── Paragraph 304.1.2-a
 
 AUTHCTX-001
-  └── activates B313-304.1.2 for this execution
+  └── activates 304.1.2-a for this execution
 ```
 
 ---
@@ -450,7 +450,7 @@ edges:
     target: AUTH-ASME-B31.3
 
   - type: activates_paragraph
-    target: B313-304.1.2
+    target: 304.1.2-a
 
   - type: activates_table
     target: TABLE-B313-allowable-stress

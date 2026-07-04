@@ -5,6 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from engine.reference.b313_legacy_aliases import build_b313_legacy_aliases
+from engine.reference.asme_b313_node_ids import (
+    is_qualified_paragraph_ref,
+    qualify_paragraph_ref_for_authority,
+    resolve_pack_node_ref,
+)
 from engine.reference.graph_edge_schema import (
     CANONICAL_EDGE_TYPES,
     REVERSE_ONLY_QUERY_TYPES,
@@ -19,7 +24,7 @@ LEGACY_SECTION_ALIASES = {
     "304.1.2": "304.1.2-SECTION",
     "304.1.3": "304.1.3-SECTION",
     "B313-304.1.1": "304.1.1-SECTION",
-    "B313-304.1.2": "304.1.2-SECTION",
+    "304.1.2-a": "304.1.2-SECTION",
     "B313-304.1.3": "304.1.3-SECTION",
 }
 
@@ -78,6 +83,9 @@ def compile_metadata_edges(
         to_id = edge_target(normalized)
         if not to_id:
             continue
+        resolved = resolve_pack_node_ref(to_id)
+        if resolved is not None:
+            to_id = resolved
         dep_id, subsection = parse_dependency_node_ref(to_id)
         to_id = dep_id
         edge_type = str(normalized.get("type") or "").strip()
@@ -91,6 +99,34 @@ def compile_metadata_edges(
         if subsection and "subsection" not in edge_meta:
             edge_meta = {**edge_meta, "subsection": subsection}
         add_edge(node_id, to_id, edge_type, edge_meta if edge_meta else None)
+
+    if source_node_type in {"equation", "validation_rule", "lookup"}:
+        authority = metadata.get("authority")
+        if isinstance(authority, dict):
+            for target in authority.get("authorized_by") or []:
+                if not isinstance(target, str) or not target.strip():
+                    continue
+                to_id = target.strip()
+                resolved = resolve_pack_node_ref(to_id)
+                if resolved is not None:
+                    to_id = resolved
+                dep_id, subsection = parse_dependency_node_ref(to_id)
+                to_id = dep_id
+                edge_meta = {"subsection": subsection} if subsection else None
+                add_edge(node_id, to_id, "authorized_by", edge_meta)
+
+    if source_node_type == "parameter":
+        for target in metadata.get("introduced_by") or []:
+            if not isinstance(target, str) or not target.strip():
+                continue
+            to_id = target.strip()
+            resolved = resolve_pack_node_ref(to_id)
+            if resolved is not None:
+                to_id = resolved
+            dep_id, subsection = parse_dependency_node_ref(to_id)
+            to_id = dep_id
+            edge_meta = {"subsection": subsection} if subsection else None
+            add_edge(node_id, to_id, "introduced_by", edge_meta)
 
     return compiled
 
@@ -106,6 +142,12 @@ def validate_edge_item(item: dict[str, Any], *, source_node_type: str = "", allo
     )
 
 
+def validate_no_links_metadata(meta: dict[str, Any]) -> list[str]:
+    if meta.get("links"):
+        return ["knowledge nodes must not use links; author typed edges only"]
+    return []
+
+
 def node_aliases(node_id: str, metadata: dict[str, Any]) -> list[str]:
     aliases: list[str] = []
     slug = str(metadata.get("slug") or metadata.get("key") or "").strip()
@@ -117,6 +159,11 @@ def node_aliases(node_id: str, metadata: dict[str, Any]) -> list[str]:
     for item in metadata.get("aliases", []) or []:
         if isinstance(item, str) and item.strip() and item.strip() != node_id:
             aliases.append(item.strip())
+    if str(metadata.get("type") or "") == "paragraph":
+        authority = str(metadata.get("authority") or "").strip()
+        qualified = qualify_paragraph_ref_for_authority(node_id, authority)
+        if qualified and qualified != node_id and not is_qualified_paragraph_ref(node_id):
+            aliases.append(qualified)
     for legacy_id, target_id in LEGACY_NODE_ID_ALIASES.items():
         if node_id == target_id:
             aliases.append(legacy_id)

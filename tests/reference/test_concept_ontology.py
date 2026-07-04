@@ -6,6 +6,7 @@ from pathlib import Path
 
 from engine.reference.graph_edge_schema import edge_targets
 from engine.reference.standards_markdown import split_frontmatter
+from engine.validation.node_revision_metadata import validate_revision_metadata
 
 _FORBIDDEN_FIELDS = frozenset(
     {
@@ -24,6 +25,25 @@ _FORBIDDEN_FIELDS = frozenset(
 
 _PHYSICAL_CLASSES = frozenset({"physical_quantity", "geometric_quantity"})
 
+_VALID_CONCEPT_CLASSES = frozenset(
+    {
+        "physical_quantity",
+        "geometric_quantity",
+        "material",
+        "fluid",
+        "component",
+        "condition",
+        "coefficient",
+        "factor",
+        "selection",
+        "failure_mode",
+        "inspection_method",
+        "authority_concept",
+    }
+)
+
+_FORBIDDEN_CONCEPT_CLASSES = frozenset({"category", "categorical"})
+
 
 def _project_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -41,7 +61,11 @@ def test_concept_nodes_have_required_fields() -> None:
         assert meta.get("key")
         assert meta.get("name")
         assert meta.get("concept_class")
+        concept_class = str(meta.get("concept_class", "")).strip()
+        assert concept_class in _VALID_CONCEPT_CLASSES, path.name
+        assert concept_class not in _FORBIDDEN_CONCEPT_CLASSES, path.name
         assert meta.get("description")
+        assert validate_revision_metadata(meta) == [], path.name
         for field in _FORBIDDEN_FIELDS:
             assert field not in meta, f"{path.name} must not contain {field!r}"
 
@@ -63,7 +87,41 @@ def test_categorical_material_concept_has_no_dimension() -> None:
     assert meta.get("concept_class") == "material"
     assert meta.get("dimension") in {None, "null"}
     assert edge_targets(meta, "has_dimension") == []
-    assert edge_targets(meta, "has_parameter") == ["PARAM-material-specification"]
+    assert edge_targets(meta, "has_parameter") == [
+        "PARAM-material-grade",
+        "PARAM-metallurgical-group",
+    ]
+
+
+def test_selection_concept_pipe_construction() -> None:
+    path = _concepts_dir() / "CONCEPT-pipe-construction.yaml"
+    meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+    assert meta.get("concept_class") == "selection"
+    assert meta.get("dimension") in {None, "null"}
+    assert edge_targets(meta, "has_dimension") == []
+    assert edge_targets(meta, "has_parameter") == ["PARAM-pipe-construction-type"]
+    assert "asme-b313-table-A-3" in edge_targets(meta, "used_by")
+
+
+def test_factor_concept_weld_joint_efficiency() -> None:
+    path = _concepts_dir() / "CONCEPT-weld-joint-efficiency.yaml"
+    meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+    assert meta.get("concept_class") == "factor"
+    assert meta.get("dimension") in {None, "null"}
+    assert edge_targets(meta, "has_dimension") == []
+    assert edge_targets(meta, "has_parameter") == ["PARAM-weld-joint-efficiency"]
+    assert "asme-b313-table-A-2" in edge_targets(meta, "used_by")
+    assert "asme-b313-table-A-3" in edge_targets(meta, "used_by")
+
+
+def test_coefficient_concept_temperature_coefficient() -> None:
+    path = _concepts_dir() / "CONCEPT-temperature-coefficient.yaml"
+    meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+    assert meta.get("concept_class") == "coefficient"
+    assert meta.get("dimension") in {None, "null"}
+    assert edge_targets(meta, "has_dimension") == []
+    assert edge_targets(meta, "has_parameter") == ["PARAM-temperature-coefficient-Y"]
+    assert "asme-b313-table-304-1-1-1" in edge_targets(meta, "used_by")
 
 
 def test_concept_pack_compiles() -> None:
@@ -75,9 +133,15 @@ def test_concept_pack_compiles() -> None:
     expected = {
         "CONCEPT-pressure",
         "CONCEPT-wall-thickness",
+        "CONCEPT-corrosion",
+        "CONCEPT-pipe-diameter",
+        "CONCEPT-stress",
         "CONCEPT-material",
         "CONCEPT-temperature",
         "CONCEPT-allowable-stress",
+        "CONCEPT-pipe-construction",
+        "CONCEPT-weld-joint-efficiency",
+        "CONCEPT-temperature-coefficient",
     }
     assert expected <= set(graph.nodes.keys())
     pressure = graph.nodes["CONCEPT-pressure"]

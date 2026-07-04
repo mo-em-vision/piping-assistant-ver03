@@ -18,7 +18,7 @@ from ai.agents._constants import (
 )
 from ai.agents.base import BaseAgent
 
-MATERIAL_STRESS_NODE = "B313-table-A-1"
+MATERIAL_STRESS_NODE = "asme-b313-table-A-1"
 
 _DETERMINISTIC_PHASES = frozenset(
     {

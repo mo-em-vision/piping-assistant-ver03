@@ -99,7 +99,7 @@ _INPUT_QUESTIONS: dict[str, str] = {
     ),
 }
 
-_THICKNESS_NODES = ("B313-304.1.2", "B313-304.1.3")
+_THICKNESS_NODES = ("304.1.2-a", "B313-304.1.3")
 
 
 class Planner:

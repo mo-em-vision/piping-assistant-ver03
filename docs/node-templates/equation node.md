@@ -2,13 +2,18 @@
 
 > **Implementation:** B31.3 equation sources at [`knowledge/standards/asme/asme_b31.3/nodes/equation/`](../../knowledge/standards/asme/asme_b31.3/nodes/equation/) use ids prefixed with `asme_b313_*` (e.g. `asme_b313_304_1_2_wall_thickness`) to avoid cross-standard numbering collisions. Validator: [`engine/validation/equation_node_validator.py`](../../engine/validation/equation_node_validator.py). Legacy executor fields (`variables`, `steps`, `executor`) live in sidecars under `equation/{id}/execution.yaml`, merged at load time by [`engine/reference/equation_sidecar.py`](../../engine/reference/equation_sidecar.py) and [`engine/graph/graph_builder.py`](../../engine/graph/graph_builder.py). Paragraph/workflow execution sidecars keep slim `equations: [{id, file}]` references. Runtime `B313-eq-*` ids are aliases only — see [`engine/reference/b313_legacy_aliases.py`](../../engine/reference/b313_legacy_aliases.py). On-disk graph edges use taxonomy types (`authorized_by`, `requires_parameter`, `calculates_parameter`, …) with `param-*` targets from nomenclature. See [`Paragraph Node.md`](Paragraph%20Node.md) and [`_relationship_schema.md`](_relationship_schema.md).
 
-An Equation node defines a deterministic engineering relationship.
+An Equation node defines a deterministic **calculation** that produces engineering quantities.
 
 An Equation consumes input Parameters through runtime Facts.  
 An Equation produces output Parameters through derived Facts.
 
 A Paragraph may authorize or reference an Equation.  
-The Equation itself defines the executable mathematical, logical, or lookup relationship.
+The Equation defines the executable mathematical or formula relationship only.
+
+For table resolution use [`lookup.md`](lookup.md).  
+For pass/fail checks use [`validation_rule.md`](validation_rule.md).
+
+Do **not** author a top-level `links` metadata block — object relationships belong in typed `edges` only ([`_relationship_schema.md`](_relationship_schema.md#on-disk-rule)). **Exception:** declare governing paragraphs in `authority.authorized_by` (not in `edges`); the graph compiler emits `authorized_by` edges at build time.
 
 ```yaml
 ---
@@ -27,7 +32,7 @@ description: >
 
 authority:
   authorized_by:
-    - asme_B313-304.1.2
+    - 304.1.2-a
   authority_context_required: true
 
 display:
@@ -90,9 +95,6 @@ validation:
   warnings: []
 
 edges:
-  - type: authorized_by
-    target: B313-304.1.2
-
   - type: requires_parameter
     target: PARAM-design-pressure
 
@@ -115,7 +117,7 @@ metadata:
 An Equation answers:
 
 ```text
-How is one engineering Fact deterministically derived from other Facts?
+How is one engineering quantity calculated from other Facts?
 ```
 
 Examples:
@@ -125,8 +127,9 @@ t = PD / 2(SEW + PY)
 t_m = t + c
 P_test = 1.5 × P_design
 MAWP = function(thickness, stress, diameter)
-allowable_stress = lookup(material, temperature)
 ```
+
+Do not use Equation nodes for table lookups or validation checks.
 
 An Equation does not store runtime values.  
 It defines the relationship used to produce runtime Facts.
@@ -153,14 +156,12 @@ It defines the relationship used to produce runtime Facts.
 
 ```yaml
 calculation
-lookup
-condition
-validation
-selection
 aggregation
-comparison
 transformation
 ```
+
+Equations produce calculated engineering quantities only.  
+Do not use `lookup`, `validation`, `condition`, `selection`, or `comparison` — use dedicated node types.
 
 ---
 
@@ -168,13 +169,10 @@ transformation
 
 ```yaml
 algebraic
-lookup_table
 piecewise
 conditional
 iterative
 function
-boolean
-comparison
 ```
 
 ---
@@ -198,8 +196,11 @@ Correct:
 ```yaml
 authority:
   authorized_by:
-    - B313-304.1.2
+    - 304.1.2-a
+  authority_context_required: true
 ```
+
+Do not duplicate `authorized_by` on `edges`.
 
 Incorrect:
 
@@ -299,15 +300,6 @@ executor:
   module: engine.executor.functions
 ```
 
-For lookups:
-
-```yaml
-lookup:
-  table: TABLE-B313-allowable-stress
-  lookup_rule: lower_applicable_temperature
-  interpolation: false
-```
-
 ---
 
 # Example: minimum required thickness
@@ -329,7 +321,8 @@ description: >
 
 authority:
   authorized_by:
-    - B313-304.1.1
+    - 304.1.1-a
+  authority_context_required: true
 
 display:
   latex: "t_m = t + c"
@@ -356,9 +349,6 @@ calculates:
     dimension: DIM-length
 
 edges:
-  - type: authorized_by
-    target: B313-304.1.1
-
   - type: requires_parameter
     target: PARAM-required-wall-thickness
 
@@ -367,128 +357,6 @@ edges:
 
   - type: calculates_parameter
     target: PARAM-minimum-required-thickness
-
-metadata:
-  status: active
-  version: 1
----
-```
-
----
-
-# Example: material allowable stress lookup
-
-```yaml
----
-id: LOOKUP-B313-material-allowable-stress
-type: equation
-
-key: b313_material_allowable_stress_lookup
-name: Material Allowable Stress Lookup
-
-equation_class: lookup
-calculation_kind: lookup_table
-
-description: >
-  Resolves allowable stress from the active ASME B31.3 allowable stress table
-  using material specification and design temperature.
-
-authority:
-  authorized_by:
-    - B313-302.3
-  authority_context_required: true
-
-requires:
-  - parameter: PARAM-material-specification
-    symbol: material
-    required: true
-    dimension: null
-
-  - parameter: PARAM-design-temperature
-    symbol: T
-    required: true
-    dimension: DIM-temperature
-
-calculates:
-  - parameter: PARAM-allowable-stress
-    symbol: S
-    dimension: DIM-pressure
-
-lookup:
-  table: TABLE-B313-allowable-stress
-  keys:
-    - PARAM-material-specification
-    - PARAM-design-temperature
-  lookup_rule: lower_applicable_temperature
-  interpolation: false
-
-edges:
-  - type: authorized_by
-    target: B313-302.3
-
-  - type: references_table
-    target: TABLE-B313-allowable-stress
-
-  - type: requires_parameter
-    target: PARAM-material-specification
-
-  - type: requires_parameter
-    target: PARAM-design-temperature
-
-  - type: calculates_parameter
-    target: PARAM-allowable-stress
-
-metadata:
-  status: active
-  version: 1
----
-```
-
----
-
-# Example: validation equation
-
-```yaml
----
-id: EQ-B313-thin-wall-check
-type: equation
-
-key: b313_thin_wall_check
-name: Thin-Wall Applicability Check
-
-equation_class: validation
-calculation_kind: comparison
-
-description: >
-  Checks whether the calculated wall thickness satisfies the thin-wall
-  applicability criterion.
-
-authority:
-  authorized_by:
-    - B313-304.1.2
-
-display:
-  text: "t < D / 6"
-
-expression:
-  language: sympy
-  formula: "thin_wall_valid = t < D / 6"
-
-requires:
-  - parameter: PARAM-required-wall-thickness
-    symbol: t
-    required: true
-    dimension: DIM-length
-
-  - parameter: PARAM-outside-diameter
-    symbol: D
-    required: true
-    dimension: DIM-length
-
-calculates:
-  - parameter: PARAM-thin-wall-applicability
-    symbol: thin_wall_valid
-    dimension: null
 
 metadata:
   status: active
@@ -538,28 +406,28 @@ Required Facts exist before execution.
 
 # Allowed relationships
 
-Equation nodes may use:
+Equation nodes may use these edge types on `edges`:
 
 ```yaml
-authorized_by
 requires_parameter
 calculates_parameter
-references_table
-references_concept
 depends_on_equation
-validates_parameter
-constrains_parameter
+references_concept
 supersedes
 superseded_by
 ```
 
+Governing paragraphs belong in `authority.authorized_by` (see [Equation vs Paragraph](#equation-vs-paragraph)) — not as `authorized_by` edges.
+
 Example:
 
 ```yaml
-edges:
-  - type: authorized_by
-    target: B313-304.1.2
+authority:
+  authorized_by:
+    - 304.1.2-a
+  authority_context_required: true
 
+edges:
   - type: requires_parameter
     target: PARAM-design-pressure
 
@@ -590,29 +458,78 @@ Equation nodes should also not contain full Paragraph text. They should referenc
 
 ---
 
+# Unit transformation equations
+
+Global unit conversions use `equation_class: transformation` with ids prefixed `EQ-unit-*`. They live in the units pack (`knowledge/global/units/nodes/equation/`) and are linked from unit `converts_to` edges.
+
+No `authority` block is required. Use `symbol` + `unit` in `requires` / `calculates` instead of `PARAM-*` nodes.
+
+```yaml
+---
+id: EQ-unit-degC-to-degF
+type: equation
+
+key: unit_degC_to_degF
+name: Celsius to Fahrenheit
+
+equation_class: transformation
+calculation_kind: algebraic
+
+description: >
+  Convert temperature from degrees Celsius to degrees Fahrenheit.
+
+conversion:
+  from_unit: UNIT-degC
+  to_unit: UNIT-degF
+
+display:
+  text: "F = C * 9/5 + 32"
+  latex: "F = \\frac{9}{5}C + 32"
+
+expression:
+  language: sympy
+  formula: "F = C * 9 / 5 + 32"
+
+requires:
+  - symbol: C
+    unit: UNIT-degC
+
+calculates:
+  - symbol: F
+    unit: UNIT-degF
+
+metadata:
+  status: active
+  version: 1
+---
+```
+
+Unit nodes reference these via:
+
+```yaml
+- type: converts_to
+  target: UNIT-degF
+  equation: EQ-unit-degC-to-degF
+```
+
+Each directed conversion pair needs its own equation and edge. Do not rely on automatic inversion.
+
+---
+
 # Validation rules
 
 An Equation node is invalid if:
 
 1. `type` is not `equation`.
-    
-2. It has no `requires` list unless it is a constant authority-defined value.
-    
-3. It has no `calculates` list unless it is a pure validation/decision equation.
-    
-4. It stores runtime values.
-    
-5. It references unknown Parameters.
-    
-6. It calculates a Parameter whose dimension conflicts with the expression result.
-    
-7. It has no authorizing Paragraph when derived from a standard.
-    
-8. A lookup Equation has no referenced Table.
-    
-9. A table lookup allows interpolation when the authority explicitly forbids interpolation.
-    
-10. It duplicates Paragraph text instead of referencing the Paragraph.
+2. `equation_class` is not `calculation`, `aggregation`, or `transformation`.
+3. It has no `requires` list unless it is a constant authority-defined value.
+4. It has no `calculates` list.
+5. It stores runtime values.
+6. It references unknown Parameters.
+7. It calculates a Parameter whose dimension conflicts with the expression result.
+8. It has no authorizing Paragraph when derived from a standard (not required for `EQ-unit-*` transformation equations).
+9. It duplicates Paragraph text instead of referencing the Paragraph.
+10. It models lookup or validation behavior (use `lookup` or `validation_rule` types).
     
 
 ---

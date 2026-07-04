@@ -20,7 +20,15 @@ Parameter nodes define **contextual engineering roles** — not values, units, r
 | `PARAM-allowable-stress` | physical_quantity | `DIM-pressure` | [`CONCEPT-allowable-stress`](../concepts/nodes/CONCEPT-allowable-stress.yaml) |
 | `PARAM-design-temperature` | environmental_condition | `DIM-temperature` | [`CONCEPT-temperature`](../concepts/nodes/CONCEPT-temperature.yaml) |
 | `PARAM-corrosion-allowance` | geometric_quantity | `DIM-length` | [`CONCEPT-wall-thickness`](../concepts/nodes/CONCEPT-wall-thickness.yaml) |
-| `PARAM-material-specification` | material_designation | `DIM-material-designation` | [`CONCEPT-material`](../concepts/nodes/CONCEPT-material.yaml) |
+| `PARAM-required-wall-thickness` | calculated_quantity | `DIM-length` | [`CONCEPT-wall-thickness`](../concepts/nodes/CONCEPT-wall-thickness.yaml) |
+| `PARAM-minimum-required-thickness` | calculated_quantity | `DIM-length` | [`CONCEPT-wall-thickness`](../concepts/nodes/CONCEPT-wall-thickness.yaml) |
+| `PARAM-outside-diameter` | geometric_quantity | `DIM-length` | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
+| `PARAM-weld-strength-reduction-factor-W` | factor | `DIM-dimensionless` | [`CONCEPT-weld-joint-efficiency`](../concepts/nodes/CONCEPT-weld-joint-efficiency.yaml) |
+| `PARAM-material-grade` | categorical | `DIM-material-designation` | [`CONCEPT-material`](../concepts/nodes/CONCEPT-material.yaml) |
+| `PARAM-metallurgical-group` | selection | — | [`CONCEPT-material`](../concepts/nodes/CONCEPT-material.yaml) |
+| `PARAM-pipe-construction-type` | selection | — | [`CONCEPT-pipe-construction`](../concepts/nodes/CONCEPT-pipe-construction.yaml) |
+| `PARAM-weld-joint-efficiency` | factor | `DIM-dimensionless` | [`CONCEPT-weld-joint-efficiency`](../concepts/nodes/CONCEPT-weld-joint-efficiency.yaml) |
+| `PARAM-temperature-coefficient-Y` | coefficient | `DIM-dimensionless` | [`CONCEPT-temperature-coefficient`](../concepts/nodes/CONCEPT-temperature-coefficient.yaml) |
 
 Parameter nodes define **contextual roles only** — no `value`, `unit`, `resolution`, or runtime state (see template forbidden fields).
 

@@ -61,6 +61,6 @@ def test_nps_lookup_resolves_outside_diameter_for_calculation() -> None:
     assert state.get_task(task_id).outputs.get("required_thickness") is not None
 
     trace = state.get_task(task_id).outputs["_execution_trace"]
-    calc = next(entry for entry in trace if entry["node_id"] == "B313-304.1.2")
+    calc = next(entry for entry in trace if entry["node_id"] == "304.1.2-a")
     assert calc["inputs"]["D"] > 0
     assert calc["inputs"].get("D_source") == "asme_b36.10"

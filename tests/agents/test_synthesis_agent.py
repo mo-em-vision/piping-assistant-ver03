@@ -15,7 +15,7 @@ def test_synthesis_agent_fallback_preserves_report_values() -> None:
         graph_version="pipe_wall_thickness_design",
         sections=[
             ReportSection(
-                node="B313-304.1.2",
+                node="304.1.2-a",
                 paragraph="304.1.1",
                 inputs={"design_pressure": 500},
                 outputs={"required_thickness": 0.065},

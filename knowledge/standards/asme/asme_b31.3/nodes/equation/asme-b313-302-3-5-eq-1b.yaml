@@ -1,0 +1,42 @@
+---
+id: asme-b313-302-3-5-eq-1b
+type: equation
+key: asme-b313-302-3-5-eq-1b
+name: Allowable Displacement Stress Range with Sustained Stress Margin
+equation_class: calculation
+calculation_kind: function
+description: Allowable Displacement Stress Range with Sustained Stress Margin
+authority:
+  authorized_by:
+  - 302.3.5-d
+  authority_context_required: true
+requires:
+- symbol: f
+  required: true
+  description: Stress range factor from eq. (1c)
+- symbol: S_c
+  required: true
+  description: Basic allowable stress at minimum metal temperature during displacement
+    cycle analysis
+- symbol: S_h
+  required: true
+  description: Basic allowable stress at maximum metal temperature during displacement
+    cycle analysis
+- symbol: S_L
+  required: true
+  description: Stress due to sustained loads
+calculates:
+- symbol: S_A
+  parameter: PARAM-allowable-displacement-stress-range
+edges:
+- type: calculates_parameter
+  target: PARAM-allowable-displacement-stress-range
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: eq-1b
+  last_revision: 2026-07-04
+  edited_by: admin
+display:
+  text: S_A = f * (1.25*(S_c + S_h) - S_L)
+---

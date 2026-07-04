@@ -83,7 +83,7 @@ def resolve_focus_calculation_node(
     inputs = task_inputs or {}
     loading = field_value("pressure_loading", inputs)
     if loading == "internal_pressure":
-        return "B313-304.1.2"
+        return "304.1.2-a"
     if loading == "external_pressure":
         return "B313-304.1.3"
     return None
@@ -333,7 +333,7 @@ def summarize_path_context(
 
     if navigation_plan and navigation_plan.path_decision:
         node = navigation_plan.path_decision.get("selected_node", "")
-        if node == "B313-304.1.2" and "internal pressure" not in " ".join(fragments):
+        if node == "304.1.2-a" and "internal pressure" not in " ".join(fragments):
             fragments.append("§304.1.2 internal pressure design")
 
     return ", ".join(fragments)
@@ -578,7 +578,7 @@ def _missing_guidance(
         )
     if symbol == "W":
         return (
-            "weld strength reduction factor per §302.3.5(e); "
+            "weld strength reduction factor per §302.3.5-e; "
             "default W = 1.0 — confirm or enter a value directly."
         )
     if symbol == "Y":

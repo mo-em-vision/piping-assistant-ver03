@@ -114,16 +114,16 @@ def test_evaluate_pending_interactions_satisfied_when_confirmed() -> None:
 
 def test_interaction_input_from_response_is_confirmed() -> None:
     spec = _pressure_loading_spec()
-    inp = interaction_input_from_response(spec, "internal_pressure")
+    inp = interaction_input_from_response(spec, "internal_pressure", task_id="test-task")
 
     assert inp.status == InputStatus.CONFIRMED
     assert inp.value == "internal_pressure"
 
 
-def test_nomenclature_node_declares_pressure_loading_interaction() -> None:
+def test_workflow_declares_pressure_loading_interaction() -> None:
     project_root = Path(__file__).resolve().parents[2]
     reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
-    record = reader.load("B313-304.1.1")
+    record = reader.load("WF-PIPE-WALL-THICKNESS")
     specs = load_node_interactions(record, reader)
 
     pressure = next(spec for spec in specs if spec.variable == "pressure_loading")
@@ -142,7 +142,7 @@ def test_extract_decision_responses_from_message() -> None:
 def test_load_node_interactions_bridges_confirmation_inputs() -> None:
     project_root = Path(__file__).resolve().parents[2]
     reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
-    record = reader.load("B313-304.1.2")
+    record = reader.load("304.1.1-b")
     specs = load_node_interactions(record, reader)
     variables = {spec.variable for spec in specs}
 

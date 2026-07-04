@@ -81,19 +81,19 @@ def test_duplicate_requires_to_same_concept_keep_distinct_aliases() -> None:
     assert aliases == ["c", "t"]
 
 
-def test_depends_on_subsection_target_suffix() -> None:
+def test_depends_on_lettered_paragraph_target_has_no_subsection_metadata() -> None:
     edges = compile_metadata_edges(
-        "B313-table-302-3-5-1",
+        "asme-b313-table-302-3-5-1",
         {
-            "edges": [{"type": "depends_on", "target": "302.3.5/e"}],
+            "edges": [{"type": "depends_on", "target": "302.3.5-e"}],
         },
     )
 
     assert edges == [
         (
-            "B313-table-302-3-5-1",
-            "302.3.5",
+            "asme-b313-table-302-3-5-1",
+            "302.3.5-e",
             "depends_on",
-            {"subsection": "e"},
+            None,
         )
     ]

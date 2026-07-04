@@ -38,7 +38,7 @@ class TestCalculationTraceAcceptance:
         run_completed_workflow(state_manager, standards_reader, task_id)
         trace = state_manager.get_task(task_id).outputs["_execution_trace"]
 
-        lookup_entry = next(entry for entry in trace if entry["node_id"] == "B313-table-A-1")
+        lookup_entry = next(entry for entry in trace if entry["node_id"] == "asme-b313-table-A-1")
         calc_entry = next(entry for entry in trace if entry["node_id"] == WALL_THICKNESS_NODE)
 
         assert "lookup" in lookup_entry.get("trace", {}) or "calculation" in lookup_entry.get("trace", {})
@@ -78,7 +78,7 @@ class TestFormulaAcceptance:
 
     def test_node_metadata_references_standard_paragraph(self, standards_reader) -> None:
         node = standards_reader.load(WALL_THICKNESS_NODE)
-        assert node.metadata.get("paragraph") == "304.1.2"
+        assert node.metadata.get("paragraph_number") == "304.1.2-a"
         assert node.metadata.get("equations")
 
     def test_report_includes_formula_display(self, standards_reader, state_manager) -> None:

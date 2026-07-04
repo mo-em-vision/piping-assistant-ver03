@@ -21,7 +21,7 @@ from models.task import Task, TaskStatus
 from tests.helpers.facts import fact_get_value
 
 PIPE_WALL_THICKNESS_ROOT = "pipe_wall_thickness_design"
-WALL_THICKNESS_NODE = "B313-304.1.2"
+WALL_THICKNESS_NODE = "304.1.2-a"
 EXTERNAL_WALL_THICKNESS_NODE = "B313-304.1.3"
 MATERIAL_STRESS_NODE = "B313-lookup-allowable-stress"
 DEFINITION_SECTION_NODE = "B313-304.1.1"

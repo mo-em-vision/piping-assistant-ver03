@@ -1,0 +1,47 @@
+---
+id: asme-b313-304-3-3-eq-8
+type: equation
+key: asme-b313-304-3-3-eq-8
+name: Branch Pipe Excess Thickness Area
+equation_class: calculation
+calculation_kind: algebraic
+description: Branch Pipe Excess Thickness Area
+authority:
+  authorized_by:
+  - 304.3.3-c
+  authority_context_required: true
+requires:
+- symbol: L_4
+  required: true
+  description: Height of reinforcement zone outside run pipe
+- symbol: T_b
+  required: true
+  description: Branch pipe wall thickness
+- symbol: t_b
+  required: true
+  description: Pressure design thickness of branch pipe
+- symbol: c
+  required: true
+  description: Corrosion allowance
+  parameter: PARAM-corrosion-allowance
+- symbol: β
+  required: true
+  description: Smaller angle between axes of branch and run
+calculates:
+- symbol: A_3
+  parameter: PARAM-branch-excess-thickness-area
+edges:
+- type: requires_parameter
+  target: PARAM-corrosion-allowance
+  alias: c
+- type: calculates_parameter
+  target: PARAM-branch-excess-thickness-area
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: eq-8
+  last_revision: 2026-07-04
+  edited_by: admin
+display:
+  text: A_3 = 2L_4(T_b - t_b - c)/\sin(\beta)
+---

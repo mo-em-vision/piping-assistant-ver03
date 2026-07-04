@@ -47,8 +47,22 @@ def test_section_label_prefers_legacy_section_field() -> None:
     assert section_label(metadata) == "304 Pressure Design of Components"
 
 
+def test_hierarchy_entries_reads_metadata_hierarchy_parent() -> None:
+    metadata = {
+        "id": "304.1.2-a",
+        "hierarchy": {"parent": "304.1"},
+    }
+    assert hierarchy_entries(metadata) == [{"node_id": "304.1"}]
+
+
+def test_paragraph_inherits_source_language_from_pack(reader: StandardsReader) -> None:
+    record = reader.load("302.3.3-a")
+    text = record.metadata.get("text") or {}
+    assert text.get("source_language") == "en"
+
+
 def test_resolve_hierarchy_chain_for_304_1_1(reader: StandardsReader) -> None:
-    chain = resolve_hierarchy_chain(reader, "304.1.1")
+    chain = resolve_hierarchy_chain(reader, "304.1.1-a")
     assert [item["node_id"] for item in chain] == ["304.1", "304"]
     assert chain[-1].get("title") == "304 Pressure Design of Components"
 
@@ -74,10 +88,10 @@ def test_eq_2_equation_loads_by_node_id(reader: StandardsReader) -> None:
 
 
 def test_eq_2_is_standalone_equation_node(reader: StandardsReader) -> None:
-    record = reader.load("304.1.1-eq-2")
-    assert record.node_id == "asme_b313_304_1_1_eq_2"
+    record = reader.load("asme-b313-304-1-1-eq-2")
+    assert record.node_id == "asme-b313-304-1-1-eq-2"
     assert record.metadata.get("type") == "equation"
-    assert record.metadata.get("key") == "asme_b313_304_1_1_eq_2"
+    assert record.metadata.get("key") == "asme-b313-304-1-1-eq-2"
     assert record.metadata.get("parent_node_id") is None or record.metadata.get("edges")
 
 
@@ -85,16 +99,16 @@ def test_304_1_1_references_external_eq_2_graph_edge(reader: StandardsReader) ->
     store = reader.graph_store
     store.load()
 
-    node_meta = store.metadata("304.1.1")
+    node_meta = store.metadata("304.1.1-a")
     assert node_meta.get("type") == "paragraph"
     assert node_meta.get("edges")
 
-    outgoing = store.outgoing("304.1.1", edge_types={"references_equation", "equation"})
+    outgoing = store.outgoing("304.1.1-a", edge_types={"references_equation", "equation"})
     assert len(outgoing) == 1
-    assert outgoing[0].to_id == "asme_b313_304_1_1_eq_2"
-    assert (outgoing[0].metadata or {}).get("subsection") == "a"
+    assert outgoing[0].to_id == "asme-b313-304-1-1-eq-2"
+    assert "subsection" not in (outgoing[0].metadata or {})
 
-    incoming = store.incoming("asme_b313_304_1_1_eq_2", edge_types={"references_equation", "equation"})
+    incoming = store.incoming("asme-b313-304-1-1-eq-2", edge_types={"references_equation", "equation"})
     assert len(incoming) == 1
-    assert incoming[0].from_id == "304.1.1"
-    assert store.get_node("asme_b313_304_1_1_eq_2") is not None
+    assert incoming[0].from_id == "304.1.1-a"
+    assert store.get_node("asme-b313-304-1-1-eq-2") is not None

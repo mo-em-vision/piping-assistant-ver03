@@ -1,0 +1,37 @@
+---
+id: asme-b313-304-3-3-eq-6
+type: equation
+key: asme-b313-304-3-3-eq-6
+name: Required Reinforcement Area Under Internal Pressure
+equation_class: calculation
+calculation_kind: algebraic
+description: Required Reinforcement Area Under Internal Pressure
+authority:
+  authorized_by:
+  - 304.3.3-b
+  authority_context_required: true
+requires:
+- symbol: t_h
+  required: true
+  description: Pressure design thickness of run pipe
+- symbol: d_1
+  required: true
+  description: Effective length removed from pipe at branch
+- symbol: β
+  required: true
+  description: Smaller angle between axes of branch and run
+calculates:
+- symbol: A_1
+  parameter: PARAM-required-reinforcement-area
+edges:
+- type: calculates_parameter
+  target: PARAM-required-reinforcement-area
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: eq-6
+  last_revision: 2026-07-04
+  edited_by: admin
+display:
+  text: A_1 = t_h d_1 (2 \sin \beta)
+---

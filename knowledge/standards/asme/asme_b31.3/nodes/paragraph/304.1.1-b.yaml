@@ -1,0 +1,158 @@
+---
+
+id: 304.1.1-b
+
+type: paragraph
+
+key: b313_304_1_1_b
+
+title: Nomenclature for Straight Pipe Pressure Design
+
+authority: AUTH-ASME-B31.3
+
+edition: 2024
+
+paragraph_number: 304.1.1-b
+
+text:
+
+  original: >
+
+    The following nomenclature is used in the equations for pressure design of straight
+
+    pipe:
+
+
+
+    c — sum of the mechanical allowances (thread or groove depth) plus corrosion and
+
+    erosion allowances. For threaded components, the nominal thread depth (dimension h
+
+    of ASME B1.20.1, or equivalent) shall apply. For machined surfaces or grooves where
+
+    the tolerance is not specified, the tolerance shall be assumed to be 0.5 mm (0.02 in.)
+
+    in addition to the specified depth of the cut.
+
+
+
+    D — outside diameter of pipe as listed in tables of standards or specifications or
+
+    as measured.
+
+
+
+    d — inside diameter of pipe. For pressure design calculation, the inside diameter
+
+    of the pipe is the maximum value allowable under the purchase specification.
+
+
+
+    E — quality factor from Table A-2 or Table A-3.
+
+
+
+    P — internal design gage pressure.
+
+
+
+    S — stress value for material from Table A-1.
+
+
+
+    T — pipe wall thickness (measured or minimum in accordance with the purchase
+
+    specification).
+
+
+
+    t — pressure design thickness, as calculated in accordance with para. 304.1.2 for
+
+    internal pressure or as determined in accordance with para. 304.1.3 for external
+
+    pressure.
+
+
+
+    t_m — minimum required thickness, including mechanical, corrosion, and erosion
+
+    allowances.
+
+
+
+    W — weld joint strength reduction factor in accordance with para. 302.3.5-e.
+
+
+
+    Y — coefficient from Table 304.1.1-1, valid for t < D/6 and for materials shown.
+
+    The value of Y may be interpolated for intermediate temperatures. For t ≥ D/6:
+
+    Y=(d + 2c)/(D + d + 2c).
+
+hierarchy:
+
+  parent: '304.1'
+
+  children: []
+
+edges:
+
+  - type: belongs_to_authority
+
+    target: AUTH-ASME-B31.3
+
+  - type: introduces_parameter
+
+    target: PARAM-corrosion-allowance
+
+  - type: introduces_parameter
+
+    target: PARAM-outside-diameter
+
+  - type: introduces_parameter
+
+    target: PARAM-weld-joint-efficiency
+
+  - type: introduces_parameter
+
+    target: PARAM-design-pressure
+
+  - type: introduces_parameter
+
+    target: PARAM-allowable-stress
+
+  - type: introduces_parameter
+
+    target: PARAM-weld-strength-reduction-factor-W
+
+  - type: introduces_parameter
+
+    target: PARAM-temperature-coefficient-Y
+
+  - type: introduces_parameter
+
+    target: PARAM-required-wall-thickness
+
+  - type: introduces_parameter
+
+    target: PARAM-inside-diameter
+
+  - type: introduces_parameter
+
+    target: PARAM-measured-wall-thickness
+
+metadata:
+
+  status: active
+
+  source_revision_year: 2024
+
+  node_version: 1
+
+  last_revision: 2026-07-04
+
+  edited_by: admin
+
+---
+

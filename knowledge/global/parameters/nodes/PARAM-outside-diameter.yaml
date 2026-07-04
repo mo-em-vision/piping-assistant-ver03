@@ -1,0 +1,55 @@
+---
+
+id: PARAM-outside-diameter
+
+type: parameter
+
+key: outside_diameter
+
+name: Outside Diameter
+
+parameter_class: geometric_quantity
+
+dimension: DIM-length
+
+description: >
+
+  Outside diameter of pipe as listed in tables of standards or specifications or
+
+  as measured.
+
+canonical_symbol: D
+
+aliases:
+
+  - outside diameter
+
+  - pipe outside diameter
+
+  - OD
+
+introduced_by:
+
+  - asme-b313-304-1-1-b
+
+edges:
+
+  - type: has_dimension
+
+    target: DIM-length
+
+
+  - type: used_by
+
+    target: B3610-table-2-1
+
+metadata:
+
+  status: active
+
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+
+---
+

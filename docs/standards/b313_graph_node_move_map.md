@@ -9,12 +9,12 @@ Historical relocations from `graph/nodes/*` into the `nodes/` tree. **Current la
 | `B313-WF-PIPE-WALL-THICKNESS` | `B313-WF-PIPE-WALL-THICKNESS/` | workflow root |
 | `B313-WF-MAWP` | `B313-WF-MAWP/` | workflow root |
 | `B313-304.1.1` | `B313-304.1.1/` | definition; was `304/304.1/304.1.1/` |
-| `B313-304.1.2` | `B313-304.1.2/` | calculation |
+| `304.1.2-a` | `304.1.2-a/` | calculation |
 | `B313-304.1.3` | `B313-304.1.3/` | calculation stub |
 | `B313-MAWP-SECTION` | `B313-MAWP-SECTION/` | MAWP definition (yaml id); was `304/304.1/mawp_definition/` |
 | `B313-MAWP-CALCULATION` | `B313-MAWP-CALCULATION/` | MAWP calculation |
-| `B313-302.3.3` | `B313-302.3.3/` | was `302/302.3.3/B313-302.3.3/` |
-| `B313-302.3.5` | `B313-302.3.5/` | was `302/302.3.5/B313-302.3.5/` |
+| `302.3.3-a` | `302.3.3-a/` | was `302/302.3.3/302.3.3-a/` |
+| `302.3.5-e` | `302.3.5-e/` | was `302/302.3.5/302.3.5-e/` |
 | `B313-table-*` | `B313-table-*/` | was under `appendix_A/tables/` or section `tables/` |
 | `B313-note-*` | `B313-note-*/` | table footnotes |
 | `B313-param-*` | `B313-param-*/` | was `parameters/B313-param-*/` |
@@ -31,7 +31,7 @@ Embedded children (compiled from parent metadata, no standalone folder):
 | `B313-assumption-straight-pipe` | `B313-304.1.1/` | `assumptions` |
 | `B313-interaction-pressure-loading` | `B313-304.1.1/` | `interactions` |
 | `B313-eq-2` | `B313-304.1.1/` | `equations` |
-| `B313-eq-wall-thickness` | `B313-304.1.2/` | `equations` |
+| `B313-eq-wall-thickness` | `304.1.2-a/` | `equations` |
 | `B313-eq-mawp` | `B313-MAWP-SECTION/` | `equations` |
 
 ## Authoring layout (current)

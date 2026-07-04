@@ -1,0 +1,36 @@
+---
+id: asme-b313-table-302-3-5-1
+standard: asme_b31.3
+source:
+  pack: asme_b31.3
+  yaml: nodes/tables/asme-b313-table-302-3-5-1.yaml
+  tables_db: tables.db
+  table_id: asme_b31.3_302.3.5-1
+type: lookup
+title: Weld Joint Strength Reduction Factor, W
+status: draft
+revision_year: 2024
+inputs:
+- id: material
+  required: true
+- id: temperature
+  task_input_id: design_temperature
+  required: true
+lookups:
+- id: table_302_3_5_1_w
+  source: table
+  table_id: asme_b31.3_302.3.5-1
+  interpolation: true
+edges:
+- type: depends_on
+  target: 302.3.5-e
+- type: introduces_parameter
+  target: weld_joint_strength_reduction_factor_W
+- type: introduces_parameter
+  target: MAT-catalog
+- type: introduces_parameter
+  target: DIM-temperature
+metadata:
+  last_revision: 2026-07-04
+  edited_by: admin
+---

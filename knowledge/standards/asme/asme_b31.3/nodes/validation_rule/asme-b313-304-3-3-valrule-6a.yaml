@@ -1,0 +1,39 @@
+---
+id: asme-b313-304-3-3-valrule-6a
+type: validation_rule
+key: asme-b313-304-3-3-valrule-6a
+name: Available Reinforcement Area Check
+rule_class: validation
+description: Available Reinforcement Area Check
+authority:
+  authorized_by:
+  - 304.3.3-c
+  authority_context_required: true
+requires:
+- symbol: A_2
+  required: true
+  description: Area from excess thickness in run pipe wall
+- symbol: A_3
+  required: true
+  description: Area from excess thickness in branch pipe wall
+- symbol: A_4
+  required: true
+  description: Area from welds and attached reinforcement
+- symbol: A_1
+  required: true
+  description: Required reinforcement area
+validates:
+- symbol: reinforcement_adequate
+  parameter: PARAM-reinforcement-adequate
+edges:
+- type: validates_parameter
+  target: PARAM-reinforcement-adequate
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: eq-6a
+  last_revision: 2026-07-04
+  edited_by: admin
+display:
+  text: A_2 + A_3 + A_4 \ge A_1
+---

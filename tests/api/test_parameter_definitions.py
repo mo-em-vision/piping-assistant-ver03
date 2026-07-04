@@ -168,7 +168,7 @@ def test_build_parameter_definitions_includes_corrosion_after_calc_with_graph_ro
         "graph_root": "B313-PIPE-WALL-THICKNESS-DESIGN",
         "required_thickness": 0.084,
         "t": 0.084,
-        "_execution_trace": [{"node_id": "B313-304.1.2", "trace": {"calculation": {"steps": []}}}],
+        "_execution_trace": [{"node_id": "304.1.2-a", "trace": {"calculation": {"steps": []}}}],
     }
     task_with_planning(task, planning, workflow_id="B313-PIPE-WALL-THICKNESS-DESIGN")
     manager.replace_task(task.task_id, task)

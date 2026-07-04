@@ -21,10 +21,11 @@ def test_resolve_grouped_asme_b31_3() -> None:
     pack = resolve_standard_pack(root, "asme_b31.3")
     assert pack.name == "asme_b31.3"
     assert pack.parent.name == "asme"
-    assert (pack / "nodes" / "paragraph" / "304.1.1.yaml").exists()
-    assert (pack / "nodes" / "paragraph" / "304.1.2.yaml").exists()
+    assert (pack / "nodes" / "paragraph" / "304.1.1-a.yaml").exists()
+    assert (pack / "nodes" / "paragraph" / "304.1.1-b.yaml").exists()
+    assert (pack / "nodes" / "paragraph" / "304.1.2-a.yaml").exists()
     tables_db = resolve_pack_tables_db(pack)
-    assert tables_db.name in {"standards_tables.db", "asme_b313_tables.db"}
+    assert tables_db.name in {"standards_tables.db", "tables.db"}
     assert tables_db.is_file()
 
 

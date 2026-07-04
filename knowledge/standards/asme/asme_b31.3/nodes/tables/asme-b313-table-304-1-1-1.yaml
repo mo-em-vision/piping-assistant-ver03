@@ -1,0 +1,37 @@
+---
+id: asme-b313-table-304-1-1-1
+standard: asme_b31.3
+source:
+  pack: asme_b31.3
+  yaml: nodes/tables/asme-b313-table-304-1-1-1.yaml
+  tables_db: tables.db
+  table_id: asme_b31.3_table_304_1_1_1
+type: lookup
+title: Values of Coefficient Y for t < D/6
+status: draft
+revision_year: 2024
+inputs:
+- id: material
+  required: true
+  description: Metallurgical group (PARAM-metallurgical-group)
+- id: temperature
+  task_input_id: design_temperature
+  required: true
+lookups:
+- id: table_304_1_1_1_y
+  source: table
+  table_id: asme_b31.3_table_304_1_1_1
+  interpolation: true
+edges:
+- type: introduces_parameter
+  target: temperature_coefficient_Y
+- type: introduces_parameter
+  target: MAT-catalog
+- type: introduces_parameter
+  target: DIM-temperature
+- type: requires_parameter
+  target: PARAM-metallurgical-group
+metadata:
+  last_revision: 2026-07-04
+  edited_by: admin
+---

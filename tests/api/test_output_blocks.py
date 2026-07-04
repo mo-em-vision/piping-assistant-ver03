@@ -60,7 +60,7 @@ def test_completed_workflow_outputs_include_results_and_equation(
     assert "reference" not in types
     assert "planning-status" not in ids
 
-    preview_id = "path-preview-equation-B313-304.1.2"
+    preview_id = "path-preview-equation-304.1.2-a"
     if preview_id not in ids:
         preview_id = "path-preview-equation-B313-eq-wall-thickness"
     assert preview_id in ids or any("path-preview-equation" in block_id for block_id in ids)
@@ -131,14 +131,14 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
         "active_definition_node": "B313-304.1.1",
         "path_decision": {
             "pressure_loading": "internal_pressure",
-            "selected_node": "B313-304.1.2",
+            "selected_node": "304.1.2-a",
         },
         "missing_inputs": ["material", "design_pressure"],
         "current_phase": "formula_parameters",
     }
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
-    task.active_nodes = ["B313-304.1.1", "B313-304.1.2"]
+    task.active_nodes = ["B313-304.1.1", "304.1.2-a"]
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     equation_blocks = [
@@ -148,13 +148,13 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
     ]
     assert len(equation_blocks) == 1
 
-    intro_blocks = [block for block in blocks if block["id"] == "path-preview-intro-B313-304.1.2"]
+    intro_blocks = [block for block in blocks if block["id"] == "path-preview-intro-304.1.2-a"]
     assert len(intro_blocks) == 1
     intro = intro_blocks[0]
     assert intro["type"] == "text"
     assert "minimum required wall thickness" in intro["content"].lower()
     assert intro["content_suffix"] == " with the following equation:"
-    assert intro["reference_links"][0]["node_id"] == "B313-304.1.2"
+    assert intro["reference_links"][0]["node_id"] == "304.1.2-a"
     assert intro["reference_links"][0]["label"] == "§304.1.2"
     assert not any(block["type"] == "reference" for block in blocks if block["id"].startswith("path-preview-"))
 
@@ -169,7 +169,7 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
     nomenclature_reference = equation.get("nomenclature_reference")
     assert nomenclature_reference is not None
     assert nomenclature_reference["node_id"] == "B313-304.1.1"
-    assert nomenclature_reference["label"] == "§304.1.1(b)"
+    assert nomenclature_reference["label"] == "§304.1.1-b"
 
 
 def test_post_calculation_outputs_before_corrosion_allowance(standards_reader, state_manager) -> None:
@@ -187,7 +187,7 @@ def test_post_calculation_outputs_before_corrosion_allowance(standards_reader, s
     blocks = build_display_outputs(task)
     ids = [block["id"] for block in blocks]
 
-    assert "path-preview-equation-B313-304.1.2" in ids
+    assert "path-preview-equation-304.1.2-a" in ids
     assert "path-calculation-substituted-equation" in ids or any(
         "substitut" in str(block.get("display", "")).lower() for block in blocks
     )
@@ -221,7 +221,7 @@ def test_execution_trace_keeps_definition_node_outputs(standards_reader) -> None
     assert any(block_id.startswith("node-activation-equation-B313-304.1.1") for block_id in ids) or any(
         "B313-eq-2" in block_id for block_id in ids
     )
-    assert "equation-B313-304.1.2" not in ids
+    assert "equation-304.1.2-a" not in ids
 
 
 def test_thin_wall_applicability_block_when_check_fails(state_manager) -> None:
@@ -230,7 +230,7 @@ def test_thin_wall_applicability_block_when_check_fails(state_manager) -> None:
         "workflow": "pipe_wall_thickness_design",
         "t": 5.0,
         "thin_wall": False,
-        "_execution_trace": [{"node_id": "B313-304.1.2", "trace": {"calculation": {"final_result": {"value": 5.0}}}}],
+        "_execution_trace": [{"node_id": "304.1.2-a", "trace": {"calculation": {"final_result": {"value": 5.0}}}}],
     }
     state_manager.replace_task(task.task_id, task)
 

@@ -12,9 +12,9 @@ expected_authorities:
 - AUTH-ASME-B31.3
 - AUTH-ASME-B36.10M
 entry_points:
-- paragraph: 304.1.1
+- paragraph: 304.1.1-a
   role: definition_anchor
-- paragraph: 304.1.2
+- paragraph: 304.1.2-a
   role: internal_pressure_branch
 - paragraph: 304.1.3
   role: external_pressure_branch
@@ -24,19 +24,20 @@ expected_parameters:
 - PARAM-design-pressure
 - PARAM-nominal-pipe-size
 - PARAM-outside-diameter
-- PARAM-material-specification
+- PARAM-material-grade
+- PARAM-metallurgical-group
 - PARAM-design-temperature
 - PARAM-external-design-pressure
-- PARAM-joint-category
+- PARAM-pipe-construction-type
 - PARAM-weld-joint-efficiency
 - PARAM-weld-strength-reduction-factor-W
 - PARAM-temperature-coefficient-Y
 - PARAM-corrosion-allowance
-- PARAM-minimum-required-thickness
+- PARAM-required-wall-thickness
 goal_expansion:
   root_goal:
-    goal_class: calculation_goal
-    target_parameter: PARAM-minimum-required-thickness
+    goal_class: validation_goal
+    target_parameter: PARAM-wall-thickness-adequacy
 phases:
 - key: expansion_assumptions
   purpose: Confirm assumptions required before graph expansion.
@@ -52,13 +53,14 @@ phases:
   - PARAM-design-pressure
   - PARAM-nominal-pipe-size
   - PARAM-outside-diameter
-  - PARAM-material-specification
+  - PARAM-material-grade
   - PARAM-design-temperature
   - PARAM-external-design-pressure
 - key: coefficient_resolution
   purpose: Resolve coefficients required by the pressure design equation.
   required_parameters:
-  - PARAM-joint-category
+  - PARAM-metallurgical-group
+  - PARAM-pipe-construction-type
   - PARAM-weld-joint-efficiency
   - PARAM-weld-strength-reduction-factor-W
   - PARAM-temperature-coefficient-Y
@@ -74,7 +76,7 @@ branches:
   selected_when:
     parameter: PARAM-pressure-loading
     value: internal_pressure
-  entry_point: 304.1.2
+  entry_point: 304.1.2-a
 - key: external_pressure
   selected_when:
     parameter: PARAM-pressure-loading
@@ -98,9 +100,11 @@ report:
   - conclusion
 edges:
 - type: starts_from_paragraph
-  target: 304.1.1
+  target: 304.1.1-a
 - type: next
-  target: 304.1.2
+  target: 304.1.1-b
+- type: next
+  target: 304.1.2-a
   when:
     field: pressure_loading
     in:
@@ -114,6 +118,6 @@ edges:
 metadata:
   status: draft
   version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---
-
-Verify or calculate the minimum required wall thickness for piping.

@@ -68,7 +68,7 @@ class TestFailureReporting:
             "pipe_wall_thickness_basic",
             "Graph Engine",
             "Missing dependency",
-            node="B313-304.1.2",
+            node="304.1.2-a",
             source="304.1.1 dependency",
             trace={"requires": "material lookup"},
         )
@@ -77,7 +77,7 @@ class TestFailureReporting:
         assert "pipe_wall_thickness_basic" in message
         assert "Graph Engine" in message
         assert "Missing dependency" in message
-        assert "B313-304.1.2" in message
+        assert "304.1.2-a" in message
         assert "Trace:" in message
 
 

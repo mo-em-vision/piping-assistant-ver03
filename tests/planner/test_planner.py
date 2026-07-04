@@ -49,9 +49,9 @@ def test_planner_pipe_wall_thickness_missing_inputs() -> None:
     assert plan.selected_root == "pipe_wall_thickness_design"
     assert any(
         node_id in plan.selected_nodes
-        for node_id in ("B313-table-A-1", "B313-lookup-allowable-stress", "B313-param-S")
+        for node_id in ("asme-b313-table-A-1", "B313-lookup-allowable-stress", "B313-param-S")
     )
-    assert "B313-304.1.2" not in plan.selected_nodes
+    assert "304.1.2-a" not in plan.selected_nodes
     assert "straight_pipe_section" in plan.missing_assumptions or (
         "straight_pipe_section" in (plan.phase_missing.get("expansion_assumptions") or [])
     )
@@ -108,7 +108,7 @@ def test_planner_expands_external_pressure_path() -> None:
 
     assert plan.action == AgentAction.REQUEST_INPUT
     assert "B313-304.1.3" in plan.selected_nodes
-    assert "B313-304.1.2" not in plan.selected_nodes
+    assert "304.1.2-a" not in plan.selected_nodes
     assert plan.path_decision == {
         "field": "pressure_loading",
         "value": "external_pressure",
@@ -235,7 +235,7 @@ def test_planner_proposes_path_when_defaults_confirmed() -> None:
     plan = planner.plan(intent, task)
 
     assert plan.action == AgentAction.PROPOSE_PATH
-    assert "B313-304.1.2" in plan.selected_nodes
+    assert "304.1.2-a" in plan.selected_nodes
 
 
 def test_planner_ambiguous_integrity_request() -> None:

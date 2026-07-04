@@ -13,8 +13,12 @@ aliases:
   - construction material
 edges:
   - type: has_parameter
-    target: PARAM-material-specification
+    target: PARAM-material-grade
+  - type: has_parameter
+    target: PARAM-metallurgical-group
 metadata:
   status: active
   version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---

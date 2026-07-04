@@ -1,0 +1,60 @@
+---
+description: Paragraph subsection naming and revision metadata for ASME B31.3 pack
+alwaysApply: true
+---
+
+# Paragraph subsection naming (ASME B31.3 pack)
+
+When creating or editing paragraph nodes under `knowledge/standards/asme/asme_b31.3/nodes/paragraph/`:
+
+## Node identity
+
+| Field | Rule | Example |
+| --- | --- | --- |
+| `id` / filename | `{section}-{lowercase_letter}` | `304.1.2-a`, `302.3.5-e` |
+| `paragraph_number` | Same as `id` (hyphen form) | `304.1.2-a` — **not** `304.1.2(a)` |
+| `key` | Underscore machine key | `b313_304_1_2_a` |
+| Pack prefix | Bare ids (no `B313-` prefix) | `304.1.1-a` |
+
+## Edge targets
+
+Point `edges[].target` at the subsection **node id** (e.g. `302.3.5-e`). Do not use slash notation (`302.3.5/e`) once the subsection is a separate node.
+
+## Prose vs identity
+
+- `text.original` may keep official standard citation style with parentheses: `**(a)**`.
+- Graph ids and `paragraph_number` always use the hyphen form.
+
+## Unlettered paragraphs
+
+- No lettered subsections → single unsuffixed id (`304.1.3`).
+- Preamble before first lettered subsection → keep unsuffixed base id (`304.3.1`) with children `304.3.1-b`, `304.3.1-c`, etc. Do not invent `304.3.1-a` when the standard has no subsection (a).
+
+## Hierarchy vs `related_to`
+
+| Use | Where |
+| --- | --- |
+| Parent, children, sibling order | `hierarchy.parent`, ordered `hierarchy.children` on parent nodes |
+| Cross-paragraph citation in `text.original` | `related_to` edge only (e.g. text cites para. 302.3.5(e) → `related_to: 302.3.5-e`) |
+
+Do **not** author `hierarchy.previous` or `hierarchy.next`. Workflow sequencing uses workflow `next` edges.
+
+Do **not** author a `links` metadata block — use typed `edges` only (see [`docs/node-templates/_relationship_schema.md`](docs/node-templates/_relationship_schema.md#on-disk-rule)).
+
+Do **not** use `related_to` for parent/child structure. Do **not** author `parent`, `child`, `next`, or `previous` in paragraph `edges` — use `hierarchy` metadata only.
+
+Full rule: [`docs/node-templates/Paragraph Node.md`](docs/node-templates/Paragraph%20Node.md#relationship-rule).
+
+## Revision metadata (required)
+
+```yaml
+metadata:
+  last_revision: 2026-07-04   # ISO date
+  edited_by: admin
+```
+
+Pack-level `source_language` lives in `pack.yaml` at the pack root (inherited by all nodes). Do not set `text.source_language` on paragraph nodes.
+
+Nomenclature paragraphs (`metadata.kind: nomenclature`, e.g. `304.1.1-b`): only `introduces_parameter` edges — tables belong on `PARAM-*` nodes.
+
+Full template: [`docs/node-templates/Paragraph Node.md`](docs/node-templates/Paragraph%20Node.md).

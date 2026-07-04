@@ -9,6 +9,9 @@ CANONICAL_NODE_TYPES = frozenset(
         "workflow",
         "paragraph",
         "equation",
+        "lookup",
+        "validation_rule",
+        "table",
         "parameter",
         "quantity",
         "designation",
@@ -25,8 +28,7 @@ RUNTIME_NODE_FIELDS = frozenset({"value", "user_input", "runtime_unit", "runtime
 _LEGACY_TYPE_KIND: dict[str, tuple[str, str]] = {
     "assumption": ("parameter", "assumption"),
     "interaction": ("parameter", "interaction"),
-    "lookup": ("equation", "lookup"),
-    "table": ("text", "table"),
+    "table": ("table", "table"),
     "standard_section": ("paragraph", "section"),
     "definition": ("paragraph", "definition"),
     "calculation": ("paragraph", "calculation"),
@@ -50,6 +52,8 @@ def normalize_node_metadata(
                 meta.pop(field, None)
         if node_type == "paragraph" and explicit_kind is None:
             meta.setdefault("kind", "section")
+        if node_type == "table" and explicit_kind is None:
+            meta.setdefault("kind", "table")
         if explicit_kind is not None:
             meta["kind"] = str(explicit_kind)
         return node_type, meta
@@ -122,7 +126,28 @@ def is_lookup_node(metadata: dict[str, Any], node_type: str | None = None) -> bo
     if raw == "lookup":
         return True
     ctype, meta = normalize_node_metadata(metadata, raw)
-    return ctype == "equation" and node_kind(meta) == "lookup"
+    if ctype == "lookup":
+        return True
+    # Legacy: equation + kind lookup or equation_class lookup during migration
+    if ctype == "equation":
+        if node_kind(meta) == "lookup":
+            return True
+        if str(meta.get("equation_class") or "") == "lookup":
+            return True
+    return False
+
+
+def is_validation_rule_node(metadata: dict[str, Any], node_type: str | None = None) -> bool:
+    raw = node_type if node_type is not None else str(metadata.get("type", ""))
+    if raw in {"validation_rule", "rule"}:
+        return True
+    ctype, meta = normalize_node_metadata(metadata, raw)
+    if ctype == "validation_rule":
+        return True
+    # Legacy: equation + equation_class validation during migration
+    if ctype == "equation" and str(meta.get("equation_class") or "") == "validation":
+        return True
+    return False
 
 
 def is_table_node(metadata: dict[str, Any], node_type: str | None = None) -> bool:
@@ -130,6 +155,8 @@ def is_table_node(metadata: dict[str, Any], node_type: str | None = None) -> boo
     if raw == "table":
         return True
     ctype, meta = normalize_node_metadata(metadata, raw)
+    if ctype == "table":
+        return True
     return ctype == "text" and node_kind(meta) == "table"
 
 
@@ -159,9 +186,13 @@ def expansion_priority_order(node_type: str, metadata: dict[str, Any]) -> int:
         return 4
     if ctype == "designation":
         return 5
+    if ctype == "lookup":
+        return 6
     if ctype == "equation" and kind == "lookup":
         return 6
     if ctype == "equation":
+        return 7
+    if ctype == "validation_rule":
         return 7
     if ctype == "paragraph":
         return 8

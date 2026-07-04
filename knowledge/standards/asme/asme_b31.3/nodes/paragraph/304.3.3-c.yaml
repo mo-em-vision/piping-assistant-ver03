@@ -1,0 +1,50 @@
+---
+id: 304.3.3-c
+type: paragraph
+key: b313_304_3_3_c
+title: Reinforcement of Welded Branch Connections — Available Area
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.3-c
+text:
+  original: >
+    (c) Available Area. The area available for reinforcement is defined as: A_2 + A_3
+    + A_4 ≥ A_1 ... eq. (6a). These areas are all within the reinforcement zone and are
+    further defined below.
+
+    (1) Area A_2 is the area resulting from excess thickness in the run pipe wall:
+    A_2 = (2d_2 - d_1)(T_h - t_h - c) ... eq. (7).
+
+    (2) Area A_3 is the area resulting from excess thickness in the branch pipe wall:
+    A_3 = 2L_4(T_b - t_b - c)/sin(β) ... eq. (8). If the allowable stress for the
+    branch pipe wall is less than that for the run pipe, its calculated area shall be
+    reduced in the ratio of allowable stress values of the branch to the run in
+    determining its contributions to area A_3.
+
+    (3) Area A_4 is the area of other metal provided by welds and properly attached
+    reinforcement (see (f)). Weld areas shall be based on the minimum dimensions
+    specified in para. 328.5.4, except that larger dimensions may be used if the welder
+    has been specifically instructed to make the welds to those dimensions.
+hierarchy:
+  parent: '304.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: references_equation
+    target: asme-b313-304-3-3-eq-7
+  - type: references_equation
+    target: asme-b313-304-3-3-eq-8
+  - type: references_validation_rule
+    target: asme-b313-304-3-3-valrule-6a
+  - type: related_to
+    target: 304.3.3-f
+  - type: related_to
+    target: 328.5.4
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

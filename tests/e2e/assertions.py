@@ -114,7 +114,7 @@ def assert_output_value(
                 scenario,
                 "Execution Layer",
                 f"Output {key!r}: expected ~{expected_value}, got {actual}",
-                node="B313-304.1.2",
+                node="304.1.2-a",
             )
         return
 

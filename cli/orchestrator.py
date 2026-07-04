@@ -355,7 +355,7 @@ class ChatOrchestrator:
         nav = NavigationPlan(selected_nodes=node_ids)
         node_id = resolve_focus_calculation_node(
             nav, self.standards_reader, task_inputs=task.fact_store.active_facts()
-        ) or "B313-304.1.2"
+        ) or "304.1.2-a"
         return build_symbol_map(
             self.standards_reader,
             node_id,

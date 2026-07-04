@@ -1,0 +1,33 @@
+---
+id: 304.3.2-b
+type: paragraph
+key: b313_304_3_2_b
+title: Strength of Branch Connections — Welded Couplings
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.2-b
+text:
+  original: >
+    (b) the branch connection is made by welding a listed threaded or socket welding
+    coupling or listed half coupling directly to the run in accordance with para. 328.5.4,
+    provided the size of the branch does not exceed DN 50 (NPS 2) nor one-fourth the
+    nominal size of the run. The minimum wall thickness of the coupling anywhere in the
+    reinforcement zone (if threads are in the zone, wall thickness is measured from root
+    of thread to minimum outside diameter) shall be not less than that of the unthreaded
+    branch pipe. In no case shall a coupling or half coupling have a rating less than
+    Class 3000 in accordance with ASME B16.11.
+hierarchy:
+  parent: '304.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: related_to
+    target: 328.5.4
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

@@ -19,6 +19,7 @@ from engine.graph.navigation_phases import build_workflow_phased_navigation
 from engine.graph.workflow_navigation import load_workflow_navigation
 from engine.planner.planner import _INPUT_QUESTIONS
 from engine.planner.tools import GraphTools
+from engine.reference.graph_edge_schema import edge_target, iter_stored_edges
 from engine.reference.standards_reader import StandardsReader
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.state.task_facts import active_facts, store_fact, store_user_fact
@@ -63,6 +64,18 @@ def resolve_activated_definition_node(
     except FileNotFoundError:
         return None
 
+    for item in iter_stored_edges(root.metadata):
+        if str(item.get("type", "")) == "starts_from_paragraph":
+            target = edge_target(item)
+            if target:
+                return target
+
+    for entry in root.metadata.get("entry_points", []) or []:
+        if isinstance(entry, dict) and str(entry.get("role", "")) == "definition_anchor":
+            paragraph = entry.get("paragraph")
+            if paragraph:
+                return str(paragraph)
+
     for item in root.metadata.get("depends_on", []) or []:
         if not isinstance(item, dict):
             continue
@@ -73,7 +86,7 @@ def resolve_activated_definition_node(
             record = reader.load(str(node_id))
         except FileNotFoundError:
             continue
-        if str(record.metadata.get("type", "")) == "definition":
+        if str(record.metadata.get("type", "")) in {"definition", "paragraph"}:
             return str(node_id)
 
     order = execution_order
@@ -90,7 +103,7 @@ def resolve_activated_definition_node(
             record = reader.load(node_id)
         except FileNotFoundError:
             continue
-        if str(record.metadata.get("type", "")) == "definition":
+        if str(record.metadata.get("type", "")) in {"definition", "paragraph"}:
             return node_id
     return None
 
@@ -458,8 +471,8 @@ def _path_decision(
 ) -> dict[str, Any] | None:
     loading = inputs.get("pressure_loading")
     value = fact_scalar_value(loading) if loading is not None else None
-    if value == "internal_pressure" and "B313-304.1.2" in exec_nodes:
-        return {"pressure_loading": "internal_pressure", "selected_node": "B313-304.1.2"}
+    if value == "internal_pressure" and "304.1.2-a" in exec_nodes:
+        return {"pressure_loading": "internal_pressure", "selected_node": "304.1.2-a"}
     if value == "external_pressure" and "B313-304.1.3" in exec_nodes:
         return {"pressure_loading": "external_pressure", "selected_node": "B313-304.1.3"}
     if "B313-MAWP-CALCULATION" in exec_nodes:

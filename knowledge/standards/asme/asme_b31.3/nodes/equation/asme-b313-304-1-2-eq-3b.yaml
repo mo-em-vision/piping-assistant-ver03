@@ -1,0 +1,85 @@
+---
+id: asme-b313-304-1-2-eq-3b
+type: equation
+key: asme-b313-304-1-2-eq-3b
+name: Internal Pressure Wall Thickness — Eq. (3b)
+equation_class: calculation
+calculation_kind: function
+description: Internal pressure design thickness for straight pipe (eq. 3b)
+authority:
+  authorized_by:
+  - 304.1.2-a
+  authority_context_required: true
+requires:
+- symbol: P
+  required: true
+  description: Internal design gage pressure
+  parameter: PARAM-design-pressure
+- symbol: d
+  required: true
+  description: Inside diameter of pipe
+  parameter: PARAM-inside-diameter
+- symbol: c
+  required: true
+  description: Sum of mechanical, corrosion, and erosion allowances
+  parameter: PARAM-corrosion-allowance
+- symbol: S
+  required: true
+  description: Stress value from Table A-1
+  parameter: PARAM-allowable-stress
+- symbol: E
+  required: true
+  description: Quality factor from Tables A-2 and A-3
+  parameter: PARAM-weld-joint-efficiency
+- symbol: W
+  required: true
+  description: Weld strength reduction factor per para. 302.3.5-e
+  parameter: PARAM-weld-strength-reduction-factor-W
+- symbol: Y
+  required: true
+  description: Coefficient from Table 304.1.1
+  parameter: PARAM-temperature-coefficient-Y
+calculates:
+- symbol: t
+  parameter: PARAM-required-wall-thickness
+edges:
+- type: requires_parameter
+  target: PARAM-design-pressure
+  alias: P
+- type: requires_parameter
+  target: PARAM-inside-diameter
+  alias: d
+- type: requires_parameter
+  target: PARAM-corrosion-allowance
+  alias: c
+- type: requires_parameter
+  target: PARAM-allowable-stress
+  alias: S
+- type: requires_parameter
+  target: PARAM-weld-joint-efficiency
+  alias: E
+- type: requires_parameter
+  target: PARAM-weld-strength-reduction-factor-W
+  alias: W
+- type: requires_parameter
+  target: PARAM-temperature-coefficient-Y
+  alias: Y
+- type: calculates_parameter
+  target: PARAM-required-wall-thickness
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: eq-3b
+  last_revision: 2026-07-04
+  edited_by: admin
+display:
+  text: t = P(d+2c) / 2(SEW - P(1-Y))
+applicability:
+  applies_when:
+  - parameter: PARAM-pressure-loading
+    operator: equals
+    value: internal_pressure
+  - parameter: PARAM-straight-pipe-section
+    operator: equals
+    value: true
+---

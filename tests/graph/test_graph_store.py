@@ -10,6 +10,7 @@ from engine.graph.graph_store import GraphStore
 from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput, InputSource, InputStatus
 from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
+from tests.helpers.facts import facts_from_inputs
 
 
 def _reader() -> StandardsReader:
@@ -26,6 +27,7 @@ def test_graph_store_loads_workflows() -> None:
     assert "WF-PIPE-WALL-THICKNESS" in ids
 
 
+
 def test_micro_graph_build_plan_internal_pressure() -> None:
     reader = _reader()
     engine = GraphEngine()
@@ -33,14 +35,17 @@ def test_micro_graph_build_plan_internal_pressure() -> None:
     plan = engine.build_plan(
         task_id="graph-micro-test",
         root_id="pipe_wall_thickness_design",
-        inputs={
-            "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
-        },
+        inputs=facts_from_inputs(
+            {
+                "straight_pipe_section": straight_section_assumption(),
+                "pressure_loading": internal_pressure_assumption(),
+            },
+            task_id="graph-micro-test",
+        ),
         reader=reader,
     )
-    assert "asme_b313_304_1_2_wall_thickness" in plan.nodes or "304.1.2" in plan.nodes
-    assert "asme_b313_304_1_1_eq_2" in plan.nodes or "304.1.1" in plan.nodes
+    assert "304.1.2.eq.3a" in plan.nodes or "304.1.2-a" in plan.nodes
+    assert "304.1.1.eq.2" in plan.nodes or "304.1.1-a" in plan.nodes
     assert "B313-304.1.3" not in plan.nodes
 
 
@@ -62,7 +67,7 @@ def test_graph_store_builds_from_sources_without_sqlite_cache(tmp_path: Path) ->
     pack_dst.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(pack_src, pack_dst, ignore=shutil.ignore_patterns("*.db"))
 
-    cache_path = pack_dst / "asme_b313_graph.db"
+    cache_path = pack_dst / "graph.db"
     assert not cache_path.is_file()
 
     reader = StandardsReader(standards_root, standard="asme_b31.3")
@@ -74,18 +79,23 @@ def test_graph_store_builds_from_sources_without_sqlite_cache(tmp_path: Path) ->
     assert any(wf.node_id in {"B313-WF-PIPE-WALL-THICKNESS", "WF-PIPE-WALL-THICKNESS"} for wf in workflows)
 
 
-def test_graph_store_loads_nomenclature_parameter_nodes() -> None:
+def test_graph_store_loads_global_parameter_nodes() -> None:
     reader = _reader()
     store = GraphStore(reader.pack_root)
     assert store.available
 
-    for param_id in ("param-P", "param-D", "param-S", "param-c"):
+    for param_id in (
+        "PARAM-design-pressure",
+        "PARAM-outside-diameter",
+        "PARAM-allowable-stress",
+        "PARAM-corrosion-allowance",
+    ):
         node = store.get_node(param_id)
         assert node is not None, param_id
         assert node.node_type == "parameter"
         assert "value" not in node.metadata
 
-    wall_eq = store.get_node("asme_b313_304_1_2_wall_thickness")
+    wall_eq = store.get_node("asme-b313-304-1-2-eq-3a")
     assert wall_eq is not None
     assert wall_eq.node_type == "equation"
 
@@ -95,11 +105,11 @@ def test_wall_thickness_equation_requires_relationship_metadata() -> None:
     store = GraphStore(reader.pack_root)
     requires = {
         edge.to_id: edge.metadata
-        for edge in store.outgoing("asme_b313_304_1_2_wall_thickness", edge_types={"requires_parameter", "requires"})
+        for edge in store.outgoing("asme-b313-304-1-2-eq-3a", edge_types={"requires_parameter", "requires"})
     }
-    assert "param-P" in requires
-    assert requires["param-P"]["alias"] == "P"
-    assert requires["param-D"]["alias"] == "D"
+    assert "PARAM-design-pressure" in requires
+    assert requires["PARAM-design-pressure"]["alias"] == "P"
+    assert requires["PARAM-outside-diameter"]["alias"] == "D"
 
 
 def test_eq_2_and_lookup_require_relationship_metadata() -> None:
@@ -107,16 +117,16 @@ def test_eq_2_and_lookup_require_relationship_metadata() -> None:
     store = GraphStore(reader.pack_root)
     requires = {
         edge.to_id: edge.metadata
-        for edge in store.outgoing("asme_b313_304_1_1_eq_2", edge_types={"requires_parameter", "requires"})
+        for edge in store.outgoing("asme-b313-304-1-1-eq-2", edge_types={"requires_parameter", "requires"})
     }
-    assert "param-c" in requires
-    assert requires["param-c"]["alias"] == "c"
+    assert "PARAM-corrosion-allowance" in requires
+    assert requires["PARAM-corrosion-allowance"]["alias"] == "c"
 
     lookup_requires = {
         edge.to_id: edge.metadata
-        for edge in store.outgoing("B313-table-A-1", edge_types={"requires"})
+        for edge in store.outgoing("asme-b313-table-A-1", edge_types={"requires"})
     }
-    assert lookup_requires or store.get_node("B313-table-A-1") is not None
+    assert lookup_requires or store.get_node("asme-b313-table-A-1") is not None
 
 
 def test_micro_graph_plan_resolves_quantity_linked_parameters() -> None:
@@ -125,20 +135,23 @@ def test_micro_graph_plan_resolves_quantity_linked_parameters() -> None:
     plan = engine.build_plan(
         task_id="quantity-link-test",
         root_id="pipe_wall_thickness_design",
-        inputs={
-            "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
-            "design_pressure": EngineeringInput(
-                input_id="design_pressure",
-                value=1_000_000,
-                unit="Pa",
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
-            ),
-        },
+        inputs=facts_from_inputs(
+            {
+                "straight_pipe_section": straight_section_assumption(),
+                "pressure_loading": internal_pressure_assumption(),
+                "design_pressure": EngineeringInput(
+                    input_id="design_pressure",
+                    value=1_000_000,
+                    unit="Pa",
+                    source=InputSource.USER,
+                    status=InputStatus.CONFIRMED,
+                ),
+            },
+            task_id="quantity-link-test",
+        ),
         reader=reader,
     )
-    assert "304.1.2" in plan.nodes
+    assert "304.1.2-a" in plan.nodes
 
 
 def test_graph_builder_accepts_quantity_and_designation_nodes(tmp_path: Path) -> None:

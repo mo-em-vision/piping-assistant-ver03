@@ -18,7 +18,9 @@ def standards_reader(project_root: Path) -> StandardsReader:
 def test_resolve_wall_thickness_variables_for_304_1_2(
     standards_reader: StandardsReader,
 ) -> None:
-    resolved = resolve_equation_display_variables(standards_reader, "B313-304.1.2")
+    resolved = resolve_equation_display_variables(
+        standards_reader, "304.1.2.eq.3a"
+    )
     variables = resolved["variables"]
     by_symbol = {row["symbol"]: row["name"] for row in variables}
 
@@ -30,5 +32,5 @@ def test_resolve_wall_thickness_variables_for_304_1_2(
 
     nomenclature_reference = resolved["nomenclature_reference"]
     assert nomenclature_reference is not None
-    assert nomenclature_reference["node_id"] in {"B313-304.1.1", "304.1.1"}
-    assert nomenclature_reference["label"] == "§304.1.1(b)"
+    assert nomenclature_reference["node_id"] in {"304.1.1-b", "B313-304.1.1"}
+    assert nomenclature_reference["label"] == "§304.1.1-b"

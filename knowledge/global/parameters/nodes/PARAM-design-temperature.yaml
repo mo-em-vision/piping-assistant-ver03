@@ -14,19 +14,19 @@ aliases:
   - design metal temperature
   - operating temperature
 introduced_by:
-  - B313-302.3.5
+  - asme-b313-302-3-5-e
 edges:
   - type: has_dimension
     target: DIM-temperature
-  - type: introduced_by
-    target: B313-302.3.5
   - type: used_by
-    target: B313-table-A-1
+    target: asme-b313-table-A-1
   - type: used_by
-    target: B313-table-304-1-1-1
+    target: asme-b313-table-304-1-1-1
   - type: used_by
-    target: B313-table-302-3-5-1
+    target: asme-b313-table-302-3-5-1
 metadata:
   status: active
   version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---

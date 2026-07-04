@@ -10,7 +10,7 @@
 | `nodes/304/304.1/304.1.1/` | `nodes/B313-304.1.1/` |
 | `nodes/parameters/B313-param-P/` | `nodes/B313-param-P/` |
 | `nodes/appendix_A/tables/B313-table-A-1/` | `nodes/B313-table-A-1/` |
-| `nodes/302/302.3.5/B313-302.3.5/` | `nodes/B313-302.3.5/` |
+| `nodes/302/302.3.5/302.3.5-e/` | `nodes/302.3.5-e/` |
 
 - **48** primary node folders relocated to flat `nodes/{node_id}/` layout
 - **10** redundant embedded-duplicate child folders removed (content remains in parent `source:` blocks)
@@ -45,7 +45,7 @@ All targeted suites pass after rebuild.
 
 ## Single-file merge (2026-06-30)
 
-Dual `node.yaml` + `node.md` pairs for `B313-304.1.1`, `B313-304.1.2`, `B313-304.1.3`, and `B313-MAWP-SECTION` were consolidated into one `node.yaml` per folder via `scripts/merge_b313_node_sources.py`. Node Dev Studio and loaders prefer `node.yaml` when resolving paths.
+Dual `node.yaml` + `node.md` pairs for `B313-304.1.1`, `304.1.2-a`, `B313-304.1.3`, and `B313-MAWP-SECTION` were consolidated into one `node.yaml` per folder via `scripts/merge_b313_node_sources.py`. Node Dev Studio and loaders prefer `node.yaml` when resolving paths.
 
 ## Browse UX
 

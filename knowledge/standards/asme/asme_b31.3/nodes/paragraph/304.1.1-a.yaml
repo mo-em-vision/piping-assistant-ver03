@@ -1,0 +1,40 @@
+---
+id: 304.1.1-a
+type: paragraph
+key: b313_304_1_1_a
+title: Required Thickness for Straight Pipe
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.1.1-a
+text:
+  original: >
+    The required thickness of straight sections of pipe shall be determined in accordance
+    with eq. (2):
+
+    t_m = t + c
+
+    The minimum thickness, T, for the pipe selected, considering manufacturer's minus
+    tolerance, shall be not less than t_m.
+hierarchy:
+  parent: '304.1'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: references_equation
+    target: asme-b313-304-1-1-eq-2
+  - type: introduces_parameter
+    target: PARAM-minimum-required-thickness
+  - type: references_validation_rule
+    target: asme-b313-304-1-1-valrule-a
+  - type: references_concept
+    target: CONCEPT-pressure
+  - type: references_concept
+    target: CONCEPT-wall-thickness
+metadata:
+  status: active
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

@@ -31,8 +31,8 @@ _CONTAINER_KEYS = (
 )
 
 _CROSS_REF_FIXES = {
-    "../304.1.2/equations/mawp_pressure.md": "nodes/B313-304.1.2/equations/mawp_pressure.md",
-    "../304.1.2/equations/thick_wall_y.md": "nodes/B313-304.1.2/equations/thick_wall_y.md",
+    "../304.1.2/equations/mawp_pressure.md": "nodes/304.1.2-a/equations/mawp_pressure.md",
+    "../304.1.2/equations/thick_wall_y.md": "nodes/304.1.2-a/equations/thick_wall_y.md",
     "../mawp_definition/equations/pressure_design_thickness.md": "nodes/B313-MAWP-SECTION/equations/pressure_design_thickness.md",
 }
 

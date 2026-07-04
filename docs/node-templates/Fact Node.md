@@ -35,7 +35,7 @@ provenance:
   execution_context_id: EXEC-2026-000001
   task_id: TASK-pipe-wall-thickness-001
   workflow_id: WF-pipe-wall-thickness-design
-  collected_at_node: B313-304.1.2
+  collected_at_node: 304.1.2-a
   collected_at_phase: parameter_gathering
   timestamp: 2026-07-02T10:30:00Z
 
@@ -225,12 +225,23 @@ source:
     - FACT-allowable-stress-001
 ```
 
+## Validation rule result
+
+```yaml
+source:
+  source_type: validation_rule
+  source_id: VALRULE-B313-thin-wall-check
+  input_facts:
+    - FACT-required-wall-thickness-001
+    - FACT-outside-diameter-001
+```
+
 ## Default confirmed by user
 
 ```yaml
 source:
   source_type: default_confirmed
-  source_id: B313-304.1.2
+  source_id: 304.1.2-a
   description: >
     Default coefficient accepted by user.
 ```
@@ -453,7 +464,7 @@ provenance:
   task_id: TASK-pipe-wall-thickness-001
   workflow_id: WF-pipe-wall-thickness-design
   goal_id: GOAL-required-wall-thickness
-  produced_by_node: B313-304.1.2
+  produced_by_node: 304.1.2-a
   timestamp: 2026-07-02T10:32:00Z
 
 validation:

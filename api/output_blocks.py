@@ -31,7 +31,7 @@ from models.fact import FactClass, ValidationStatus, fact_scalar_value
 from models.task import Task, TaskStatus
 
 _NODE_REFERENCES: dict[str, dict[str, str]] = {
-    "B313-304.1.2": {
+    "304.1.2-a": {
         "standard": "ASME B31.3",
         "paragraph": "304.1.2",
         "title": "Straight Pipe Under Internal Pressure",
@@ -228,7 +228,7 @@ def _resolve_calculation_node_id(
     loading = task.fact_store.active_fact("pressure_loading")
     loading_value = fact_scalar_value(loading) if loading is not None else None
     if loading_value == "internal_pressure":
-        return "B313-304.1.2"
+        return "304.1.2-a"
     if loading_value == "external_pressure":
         return "B313-304.1.3"
 
@@ -495,7 +495,7 @@ def _minimum_thickness_conclusion_block(task: Task) -> dict[str, Any] | None:
         "content": (
             f"Minimum required pipe wall thickness is "
             f"{format_thickness_result_display(float(t_m), unit)}. "
-            "The selected pipe wall thickness must be not less than t_m per §304.1.1(a)."
+            "The selected pipe wall thickness must be not less than t_m per §304.1.1-a."
         ),
         "variant": "body",
     }
@@ -631,7 +631,7 @@ def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] 
 
 
 def _wall_thickness_calculation_trace_entry(trace: list[Any]) -> dict[str, Any] | None:
-    preferred = ("B313-eq-wall-thickness", "B313-304.1.2", "B313-304.1.3")
+    preferred = ("B313-eq-wall-thickness", "304.1.2-a", "B313-304.1.3")
     for node_id in preferred:
         for entry in trace:
             if isinstance(entry, dict) and entry.get("node_id") == node_id:

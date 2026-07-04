@@ -2,6 +2,8 @@
 
 A Parameter node defines a reusable engineering concept. It does **not** store values, user inputs, runtime state, or execution resolution strategy.
 
+Do **not** author a top-level `links` metadata block — object relationships belong in typed `edges` only ([`_relationship_schema.md`](_relationship_schema.md#on-disk-rule)). **Exception:** declare where a parameter is introduced in the top-level `introduced_by` list (not in `edges`); the graph compiler emits `introduced_by` edges at build time.
+
 ```yaml
 ---
 id: PARAM-design-pressure
@@ -23,17 +25,14 @@ aliases:
   - internal design pressure
 
 introduced_by:
-  - B313-304.1.2
+  - asme-b313-304-1-1-b
 
 edges:
   - type: has_dimension
     target: DIM-pressure
 
-  - type: introduced_by
-    target: B313-304.1.2
-
   - type: used_by
-    target: EQ-B313-wall-thickness
+    target: asme-b313-304-1-2-eq-3a
 
 metadata:
   status: active
@@ -52,6 +51,7 @@ metadata:
 |`parameter_class`|Kind of parameter.|
 |`dimension`|Reference to a `DIM-*` node.|
 |`description`|Stable semantic definition.|
+|`introduced_by`|Pack-qualified paragraph id(s) where the symbol is introduced (top-level list only; not `edges`).|
 
 ## Recommended `parameter_class` values
 
@@ -66,6 +66,13 @@ environmental_condition
 calculated_quantity
 selection
 ```
+
+### `selection` and `categorical` control runtime behavior
+
+These `parameter_class` values drive planner prompts, UI input type, and lookup gating. They do **not** belong on Concept nodes — Concepts only group semantic meaning. See [Engineering Concept](Engineering%20Concept.md#selection-vs-categorical-where-each-belongs).
+
+- **`selection`**: discrete workflow choice (dropdown/confirmation); e.g. joint category before E lookup.
+- **`categorical`**: label-based designation stored as a Fact `{label, normalized_key}`; e.g. material specification token.
 
 ## Dimension examples
 
@@ -94,6 +101,17 @@ status:
 
 Those belong to **Facts**, **Execution Context**, or **Workflow/Planner logic**.
 
+## Cross-pack paragraph traceability
+
+Global `PARAM-*` nodes live outside any standards pack. When a parameter is introduced or used by a **paragraph**, reference the paragraph with a **pack-qualified id** so multiple standards do not collide:
+
+| Pack | Prefix | Bare paragraph `id` | Qualified reference |
+| --- | --- | --- | --- |
+| ASME B31.3 | `asme-b313` | `304.1.1-b` | `asme-b313-304-1-1-b` |
+| ASME B31.3 | `asme-b313` | `302.3.5-e` | `asme-b313-302-3-5-e` |
+
+Use pack-qualified ids in the top-level `introduced_by` list only — do **not** duplicate them as `introduced_by` edges. Paragraph nodes inside a pack keep their bare `id` (`304.1.1-b`); the graph compiler resolves qualified references at compile time. Helpers: [`engine/reference/asme_b313_node_ids.py`](../../engine/reference/asme_b313_node_ids.py).
+
 ## Example: material parameter
 
 ```yaml
@@ -119,18 +137,14 @@ aliases:
   - material grade
 
 introduced_by:
-  - B313-304.1.1
-  - B313-302.3.5
+  - asme-b313-304-1-1-b
 
 edges:
   - type: has_dimension
     target: DIM-material-designation
 
-  - type: introduced_by
-    target: B313-304.1.1
-
   - type: used_by
-    target: LOOKUP-B313-material-allowable-stress
+    target: asme-b313-table-A-1
 
 metadata:
   status: active
@@ -163,17 +177,14 @@ aliases:
   - allowance
 
 introduced_by:
-  - B313-304.1.1
+  - asme-b313-304-1-1-b
 
 edges:
   - type: has_dimension
     target: DIM-length
 
-  - type: introduced_by
-    target: B313-304.1.1
-
   - type: used_by
-    target: EQ-B313-minimum-required-thickness
+    target: asme-b313-304-1-1-eq-2
 
 metadata:
   status: active
@@ -181,10 +192,49 @@ metadata:
 ---
 ```
 
+## Example: joint category parameter
+
+```yaml
+---
+id: PARAM-joint-category
+type: parameter
+
+key: joint_category
+name: Joint Category
+
+parameter_class: selection
+
+description: >
+  Pipe or joint construction category used to resolve weld joint quality
+  factor E from Tables A-2 and A-3.
+
+canonical_symbol: joint_category
+
+aliases:
+  - weld category
+  - joint type
+  - weld joint category
+
+introduced_by:
+  - asme-b313-304-1-2-a
+
+edges:
+  - type: used_by
+    target: asme-b313-table-A-3
+
+metadata:
+  status: active
+  version: 1
+---
+```
+
+Semantic grouping lives on [`CONCEPT-joint-category`](../../knowledge/global/concepts/nodes/CONCEPT-joint-category.yaml); this Parameter owns the contextual role and selection behavior.
+
 ## Conceptual rule
 
 ```text
-Parameter defines the concept.
+Concept defines semantic meaning.
+Parameter defines contextual role and behavior class.
 Dimension defines compatible units.
 Unit defines conversion.
 Fact stores actual value.

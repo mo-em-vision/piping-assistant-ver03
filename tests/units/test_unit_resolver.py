@@ -55,6 +55,24 @@ def test_fahrenheit_to_kelvin(resolver: UnitResolver) -> None:
     assert value == pytest.approx(273.15, rel=1e-4)
 
 
+def test_celsius_to_fahrenheit_direct(resolver: UnitResolver) -> None:
+    value, unit = resolver.convert_value(0.0, "degC", "degF")
+    assert unit == "degF"
+    assert value == pytest.approx(32.0, rel=1e-4)
+
+
+def test_fahrenheit_to_celsius_direct(resolver: UnitResolver) -> None:
+    value, unit = resolver.convert_value(212.0, "degF", "degC")
+    assert unit == "degC"
+    assert value == pytest.approx(100.0, rel=1e-4)
+
+
+def test_celsius_to_kelvin_via_equation(resolver: UnitResolver) -> None:
+    value, unit = resolver.convert_value(25.0, "C", "K")
+    assert unit == "K"
+    assert value == pytest.approx(298.15, rel=1e-4)
+
+
 def test_invalid_dimension_rejected(resolver: UnitResolver) -> None:
     with pytest.raises(ValueError, match="Incompatible dimensions"):
         resolver.convert_value(100.0, "psi", "mm")
@@ -84,12 +102,15 @@ def test_convert_to_canonical_si_stress_dimension(resolver: UnitResolver) -> Non
 
 def test_unit_pack_compiles() -> None:
     from engine.graph.graph_builder import GraphBuilder
+    from engine.reference.graph_cache import write_graph_cache
+    from engine.validation.unit_node_validator import validate_unit_pack
     from pathlib import Path
 
     pack_root = Path(__file__).resolve().parents[2] / "knowledge" / "global" / "units"
     graph = GraphBuilder(pack_root).build()
     assert "UNIT-Pa" in graph.nodes
     assert "UNIT-psi" in graph.nodes
+    assert "EQ-unit-degC-to-degF" in graph.nodes
     converts = [edge for edge in graph.edges if edge.edge_type == "converts_to"]
     assert any(edge.from_id == "UNIT-psi" and edge.to_id == "UNIT-Pa" for edge in converts)
     factor = next(
@@ -98,6 +119,16 @@ def test_unit_pack_compiles() -> None:
         if edge.from_id == "UNIT-psi" and edge.to_id == "UNIT-Pa"
     )
     assert factor == pytest.approx(6894.757293168)
+    equation_edge = next(
+        edge
+        for edge in converts
+        if edge.from_id == "UNIT-degC" and edge.to_id == "UNIT-degF"
+    )
+    assert equation_edge.metadata.get("equation") == "EQ-unit-degC-to-degF"
+    node_metadata = {node_id: record.metadata for node_id, record in graph.nodes.items()}
+    issues = validate_unit_pack(node_metadata)
+    assert issues == []
+    write_graph_cache(pack_root, graph)
 
 
 def test_physical_dimensions_pack_compiles() -> None:
@@ -132,7 +163,8 @@ def test_parameter_pack_compiles() -> None:
     graph = GraphBuilder(pack_root).build()
     assert "PARAM-design-pressure" in graph.nodes
     assert "PARAM-corrosion-allowance" in graph.nodes
-    assert "PARAM-material-specification" in graph.nodes
+    assert "PARAM-material-grade" in graph.nodes
+    assert "PARAM-metallurgical-group" in graph.nodes
     param = graph.nodes["PARAM-design-pressure"]
     assert param.metadata.get("dimension") == "DIM-pressure"
     assert param.metadata.get("parameter_class") == "physical_quantity"

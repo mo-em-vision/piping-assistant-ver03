@@ -4,11 +4,11 @@ A Table node represents authoritative structured data from a standard, code, spe
 
 A Table belongs to an Authority.  
 A Table may provide values for Parameters.  
-A Table is consumed by Lookup Equations.
+A Table is consumed by Lookup nodes.
 
 A Table does not execute itself.  
 A Table does not create Facts directly.  
-A Lookup Equation reads the Table and produces Facts.
+A Lookup node reads the Table and produces Facts.
 
 ```yaml
 ---
@@ -104,7 +104,7 @@ Project line class table
 A Table stores or references structured authority data.
 
 A Table does not decide when it applies.  
-Applicability comes from Authority Context, Paragraphs, Lookup Equations, and Validation rules.
+Applicability comes from Authority Context, Paragraphs, Lookup nodes, and Validation rules.
 
 ---
 
@@ -143,17 +143,17 @@ project_data_table
 
 ---
 
-# Table vs Lookup Equation
+# Table vs Lookup node
 
 A Table stores authoritative data.
 
-A Lookup Equation defines how to use that data.
+A Lookup node defines how to use that data.
 
 ```text
 Table:
   ASME B31.3 allowable stress data
 
-Lookup Equation:
+Lookup node:
   Given material + temperature, retrieve allowable stress
 
 Fact:
@@ -162,7 +162,7 @@ Fact:
 
 Do not put lookup behavior only inside the Table.
 
-The Table may define default lookup rules, but the Lookup Equation is the executable contract.
+The Table may define default lookup rules, but the Lookup node is the executable contract.
 
 ---
 
@@ -485,16 +485,21 @@ supersedes
 superseded_by
 ```
 
-Example:
+`used_by_lookup` is a reverse-only query type — do not author on tables.  
+Author `reads_table` on the lookup node instead.
+
+Example (forward authoring on lookup):
 
 ```yaml
 edges:
-  - type: belongs_to_authority
-    target: AUTH-ASME-B31.3
+  - type: reads_table
+    target: TABLE-B313-allowable-stress
+```
 
-  - type: provides_parameter_values_for
-    target: PARAM-allowable-stress
+Example (inverse, query only):
 
+```yaml
+edges:
   - type: used_by_lookup
     target: LOOKUP-B313-material-allowable-stress
 ```
@@ -580,7 +585,7 @@ A Table node is invalid if:
 ```text
 Authority owns the Table.
 Table stores authoritative structured data.
-Lookup Equation defines how the Table is queried.
+Lookup node defines how the Table is queried.
 Fact records the selected result.
 Report explains the lookup basis.
 ```

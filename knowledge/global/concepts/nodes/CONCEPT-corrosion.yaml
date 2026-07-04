@@ -1,0 +1,27 @@
+---
+id: CONCEPT-corrosion
+type: concept
+key: corrosion
+name: Corrosion and Erosion Allowance
+concept_class: geometric_quantity
+dimension: DIM-length
+description: >
+  The engineering concept of metal loss from corrosion, erosion, and mechanical
+  allowances added to pressure design thickness. Includes corrosion allowance,
+  erosion allowance, thread or groove depth, and related thickness additions.
+aliases:
+  - corrosion
+  - erosion allowance
+  - corrosion allowance
+  - mechanical allowance
+edges:
+  - type: has_dimension
+    target: DIM-length
+  - type: has_parameter
+    target: PARAM-corrosion-allowance
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

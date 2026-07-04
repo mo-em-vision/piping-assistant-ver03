@@ -1,0 +1,55 @@
+---
+id: asme-b313-304-1-1-valrule-a
+type: validation_rule
+key: asme-b313-304-1-1-valrule-a
+name: Pipe Wall Thickness Adequacy
+rule_class: validation
+description: >
+  Selected pipe minimum wall thickness T, considering manufacturer's minus tolerance,
+  shall be not less than the minimum required thickness t_m = t + c per §304.1.1-a.
+authority:
+  authorized_by:
+  - 304.1.1-a
+  authority_context_required: true
+display:
+  text: T >= t + c
+expression:
+  language: sympy
+  formula: wall_thickness_adequate = T >= (t + c)
+requires:
+- symbol: t
+  required: true
+  description: Pressure design thickness from §304.1.2 or §304.1.3
+  parameter: PARAM-required-wall-thickness
+- symbol: c
+  required: true
+  description: Sum of mechanical, corrosion, and erosion allowances
+  parameter: PARAM-corrosion-allowance
+- symbol: T
+  required: true
+  description: Pipe wall thickness per purchase specification
+validates:
+- symbol: wall_thickness_adequate
+  parameter: PARAM-wall-thickness-adequacy
+conditions:
+  all_of:
+  - expression: T >= t + c
+    description: Selected pipe wall thickness meets minimum required thickness per §304.1.1-a
+edges:
+- type: requires_parameter
+  target: PARAM-required-wall-thickness
+  alias: t
+- type: requires_parameter
+  target: PARAM-corrosion-allowance
+  alias: c
+- type: validates_parameter
+  target: PARAM-wall-thickness-adequacy
+- type: constrains_equation
+  target: asme-b313-304-1-1-eq-2
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: valrule-304-1-1-a
+  last_revision: 2026-07-04
+  edited_by: admin
+---

@@ -1,0 +1,28 @@
+---
+id: PARAM-inside-diameter
+type: parameter
+key: inside_diameter
+name: Inside Diameter
+parameter_class: geometric_quantity
+dimension: DIM-length
+description: >
+  Inside diameter of pipe. For pressure design calculation, the inside diameter
+  is the maximum value allowable under the purchase specification.
+canonical_symbol: d
+aliases:
+  - inside diameter
+  - pipe inside diameter
+  - ID
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: has_dimension
+    target: DIM-length
+  - type: used_by
+    target: asme-b313-304-1-2-eq-3b
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

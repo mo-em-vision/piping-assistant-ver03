@@ -1,0 +1,22 @@
+---
+id: asme-b313-note-302-3-3C-1
+standard: asme_b31.3
+source:
+  pack: asme_b31.3
+  yaml: nodes/tables/asme-b313-note-302-3-3C-1.yaml
+  tables_db: tables.db
+type: text
+title: Table 302.3.3C — Note (1)
+status: draft
+paragraph: Table 302.3.3C, Note (1)
+section: '302.3'
+topic: quality_factor
+revision_year: 2024
+kind: note
+edges:
+- type: depends_on
+  target: asme-b313-table-302-3-3C
+metadata:
+  last_revision: 2026-07-04
+  edited_by: admin
+---

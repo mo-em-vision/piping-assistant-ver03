@@ -1,0 +1,27 @@
+---
+id: PARAM-temperature-coefficient-Y
+type: parameter
+key: temperature_coefficient_Y
+name: Temperature Coefficient Y
+parameter_class: coefficient
+dimension: DIM-dimensionless
+description: >
+  Coefficient from Table 304.1.1-1 when t < D/6; thick-wall formula
+  otherwise, per §304.1.1 nomenclature.
+canonical_symbol: Y
+aliases:
+  - temperature coefficient Y
+  - coefficient Y
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: has_dimension
+    target: DIM-dimensionless
+  - type: used_by
+    target: asme-b313-table-304-1-1-1
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

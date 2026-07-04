@@ -20,8 +20,8 @@ class TestStandardsCoverage:
 
     def test_b31_3_has_paragraph_calculation_and_table_assets(self, standards_reader) -> None:
         definition_node = standards_reader.load("B313-304.1.1")
-        wall_node = standards_reader.load("B313-304.1.2")
-        stress_node = standards_reader.load("B313-table-A-1")
+        wall_node = standards_reader.load("304.1.2-a")
+        stress_node = standards_reader.load("asme-b313-table-A-1")
 
         assert paragraph_reference(definition_node.metadata) == "304.1.1"
         assert definition_node.metadata.get("type") == "definition"
@@ -37,7 +37,7 @@ class TestStandardsCoverage:
         assert any(
             ref.get("standard") == "asme_b36.10" for ref in d_entry.get("references", [])
         )
-        assert paragraph_reference(wall_node.metadata) == "304.1.2"
+        assert paragraph_reference(wall_node.metadata) == "304.1.2-a"
         assert wall_node.metadata.get("type") == "calculation"
         assert stress_node.metadata.get("type") == "equation"
         assert stress_node.metadata.get("kind") == "lookup"
@@ -48,7 +48,7 @@ class TestStandardsCoverage:
             standards_reader.pack_root
             / "nodes"
             / "equation"
-            / "asme_b313_304_1_2_wall_thickness.yaml"
+            / "304.1.2.eq.3a.yaml"
         )
         assert equation_path.exists()
 
@@ -67,8 +67,8 @@ class TestNodeAcceptanceCriteria:
         [
             ("pipe_wall_thickness_design", ("id", "type", "depends_on", "report")),
             ("B313-304.1.1", ("id", "nomenclature", "report")),
-            ("B313-304.1.2", ("id", "inputs", "outputs", "depends_on", "conditions", "equations", "report")),
-            ("B313-table-A-1", ("id", "inputs", "outputs", "lookups")),
+            ("304.1.2-a", ("id", "inputs", "outputs", "depends_on", "conditions", "equations", "report")),
+            ("asme-b313-table-A-1", ("id", "inputs", "outputs", "lookups")),
         ],
     )
     def test_active_nodes_contain_required_fields(
@@ -82,22 +82,22 @@ class TestNodeAcceptanceCriteria:
             assert field in metadata, f"{node_id} missing {field}"
 
     def test_calculation_node_has_optional_traceability_fields(self, standards_reader) -> None:
-        metadata = standards_reader.load("B313-304.1.2").metadata
+        metadata = standards_reader.load("304.1.2-a").metadata
         assert metadata.get("limitations")
         assert metadata.get("notes")
         assert metadata.get("references")
 
-    @pytest.mark.parametrize("node_id", ("B313-304.1.1", "B313-304.1.2", "B313-table-A-1"))
+    @pytest.mark.parametrize("node_id", ("B313-304.1.1", "304.1.2-a", "asme-b313-table-A-1"))
     def test_active_nodes_pass_schema_validation(self, standards_reader, node_id: str) -> None:
         result = standards_reader.validate(node_id)
         assert result.passed, [issue.message for issue in result.issues]
 
     def test_302_3_5_has_structured_subsections(self, standards_reader) -> None:
-        record = standards_reader.load("B313-302.3.5")
+        record = standards_reader.load("302.3.5-e")
         subsection_ids = {item["id"] for item in record.metadata.get("subsections", [])}
         assert subsection_ids == {"a", "b", "c", "d", "e", "f"}
 
-        subsection_e = standards_reader.load_subsection("B313-302.3.5", "e")
-        assert subsection_e.paragraph == "302.3.5(e)"
+        subsection_e = standards_reader.load_subsection("302.3.5-e", "e")
+        assert subsection_e.paragraph == "302.3.5-e"
         assert subsection_e.metadata["output"]["symbol"] == "W"
         assert "Weld Joint Strength Reduction Factor" in subsection_e.body

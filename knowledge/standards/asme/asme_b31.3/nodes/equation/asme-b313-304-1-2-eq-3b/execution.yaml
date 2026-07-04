@@ -1,0 +1,51 @@
+variables:
+  P:
+    symbol: P
+    description: Internal design gage pressure
+    unit: Pa
+  d:
+    symbol: d
+    description: Inside diameter of pipe
+    unit: mm
+  c:
+    symbol: c
+    description: Sum of mechanical, corrosion, and erosion allowances
+    unit: mm
+  S:
+    symbol: S
+    description: Stress value from Table A-1
+    unit: Pa
+  E:
+    symbol: E
+    description: Quality factor from Tables A-2 and A-3
+    unit: dimensionless
+  W:
+    symbol: W
+    description: Weld strength reduction factor per para. 302.3.5-e
+    unit: dimensionless
+  Y:
+    symbol: Y
+    description: Coefficient from Table 304.1.1
+    unit: dimensionless
+steps:
+- name: compute_denominator_terms
+  description: Calculate SEW and P(1-Y) terms
+  expressions:
+  - expression: S * E * W
+    assign: SEW
+  - expression: P * (1 - Y)
+    assign: P1Y
+- name: compute_required_thickness
+  description: Calculate pressure design wall thickness
+  expressions:
+  - expression: P * (d + 2 * c) / (2 * (SEW - P1Y))
+    assign: t
+executor: calculate_wall_thickness_3b
+outputs:
+- symbol: t
+  name: required_thickness
+  unit: mm
+  type: quantity
+equation_id: eq-3b
+nomenclature_ref: 304.1.1-b
+display: t = P(d+2c) / 2(SEW - P(1-Y))

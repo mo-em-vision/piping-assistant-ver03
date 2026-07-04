@@ -116,7 +116,7 @@ def test_confirm_prioritizes_joint_category_over_coefficient_defaults() -> None:
     joint_spec = NodeInteractionSpec(
         variable="joint_category",
         mode=InteractionMode.DECISION,
-        node_id="B313-304.1.2",
+        node_id="304.1.2-a",
         required=True,
         options=("seamless", "erw"),
         default="seamless",
@@ -125,7 +125,7 @@ def test_confirm_prioritizes_joint_category_over_coefficient_defaults() -> None:
     e_spec = NodeInteractionSpec(
         variable="weld_joint_efficiency",
         mode=InteractionMode.VALUE_RESOLUTION,
-        node_id="B313-304.1.2",
+        node_id="304.1.2-a",
         default=1.0,
         confirmation_required=True,
         unit="dimensionless",

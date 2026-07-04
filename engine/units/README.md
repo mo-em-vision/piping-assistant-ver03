@@ -33,6 +33,7 @@ Bridge legacy unit strings (mm, psi, °F) to canonical `UNIT-*` graph node IDs a
 ## Notes
 
 - `UnitRegistry` loads allowed units from graph unit nodes when registry is warmed.
+- `UnitResolver` applies pure-scaling `factor` edges and evaluates `equation`-linked `converts_to` steps via sympy.
 - `reset_unit_registry` / `reset_unit_resolver` exist for test isolation.
 
 ## Execution Traces

@@ -10,6 +10,7 @@ from typing import Any, Callable
 from engine.reference.node_types import node_kind
 from engine.reference.graph_compile import is_micro_graph_node
 from engine.reference.standards_markdown import compose_frontmatter, split_frontmatter
+from engine.validation.node_revision_metadata import stamp_revision_metadata
 from engine.reference.node_sources import iter_node_source_paths, source_rel_path
 from engine.reference.standards_paths import list_standard_packs, resolve_standard_pack
 
@@ -73,10 +74,10 @@ class NodeRepository:
                 continue
             seen_paths.add(path)
             stored = self._load_file(pack_root, path)
-                if stored is None or stored.node_id in seen_ids:
-                    continue
-                seen_ids.add(stored.node_id)
-                discovered.append(stored)
+            if stored is None or stored.node_id in seen_ids:
+                continue
+            seen_ids.add(stored.node_id)
+            discovered.append(stored)
         return sorted(discovered, key=lambda item: item.node_id)
 
     def get_node(self, pack: str, node_id: str) -> StoredNode | None:
@@ -104,11 +105,12 @@ class NodeRepository:
         rel_path = source_rel_path or self._default_rel_path(node_id, node_type, metadata)
         file_path = pack_root / rel_path
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        file_path.write_text(compose_frontmatter(metadata, body), encoding="utf-8")
+        stamped = stamp_revision_metadata(metadata)
+        file_path.write_text(compose_frontmatter(stamped, body), encoding="utf-8")
         return StoredNode(
             node_id=node_id,
             node_type=node_type,
-            metadata=dict(metadata),
+            metadata=dict(stamped),
             body=body,
             source_rel_path=rel_path.replace("\\", "/"),
             source_file=file_path,

@@ -6,13 +6,23 @@ from functools import lru_cache
 from pathlib import Path
 
 _KEY_ALIASES: dict[str, str] = {
-    "material": "PARAM-material-specification",
-    "pipe_material": "PARAM-material-specification",
-    "design_pressure": "PARAM-design-pressure",
+    "material": "PARAM-material-grade",
+    "pipe_material": "PARAM-material-grade",
+    "material_grade": "PARAM-material-grade",
+    "metallurgical_group": "PARAM-metallurgical-group",
+    "joint_category": "PARAM-pipe-construction-type",
+    "pipe_construction_type": "PARAM-pipe-construction-type",
+    "minimum_required_thickness": "PARAM-minimum-required-thickness",
+    "t_m": "PARAM-minimum-required-thickness",
     "design_temperature": "PARAM-design-temperature",
     "corrosion_allowance": "PARAM-corrosion-allowance",
     "allowable_stress": "PARAM-allowable-stress",
     "S": "PARAM-allowable-stress",
+    "inside_diameter": "PARAM-inside-diameter",
+    "measured_wall_thickness": "PARAM-measured-wall-thickness",
+    "maximum_allowable_working_pressure": "PARAM-maximum-allowable-working-pressure",
+    "mawp": "PARAM-maximum-allowable-working-pressure",
+    "MAWP": "PARAM-maximum-allowable-working-pressure",
 }
 
 

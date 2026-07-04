@@ -1,0 +1,28 @@
+---
+id: 302.3.5-a
+type: paragraph
+key: b313_302_3_5_a
+title: Limits of Calculated Stresses — Internal Pressure
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 302.3.5-a
+text:
+  original: >
+    (a) Internal Pressure Stresses. Stresses due to internal pressure shall be considered
+    safe when the wall thickness of the piping component, including any reinforcement,
+    meets the requirements of para. 304.
+hierarchy:
+  parent: '302.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: related_to
+    target: '304'
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

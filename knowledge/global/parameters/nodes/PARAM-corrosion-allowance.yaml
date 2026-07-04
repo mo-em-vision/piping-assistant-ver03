@@ -14,15 +14,17 @@ aliases:
   - mechanical allowance
   - allowance
 introduced_by:
-  - B313-304.1.1
+  - asme-b313-304-1-1-b
 edges:
   - type: has_dimension
     target: DIM-length
-  - type: introduced_by
-    target: B313-304.1.1
   - type: used_by
-    target: 304.1.1-eq-2
+    target: asme-b313-304-1-1-eq-2
+  - type: used_by
+    target: asme-b313-304-1-1-valrule-a
 metadata:
   status: active
   version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---

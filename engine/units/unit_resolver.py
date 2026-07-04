@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
+from engine.equation.sympy_evaluator import evaluate_equation
 from engine.units.unit_ids import (
     canonical_si_unit_id,
     normalize_unit_key,
@@ -22,6 +23,18 @@ class _AffineStep:
     offset: float
 
 
+@dataclass(frozen=True)
+class _EquationStep:
+    equation_id: str
+    formula: str
+    display_latex: str
+    input_symbol: str
+    output_symbol: str
+
+
+_ConversionStep = Union[_AffineStep, _EquationStep]
+
+
 @dataclass
 class UnitResolver:
     """Resolve units and convert values using the global unit pack graph."""
@@ -29,7 +42,7 @@ class UnitResolver:
     pack_root: Path
     _graph: Any = None
     _alias_to_id: dict[str, str] | None = None
-    _edges: dict[str, list[tuple[str, _AffineStep]]] | None = None
+    _edges: dict[str, list[tuple[str, _ConversionStep]]] | None = None
     _dimensions: dict[str, str] | None = None
 
     @classmethod
@@ -51,6 +64,55 @@ class UnitResolver:
             self._graph = GraphBuilder(pack_root).build()
         self._build_indexes()
 
+    def _equation_step(
+        self,
+        *,
+        from_id: str,
+        to_id: str,
+        equation_id: str,
+    ) -> _EquationStep:
+        graph = self._graph
+        if graph is None:
+            raise ValueError("Unit graph is not loaded")
+        record = graph.get_node(equation_id)
+        if record is None:
+            raise ValueError(f"Unknown unit conversion equation: {equation_id}")
+        meta = record.metadata
+        if str(meta.get("type") or "") != "equation":
+            raise ValueError(f"converts_to equation is not type equation: {equation_id}")
+        conversion = meta.get("conversion") or {}
+        if str(conversion.get("from_unit") or "") != from_id:
+            raise ValueError(
+                f"equation {equation_id} from_unit {conversion.get('from_unit')!r} "
+                f"does not match edge source {from_id!r}"
+            )
+        if str(conversion.get("to_unit") or "") != to_id:
+            raise ValueError(
+                f"equation {equation_id} to_unit {conversion.get('to_unit')!r} "
+                f"does not match edge target {to_id!r}"
+            )
+        requires = meta.get("requires") or []
+        calculates = meta.get("calculates") or []
+        if not requires or not calculates:
+            raise ValueError(f"equation {equation_id} missing requires/calculates")
+        input_symbol = str(requires[0].get("symbol") or "").strip()
+        output_symbol = str(calculates[0].get("symbol") or "").strip()
+        if not input_symbol or not output_symbol:
+            raise ValueError(f"equation {equation_id} missing conversion symbols")
+        expression = meta.get("expression") or {}
+        formula = str(expression.get("formula") or "").strip()
+        if not formula:
+            raise ValueError(f"equation {equation_id} missing expression.formula")
+        display = meta.get("display") or {}
+        display_latex = str(display.get("latex") or display.get("text") or formula)
+        return _EquationStep(
+            equation_id=equation_id,
+            formula=formula,
+            display_latex=display_latex,
+            input_symbol=input_symbol,
+            output_symbol=output_symbol,
+        )
+
     def _build_indexes(self) -> None:
         graph = self._graph
         if graph is None:
@@ -58,7 +120,7 @@ class UnitResolver:
 
         alias_to_id: dict[str, str] = {}
         dimensions: dict[str, str] = {}
-        edges: dict[str, list[tuple[str, _AffineStep]]] = {}
+        edges: dict[str, list[tuple[str, _ConversionStep]]] = {}
 
         for node_id, record in graph.nodes.items():
             if record.node_type != "unit":
@@ -79,6 +141,18 @@ class UnitResolver:
             if edge.edge_type not in {"converts_to", "derived_from"}:
                 continue
             meta = edge.metadata or {}
+            equation_id = str(meta.get("equation") or "").strip()
+            if equation_id:
+                step = self._equation_step(
+                    from_id=edge.from_id,
+                    to_id=edge.to_id,
+                    equation_id=equation_id,
+                )
+                edges.setdefault(edge.from_id, []).append((edge.to_id, step))
+                continue
+
+            if "factor" not in meta:
+                continue
             factor = float(meta.get("factor", 1.0))
             offset = float(meta.get("offset", 0.0))
             step = _AffineStep(factor=factor, offset=offset)
@@ -122,14 +196,17 @@ class UnitResolver:
             return self._dimensions.get(unit_id)
         return None
 
-    def _compose_affine(self, steps: list[_AffineStep]) -> _AffineStep:
-        factor, offset = 1.0, 0.0
-        for step in steps:
-            offset = offset * step.factor + step.offset
-            factor *= step.factor
-        return _AffineStep(factor=factor, offset=offset)
+    def _apply_step(self, value: float, step: _ConversionStep) -> float:
+        if isinstance(step, _AffineStep):
+            return value * step.factor + step.offset
+        result = evaluate_equation(
+            sympy_expr=step.formula,
+            display_latex=step.display_latex,
+            symbol_values={step.input_symbol: value},
+        )
+        return float(result.outputs[step.output_symbol])
 
-    def _find_path(self, from_id: str, to_id: str) -> list[_AffineStep] | None:
+    def _find_path(self, from_id: str, to_id: str) -> list[_ConversionStep] | None:
         if from_id == to_id:
             return []
         if not self._edges:
@@ -137,7 +214,7 @@ class UnitResolver:
 
         queue: deque[str] = deque([from_id])
         visited = {from_id}
-        parent: dict[str, tuple[str, _AffineStep]] = {}
+        parent: dict[str, tuple[str, _ConversionStep]] = {}
 
         while queue:
             current = queue.popleft()
@@ -154,7 +231,7 @@ class UnitResolver:
         if to_id not in parent and from_id != to_id:
             return None
 
-        steps: list[_AffineStep] = []
+        steps: list[_ConversionStep] = []
         cursor = to_id
         while cursor != from_id:
             prev, step = parent[cursor]
@@ -187,8 +264,9 @@ class UnitResolver:
         if path is None:
             raise ValueError(f"No conversion path from {from_unit!r} to {to_unit!r}")
 
-        affine = self._compose_affine(path)
-        converted = value * affine.factor + affine.offset
+        converted = value
+        for step in path:
+            converted = self._apply_step(converted, step)
         return converted, self.unit_symbol(to_id)
 
     def convert_to_canonical_si(

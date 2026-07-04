@@ -52,8 +52,8 @@ scope:
 contains:
   paragraphs:
     - B313-304.1.1
-    - B313-304.1.2
-    - B313-302.3.5
+    - 304.1.2-a
+    - 302.3.5-e
 
   tables:
     - TABLE-B313-allowable-stress
@@ -64,7 +64,7 @@ edges:
     target: B313-304.1.1
 
   - type: contains_paragraph
-    target: B313-304.1.2
+    target: 304.1.2-a
 
   - type: contains_table
     target: TABLE-B313-allowable-stress
@@ -207,8 +207,8 @@ editions:
 contains:
   paragraphs:
     - B313-304.1.1
-    - B313-304.1.2
-    - B313-302.3.5
+    - 304.1.2-a
+    - 302.3.5-e
 
   tables:
     - TABLE-B313-allowable-stress
@@ -450,7 +450,7 @@ Authority nodes may contain or reference:
 ```yaml
 contains:
   paragraphs:
-    - B313-304.1.2
+    - 304.1.2-a
 
   tables:
     - TABLE-B313-allowable-stress
@@ -503,7 +503,7 @@ Example:
 ```yaml
 edges:
   - type: contains_paragraph
-    target: B313-304.1.2
+    target: 304.1.2-a
 
   - type: contains_table
     target: TABLE-B313-allowable-stress

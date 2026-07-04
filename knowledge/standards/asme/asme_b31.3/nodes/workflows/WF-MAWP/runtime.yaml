@@ -75,11 +75,11 @@ inputs:
   default: 0.4
   requires_confirmation: true
 equations:
-- id: asme_b313_pressure_design_thickness
-  file: ../equation/asme_b313_pressure_design_thickness.yaml
+- id: asme-b313-pressure-design-thickness
+  file: ../equation/asme-b313-pressure-design-thickness.yaml
   execution_function: calculate_pressure_design_thickness
-- id: asme_b313_mawp_pressure
-  file: ../equation/asme_b313_mawp_pressure.yaml
+- id: asme-b313-mawp-pressure
+  file: ../equation/asme-b313-mawp-pressure.yaml
   execution_function: calculate_mawp
 conditions:
 - id: thin_wall_check
@@ -111,14 +111,14 @@ nomenclature:
   - mm
   - in
   description: 'Sum of mechanical allowances plus corrosion and erosion allowances
-    per §304.1.1(b).
+    per §304.1.1-b.
 
     '
 - symbol: t
   description: Pressure design thickness (t_actual minus corrosion allowance).
   citations:
-  - paragraph: 304.1.1(b)
-  - node_id: asme_b313_mawp_pressure
+  - paragraph: 304.1.1-b
+  - node_id: asme-b313-mawp-pressure
 - symbol: D
   input_id: outside_diameter
   introduced_here: true
@@ -134,7 +134,7 @@ nomenclature:
   introduced_here: true
   description: Stress value from Table A-1.
   citations:
-  - node_id: B313-table-A-1
+  - node_id: asme-b313-table-A-1
 - symbol: E
   input_id: weld_joint_efficiency
   introduced_here: true
@@ -142,7 +142,7 @@ nomenclature:
 - symbol: W
   input_id: weld_joint_strength_reduction_factor_W
   introduced_here: true
-  description: Weld strength reduction factor per para. 302.3.5(e).
+  description: Weld strength reduction factor per para. 302.3.5-e.
 - symbol: Y
   input_id: temperature_coefficient_Y
   introduced_here: true
@@ -150,8 +150,8 @@ nomenclature:
 - symbol: MAWP
   description: Maximum Allowable Working Pressure.
   citations:
-  - paragraph: 304.1.2
-  - node_id: asme_b313_mawp_pressure
+  - paragraph: 304.1.2-a
+  - node_id: asme-b313-mawp-pressure
 texts:
 - id: mawp-init-text
   type: text

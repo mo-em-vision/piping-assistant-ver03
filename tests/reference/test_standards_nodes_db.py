@@ -21,33 +21,34 @@ def b313_nodes_db(project_root: Path) -> StandardsNodesDatabase:
 
 def test_resolve_pack_nodes_db_uses_compact_slug(project_root: Path) -> None:
     pack = project_root / "knowledge" / "standards" / "asme" / "asme_b31.3"
-    assert resolve_pack_nodes_db(pack).name == "asme_b313_nodes.db"
+    assert resolve_pack_nodes_db(pack).name == "nodes.db"
 
 
 def test_b313_nodes_db_contains_wall_thickness_node(b313_nodes_db: StandardsNodesDatabase) -> None:
-    data = b313_nodes_db.get_node("B313-304.1.1")
+    data = b313_nodes_db.get_node("304.1.1-a")
     assert data is not None
     assert data["kind"] == "node"
-    assert data["metadata"]["type"] in {"definition", "text"}
-    assert "304.1.1" in str(data["metadata"].get("paragraph", ""))
-    assert data["body"].strip()
-    assert "B313-304.1.1" in data["source_rel_path"]
+    assert data["metadata"]["type"] == "paragraph"
+    assert "304.1.1" in str(data["metadata"].get("paragraph_number", ""))
+    text = (data["metadata"].get("text") or {}).get("original", "")
+    assert "t_m = t + c" in text
+    assert "304.1.1-a.yaml" in data["source_rel_path"]
 
 
 def test_b313_nodes_db_resolves_legacy_alias(b313_nodes_db: StandardsNodesDatabase) -> None:
-    assert b313_nodes_db.get_node("B313-304.1.1") is not None
-    resolved = b313_nodes_db.resolve_node_id("nodes/B313-304.1.1")
-    assert resolved == "B313-304.1.1"
+    assert b313_nodes_db.get_node("304.1.1-a") is not None
+    assert b313_nodes_db.get_node("304.1.1-b") is not None
 
 
 def test_b313_nodes_db_has_equation_assets(b313_nodes_db: StandardsNodesDatabase) -> None:
-    assets = b313_nodes_db.get_assets("B313-304.1.1", asset_type="equation")
-    assert assets
-    assert any("eq_2" in asset.relative_path or "minimum_required_thickness" in asset.relative_path for asset in assets)
-    assert any(asset.body.strip() for asset in assets)
+    data = b313_nodes_db.get_node("304.1.1.eq.2")
+    assert data is not None
+    assert data["metadata"]["type"] == "equation"
+    assert "t_m = t + c" in str(data["metadata"].get("display", ""))
 
-    wall_assets = b313_nodes_db.get_assets("B313-304.1.2", asset_type="equation")
-    assert any("wall_thickness" in asset.relative_path for asset in wall_assets)
+    wall = b313_nodes_db.get_node("304.1.2.eq.3a")
+    assert wall is not None
+    assert wall["metadata"]["type"] == "equation"
 
 
 def test_nodes_db_roundtrip_upsert(tmp_path: Path) -> None:

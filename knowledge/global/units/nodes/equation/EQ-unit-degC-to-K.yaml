@@ -1,0 +1,30 @@
+---
+id: EQ-unit-degC-to-K
+type: equation
+key: unit_degC_to_K
+name: Celsius to Kelvin
+equation_class: transformation
+calculation_kind: algebraic
+description: >
+  Convert temperature from degrees Celsius to Kelvin.
+conversion:
+  from_unit: UNIT-degC
+  to_unit: UNIT-K
+display:
+  text: "K = C + 273.15"
+  latex: "K = C + 273.15"
+expression:
+  language: sympy
+  formula: "K = C + 273.15"
+requires:
+  - symbol: C
+    unit: UNIT-degC
+calculates:
+  - symbol: K
+    unit: UNIT-K
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

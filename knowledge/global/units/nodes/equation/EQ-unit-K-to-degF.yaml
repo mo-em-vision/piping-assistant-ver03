@@ -1,0 +1,30 @@
+---
+id: EQ-unit-K-to-degF
+type: equation
+key: unit_K_to_degF
+name: Kelvin to Fahrenheit
+equation_class: transformation
+calculation_kind: algebraic
+description: >
+  Convert temperature from Kelvin to degrees Fahrenheit.
+conversion:
+  from_unit: UNIT-K
+  to_unit: UNIT-degF
+display:
+  text: "F = (K - 273.15) * 9/5 + 32"
+  latex: "F = (K - 273.15) \\cdot \\frac{9}{5} + 32"
+expression:
+  language: sympy
+  formula: "F = (K - 273.15) * 9 / 5 + 32"
+requires:
+  - symbol: K
+    unit: UNIT-K
+calculates:
+  - symbol: F
+    unit: UNIT-degF
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

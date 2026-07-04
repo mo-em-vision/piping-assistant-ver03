@@ -37,27 +37,27 @@ class TestValidationAcceptance:
     def test_invalid_format_rejected(self, standards_reader) -> None:
         inputs = sample_inputs(pressure="abc")
         result = ValidationEngine(standards_reader).validate_node(
-            "B313-304.1.2",
+            "304.1.2-a",
             task_inputs=inputs,
             dependency_outputs={"allowable_stress": 193_000_000.0, "S": 193_000_000.0},
-            prior_nodes_completed={"B313-table-A-1"},
+            prior_nodes_completed={"asme-b313-table-A-1"},
         )
         assert result.status == ComplianceStatus.FAIL
 
     def test_unit_conversion_is_supported(self, standards_reader) -> None:
         inputs = sample_inputs()
         result = ValidationEngine(standards_reader).validate_node(
-            "B313-304.1.2",
+            "304.1.2-a",
             task_inputs=inputs,
             dependency_outputs={"allowable_stress": 193_000_000.0, "S": 193_000_000.0},
-            prior_nodes_completed={"B313-table-A-1"},
+            prior_nodes_completed={"asme-b313-table-A-1"},
         )
         assert result.status in {ComplianceStatus.PASS, ComplianceStatus.PASS_WITH_WARNING}
 
     def test_engineering_temperature_limit_enforced(self, standards_reader) -> None:
         inputs = sample_inputs(temperature=900)
         result = ValidationEngine(standards_reader).validate_node(
-            "B313-table-A-1",
+            "asme-b313-table-A-1",
             task_inputs=inputs,
             dependency_outputs={},
             prior_nodes_completed=set(),

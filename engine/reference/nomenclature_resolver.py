@@ -13,6 +13,7 @@ from engine.reference.graph_edge_schema import (
     edge_targets,
     iter_stored_edges,
 )
+from engine.reference.knowledge_paths import parameters_root
 from engine.reference.paragraph_sidecar import merge_paragraph_sidecar_metadata
 from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.standards_reader import StandardsReader
@@ -56,8 +57,131 @@ def input_applies(
     return value in normalized_allowed
 
 
+def _load_global_parameter_metadata(param_id: str) -> dict[str, Any] | None:
+    path = parameters_root() / "nodes" / f"{param_id}.yaml"
+    if not path.is_file():
+        return None
+    metadata, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+    if str(metadata.get("type", "")) != "parameter":
+        return None
+    return metadata
+
+
+def _legacy_unit_label(unit_id: str) -> str:
+    text = str(unit_id or "").strip()
+    if text.startswith("UNIT-"):
+        return text.replace("UNIT-", "").lower()
+    return text or "dimensionless"
+
+
+def _references_from_parameter_edges(param_meta: dict[str, Any]) -> tuple[dict[str, Any], ...]:
+    refs: list[dict[str, Any]] = []
+    for edge in param_meta.get("edges") or []:
+        if not isinstance(edge, dict):
+            continue
+        target = str(edge.get("target", "")).strip()
+        if target.startswith("B3610-"):
+            refs.append({"standard": "asme_b36.10", "node_id": target})
+        elif target.startswith("B313-table-"):
+            refs.append({"table": target, "node_id": target})
+        elif target.startswith("304."):
+            refs.append({"paragraph": target, "node_id": target})
+    return tuple(refs)
+
+
+def _entry_from_parameter(param_meta: dict[str, Any]) -> NomenclatureEntry | None:
+    symbol = str(param_meta.get("canonical_symbol") or "").strip()
+    if not symbol:
+        return None
+    key = str(param_meta.get("key") or "").strip()
+    description = str(param_meta.get("description") or param_meta.get("name") or "").strip()
+    unit = "dimensionless"
+    allowed_units: tuple[str, ...] = ()
+    dim_ref = str(param_meta.get("dimension") or "").strip()
+    if dim_ref.startswith("DIM-"):
+        dim_meta = _load_dimension_node(dim_ref)
+        if dim_meta is not None:
+            allowed = dimension_allowed_unit_ids(dim_meta)
+            if allowed:
+                allowed_units = tuple(_legacy_unit_label(item) for item in allowed)
+            canonical = str(dim_meta.get("canonical_unit") or "").strip()
+            if canonical:
+                unit = _legacy_unit_label(canonical)
+    return NomenclatureEntry(
+        symbol=symbol,
+        description=description,
+        unit=unit,
+        input_id=key or None,
+        allowed_units=allowed_units,
+        references=_references_from_parameter_edges(param_meta),
+        defaults=(),
+    )
+
+
+def _defaults_from_parameter_defaults(
+    param_key: str,
+    default_items: list[Any],
+    *,
+    fallback_unit: str,
+) -> tuple[NomenclatureDefault, ...]:
+    defaults: list[NomenclatureDefault] = []
+    for item in default_items or []:
+        if not isinstance(item, dict):
+            continue
+        defaults.append(
+            NomenclatureDefault(
+                value=item.get("value"),
+                unit=str(item.get("unit", fallback_unit)),
+                condition=(
+                    str(item["condition"]).strip() if item.get("condition") else None
+                ),
+                requires_confirmation=bool(item.get("requires_confirmation", True)),
+            )
+        )
+    return tuple(defaults)
+
+
+def _load_nomenclature_from_introduced_parameters(
+    metadata: dict[str, Any],
+) -> dict[str, NomenclatureEntry]:
+    entries: dict[str, NomenclatureEntry] = {}
+    param_defaults = metadata.get("parameter_defaults") or {}
+    for edge in metadata.get("edges") or []:
+        if not isinstance(edge, dict):
+            continue
+        if str(edge.get("type", "")).strip() != "introduces_parameter":
+            continue
+        param_id = str(edge.get("target", "")).strip()
+        if not param_id.startswith("PARAM-"):
+            continue
+        param_meta = _load_global_parameter_metadata(param_id)
+        if param_meta is None:
+            continue
+        entry = _entry_from_parameter(param_meta)
+        if entry is None:
+            continue
+        param_key = str(param_meta.get("key") or "").strip()
+        if param_key and param_key in param_defaults:
+            default_items = param_defaults.get(param_key) or []
+            entry = NomenclatureEntry(
+                symbol=entry.symbol,
+                description=entry.description,
+                unit=entry.unit,
+                input_id=entry.input_id,
+                allowed_units=entry.allowed_units,
+                references=entry.references,
+                defaults=_defaults_from_parameter_defaults(
+                    param_key,
+                    default_items if isinstance(default_items, list) else [],
+                    fallback_unit=entry.unit,
+                ),
+            )
+        entries[entry.symbol] = entry
+    return entries
+
+
 def load_nomenclature(reader: StandardsReader, node_id: str) -> dict[str, NomenclatureEntry]:
-    """Load symbol definitions from a definition node's ``nomenclature`` block."""
+    """Load symbol definitions from paragraph introduces_parameter edges or legacy nomenclature."""
     record = reader.load(node_id)
     metadata = merge_paragraph_sidecar_metadata(
         record.metadata,
@@ -102,7 +226,9 @@ def load_nomenclature(reader: StandardsReader, node_id: str) -> dict[str, Nomenc
             references=tuple(r for r in refs if isinstance(r, dict)),
             defaults=tuple(defaults),
         )
-    return entries
+    if entries:
+        return entries
+    return _load_nomenclature_from_introduced_parameters(metadata)
 
 
 def entry_for_symbol(

@@ -6,19 +6,25 @@ title: Design of Straight Pipe
 authority: AUTH-ASME-B31.3
 edition: 2024
 paragraph_number: '304.1'
-paragraph_class: definition
-description: Design of Straight Pipe
+text:
+  original: >
+    Section 304.1 — Design of Straight Pipe. Structural navigation node for §304.1
+    sub-paragraphs.
+hierarchy:
+  parent: '304'
+  children:
+    - 304.1.1-a
+    - 304.1.1-b
+    - 304.1.2-a
+    - 304.1.2-b
+    - 304.1.3
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
 metadata:
   status: draft
-  node_version: 1
   source_revision_year: 2024
-edges:
-- type: belongs_to_authority
-  target: AUTH-ASME-B31.3
-- type: parent
-  target: '304'
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---
-
-# ASME B31.3 §304.1 — Design of Straight Pipe
-
-Structural navigation node for §304.1 sub-paragraphs (304.1.1–304.1.3).

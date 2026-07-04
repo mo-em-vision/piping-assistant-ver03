@@ -101,6 +101,24 @@ edges:
 
 ---
 
+# Node ID prefixes
+
+Deterministic behavior is split across dedicated node types. Do not use Equation as a container for all deterministic behavior.
+
+| Prefix | `type` | Purpose |
+|--------|--------|---------|
+| `EQ-*` | `equation` | Algebraic / formula calculations producing engineering quantities |
+| `LOOKUP-*` | `lookup` | Table resolution returning parameter values |
+| `TABLE-*` | `table` | Authoritative structured data |
+| `VALRULE-*` | `validation_rule` | Pass/fail checks, applicability gates, warnings |
+| `RULE-*` | `rule` (future) | Broader rules: selection, applicability, inference, authority precedence |
+
+Standards packs may use pack-specific ids on disk (e.g. `asme_b313_*` equations); template prefixes above describe semantic identity.
+
+See also: [`equation node.md`](equation%20node.md), [`lookup.md`](lookup.md), [`validation_rule.md`](validation_rule.md).
+
+---
+
 # Relationship categories
 
 Relationships are grouped into these categories:
@@ -109,12 +127,15 @@ Relationships are grouped into these categories:
 1. Ontology relationships
 2. Parameter and Fact relationships
 3. Authority relationships
-4. Equation relationships
-5. Workflow and Goal relationships
-6. Execution relationships
-7. Validation relationships
-8. Report relationships
-9. Lifecycle relationships
+4. Paragraph relationships
+5. Equation relationships
+6. Lookup relationships
+7. Validation rule relationships
+8. Workflow and Goal relationships
+9. Execution relationships
+10. Validation relationships (runtime)
+11. Report relationships
+12. Lifecycle relationships
 ```
 
 ---
@@ -236,7 +257,9 @@ dimension
 
 ## `converts_to`
 
-Connects a Unit to its canonical conversion target.
+Connects a Unit to another Unit it can convert to. Use either a pure scaling factor or a link to a unit-transformation equation — not both.
+
+Pure scaling (offset must be zero):
 
 ```yaml
 - type: converts_to
@@ -244,6 +267,16 @@ Connects a Unit to its canonical conversion target.
   factor: 6894.757293168
   offset: 0
 ```
+
+Formula-based (non-zero offset or explicit formula, e.g. temperature):
+
+```yaml
+- type: converts_to
+  target: UNIT-K
+  equation: EQ-unit-degC-to-K
+```
+
+Each directed conversion pair needs its own edge and equation. Do not auto-inverse equation edges.
 
 Allowed source nodes:
 
@@ -325,6 +358,33 @@ Use only when no stronger relationship exists.
 # 2. Parameter and Fact relationships
 
 These connect concepts to runtime evidence.
+
+## `introduced_by`
+
+Connects a Parameter to the Paragraph that introduces or defines it.
+
+Author on the parameter node as a top-level list (not in `edges`):
+
+```yaml
+introduced_by:
+  - asme-b313-304-1-1-b
+```
+
+Use pack-qualified paragraph ids for cross-pack references. The graph compiler emits `introduced_by` edges at build time.
+
+Allowed source nodes:
+
+```text
+parameter
+```
+
+Allowed target nodes:
+
+```text
+paragraph
+```
+
+---
 
 ## `instantiates`
 
@@ -459,7 +519,7 @@ Connects Paragraphs, Tables, Figures, or Rules to their Authority.
 Example:
 
 ```text
-B313-304.1.2 --belongs_to_authority--> AUTH-ASME-B31.3
+304.1.2-a --belongs_to_authority--> AUTH-ASME-B31.3
 ```
 
 ---
@@ -470,7 +530,7 @@ Connects an Authority to a Paragraph.
 
 ```yaml
 - type: contains_paragraph
-  target: B313-304.1.2
+  target: 304.1.2-a
 ```
 
 ---
@@ -492,8 +552,11 @@ Connects an Authority to a Rule.
 
 ```yaml
 - type: contains_rule
-  target: RULE-B313-thin-wall-limit
+  target: RULE-B313-selection-criteria
 ```
+
+Use `RULE-*` for general rules (selection, applicability, inference, precedence).  
+Use `VALRULE-*` / `validation_rule` nodes for validation-specific rules.
 
 ---
 
@@ -574,7 +637,7 @@ Connects an Authority Context to a Paragraph active in execution.
 
 ```yaml
 - type: activates_paragraph
-  target: B313-304.1.2
+  target: 304.1.2-a
 ```
 
 ---
@@ -604,7 +667,7 @@ Connects a Paragraph to a Parameter introduced or defined by that paragraph.
 Example:
 
 ```text
-B313-304.1.2 --introduces_parameter--> PARAM-design-pressure
+304.1.2-a --introduces_parameter--> PARAM-design-pressure
 ```
 
 ---
@@ -622,7 +685,7 @@ Connects a Paragraph, Authority, Equation, or Workflow to a Concept.
 
 ## `references_equation`
 
-Connects a Paragraph to an Equation it authorizes or presents.
+Connects a Paragraph or Workflow to an Equation it authorizes or presents.
 
 ```yaml
 - type: references_equation
@@ -631,14 +694,40 @@ Connects a Paragraph to an Equation it authorizes or presents.
 
 ---
 
+## `references_lookup`
+
+Connects a Paragraph or Workflow to a Lookup node it requires or presents.
+
+```yaml
+- type: references_lookup
+  target: LOOKUP-B313-material-allowable-stress
+```
+
+Replaces the discouraged authoring pattern `requires_lookup`.
+
+---
+
+## `references_validation_rule`
+
+Connects a Paragraph or Workflow to a validation rule it requires or presents.
+
+```yaml
+- type: references_validation_rule
+  target: VALRULE-B313-thin-wall-check
+```
+
+---
+
 ## `references_table`
 
-Connects a Paragraph, Equation, or Lookup to a Table.
+Connects a Paragraph or Workflow to a Table (citation / structural reference).
 
 ```yaml
 - type: references_table
   target: TABLE-B313-allowable-stress
 ```
+
+Lookup nodes consume tables via `reads_table`, not `references_table`.
 
 ---
 
@@ -672,19 +761,30 @@ If internal pressure branch is not applicable, redirect to external pressure bra
 
 # 5. Equation relationships
 
+Equation nodes (`EQ-*`) produce calculated engineering quantities only.  
+They do not perform lookups or validation checks.
+
 ## `authorized_by`
 
-Connects an Equation to the Paragraph that authorizes it.
+Connects an Equation, Lookup, or Validation Rule to the Paragraph that authorizes it.
+
+Author on the node in the `authority` block (not in `edges`):
 
 ```yaml
-- type: authorized_by
-  target: B313-304.1.2
+authority:
+  authorized_by:
+    - 304.1.2-a
+  authority_context_required: true
 ```
+
+The graph compiler emits `authorized_by` edges at build time.
 
 Allowed source nodes:
 
 ```text
 equation
+lookup
+validation_rule
 ```
 
 Allowed target nodes:
@@ -697,11 +797,20 @@ paragraph
 
 ## `requires_parameter`
 
-Connects an Equation, Workflow, or Goal Template to required Parameters.
+Connects an Equation, Lookup, Validation Rule, Workflow, or Goal Template to required Parameters.
 
 ```yaml
 - type: requires_parameter
   target: PARAM-design-pressure
+```
+
+Allowed source nodes:
+
+```text
+equation
+lookup
+validation_rule
+workflow
 ```
 
 ---
@@ -715,16 +824,13 @@ Connects an Equation to the Parameter it calculates.
   target: PARAM-required-wall-thickness
 ```
 
----
+Allowed source nodes:
 
-## `validates_parameter`
-
-Connects a validation Equation or Rule to the Parameter it validates.
-
-```yaml
-- type: validates_parameter
-  target: PARAM-thin-wall-applicability
+```text
+equation
 ```
+
+This is the **only** output edge for equations. Lookups use `returns_parameter`.
 
 ---
 
@@ -734,7 +840,13 @@ Connects one Equation to another Equation whose output is required.
 
 ```yaml
 - type: depends_on_equation
-  target: EQ-B313-material-allowable-stress
+  target: EQ-B313-minimum-required-thickness
+```
+
+Allowed source nodes:
+
+```text
+equation
 ```
 
 Use this only for equation-level dependency.  
@@ -742,7 +854,116 @@ If the relationship is through produced/required Parameters, prefer `requires_pa
 
 ---
 
-# 6. Workflow and Goal relationships
+# 6. Lookup relationships
+
+Lookup nodes (`LOOKUP-*`) resolve values from authoritative tables.
+
+## `returns_parameter`
+
+Connects a Lookup to the Parameter whose value it returns.
+
+```yaml
+- type: returns_parameter
+  target: PARAM-allowable-stress
+```
+
+Allowed source nodes:
+
+```text
+lookup
+```
+
+Semantic: retrieved table value, not a derived formula result.
+
+---
+
+## `reads_table`
+
+Connects a Lookup to the Table it reads during execution.
+
+```yaml
+- type: reads_table
+  target: TABLE-B313-allowable-stress
+```
+
+Allowed source nodes:
+
+```text
+lookup
+```
+
+Allowed target nodes:
+
+```text
+table
+```
+
+Do not author `used_by_lookup` on tables; that inverse is generated for queries only (same pattern as `required_by`).
+
+---
+
+# 7. Validation rule relationships
+
+Validation rule nodes (`VALRULE-*`) check applicability, limits, and adequacy.  
+They do not calculate engineering quantities.
+
+## `validates_parameter`
+
+Connects a validation rule to the Parameter it validates.
+
+```yaml
+- type: validates_parameter
+  target: PARAM-thin-wall-applicability
+```
+
+Allowed source nodes:
+
+```text
+validation_rule
+rule
+```
+
+Do not use `validates_parameter` on equation nodes.
+
+---
+
+## `constrains_equation`
+
+Connects a validation rule to an Equation whose use it constrains or gates.
+
+```yaml
+- type: constrains_equation
+  target: EQ-B313-wall-thickness
+```
+
+Allowed source nodes:
+
+```text
+validation_rule
+```
+
+Example: thin-wall applicability must pass before the wall-thickness equation is selected.
+
+---
+
+## `creates_warning`
+
+Connects a validation rule to a text or warning definition node emitted on failure.
+
+```yaml
+- type: creates_warning
+  target: TEXT-thin-wall-warning
+```
+
+Allowed source nodes:
+
+```text
+validation_rule
+```
+
+---
+
+# 8. Workflow and Goal relationships
 
 ## `uses_authority`
 
@@ -787,6 +1008,28 @@ Connects a Workflow to an Equation that may participate.
 ```yaml
 - type: may_use_equation
   target: EQ-B313-wall-thickness
+```
+
+---
+
+## `may_use_lookup`
+
+Connects a Workflow to a Lookup that may participate.
+
+```yaml
+- type: may_use_lookup
+  target: LOOKUP-B313-material-allowable-stress
+```
+
+---
+
+## `may_use_validation_rule`
+
+Connects a Workflow to a validation rule that may participate.
+
+```yaml
+- type: may_use_validation_rule
+  target: VALRULE-B313-thin-wall-check
 ```
 
 ---
@@ -848,7 +1091,7 @@ Connects a Goal or Execution Context to a missing Parameter, missing Fact, or fa
 
 ---
 
-# 7. Execution relationships
+# 9. Execution relationships
 
 ## `belongs_to_execution_context`
 
@@ -881,6 +1124,11 @@ Connects a Fact to the Equation, Lookup, or execution node that produced it.
   target: EQ-B313-wall-thickness
 ```
 
+```yaml
+- type: produced_by
+  target: LOOKUP-B313-material-allowable-stress
+```
+
 ---
 
 ## `consumed_by`
@@ -907,7 +1155,9 @@ Connects an Execution Context to an Event.
 
 ---
 
-# 8. Validation relationships
+# 10. Validation relationships (runtime)
+
+These edges live on execution models (Facts, Goals, Execution Context), not on immutable knowledge YAML.
 
 ## `validated_by`
 
@@ -915,7 +1165,7 @@ Connects a Fact, Goal, or Execution Context to a validation result or rule.
 
 ```yaml
 - type: validated_by
-  target: RULE-B313-temperature-limit
+  target: VALRULE-B313-temperature-limit
 ```
 
 ---
@@ -926,7 +1176,29 @@ Connects a Workflow, Equation, or Goal to required validation.
 
 ```yaml
 - type: requires_validation
-  target: RULE-B313-thin-wall-limit
+  target: VALRULE-B313-thin-wall-check
+```
+
+---
+
+## `produces_validation_result`
+
+Connects a validation rule execution to a validation finding.
+
+```yaml
+- type: produces_validation_result
+  target: VALIDATION-thin-wall-001
+```
+
+---
+
+## `blocks_goal`
+
+Connects a failed validation to a blocked Goal.
+
+```yaml
+- type: blocks_goal
+  target: GOAL-wall-thickness-001
 ```
 
 ---
@@ -953,7 +1225,7 @@ Connects an Authority Context or Execution Context to an override record.
 
 ---
 
-# 9. Report relationships
+# 11. Report relationships
 
 ## `included_in_report`
 
@@ -988,7 +1260,7 @@ Connects a Fact, Paragraph, or Validation result to a Report conclusion.
 
 ---
 
-# 10. Lifecycle relationships
+# 12. Lifecycle relationships
 
 ## `supersedes`
 
@@ -1060,10 +1332,12 @@ Replace them with more precise relationships:
 
 |Discouraged|Prefer|
 |---|---|
-|`references`|`references_concept`, `references_table`, `references_equation`, `references_authority`|
-|`uses`|`requires_parameter`, `uses_authority`, `may_use_equation`|
+|`references`|`references_concept`, `references_table`, `references_equation`, `references_lookup`, `references_validation_rule`, `references_authority`|
+|`uses`|`requires_parameter`, `uses_authority`, `may_use_equation`, `may_use_lookup`, `may_use_validation_rule`|
 |`contains`|`contains_paragraph`, `contains_table`, `contains_rule`|
 |`related`|`related_to`, only when truly weak|
+|`used_by_lookup` (authoring on table)|`reads_table` from the lookup node|
+|`requires_lookup` (paragraph)|`references_lookup`|
 
 ---
 
@@ -1075,6 +1349,8 @@ Examples:
 
 ```text
 Equation requires Parameter.
+Lookup reads Table and returns Parameter.
+Validation rule validates Parameter.
 Paragraph introduces Parameter.
 Authority contains Paragraph.
 Fact instantiates Parameter.
@@ -1149,7 +1425,7 @@ The graph should be understandable without reading prose.
 | Controlled vocabulary | [`engine/reference/relationship_taxonomy.py`](../../engine/reference/relationship_taxonomy.py) — `KNOWLEDGE_EDGE_TYPES`, `RUNTIME_ONLY_EDGE_TYPES`, `RELATIONSHIP_RULES` |
 | Authoring normalization | `normalize_authoring_edge()` — legacy transport → taxonomy at compile/import only |
 | Query expansion | `expand_edge_types_for_query()` — traversal shims during graph DB transition |
-| Validation | [`engine/reference/relationship_validator.py`](../../engine/reference/relationship_validator.py); wired from paragraph/equation/workflow validators |
+| Validation | [`engine/reference/relationship_validator.py`](../../engine/reference/relationship_validator.py); wired from paragraph/equation/lookup/validation_rule/workflow validators |
 | Compile | [`engine/reference/graph_compile.py`](../../engine/reference/graph_compile.py) — normalizes every `edges[]` entry before `PackGraph` storage |
 | Schema | [`engine/reference/graph_edge_schema.py`](../../engine/reference/graph_edge_schema.py) — `STORED_EDGE_TYPES`, `REVERSE_ONLY_QUERY_TYPES` |
 | Migration | [`scripts/migrate_relationships_to_taxonomy.py`](../../scripts/migrate_relationships_to_taxonomy.py) |

@@ -1,0 +1,28 @@
+---
+id: PARAM-pipe-construction-type
+type: parameter
+key: pipe_construction_type
+name: Pipe Construction Type
+parameter_class: selection
+description: >
+  Pipe product or longitudinal joint construction type used to resolve weld
+  joint quality factor E from Tables A-2 and A-3 (e.g. seamless, welded, ERW).
+canonical_symbol: joint_category
+aliases:
+  - pipe construction type
+  - joint category
+  - pipe joint type
+  - seamless or welded
+introduced_by:
+  - asme-b313-304-1-2-a
+edges:
+  - type: used_by
+    target: asme-b313-table-A-2
+  - type: used_by
+    target: asme-b313-table-A-3
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

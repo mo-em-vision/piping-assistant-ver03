@@ -1,0 +1,38 @@
+---
+id: 304.3.3-f
+type: paragraph
+key: b313_304_3_3_f
+title: Reinforcement of Welded Branch Connections — Added Reinforcement
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.3-f
+text:
+  original: >
+    (f) Added Reinforcement.
+
+    (1) Reinforcement added in the form of a ring or saddle as part of area A_4 shall
+    be of reasonably constant width.
+
+    (2) Material used for reinforcement may differ from that of the run pipe provided
+    it is compatible with run and branch pipes with respect to weldability, heat
+    treatment requirements, galvanic corrosion, thermal expansion, etc.
+
+    (3) If the allowable stress for the reinforcement material is less than that for
+    the run pipe, its calculated area shall be reduced in the ratio of allowable stress
+    values in determining its contribution to area A_4.
+
+    (4) No additional credit may be taken for a material having higher allowable stress
+    value than the run pipe.
+hierarchy:
+  parent: '304.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

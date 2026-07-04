@@ -17,7 +17,11 @@ edges:
     target: DIM-pressure
   - type: has_parameter
     target: PARAM-allowable-stress
+  - type: specializes
+    target: CONCEPT-stress
 metadata:
   status: active
   version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---

@@ -1,0 +1,30 @@
+---
+id: EQ-unit-degC-to-degF
+type: equation
+key: unit_degC_to_degF
+name: Celsius to Fahrenheit
+equation_class: transformation
+calculation_kind: algebraic
+description: >
+  Convert temperature from degrees Celsius to degrees Fahrenheit.
+conversion:
+  from_unit: UNIT-degC
+  to_unit: UNIT-degF
+display:
+  text: "F = C * 9/5 + 32"
+  latex: "F = \\frac{9}{5}C + 32"
+expression:
+  language: sympy
+  formula: "F = C * 9 / 5 + 32"
+requires:
+  - symbol: C
+    unit: UNIT-degC
+calculates:
+  - symbol: F
+    unit: UNIT-degF
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

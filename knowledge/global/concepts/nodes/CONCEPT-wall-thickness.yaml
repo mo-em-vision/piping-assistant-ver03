@@ -17,8 +17,12 @@ edges:
   - type: has_dimension
     target: DIM-length
   - type: has_parameter
-    target: PARAM-corrosion-allowance
+    target: PARAM-required-wall-thickness
+  - type: has_parameter
+    target: PARAM-minimum-required-thickness
 metadata:
   status: active
   version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---

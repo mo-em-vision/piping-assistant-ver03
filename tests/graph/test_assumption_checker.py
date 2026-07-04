@@ -48,8 +48,9 @@ def test_internal_pressure_satisfies_assumption() -> None:
 
     assert "pressure_loading" not in result.missing_fields
     assert not result.blocked
-    assert "304.1.1" in plan.nodes
-    assert "304.1.2" in plan.nodes
+    assert "304.1.1-a" in plan.nodes
+    assert "304.1.1-b" in plan.nodes
+    assert "304.1.2-a" in plan.nodes
 
 
 def test_external_pressure_expands_external_node() -> None:
@@ -73,7 +74,8 @@ def test_external_pressure_expands_external_node() -> None:
     )
 
     assert "304.1.3" in plan.nodes
-    assert "304.1.1" in plan.nodes
+    assert "304.1.1-a" in plan.nodes
+    assert "304.1.1-b" in plan.nodes
     result = evaluate_path_assumptions(plan.execution_order, reader, existing_inputs=inputs)
     assert not result.blocked
 

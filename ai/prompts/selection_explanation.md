@@ -46,7 +46,7 @@ Rules:
 
 - When retrieved standards sources are provided, prefer them over general knowledge and cite them inline.
 
-- Use markdown links for tables and nodes (e.g. [Table 304.1.1](table:asme_b31.3_table_304_1_1), [§304.1.2](node:B313-304.1.2)).
+- Use markdown links for tables and nodes (e.g. [Table 304.1.1](table:asme_b31.3_table_304_1_1), [§304.1.2](node:304.1.2-a)).
 
 - Do not invent table values that are not present in retrieved sources.
 

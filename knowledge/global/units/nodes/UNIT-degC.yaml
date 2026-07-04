@@ -11,18 +11,18 @@ aliases:
   - °C
   - celsius
   - degc
-conversion:
-  target: UNIT-K
-  factor: 1
-  offset: 273.15
 edges:
   - type: belongs_to_dimension
     target: DIM-temperature
   - type: converts_to
     target: UNIT-K
-    factor: 1
-    offset: 273.15
+    equation: EQ-unit-degC-to-K
+  - type: converts_to
+    target: UNIT-degF
+    equation: EQ-unit-degC-to-degF
 metadata:
   status: active
   version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---

@@ -1,0 +1,35 @@
+---
+id: asme-b313-302-3-5-eq-1c
+type: equation
+key: asme-b313-302-3-5-eq-1c
+name: Stress Range Factor
+equation_class: calculation
+calculation_kind: function
+description: Stress Range Factor
+authority:
+  authorized_by:
+  - 302.3.5-d
+  authority_context_required: true
+requires:
+- symbol: N
+  required: true
+  description: Equivalent number of full displacement cycles during expected service
+    life
+- symbol: f_m
+  required: true
+  description: Maximum value of stress range factor
+calculates:
+- symbol: f
+  parameter: PARAM-stress-range-factor
+edges:
+- type: calculates_parameter
+  target: PARAM-stress-range-factor
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: eq-1c
+  last_revision: 2026-07-04
+  edited_by: admin
+display:
+  text: f = min(6.0*N^(-0.2), f_m)
+---

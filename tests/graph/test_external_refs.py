@@ -20,11 +20,9 @@ def reader() -> StandardsReader:
 def test_304_1_1_equation_edge(reader: StandardsReader) -> None:
     store = reader.graph_store
     store.load()
-    outgoing = store.outgoing("304.1.1", edge_types={"equation"})
+    outgoing = store.outgoing("304.1.1-a", edge_types={"references_equation", "equation"})
     assert len(outgoing) == 1
-    assert outgoing[0].to_id == "304.1.1-eq-2"
-    assert (outgoing[0].metadata or {}).get("subsection") == "a"
+    assert outgoing[0].to_id == "asme-b313-304-1-1-eq-2"
 
-    incoming = store.incoming("304.1.1-eq-2", edge_types={"equation"})
-    assert len(incoming) == 1
-    assert incoming[0].from_id == "304.1.1"
+    incoming = store.incoming("asme-b313-304-1-1-eq-2", edge_types={"references_equation", "equation", "authorized_by"})
+    assert any(edge.from_id == "304.1.1-a" for edge in incoming)

@@ -29,14 +29,14 @@ expected:
     selected_root: pipe_wall_thickness_design
     selected_nodes_contains:
       - B313-table-A-1
-      - B313-304.1.2
+      - 304.1.2-a
     missing_inputs: []
 
     graph:
     execution_order:
       - B313-table-A-1
       - B313-304.1.1
-      - B313-304.1.2
+      - 304.1.2-a
 
   validation:
     plan_status: pass_with_warning
@@ -56,7 +56,7 @@ expected:
   report:
     status: PASS
     sections_contain:
-      - B313-304.1.2
+      - 304.1.2-a
     markdown_contains:
       - Executive Summary
       - Dependency Graph Traversal

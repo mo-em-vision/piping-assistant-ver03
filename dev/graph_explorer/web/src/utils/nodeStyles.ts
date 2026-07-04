@@ -74,6 +74,10 @@ export const EDGE_TYPE_COLORS: Record<string, string> = {
 
 export const ALL_NODE_TYPES = Object.keys(NODE_TYPE_COLORS)
 
+export function edgeColor(edgeType: string): string {
+  return EDGE_TYPE_COLORS[edgeType] ?? EDGE_TYPE_COLORS.default
+}
+
 export function nodeStyle(
   nodeType: string,
   kind?: string | null,

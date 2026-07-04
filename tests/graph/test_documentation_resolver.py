@@ -111,12 +111,12 @@ def test_workflow_state_includes_node_documentation(standards_reader: StandardsR
     )
     manager.store_output(task_id, "workflow", "pipe_wall_thickness_design")
     manager.store_output(task_id, "graph_root", "B313-WF-PIPE-WALL-THICKNESS")
-    manager.store_step_progress(task_id, "B313-304.1.2", "completed")
+    manager.store_step_progress(task_id, "304.1.2-a", "completed")
 
     workflow_state = manager.get_workflow_state(task_id, reader=standards_reader)
     assert workflow_state.version == "3"
     assert workflow_state.current_documentation is not None
-    assert "B313-304.1.2" in workflow_state.node_documentation
+    assert "304.1.2-a" in workflow_state.node_documentation
     assert "B313-WF-PIPE-WALL-THICKNESS" in workflow_state.node_documentation
 
 

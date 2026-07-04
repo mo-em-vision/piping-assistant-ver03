@@ -19,7 +19,7 @@ def _lookup_engine() -> LookupEngine:
 def test_exact_temperature_lookup() -> None:
     engine = _lookup_engine()
     result = engine.execute_lookup(
-        node_id="B313-table-A-1",
+        node_id="asme-b313-table-A-1",
         lookup_config={
             "table_id": "A-1",
             "interpolation": True,
@@ -35,7 +35,7 @@ def test_exact_temperature_lookup() -> None:
 def test_interpolated_temperature_lookup() -> None:
     engine = _lookup_engine()
     result = engine.execute_lookup(
-        node_id="B313-table-A-1",
+        node_id="asme-b313-table-A-1",
         lookup_config={
             "table_id": "A-1",
             "interpolation": True,
@@ -53,7 +53,7 @@ def test_unknown_material_raises() -> None:
     engine = _lookup_engine()
     with pytest.raises(ValueError, match="Material not found"):
         engine.execute_lookup(
-            node_id="B313-table-A-1",
+            node_id="asme-b313-table-A-1",
             lookup_config={"table_id": "A-1"},
             inputs={"material": "UNKNOWN", "design_temperature": 200},
         )

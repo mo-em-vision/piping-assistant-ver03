@@ -42,10 +42,10 @@ def test_workflow_state_is_serializable_runtime_data() -> None:
         "allowable_stress_lookup",
         {"table": "A-1", "value": 193_000_000.0, "unit": "Pa"},
     )
-    manager.store_output(task_id, "graph_version", {"nodes": ["B313-304.1.2"]})
+    manager.store_output(task_id, "graph_version", {"nodes": ["304.1.2-a"]})
     manager.add_warning(task_id, "Review corrosion allowance.")
-    manager.store_step_progress(task_id, "B313-table-A-1", "completed")
-    manager.store_step_progress(task_id, "B313-304.1.2", "completed")
+    manager.store_step_progress(task_id, "asme-b313-table-A-1", "completed")
+    manager.store_step_progress(task_id, "304.1.2-a", "completed")
 
     workflow_state = manager.get_workflow_state(task_id, reader=reader)
     payload = json_safe(workflow_state)
@@ -53,8 +53,8 @@ def test_workflow_state_is_serializable_runtime_data() -> None:
     json.dumps(payload)
     assert payload["task_id"] == task_id
     assert payload["workflow_id"] == "pipe_wall_thickness_design"
-    assert payload["current_node"] == "B313-304.1.2"
-    assert payload["visited_nodes"] == ["B313-table-A-1", "B313-304.1.2"]
+    assert payload["current_node"] == "304.1.2-a"
+    assert payload["visited_nodes"] == ["asme-b313-table-A-1", "304.1.2-a"]
     assert payload["variable_values"]["design_pressure"]["value"] == 500
     assert payload["variable_values"]["required_thickness"] == 0.084
     assert payload["lookup_results"]["allowable_stress_lookup"]["value"] == 193_000_000.0

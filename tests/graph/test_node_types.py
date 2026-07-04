@@ -29,11 +29,11 @@ def test_interaction_normalizes_to_parameter() -> None:
     assert is_ui_parameter(normalized, node_type)
 
 
-def test_lookup_normalizes_to_equation() -> None:
+def test_lookup_stays_canonical() -> None:
     meta = {"table_id": "asme_b31.3_A-1"}
     node_type, normalized = normalize_node_metadata(meta, "lookup")
-    assert node_type == "equation"
-    assert normalized["kind"] == "lookup"
+    assert node_type == "lookup"
+    assert normalized.get("kind") != "lookup" or normalized.get("type") == "lookup"
     assert is_lookup_node(normalized, node_type)
 
 

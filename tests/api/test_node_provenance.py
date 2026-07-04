@@ -47,15 +47,15 @@ def test_provenance_for_node_includes_source_field(standards_reader: StandardsRe
 def test_enrich_display_blocks_provenance_from_source_node(standards_reader: StandardsReader) -> None:
     blocks = [
         {
-            "id": "reference-B313-304.1.2",
+            "id": "reference-304.1.2-a",
             "type": "reference",
-            "source_node": "B313-304.1.2",
+            "source_node": "304.1.2-a",
             "excerpt": "Example excerpt",
         }
     ]
     enrich_display_blocks_provenance(blocks, standards_reader)
 
-    assert blocks[0]["provenance"]["node_id"] == "B313-304.1.2"
+    assert blocks[0]["provenance"]["node_id"] == "304.1.2-a"
     assert blocks[0]["provenance"]["hover_excerpt"]
     assert blocks[0]["provenance"]["source_field"] == "purpose"
 

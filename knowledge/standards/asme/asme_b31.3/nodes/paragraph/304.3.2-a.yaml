@@ -1,0 +1,39 @@
+---
+id: 304.3.2-a
+type: paragraph
+key: b313_304_3_2_a
+title: Strength of Branch Connections — General and Listed Fittings
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.2-a
+text:
+  original: >
+    A pipe having a branch connection is weakened by the opening made in it and, unless
+    the wall thickness of the pipe is sufficiently in excess of that required to sustain
+    the pressure, it is necessary to provide added reinforcement.
+
+    The amount of reinforcement required to sustain the pressure shall be determined in
+    accordance with para. 304.3.3 or para. 304.3.4. There are, however, certain branch
+    connections that have adequate pressure strength or reinforcement as constructed. It
+    may be assumed without calculation that a branch connection has adequate strength to
+    sustain the internal and external pressure that will be applied to it if:
+
+    (a) the branch connection is made with a listed branch type fitting such as an ASME
+    B16.9 or ASME B16.11 tee, or MSS SP-97 branch connection fitting. See para. 303.
+hierarchy:
+  parent: '304.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: related_to
+    target: 304.3.3-a
+  - type: related_to
+    target: '303'
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

@@ -1,0 +1,70 @@
+---
+id: asme-b313-mawp-pressure
+type: equation
+key: asme-b313-mawp-pressure
+name: Maximum Allowable Working Pressure
+equation_class: calculation
+calculation_kind: function
+description: Maximum Allowable Working Pressure
+authority:
+  authorized_by:
+  - 304.1.2-a
+  authority_context_required: true
+requires:
+- symbol: S
+  required: true
+  description: Stress value from Table A-1
+  parameter: PARAM-allowable-stress
+- symbol: E
+  required: true
+  description: Quality factor from Tables A-2 and A-3
+  parameter: PARAM-weld-joint-efficiency
+- symbol: W
+  required: true
+  description: Weld strength reduction factor per para. 302.3.5-e
+  parameter: PARAM-weld-strength-reduction-factor-W
+- symbol: t
+  required: true
+  description: Pressure design thickness
+  parameter: PARAM-required-wall-thickness
+- symbol: D
+  required: true
+  description: Outside diameter of pipe
+  parameter: PARAM-outside-diameter
+- symbol: Y
+  required: true
+  description: Coefficient from Table 304.1.1
+  parameter: PARAM-temperature-coefficient-Y
+calculates:
+- symbol: MAWP
+  parameter: PARAM-maximum-allowable-working-pressure
+edges:
+- type: requires_parameter
+  target: PARAM-allowable-stress
+  alias: S
+- type: requires_parameter
+  target: PARAM-weld-joint-efficiency
+  alias: E
+- type: requires_parameter
+  target: PARAM-weld-strength-reduction-factor-W
+  alias: W
+- type: requires_parameter
+  target: PARAM-required-wall-thickness
+  alias: t
+- type: requires_parameter
+  target: PARAM-outside-diameter
+  alias: D
+- type: requires_parameter
+  target: PARAM-temperature-coefficient-Y
+  alias: Y
+- type: calculates_parameter
+  target: PARAM-maximum-allowable-working-pressure
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: mawp_pressure
+  last_revision: 2026-07-04
+  edited_by: admin
+display:
+  text: MAWP = 2SEWt / (D - 2Yt)
+---

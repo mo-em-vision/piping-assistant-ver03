@@ -1,0 +1,36 @@
+---
+id: asme-b313-table-A-2
+standard: asme_b31.3
+source:
+  pack: asme_b31.3
+  yaml: nodes/tables/asme-b313-table-A-2.yaml
+  tables_db: tables.db
+  table_id: asme_b31.3_A-2
+type: lookup
+title: Table A-2 — Basic Casting Quality Factors, E_c
+status: draft
+paragraph: Appendix A, Table A-2
+section: Appendix A
+topic: quality_factor
+revision_year: 2024
+inputs:
+- id: material
+  name: material
+  description: Casting material specification (ASTM)
+  required: true
+  source: user_input
+  unit: dimensionless
+lookups:
+- id: appendix_a2_casting_quality
+  source: table
+  table_id: asme_b31.3_A-2
+  lookup_rule: material
+edges:
+- type: depends_on
+  target: 302.3.3-b
+- type: introduces_parameter
+  target: quality_factor
+metadata:
+  last_revision: 2026-07-04
+  edited_by: admin
+---

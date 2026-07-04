@@ -1,0 +1,25 @@
+---
+id: CONCEPT-pipe-construction
+type: concept
+key: pipe_construction
+name: Pipe Construction
+concept_class: selection
+dimension: null
+description: >
+  The engineering concept used to classify pipe product form and longitudinal
+  joint construction for resolving quality factors from Tables A-2 and A-3.
+aliases:
+  - pipe construction type
+  - joint category
+  - pipe joint type
+edges:
+  - type: has_parameter
+    target: PARAM-pipe-construction-type
+  - type: used_by
+    target: asme-b313-table-A-3
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

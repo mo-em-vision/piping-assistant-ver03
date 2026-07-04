@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from engine.reference.graph_compile import validate_edge_item
+from engine.reference.graph_compile import validate_edge_item, validate_no_links_metadata
+from engine.validation.node_revision_metadata import validate_revision_metadata
 
 ALLOWED_WORKFLOW_CLASSES = frozenset(
     {
@@ -72,9 +73,11 @@ def validate_workflow_node(meta: dict[str, Any]) -> list[str]:
     metadata = meta.get("metadata") or {}
     if not isinstance(metadata, dict) or not metadata.get("status"):
         issues.append("metadata.status required")
+    issues.extend(validate_revision_metadata(meta))
     for field in _FORBIDDEN_FIELDS:
         if field in meta:
             issues.append(f"forbidden field in frontmatter: {field}")
+    issues.extend(validate_no_links_metadata(meta))
     for item in meta.get("edges") or []:
         if isinstance(item, dict):
             issues.extend(

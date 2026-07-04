@@ -3,7 +3,6 @@
 A Unit node defines a measurement unit and its deterministic conversion relationship to the canonical unit of its Dimension.
 
 ```yaml
----
 id: UNIT-psi
 type: unit
 
@@ -62,27 +61,45 @@ edges:
 
 ## Conversion rules
 
-A Unit should convert to the canonical unit of its Dimension.
+A Unit should convert to the canonical unit of its Dimension. Non-canonical units may also declare direct conversion edges to other units in the same dimension (e.g. `degC ↔ degF`).
 
-For linear conversions:
+### Pure scaling (factor only)
+
+Use an inline `factor` with `offset: 0` when conversion is a simple multiplier:
 
 ```yaml
 conversion:
   target: UNIT-Pa
   factor: 100000
   offset: 0
+
+edges:
+  - type: converts_to
+    target: UNIT-Pa
+    factor: 100000
+    offset: 0
 ```
 
-For temperature conversions:
+### Formula-based (equation link)
+
+When conversion requires an offset or a non-obvious formula, link to a unit-transformation equation node (`EQ-unit-*`) instead of embedding `factor`/`offset`:
 
 ```yaml
-conversion:
-  target: UNIT-K
-  factor: 1
-  offset: 273.15
+edges:
+  - type: converts_to
+    target: UNIT-K
+    equation: EQ-unit-degC-to-K
+
+  - type: converts_to
+    target: UNIT-degF
+    equation: EQ-unit-degC-to-degF
 ```
 
-Example:
+Each directed pair needs its own `converts_to` edge and `EQ-unit-*` equation. See [`equation node.md`](equation%20node.md#unit-transformation-equations).
+
+Do not specify both `equation` and `factor` on the same edge.
+
+### Temperature example
 
 ```yaml
 ---
@@ -102,19 +119,17 @@ aliases:
   - °C
   - celsius
 
-conversion:
-  target: UNIT-K
-  factor: 1
-  offset: 273.15
-
 edges:
   - type: belongs_to_dimension
     target: DIM-temperature
 
   - type: converts_to
     target: UNIT-K
-    factor: 1
-    offset: 273.15
+    equation: EQ-unit-degC-to-K
+
+  - type: converts_to
+    target: UNIT-degF
+    equation: EQ-unit-degC-to-degF
 
 metadata:
   status: active

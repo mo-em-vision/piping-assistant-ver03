@@ -1,0 +1,44 @@
+---
+id: PARAM-required-wall-thickness
+type: parameter
+key: required_wall_thickness
+name: Pressure Design Thickness
+parameter_class: calculated_quantity
+dimension: DIM-length
+description: >
+  Pressure design wall thickness for straight pipe, as calculated in accordance
+  with para. 304.1.2 for internal pressure or para. 304.1.3 for external pressure.
+canonical_symbol: t
+aliases:
+  - pressure design thickness
+  - required wall thickness
+  - design thickness
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: has_dimension
+    target: DIM-length
+  - type: used_by
+    target: asme-b313-304-1-1-a
+  - type: used_by
+    target: asme-b313-304-1-2-a
+  - type: used_by
+    target: asme-b313-304-1-2-b
+  - type: used_by
+    target: asme-b313-304-1-1-eq-2
+  - type: used_by
+    target: asme-b313-304-1-1-valrule-a
+  - type: used_by
+    target: asme-b313-304-1-2-eq-3a
+  - type: used_by
+    target: asme-b313-304-1-2-eq-3b
+  - type: used_by
+    target: asme-b313-mawp-pressure
+  - type: used_by
+    target: asme-b313-304-1-2-valrule-b
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

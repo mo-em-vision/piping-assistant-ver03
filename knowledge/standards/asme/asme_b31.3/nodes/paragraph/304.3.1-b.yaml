@@ -1,0 +1,39 @@
+---
+id: 304.3.1-b
+type: paragraph
+key: b313_304_3_1_b
+title: General — Branch Connections Geometric Limits
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.1-b
+text:
+  original: >
+    (b) The rules in paras. 304.3.2 through 304.3.4 are minimum requirements, valid only
+    for branch connections in which (using the nomenclature of Figure 304.3.3-1):
+
+    (1) the run pipe diameter-to-thickness ratio (D_h/T_h) is less than 100 and the
+    branch-to-run diameter ratio (D_b/D_h) is not greater than 1.0
+
+    (2) for run pipe with D_h/T_h ≥ 100, the branch diameter, D_b, is less than one-half
+    the run diameter, D_h
+
+    (3) angle β is at least 45 deg
+
+    (4) the axis of the branch intersects the axis of the run
+hierarchy:
+  parent: '304.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: related_to
+    target: 304.3.2-a
+  - type: related_to
+    target: 304.3.3-a
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

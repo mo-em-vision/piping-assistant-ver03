@@ -37,7 +37,7 @@ from engine.reference.standards_reader import StandardsReader
             "calculates_parameter",
         ),
         (
-            {"type": "equation", "target": "asme_b313_304_1_2_wall_thickness"},
+            {"type": "equation", "target": "304.1.2.eq.3a"},
             "paragraph",
             "references_equation",
         ),
@@ -66,7 +66,7 @@ def test_validate_rejects_bare_references_without_role() -> None:
 
 def test_compile_stores_taxonomy_edge_types() -> None:
     edges = compile_metadata_edges(
-        "asme_b313_304_1_2_wall_thickness",
+        "304.1.2.eq.3a",
         {
             "type": "equation",
             "edges": [
@@ -85,7 +85,7 @@ def test_migrated_equation_requires_bindings() -> None:
     reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
     store = GraphStore(reader.pack_root)
     store.load()
-    items = node_requires_items(store, "asme_b313_304_1_2_wall_thickness")
+    items = node_requires_items(store, "304.1.2.eq.3a")
     assert items
     aliases = {item.get("alias") for item in items}
     assert "P" in aliases

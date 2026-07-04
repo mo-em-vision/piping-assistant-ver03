@@ -1,0 +1,38 @@
+---
+id: 302.3.3-c
+type: paragraph
+key: b313_302_3_3_c
+title: Casting Quality Factor — Increased Quality Factors
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 302.3.3-c
+text:
+  original: >
+    (c) Increased Quality Factors. Casting quality factors may be increased when
+    supplementary examinations are performed on each casting. Table 302.3.3C states the
+    increased casting quality factors, E_c, that may be used for various combinations of
+    supplementary examination. Table 302.3.3D states the acceptance criteria for the
+    examination methods specified in the Notes to Table 302.3.3C. Quality factors higher
+    than those shown in Table 302.3.3C do not result from combining tests (2)(a) and
+    (2)(b), or (3)(a) and (3)(b). In no case shall the quality factor exceed 1.00.
+
+    Several of the specifications in Appendix A require machining of all surfaces and/or
+    one or more of these supplementary examinations. In such cases, the appropriate
+    increased quality factor is shown in Table A-2.
+hierarchy:
+  parent: '302.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: references_table
+    target: asme-b313-table-302-3-3C
+  - type: references_table
+    target: asme-b313-table-A-2
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

@@ -47,6 +47,17 @@ def test_lookup_y_interpolation() -> None:
     assert value == 0.4
 
 
+def test_lookup_y_with_metallurgical_group() -> None:
+    pack = _pack_root()
+    value, _ = lookup_y_coefficient(
+        pack,
+        design_temperature=150,
+        design_temperature_unit="F",
+        metallurgical_group="ferritic_steels",
+    )
+    assert value == 0.4
+
+
 def test_thick_wall_y_formula() -> None:
     y = compute_thick_wall_y(
         inside_diameter=200.0,

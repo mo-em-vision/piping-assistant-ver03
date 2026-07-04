@@ -80,7 +80,7 @@ def test_extract_interaction_responses_confirms_proposed_decision_default() -> N
     spec = NodeInteractionSpec(
         variable="joint_category",
         mode=InteractionMode.DECISION,
-        node_id="B313-304.1.2",
+        node_id="304.1.2-a",
         required=True,
         options=("seamless", "erw", "forging"),
         default="seamless",

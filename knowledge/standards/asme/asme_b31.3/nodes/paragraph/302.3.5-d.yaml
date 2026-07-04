@@ -1,0 +1,48 @@
+---
+id: 302.3.5-d
+type: paragraph
+key: b313_302_3_5_d
+title: Limits of Calculated Stresses — Displacement Stress Range
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 302.3.5-d
+text:
+  original: >
+    (d) Allowable Displacement Stress Range, S_A. The computed displacement stress range,
+    S_E, in a piping system (see para. 319.4.4) shall not exceed the allowable
+    displacement stress range, S_A (see paras. 319.2.3 and 319.3.4), calculated by
+    equation (1a): S_A = f*(1.25*S_c + 0.25*S_h). When S_h is greater than S_L, the
+    difference between them may be added to the term 0.25*S_h in the previous equation
+    (1a). In that case, the allowable stress range is calculated by equation (1b):
+    S_A = f*(1.25*(S_c + S_h) − S_L).
+
+    For equations (1a) and (1b): f — stress range factor, calculated by eq. (1c):
+    f = 6.0*(N)^(-0.2) <= f_m; f_m — maximum value of stress range factor; N —
+    equivalent number of full displacement cycles; S_c — basic allowable stress at minimum
+    metal temperature; S_h — basic allowable stress at maximum metal temperature; S_L —
+    stress due to sustained loads.
+
+    When the computed stress range varies, S_E is defined as the greatest computed
+    displacement stress range. The value of N in such cases can be calculated by eq. (1d):
+    N = N_E + sum(r_i^5*N_i) for i = 1, 2, ..., n.
+hierarchy:
+  parent: '302.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: references_equation
+    target: asme-b313-302-3-5-eq-1a
+  - type: references_equation
+    target: asme-b313-302-3-5-eq-1b
+  - type: references_equation
+    target: asme-b313-302-3-5-eq-1c
+  - type: references_concept
+    target: CONCEPT-stress
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

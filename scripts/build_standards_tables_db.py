@@ -71,15 +71,15 @@ BASE_METAL_GROUP_ALUMINUM_ALLOY = "Aluminum Alloy"
 
 _TABLE_A_2_DESCRIPTION = (
     "These quality factors are determined in accordance with "
-    "[para. 302.3.3(b)](node:B313-302.3.3/b). See also "
-    "[para. 302.3.3(c)](node:B313-302.3.3/c) and "
+    "[para. 302.3.3-b](node:302.3.3-a-b). See also "
+    "[para. 302.3.3-c](node:302.3.3-a-c) and "
     "[Table 302.3.3C](table:asme_b31.3_table_302_3_3C) for increased quality factors "
     "applicable in special cases. Specifications are ASTM."
 )
 
 _TABLE_302_3_3C_DESCRIPTION = (
     "Increased casting quality factors per "
-    "[para. 302.3.3(c)](node:B313-302.3.3/c). "
+    "[para. 302.3.3-c](node:302.3.3-a-c). "
     "Notes to this table: "
     "[(1)](node:B313-note-302-3-3C-1), "
     "[(2)(a)](node:B313-note-302-3-3C-2a), "
@@ -615,7 +615,7 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
         version="1.0",
 
-        subsection="302.3.5(e)",
+        subsection="302.3.5-e",
 
         temperature_unit="F",
 

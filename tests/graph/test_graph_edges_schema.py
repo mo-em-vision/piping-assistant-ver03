@@ -13,7 +13,7 @@ def test_incoming_referenced_by_matches_outgoing_references() -> None:
     reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
     store = reader.graph_store
     store.load()
-    outgoing = store.outgoing("304.1.1", edge_types={"related_to", "references"})
-    incoming = store.incoming("304.1.2", edge_types={"referenced_by", "related_to"})
-    assert any(edge.to_id == "304.1.2" for edge in outgoing)
-    assert any(edge.from_id == "304.1.1" for edge in incoming)
+    outgoing = store.outgoing("304.1.1-a", edge_types={"references_equation", "related_to"})
+    incoming = store.incoming("304.1.1.eq.2", edge_types={"referenced_by", "references_equation"})
+    assert any(edge.to_id == "304.1.1.eq.2" for edge in outgoing)
+    assert any(edge.from_id == "304.1.1-a" for edge in incoming)

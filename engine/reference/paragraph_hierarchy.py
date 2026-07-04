@@ -4,15 +4,18 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from engine.reference.graph_edge_schema import edge_target, iter_stored_edges
-
 if TYPE_CHECKING:
     from engine.reference.standards_reader import StandardsReader
 
 
 def paragraph_reference(metadata: dict[str, Any]) -> str:
     """Return the standards paragraph id for display and provenance."""
-    return str(metadata.get("paragraph") or metadata.get("id") or "").strip()
+    return str(
+        metadata.get("paragraph_number")
+        or metadata.get("paragraph")
+        or metadata.get("id")
+        or ""
+    ).strip()
 
 
 def section_label(metadata: dict[str, Any]) -> str | None:
@@ -34,21 +37,23 @@ def section_label(metadata: dict[str, Any]) -> str | None:
     return None
 
 
+def hierarchy_parent_id(metadata: dict[str, Any]) -> str:
+    """Return the immediate parent paragraph id from ``hierarchy.parent``."""
+    hierarchy = metadata.get("hierarchy")
+    if not isinstance(hierarchy, dict):
+        return ""
+    parent = str(hierarchy.get("parent") or "").strip()
+    if not parent or parent.lower() == "null":
+        return ""
+    return parent
+
+
 def hierarchy_entries(metadata: dict[str, Any]) -> list[dict[str, Any]]:
     """Return normalized ancestor hierarchy entries (nearest parent first)."""
-    entries: list[dict[str, Any]] = []
-    for item in iter_stored_edges(metadata):
-        if str(item.get("type") or "") != "parent":
-            continue
-        node_id = edge_target(item)
-        if not node_id:
-            continue
-        entry: dict[str, Any] = {"node_id": node_id}
-        title = str(item.get("title", "")).strip()
-        if title:
-            entry["title"] = title
-        entries.append(entry)
-    return entries
+    parent_id = hierarchy_parent_id(metadata)
+    if not parent_id:
+        return []
+    return [{"node_id": parent_id}]
 
 
 def resolve_hierarchy_chain(
@@ -57,7 +62,7 @@ def resolve_hierarchy_chain(
     *,
     _visited: set[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Return full ancestor chain by following ``parent`` edges (nearest first)."""
+    """Return full ancestor chain by following ``hierarchy.parent`` (nearest first)."""
     _visited = _visited or set()
     if node_id in _visited:
         return []

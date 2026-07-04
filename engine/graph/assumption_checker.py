@@ -432,7 +432,7 @@ def question_for(spec: NodeAssumptionSpec) -> str:
         return (
             "Is the pipe subjected to internal or external pressure? "
             "Internal pressure design uses §304.1.2; external pressure design uses §304.1.3. "
-            "Coefficients E, S, W, and Y are defined in §304.1.1(b)."
+            "Coefficients E, S, W, and Y are defined in §304.1.1-b."
         )
     if spec.id == "confirmed_weld_joint_efficiency":
         return (

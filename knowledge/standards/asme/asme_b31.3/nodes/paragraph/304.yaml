@@ -6,17 +6,22 @@ title: 304 Pressure Design of Components
 authority: AUTH-ASME-B31.3
 edition: 2024
 paragraph_number: '304'
-paragraph_class: definition
-description: 304 Pressure Design of Components
+text:
+  original: >
+    Section 304 — Pressure Design of Components. Top-level structural navigation node
+    for Section 304.
+hierarchy:
+  parent: null
+  children:
+    - '304.1'
+    - '304.3'
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
 metadata:
   status: draft
-  node_version: 1
   source_revision_year: 2024
-edges:
-- type: belongs_to_authority
-  target: AUTH-ASME-B31.3
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---
-
-# ASME B31.3 §304 — Pressure Design of Components
-
-Top-level structural navigation node for Section 304.

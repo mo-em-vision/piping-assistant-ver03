@@ -349,7 +349,7 @@ class NodeRunner:
                             inputs=resolved,
                         )
                     warnings.append(
-                        "Thick-wall coefficient Y applied per §304.1.1(b): Y = (d + 2c) / (D + d + 2c)"
+                        "Thick-wall coefficient Y applied per §304.1.1-b: Y = (d + 2c) / (D + d + 2c)"
                     )
                     if calculation.final_result:
                         eval_vars["t"] = calculation.final_result.value
@@ -721,7 +721,7 @@ class NodeRunner:
             return None
         c_prepared = prepare_fact(stored)
         c_value = float(fact_scalar_value(c_prepared))
-        if record.node_id not in {"B313-304.1.2", "304.1.2"}:
+        if record.node_id not in {"304.1.2-a", "304.1.2"}:
             return thickness_t + c_value
         from engine.executor.functions import get_execution_function
 
@@ -730,7 +730,7 @@ class NodeRunner:
             return thickness_t + c_value
         eq_record: NodeRecord | None = None
         try:
-            eq_record = self._reader.load("asme_b313_304_1_1_eq_2")
+            eq_record = self._reader.load("asme-b313-304-1-1-eq-2")
             definition_path = eq_record.path.parent
         except FileNotFoundError:
             definition_path = record.path.parent
@@ -740,7 +740,7 @@ class NodeRunner:
                 variables={"t": float(thickness_t), "c": c_value},
                 reader=self._reader,
                 record=eq_record or record,
-                equation_meta={"file": "../equation/asme_b313_304_1_1_eq_2.yaml"},
+                equation_meta={"file": "../equation/asme-b313-304-1-1-eq-2.yaml"},
             )
             if calculation.final_result:
                 return float(calculation.final_result.value)

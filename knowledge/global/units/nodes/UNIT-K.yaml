@@ -16,7 +16,15 @@ conversion:
 edges:
   - type: belongs_to_dimension
     target: DIM-temperature
+  - type: converts_to
+    target: UNIT-degC
+    equation: EQ-unit-K-to-degC
+  - type: converts_to
+    target: UNIT-degF
+    equation: EQ-unit-K-to-degF
 metadata:
   status: active
   version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---

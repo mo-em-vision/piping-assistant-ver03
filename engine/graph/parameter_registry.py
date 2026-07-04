@@ -15,7 +15,7 @@ from models.input import (
 
 
 _DEFINITION_NODE = "B313-304.1.1"
-_THICKNESS_NODES = frozenset({"B313-304.1.2", "B313-304.1.3"})
+_THICKNESS_NODES = frozenset({"304.1.2-a", "B313-304.1.3"})
 
 
 def _parse_resolution_method(raw: str | None) -> ResolutionMethod | None:

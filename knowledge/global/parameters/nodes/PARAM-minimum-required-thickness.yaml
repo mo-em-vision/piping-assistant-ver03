@@ -1,0 +1,32 @@
+---
+id: PARAM-minimum-required-thickness
+type: parameter
+key: minimum_required_thickness
+name: Minimum Required Thickness
+parameter_class: calculated_quantity
+dimension: DIM-length
+description: >
+  Minimum required wall thickness including mechanical, corrosion, and erosion
+  allowances (t_m = t + c per §304.1.1-a eq. 2).
+canonical_symbol: t_m
+aliases:
+  - minimum required thickness
+  - required thickness with allowances
+  - t_m
+introduced_by:
+  - asme-b313-304-1-1-a
+edges:
+  - type: has_dimension
+    target: DIM-length
+  - type: related_to
+    target: PARAM-required-wall-thickness
+  - type: used_by
+    target: asme-b313-304-1-1-eq-2
+  - type: used_by
+    target: asme-b313-304-1-1-valrule-a
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

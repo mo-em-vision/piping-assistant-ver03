@@ -12,7 +12,7 @@ PATHS = {
     "B313-WF-PIPE-WALL-THICKNESS": "B313-WF-PIPE-WALL-THICKNESS",
     "B313-WF-MAWP": "B313-WF-MAWP",
     "B313-304.1.1": "B313-304.1.1",
-    "B313-304.1.2": "B313-304.1.2",
+    "304.1.2-a": "304.1.2-a",
     "B313-304.1.3": "B313-304.1.3",
     "B313-MAWP-SECTION": "B313-MAWP-SECTION",
     "B313-304.1.1-init-text": "B313-304.1.1-init-text",
@@ -63,7 +63,7 @@ PARAMS = [
      "Please confirm the weld joint quality factor E.",
      {"method": "table_lookup", "keys": ["material", "joint_category"]}),
     ("B313-param-W", "W", "weld_joint_strength_reduction_factor_W", "Weld strength reduction", "dimensionless", None,
-     "Weld strength reduction factor per para. 302.3.5(e).",
+     "Weld strength reduction factor per para. 302.3.5-e.",
      "Please confirm the weld strength reduction factor W.",
      {"method": "table_lookup", "keys": ["material", "design_temperature", "joint_category"]}),
     ("B313-param-Y", "Y", "temperature_coefficient_Y", "Temperature coefficient", "dimensionless", None,
@@ -134,7 +134,7 @@ defines:
   - B313-param-t_m
 """
 
-SECTION_304_1_2 = """id: B313-304.1.2
+SECTION_304_1_2 = """id: 304.1.2-a
 type: standard_section
 title: Straight Pipe Under Internal Pressure
 paragraph: "304.1.2"
@@ -222,7 +222,7 @@ requires:
     )
 
     write_node(PATHS["B313-304.1.1"], SECTION_304_1_1, "# ASME B31.3 §304.1.1")
-    write_node(PATHS["B313-304.1.2"], SECTION_304_1_2, "# ASME B31.3 §304.1.2")
+    write_node(PATHS["304.1.2-a"], SECTION_304_1_2, "# ASME B31.3 §304.1.2")
     write_node(PATHS["B313-MAWP-SECTION"], MAWP_SECTION, "# MAWP calculation section")
 
     write_node(
@@ -266,7 +266,7 @@ options:
 question: >
   Is the pipe subjected to internal or external pressure?
 edges:
-  - to: B313-304.1.2
+  - to: 304.1.2-a
     type: next_step
     when: {field: pressure_loading, in: [internal_pressure]}
   - to: B313-304.1.3

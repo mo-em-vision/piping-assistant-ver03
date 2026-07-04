@@ -29,8 +29,9 @@ def test_build_plan_execution_order_without_pressure_loading() -> None:
         reader=reader,
     )
 
-    assert "B313-304.1.1" in plan.nodes
-    assert "B313-304.1.2" not in plan.nodes
+    assert "304.1.1-a" in plan.nodes
+    assert "304.1.1-b" in plan.nodes
+    assert "304.1.2-a" not in plan.nodes
 
 
 def test_build_plan_internal_pressure_path() -> None:
@@ -48,9 +49,9 @@ def test_build_plan_internal_pressure_path() -> None:
         reader=reader,
     )
 
-    assert "B313-304.1.1" in plan.nodes
-    assert "B313-304.1.2" in plan.nodes
-    assert "B313-eq-wall-thickness" in plan.nodes
+    assert "304.1.1-a" in plan.nodes
+    assert "304.1.1-b" in plan.nodes
+    assert "304.1.2-a" in plan.nodes
     assert "B313-304.1.3" not in plan.nodes
 
 
@@ -74,9 +75,10 @@ def test_build_plan_external_pressure_path() -> None:
         reader=reader,
     )
 
-    assert "B313-304.1.3" in plan.nodes
-    assert "B313-304.1.1" in plan.nodes
-    assert "B313-304.1.2" not in plan.nodes
+    assert "304.1.3" in plan.nodes
+    assert "304.1.1-a" in plan.nodes
+    assert "304.1.1-b" in plan.nodes
+    assert "304.1.2-a" not in plan.nodes
 
 
 def test_build_plan_includes_dependencies() -> None:

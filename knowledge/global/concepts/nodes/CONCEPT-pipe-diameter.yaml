@@ -1,0 +1,29 @@
+---
+id: CONCEPT-pipe-diameter
+type: concept
+key: pipe_diameter
+name: Pipe Diameter
+concept_class: geometric_quantity
+dimension: DIM-length
+description: >
+  The engineering concept of pipe diameter, including outside diameter, inside
+  diameter, nominal pipe size, and related geometric measures used in pressure
+  design equations.
+aliases:
+  - pipe diameter
+  - outside diameter
+  - inside diameter
+  - nominal pipe size
+edges:
+  - type: has_dimension
+    target: DIM-length
+  - type: has_parameter
+    target: PARAM-outside-diameter
+  - type: has_parameter
+    target: PARAM-nominal-pipe-size
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

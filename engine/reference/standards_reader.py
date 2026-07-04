@@ -15,6 +15,7 @@ from engine.reference.embedded_nodes import find_embedded_body, iter_embedded_no
 from engine.reference.equation_sidecar import merge_equation_sidecar_metadata
 from engine.reference.paragraph_sidecar import merge_paragraph_sidecar_metadata
 from engine.reference.workflow_sidecar import merge_workflow_sidecar_metadata
+from engine.reference.pack_metadata import apply_pack_metadata, load_pack_metadata
 from engine.reference.pack_graph_db import resolve_pack_graph_db
 from engine.reference.pack_nodes_db import resolve_pack_nodes_db
 from engine.reference.pack_tables_db import resolve_pack_tables_db
@@ -112,6 +113,13 @@ class StandardsReader:
         self._graph_store: Any | None = None
         self._node_path_cache: dict[str, Path | None] = {}
         self._node_record_cache: dict[str, NodeRecord] = {}
+        self._pack_metadata: dict[str, Any] | None = None
+
+    @property
+    def pack_metadata(self) -> dict[str, Any]:
+        if self._pack_metadata is None:
+            self._pack_metadata = load_pack_metadata(self.pack_root)
+        return self._pack_metadata
 
     @property
     def graph_store(self) -> "GraphStore":
@@ -306,6 +314,17 @@ class StandardsReader:
                         body=embedded.body or body,
                     )
         return None
+
+    def _apply_pack_metadata(self, record: NodeRecord) -> NodeRecord:
+        metadata = apply_pack_metadata(record.metadata, self.pack_metadata)
+        if metadata is record.metadata:
+            return record
+        return NodeRecord(
+            node_id=record.node_id,
+            path=record.path,
+            metadata=metadata,
+            body=record.body,
+        )
 
     def _enrich_equation_record(self, record: NodeRecord) -> NodeRecord:
         if str(record.metadata.get("type", "")) != "equation":
@@ -507,16 +526,39 @@ class StandardsReader:
                 else:
                     raise FileNotFoundError(f"Node not found in standards pack: {node_id}")
 
-        enriched = self._enrich_workflow_record(
-            self._enrich_equation_record(self._enrich_paragraph_record(record))
+        enriched = self._apply_pack_metadata(
+            self._enrich_workflow_record(
+                self._enrich_equation_record(self._enrich_paragraph_record(record))
+            )
         )
         self._node_record_cache[node_id] = enriched
         return self._node_record_cache[node_id]
 
     def load_subsection(self, node_id: str, subsection_id: str) -> NodeSubsection:
         """Load a structured subsection without treating it as a graph node."""
-        record = self.load(node_id)
         wanted = subsection_id.strip().lower().strip("()")
+        subsection_node_id = self._subsection_node_id(node_id, wanted)
+        if subsection_node_id:
+            try:
+                record = self.load(subsection_node_id)
+            except FileNotFoundError:
+                subsection_node_id = None
+            else:
+                meta = record.metadata
+                body = _authority_text_from_record(meta, record.body)
+                return NodeSubsection(
+                    node_id=record.node_id,
+                    subsection_id=wanted,
+                    paragraph=str(
+                        meta.get("paragraph_number")
+                        or meta.get("paragraph")
+                        or subsection_node_id
+                    ),
+                    metadata=meta,
+                    body=body,
+                )
+
+        record = self.load(node_id)
         for item in record.metadata.get("subsections", []) or []:
             if not isinstance(item, dict):
                 continue
@@ -533,6 +575,21 @@ class StandardsReader:
                 body=_extract_subsection_body(record.body, wanted),
             )
         raise KeyError(f"Subsection {subsection_id!r} not found in node: {node_id}")
+
+    @staticmethod
+    def _subsection_node_id(node_id: str, subsection_id: str) -> str | None:
+        """Map parent + subsection letter to a dedicated paragraph node id."""
+        import re
+
+        text = str(node_id).strip()
+        wanted = subsection_id.strip().lower().strip("()")
+        if not text or not wanted:
+            return None
+        match = re.match(r"^(.+)-([a-z])$", text)
+        if match and match.group(2) == wanted:
+            return text
+        base = match.group(1) if match else text
+        return f"{base}-{wanted}"
 
     def resolve_asset_path(self, record: NodeRecord, file_ref: str) -> Path | None:
         file_ref = str(file_ref).strip()
@@ -669,6 +726,16 @@ class StandardsReader:
             passed=not errors,
             issues=issues,
         )
+
+
+def _authority_text_from_record(metadata: dict[str, Any], body: str) -> str:
+    body_text = body.strip()
+    if body_text:
+        return body_text
+    text_block = metadata.get("text") or {}
+    if isinstance(text_block, dict):
+        return str(text_block.get("original") or "").strip()
+    return ""
 
 
 def _split_frontmatter(text: str) -> tuple[dict[str, Any], str]:

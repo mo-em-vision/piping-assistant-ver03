@@ -1,0 +1,36 @@
+---
+id: 304.3.3-e
+type: paragraph
+key: b313_304_3_3_e
+title: Reinforcement of Welded Branch Connections — Multiple Branches
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.3-e
+text:
+  original: >
+    (e) Multiple Branches. When two or more branch connections are so closely spaced
+    that their reinforcement zones overlap, the distance between centers of the
+    openings should be at least 1-1/2 times their average diameter, and the area of
+    reinforcement between any two openings shall be not less than 50% of the total that
+    both require. Each opening shall have adequate reinforcement in accordance with
+    (b) and (c). No part of the metal cross section may apply to more than one opening
+    or be evaluated more than once in any combined area. (Consult PFI Standard ES-7,
+    Minimum Length and Spacing for Branch Connections, for detailed recommendations on
+    spacing of welded nozzles.)
+hierarchy:
+  parent: '304.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: related_to
+    target: 304.3.3-b
+  - type: related_to
+    target: 304.3.3-c
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

@@ -46,7 +46,7 @@ class TestInputInjectionTesting:
     ) -> None:
         inputs = sample_inputs(material="<script>alert(1)</script>")
         result = ValidationEngine(standards_reader).validate_node(
-            "B313-table-A-1",
+            "asme-b313-table-A-1",
             task_inputs=inputs,
             dependency_outputs={},
             prior_nodes_completed=set(),
@@ -69,7 +69,7 @@ class TestInputInjectionTesting:
             source=InputSource.USER,
         )
         result = UnitValidator().validate_node_inputs(
-            "B313-304.1.2",
+            "304.1.2-a",
             reader=standards_reader,
             task_inputs=inputs,
         )

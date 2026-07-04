@@ -31,10 +31,7 @@ lookups:
 edges:
 - type: introduces_parameter
   target: mechanical_properties
+metadata:
+  last_revision: 2026-07-04
+  edited_by: admin
 ---
-
-# ASTM A312 — Material Properties
-
-> **Development reference data — verify against licensed ASTM A312/A312M for production use.**
-
-Lookup for austenitic stainless steel pipe TP grades (TP304, TP316L, TP321, etc.).

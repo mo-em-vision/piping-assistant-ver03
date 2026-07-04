@@ -42,7 +42,7 @@ Pair with `node.md` for full paragraph text and embedded child `source:` blocks.
 
 ```yaml
 ---
-id: B313-304.1.2
+id: 304.1.2-a
 type: calculation
 title: Straight Pipe Under Internal Pressure
 paragraph: "304.1.2"

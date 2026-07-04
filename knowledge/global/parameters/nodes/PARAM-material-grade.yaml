@@ -1,0 +1,30 @@
+---
+id: PARAM-material-grade
+type: parameter
+key: material_grade
+name: Material Grade
+parameter_class: categorical
+dimension: DIM-material-designation
+description: >
+  Material specification or grade designation used to resolve allowable stress,
+  material properties, and applicable standard limits from authority catalogs.
+canonical_symbol: material
+aliases:
+  - material grade
+  - pipe material
+  - material designation
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: has_dimension
+    target: DIM-material-designation
+  - type: used_by
+    target: asme-b313-table-A-1
+  - type: used_by
+    target: MAT-catalog
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

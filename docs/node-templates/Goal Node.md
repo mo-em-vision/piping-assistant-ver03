@@ -402,7 +402,7 @@ satisfaction:
 
 authority:
   references:
-    - B313-304.1.2
+    - 304.1.2-a
 
 provenance:
   execution_context_id: EXEC-2026-000001
@@ -456,7 +456,7 @@ edges:
     target: FACT-required-wall-thickness-001
 
   - type: governed_by
-    target: B313-304.1.2
+    target: 304.1.2-a
 
   - type: created_from_workflow
     target: WF-pipe-wall-thickness-design

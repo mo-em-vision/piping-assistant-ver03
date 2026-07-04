@@ -1,0 +1,32 @@
+---
+id: 304.3.2-c
+type: paragraph
+key: b313_304_3_2_c
+title: Strength of Branch Connections — Unlisted Fittings
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.2-c
+text:
+  original: >
+    (c) the branch connection utilizes an unlisted branch connection fitting (see para.
+    300.2), provided the fitting is made from materials listed in Table A-1 (Table A-1C)
+    and provided that the branch connection is qualified as required by para. 304.7.2.
+hierarchy:
+  parent: '304.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: related_to
+    target: '300.2'
+  - type: related_to
+    target: 304.7.2
+  - type: references_table
+    target: asme-b313-table-A-1
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

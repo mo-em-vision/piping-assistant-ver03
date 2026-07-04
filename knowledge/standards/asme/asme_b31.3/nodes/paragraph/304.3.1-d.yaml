@@ -1,0 +1,27 @@
+---
+id: 304.3.1-d
+type: paragraph
+key: b313_304_3_1_d
+title: General — Other Design Considerations
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.1-d
+text:
+  original: >
+    (d) Other design considerations relating to branch connections are stated in para.
+    304.3.5.
+hierarchy:
+  parent: '304.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: related_to
+    target: 304.3.5
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

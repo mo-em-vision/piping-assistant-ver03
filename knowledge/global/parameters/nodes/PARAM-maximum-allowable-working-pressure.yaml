@@ -1,0 +1,27 @@
+---
+id: PARAM-maximum-allowable-working-pressure
+type: parameter
+key: maximum_allowable_working_pressure
+name: Maximum Allowable Working Pressure
+parameter_class: calculated_quantity
+dimension: DIM-pressure
+description: >
+  Maximum allowable working pressure derived from known wall thickness and
+  material design conditions per §304.1.2.
+canonical_symbol: MAWP
+aliases:
+  - MAWP
+  - maximum allowable working pressure
+introduced_by:
+  - asme-b313-304-1-2-a
+edges:
+  - type: has_dimension
+    target: DIM-pressure
+  - type: used_by
+    target: asme-b313-mawp-pressure
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

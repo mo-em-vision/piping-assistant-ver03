@@ -252,7 +252,7 @@ def test_task_state_report_pending_during_definition_equation_completion() -> No
         "workflow": "pipe_wall_thickness_design",
         "required_thickness": 0.084,
         "t": 0.084,
-        "_execution_trace": [{"node_id": "B313-304.1.2", "trace": {"calculation": {"steps": []}}}],
+        "_execution_trace": [{"node_id": "304.1.2-a", "trace": {"calculation": {"steps": []}}}],
     }
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
@@ -344,7 +344,7 @@ def test_task_state_is_json_serializable_when_step_progress_contains_datetime() 
         "workflow": "pipe_wall_thickness_design",
         "_execution_trace": [
             {
-                "node_id": "B313-304.1.2",
+                "node_id": "304.1.2-a",
                 "timestamp": datetime(2026, 6, 25, 12, 0, tzinfo=timezone.utc),
             }
         ],
@@ -353,10 +353,10 @@ def test_task_state_is_json_serializable_when_step_progress_contains_datetime() 
     manager.replace_task(task.task_id, task)
     manager.store_step_progress(
         task.task_id,
-        "B313-304.1.2",
+        "304.1.2-a",
         "completed",
         result={
-            "node_id": "B313-304.1.2",
+            "node_id": "304.1.2-a",
             "timestamp": datetime(2026, 6, 25, 12, 0, tzinfo=timezone.utc),
             "status": "completed",
         },

@@ -31,6 +31,76 @@ from models.planning import WorkflowCandidate
 _DEFINITION_PHASE_INPUTS = frozenset({"corrosion_allowance"})
 
 
+def _resolution_method(resolution: Any) -> str:
+    if isinstance(resolution, list):
+        resolution = resolution[0] if resolution else {}
+    if isinstance(resolution, dict):
+        return str(resolution.get("method", "user_input"))
+    return "user_input"
+
+
+def _resolution_keys(resolution: Any) -> list[str]:
+    if isinstance(resolution, list):
+        resolution = resolution[0] if resolution else {}
+    if not isinstance(resolution, dict):
+        return []
+    keys = resolution.get("keys") or []
+    return [str(key) for key in keys if str(key).strip()]
+
+
+def _nomenclature_applies(
+    item: dict[str, Any],
+    *,
+    active_nodes: tuple[str, ...] | list[str],
+) -> bool:
+    resolution = item.get("resolution") or {}
+    if isinstance(resolution, list):
+        for spec in resolution:
+            if isinstance(spec, dict) and when_clause_matches(spec.get("when"), {}):
+                resolution = spec
+                break
+        else:
+            resolution = resolution[0] if resolution else {}
+    if not isinstance(resolution, dict):
+        return True
+    when_nodes = resolution.get("required_when_nodes") or []
+    if when_nodes and not any(str(node_id) in active_nodes for node_id in when_nodes):
+        return False
+    return True
+
+
+def _append_nomenclature_user_inputs(
+    store: GraphStore,
+    *,
+    active_nodes: tuple[str, ...] | list[str],
+    inputs: dict[str, Fact],
+    required: list[str],
+    seen: set[str],
+) -> None:
+    for node_id in active_nodes:
+        node = store.get_node(node_id)
+        if node is None or node.node_type != "paragraph":
+            continue
+        for item in node.metadata.get("nomenclature", []) or []:
+            if not isinstance(item, dict) or not item.get("introduced_here"):
+                continue
+            if not _nomenclature_applies(item, active_nodes=active_nodes):
+                continue
+            input_id = str(item.get("input_id") or "").strip()
+            if not input_id or input_id in seen or input_id in _DEFINITION_PHASE_INPUTS:
+                continue
+            resolution = item.get("resolution")
+            method = _resolution_method(resolution)
+            if method == "user_input" and field_value(input_id, inputs) is None:
+                seen.add(input_id)
+                required.append(input_id)
+            elif method == "table_lookup" and field_value(input_id, inputs) is None:
+                for key_name in _resolution_keys(resolution):
+                    if key_name not in seen and field_value(key_name, inputs) is None:
+                        seen.add(key_name)
+                        required.append(key_name)
+
+
 class MicroGraphEngine:
     """Graph traversal over compiled micro-nodes."""
 
@@ -293,6 +363,13 @@ class MicroGraphEngine:
                     if key_name not in seen and field_value(key_name, inputs) is None:
                         seen.add(key_name)
                         required.append(key_name)
+        _append_nomenclature_user_inputs(
+            self._store,
+            active_nodes=expansion.active_nodes,
+            inputs=inputs,
+            required=required,
+            seen=seen,
+        )
         return required
 
     def prefetch(self, *, task_id: str, root_id: str, inputs: dict[str, Fact], horizon: int = 1) -> None:

@@ -83,5 +83,5 @@ def test_eq2_requires_have_priorities(b313_store: GraphStore) -> None:
 
 def test_parameter_defined_in_from_yaml(b313_store: GraphStore) -> None:
     meta = b313_store.metadata("B313-param-P")
-    assert parameter_defined_in(meta) == ("B313-304.1.1",)
+    assert parameter_defined_in(meta) == ("304.1.1-b",)
     assert "priority" not in meta

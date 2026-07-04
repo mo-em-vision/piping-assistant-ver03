@@ -22,8 +22,7 @@ lookups:
 edges:
 - type: introduces_parameter
   target: material_properties
+metadata:
+  last_revision: 2026-07-04
+  edited_by: admin
 ---
-
-# ASTM A53 — Material Properties
-
-Catalog entry for **ASTM A53** carbon steel pipe (Types S, E, and F).

@@ -1,0 +1,42 @@
+---
+id: 302.3.5-f
+type: paragraph
+key: b313_302_3_5_f
+title: Limits of Calculated Stresses — Unlisted Weld Strength Reduction Factors
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 302.3.5-f
+text:
+  original: >
+    (f) Unlisted Weld Strength Reduction Factors. A weld strength reduction factor other
+    than that listed in Table 302.3.5 may be used in accordance with one of the following
+    criteria:
+
+    1) Creep test data may be used to determine the weld joint strength reduction factor,
+    W. However, the use of creep test data to increase the factor W above that shown in
+    Table 302.3.5 is not permitted for the CrMo and Creep Strength Enhanced Ferritic
+    (CSEF) steels materials, as defined in Table 302.3.5. Creep testing of weld joints to
+    determine weld joint strength reduction factors, when permitted, should be full
+    thickness cross weld specimens with test durations of at least 1000 hours. Full
+    thickness tests shall be used unless the designer otherwise considers effects such as
+    stress redistribution across the weld.
+
+    2) With the owner's approval, extensive successful experience may be used to justify
+    the factor W above that shown in Table 302.3.5. Successful experience must include
+    same or like material, weld metal composition, and welding process under equivalent,
+    or more severe, sustained operating conditions.
+hierarchy:
+  parent: '302.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: references_table
+    target: asme-b313-table-302-3-5-1
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

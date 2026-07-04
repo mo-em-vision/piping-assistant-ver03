@@ -6,4 +6,7 @@ description: Cross-pack material search index (ASTM tables + supplemental entrie
 registry: registry.yaml
 canonical_unit: UNIT-dimensionless
 edges: []
+metadata:
+  last_revision: 2026-07-04
+  edited_by: admin
 ---

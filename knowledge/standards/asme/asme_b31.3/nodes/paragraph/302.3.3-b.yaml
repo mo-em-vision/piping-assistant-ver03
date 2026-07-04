@@ -1,0 +1,35 @@
+---
+id: 302.3.3-b
+type: paragraph
+key: b313_302_3_3_b
+title: Casting Quality Factor — Basic Quality Factors
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 302.3.3-b
+text:
+  original: >
+    (b) Basic Quality Factors. Castings of gray and malleable iron, conforming to listed
+    specifications, are assigned a basic casting quality factor, E_c, of 1.00 (due to
+    their conservative allowable stress basis). For most other metals, static castings
+    that conform to the material specification and have been visually examined as
+    required by MSS SP-55, Quality Standard for Steel Castings for Valves, Flanges and
+    Fittings and Other Piping Components — Visual Method, are assigned a basic casting
+    quality factor, E_c, of 0.80. Centrifugal castings that meet specification
+    requirements only for chemical analysis, tensile, hydrostatic, and flattening tests,
+    and visual examination are assigned a basic casting quality factor of 0.80. Basic
+    casting quality factors are tabulated for listed specifications in Table A-2.
+hierarchy:
+  parent: '302.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: references_table
+    target: asme-b313-table-A-2
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

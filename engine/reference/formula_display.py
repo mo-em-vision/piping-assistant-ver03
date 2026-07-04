@@ -15,6 +15,17 @@ from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.standards_reader import StandardsReader
 
 
+def _nomenclature_section_label(paragraph: str, fallback: str) -> str:
+    paragraph = str(paragraph or "").strip()
+    if not paragraph:
+        return f"§{fallback}"
+    if re.match(r".+-[a-z]$", paragraph):
+        return f"§{paragraph}"
+    if paragraph.endswith("(b)"):
+        return f"§{paragraph}"
+    return f"§{paragraph}(b)"
+
+
 def load_formula_display(reader: StandardsReader, node_id: str) -> str | None:
     """Return the human-readable display equation for a calculation node."""
     node = reader.load(node_id)
@@ -148,11 +159,15 @@ def resolve_equation_display_variables(
         result = _resolve_equation_display_from_data(reader, equation_data, node.metadata)
         if result.get("nomenclature_reference") is None and nomenclature_ref:
             section = reader.load(nomenclature_ref)
-            paragraph = str(section.metadata.get("paragraph", "")).strip()
+            paragraph = str(
+                section.metadata.get("paragraph")
+                or section.metadata.get("paragraph_number")
+                or ""
+            ).strip()
             if paragraph:
                 result["nomenclature_reference"] = {
                     "node_id": nomenclature_ref,
-                    "label": f"§{paragraph}(b)",
+                    "label": _nomenclature_section_label(paragraph, nomenclature_ref),
                     "paragraph": paragraph,
                 }
         return result
@@ -163,11 +178,15 @@ def resolve_equation_display_variables(
     result = _resolve_equation_display_from_data(reader, equation_data, node.metadata)
     if result.get("nomenclature_reference") is None and section_id != resolved_id:
         section = reader.load(section_id)
-        paragraph = str(section.metadata.get("paragraph", "")).strip()
+        paragraph = str(
+            section.metadata.get("paragraph")
+            or section.metadata.get("paragraph_number")
+            or ""
+        ).strip()
         if paragraph:
             result["nomenclature_reference"] = {
                 "node_id": section_id,
-                "label": f"§{paragraph}(b)",
+                "label": _nomenclature_section_label(paragraph, section_id),
                 "paragraph": paragraph,
             }
     return result
@@ -271,7 +290,7 @@ def _primary_equation_data(reader: StandardsReader, node_id: str) -> dict[str, A
         if (
             executor == "calculate_wall_thickness"
             or str(data.get("equation_id") or "") == "wall_thickness"
-            or eq_id == "asme_b313_304_1_2_wall_thickness"
+            or eq_id in {"asme_b313_304_1_2_eq_3a", "asme_b313_304_1_2_wall_thickness"}
         ):
             return data
         if not preferred:
@@ -287,6 +306,19 @@ def _primary_equation_data(reader: StandardsReader, node_id: str) -> dict[str, A
 
 def _micro_equation_display_data(reader: StandardsReader, node: Any) -> dict[str, Any]:
     variables: dict[str, dict[str, str]] = {}
+    for key, payload in (node.metadata.get("variables") or {}).items():
+        if not isinstance(payload, dict):
+            continue
+        symbol = str(payload.get("symbol") or key).strip()
+        if not symbol:
+            continue
+        variables[symbol] = {
+            "symbol": symbol,
+            "description": _collapse_whitespace(
+                str(payload.get("description") or payload.get("name") or symbol)
+            ),
+            "unit": str(payload.get("unit") or "dimensionless"),
+        }
     section_id = _section_for_equation(reader, node.node_id)
     legacy_inputs: dict[str, dict[str, Any]] = {}
     if section_id:
@@ -296,6 +328,17 @@ def _micro_equation_display_data(reader: StandardsReader, node: Any) -> dict[str
                 legacy_inputs[str(item["id"])] = item
     for ref in node.metadata.get("requires", []) or []:
         ref_id = require_target_id(ref)
+        if not ref_id and isinstance(ref, dict) and ref.get("symbol"):
+            symbol = str(ref["symbol"]).strip()
+            if symbol and symbol not in variables:
+                variables[symbol] = {
+                    "symbol": symbol,
+                    "description": _collapse_whitespace(
+                        str(ref.get("description") or symbol)
+                    ),
+                    "unit": str(ref.get("unit") or "dimensionless"),
+                }
+            continue
         if not ref_id:
             continue
         try:
@@ -318,8 +361,8 @@ def _micro_equation_display_data(reader: StandardsReader, node: Any) -> dict[str
             "description": description,
             "unit": str(legacy.get("unit") or param.metadata.get("unit", "dimensionless")),
         }
-    nomenclature_ref = ""
-    if section_id:
+    nomenclature_ref = str(node.metadata.get("nomenclature_ref") or "").strip()
+    if not nomenclature_ref and section_id:
         nomenclature_ref = _nomenclature_section_for(reader, section_id) or section_id
     return {
         "variables": variables,
@@ -397,7 +440,10 @@ def _nomenclature_reference_link(
         or record.metadata.get("paragraph_number")
         or ""
     ).strip()
-    label = f"§{paragraph}(b)" if paragraph else nomenclature_ref
+    if paragraph.endswith("(b)"):
+        label = f"§{paragraph}"
+    else:
+        label = _nomenclature_section_label(paragraph, nomenclature_ref)
     return {
         "node_id": nomenclature_ref,
         "label": label,

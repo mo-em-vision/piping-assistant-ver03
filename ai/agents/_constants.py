@@ -8,7 +8,7 @@ PIPE_WALL_THICKNESS_DESIGN = "pipe_wall_thickness_design"
 
 PIPE_WALL_THICKNESS_ROOT = "tasks/asme_b31.3/pipe_wall_thickness_design/root.md"
 
-PIPE_WALL_THICKNESS_NODE = "B313-304.1.2"
+PIPE_WALL_THICKNESS_NODE = "304.1.2-a"
 
 REQUIRED_ASSUMPTION_FIELDS: tuple[str, ...] = (
     "straight_pipe_section",

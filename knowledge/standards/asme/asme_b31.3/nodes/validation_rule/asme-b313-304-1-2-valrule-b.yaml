@@ -1,0 +1,77 @@
+---
+id: asme-b313-304-1-2-valrule-b
+type: validation_rule
+key: asme-b313-304-1-2-valrule-b
+name: Thick-Wall Special Consideration Required
+rule_class: validation
+description: >
+  When t >= D/6 or P/(SE) > 0.385, pressure design thickness for straight pipe
+  requires special consideration of theory of failure, fatigue, and thermal stress.
+authority:
+  authorized_by:
+  - 304.1.2-b
+  authority_context_required: true
+display:
+  text: t >= D/6 OR P/(SE) > 0.385
+expression:
+  language: sympy
+  formula: thick_wall_special_consideration_required = (t >= D/6) or (P / (S * E) > 0.385)
+requires:
+- symbol: t
+  required: true
+  description: Pressure design thickness
+  parameter: PARAM-required-wall-thickness
+- symbol: D
+  required: true
+  description: Outside diameter of pipe
+  parameter: PARAM-outside-diameter
+- symbol: P
+  required: true
+  description: Internal design gage pressure
+  parameter: PARAM-design-pressure
+- symbol: S
+  required: true
+  description: Stress value from Table A-1
+  parameter: PARAM-allowable-stress
+- symbol: E
+  required: true
+  description: Quality factor from Tables A-2 and A-3
+  parameter: PARAM-weld-joint-efficiency
+validates:
+- symbol: thick_wall_special_consideration_required
+  parameter: PARAM-thick-wall-special-consideration-required
+conditions:
+  any_of:
+  - expression: t >= D/6
+    description: Thick-wall geometry limit per §304.1.2(b)
+  - expression: P / (S * E) > 0.385
+    description: High pressure-to-strength ratio per §304.1.2(b)
+edges:
+- type: requires_parameter
+  target: PARAM-required-wall-thickness
+  alias: t
+- type: requires_parameter
+  target: PARAM-outside-diameter
+  alias: D
+- type: requires_parameter
+  target: PARAM-design-pressure
+  alias: P
+- type: requires_parameter
+  target: PARAM-allowable-stress
+  alias: S
+- type: requires_parameter
+  target: PARAM-weld-joint-efficiency
+  alias: E
+- type: validates_parameter
+  target: PARAM-thick-wall-special-consideration-required
+- type: constrains_equation
+  target: asme-b313-304-1-2-eq-3a
+- type: constrains_equation
+  target: asme-b313-304-1-2-eq-3b
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: valrule-304-1-2-b
+  last_revision: 2026-07-04
+  edited_by: admin
+---

@@ -36,7 +36,7 @@ Single source of truth for engineering **reference data** (not runtime task stat
 
 - Markdown/YAML nodes under `knowledge/standards/*/nodes/` compile to `PackGraph` (in-memory) with optional SQLite cache.
 - Embedded children (`embedded_nodes.py`) become first-class graph nodes.
-- `node_types.py` normalizes legacy types to canonical micro-graph types.
+- `node_types.py` normalizes legacy types to canonical micro-graph types (`equation`, `lookup`, `validation_rule`, `table`, …).
 - ASTM material slugs (`astm_a53`, `astm_a106`, …) resolve to the consolidated `astm` pack via `standards_paths.py`.
 - Global workflow index: `knowledge/standards/workflows.db` (built from `{pack}/nodes/workflows/*.yaml`).
 
@@ -71,7 +71,7 @@ scripts/build_standards_tables_db.py → standards_tables.StandardsTablesDatabas
 | `graph_cache.py` | PackGraph SQLite cache R/W | `build_or_load_graph`, `write_graph_cache` | `graph_store`, `unit_resolver`, dev_studio |
 | `graph_compile.py` | Metadata → semantic edges | `compile_metadata_edges`, `node_aliases`, `validate_edge_item` | `graph_builder`, dev_studio graph_sync |
 | `graph_edge_schema.py` | Canonical edge types and metadata | `CANONICAL_EDGE_TYPES`, `REVERSE_EDGE_TYPE`, `workflow_anchor_target` | graph_compile, relationship_taxonomy, lazy_expander |
-| `relationship_taxonomy.py` | Relationship taxonomy vocabulary | `KNOWLEDGE_EDGE_TYPES`, `normalize_authoring_edge`, `expand_edge_types_for_query` | graph_compile, relationship_validator, traversal |
+| `relationship_taxonomy.py` | Relationship taxonomy vocabulary | `KNOWLEDGE_EDGE_TYPES` (`reads_table`, `returns_parameter`, `constrains_equation`, …), `normalize_authoring_edge`, `expand_edge_types_for_query` | graph_compile, relationship_validator, traversal |
 | `relationship_validator.py` | Taxonomy edge validation | `validate_edge_item`, `validate_edges_for_node` | node validators, graph_compile |
 | `graph_db.py` | SQLite graph nodes/edges | `GraphDatabase`, `GraphNodeRecord`, `GraphEdgeRecord` | graph_builder, graph_store, lazy_expander |
 | `graph_db.py` schemas | — | migration helpers | internal |
@@ -80,9 +80,9 @@ scripts/build_standards_tables_db.py → standards_tables.StandardsTablesDatabas
 | `material_resolver.py` | Token → table key | `canonical_material_id` | engineering_validator, tests |
 | `nomenclature_resolver.py` | Symbol definitions from definition nodes | `load_nomenclature`, `resolve_input_spec` | graph, node_interaction, messaging |
 | `paragraph_sidecar.py` | Merge paragraph sidecars (`nomenclature.yaml`, `execution.yaml`) | `merge_paragraph_sidecar_metadata` | `standards_reader`, `graph_builder`, `node_interaction`, `assumption_checker` |
-| `equation_sidecar.py` | Merge equation execution sidecars (`equation/{id}/execution.yaml`) | `merge_equation_sidecar_metadata` | `standards_reader`, `graph_builder`, `formula_loader` |
+| `equation_sidecar.py` | Merge equation / validation_rule execution sidecars | `merge_equation_sidecar_metadata` | `standards_reader`, `graph_builder`, `formula_loader` |
 | `workflow_sidecar.py` | Merge workflow runtime sidecars (`workflows/{id}/runtime.yaml`) | `merge_workflow_sidecar_metadata` | `standards_reader`, `graph_builder`, `node_interaction`, `assumption_checker` |
-| `node_types.py` | Type/kind predicates | `is_ui_parameter`, `canonical_type`, … | widespread |
+| `node_types.py` | Type/kind predicates | `is_lookup_node`, `is_validation_rule_node`, `canonical_type`, … | widespread |
 | `pack_graph_db.py` | Path resolver | `resolve_pack_graph_db` | graph_store, graph_cache, dev_studio |
 | `pack_nodes_db.py` | Path resolver | `resolve_pack_nodes_db` | standards_reader, scripts |
 | `pack_pipe_dimensions_db.py` | Path resolver | `resolve_pack_pipe_dimensions_db` | pipe_dimension_lookup |

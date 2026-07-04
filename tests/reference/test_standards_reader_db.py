@@ -20,26 +20,26 @@ def standards_reader(project_root: Path) -> StandardsReader:
 
 def test_reader_loads_node_from_db(standards_reader: StandardsReader) -> None:
     assert standards_reader.nodes_db_available
-    record = standards_reader.load("B313-304.1.1")
-    assert record.node_id == "B313-304.1.1"
-    assert record.metadata.get("type") in {"definition", "text"}
-    assert record.body.strip()
-    assert record.path.as_posix().endswith("B313-304.1.1/node.yaml")
+    record = standards_reader.load("304.1.1-a")
+    assert record.node_id == "304.1.1-a"
+    assert record.metadata.get("type") == "paragraph"
+    assert "t_m = t + c" in (record.metadata.get("text") or {}).get("original", "")
+    assert record.path.as_posix().endswith("paragraph/304.1.1-a.yaml")
 
 
 def test_reader_read_asset_text_from_db(standards_reader: StandardsReader) -> None:
-    record = standards_reader.load("B313-304.1.2")
-    text = standards_reader.read_asset_text(record, "equations/wall_thickness.md")
+    record = standards_reader.load("304.1.2.eq.3a")
+    text = record.body
     assert text
     assert "PD" in text or "thickness" in text.lower()
 
 
 def test_reader_validate_passes_for_wall_thickness(standards_reader: StandardsReader) -> None:
-    result = standards_reader.validate("B313-304.1.1")
+    result = standards_reader.validate("304.1.1-a")
     assert result.passed, [issue.message for issue in result.issues]
 
 
 def test_reader_nested_note_path(standards_reader: StandardsReader) -> None:
-    path = standards_reader.find_node_path("B313-note-302-3-3C-1")
+    path = standards_reader.find_node_path("asme-b313-note-302-3-3C-1")
     assert path is not None
-    assert "B313-note-302-3-3C-1" in path.as_posix()
+    assert "asme-b313-note-302-3-3C-1" in path.as_posix()

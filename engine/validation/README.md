@@ -31,6 +31,7 @@ None identified at module level. Sub-validators are only used via `ValidationEng
 
 - Not the same as `engine/rules/rule_engine.py` (node condition expressions during execution).
 - `UnitValidator` has both class API and module-level `validate_task_input_units` for API/tests.
+- Knowledge-node template validators: `equation_node_validator.py` (calculation only), `lookup_node_validator.py`, `validation_rule_node_validator.py`.
 
 ## Execution Traces
 
@@ -55,3 +56,6 @@ Executor.execute_plan
 | `input_validator.py` | Required inputs per node | `InputValidator` | validation_engine |
 | `unit_validator.py` | Unit compatibility | `UnitValidator`, `validate_task_input_units` | validation_engine, api tests |
 | `validation_engine.py` | **Coordinator** | `ValidationEngine` | executor, tests |
+| `equation_node_validator.py` | Equation YAML template (calculation only) | `validate_equation_node` | tests/reference |
+| `lookup_node_validator.py` | Lookup YAML template | `validate_lookup_node` | tests/reference |
+| `validation_rule_node_validator.py` | Validation rule YAML template | `validate_validation_rule_node` | tests/reference |

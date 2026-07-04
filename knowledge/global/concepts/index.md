@@ -25,7 +25,23 @@ CONCEPT-*  ──has_parameter──►  PARAM-*  ──has_dimension──►  
 | Dimension | [`../dimensions/`](../dimensions/) | Compatible units for a quantity kind |
 | Unit | [`../units/`](../units/) | Conversion between unit symbols |
 
-Authoring template: [`docs/node-templates/Engineering Concept Node Template.md`](../../../docs/node-templates/Engineering%20Concept%20Node%20Template.md).
+Authoring template: [`docs/node-templates/Engineering Concept.md`](../../../docs/node-templates/Engineering%20Concept.md).
+
+## Canonical concepts
+
+| Node | Class | Dimension |
+|------|-------|-----------|
+| `CONCEPT-pressure` | physical_quantity | `DIM-pressure` |
+| `CONCEPT-wall-thickness` | geometric_quantity | `DIM-length` |
+| `CONCEPT-corrosion` | geometric_quantity | `DIM-length` |
+| `CONCEPT-pipe-diameter` | geometric_quantity | `DIM-length` |
+| `CONCEPT-stress` | physical_quantity | `DIM-pressure` |
+| `CONCEPT-temperature` | physical_quantity | `DIM-temperature` |
+| `CONCEPT-allowable-stress` | physical_quantity | `DIM-pressure` |
+| `CONCEPT-material` | material | — |
+| `CONCEPT-pipe-construction` | selection | — |
+| `CONCEPT-weld-joint-efficiency` | factor | — |
+| `CONCEPT-temperature-coefficient` | coefficient | — |
 
 ## Compile
 

@@ -1,0 +1,25 @@
+---
+id: CONCEPT-temperature-coefficient
+type: concept
+key: temperature_coefficient
+name: Temperature Coefficient
+concept_class: coefficient
+dimension: null
+description: >
+  Dimensionless coefficient used to adjust or characterize an engineering
+  relationship based on temperature-dependent behavior or code-defined
+  temperature rules.
+aliases:
+  - temperature coefficient Y
+  - coefficient Y
+edges:
+  - type: has_parameter
+    target: PARAM-temperature-coefficient-Y
+  - type: used_by
+    target: asme-b313-table-304-1-1-1
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

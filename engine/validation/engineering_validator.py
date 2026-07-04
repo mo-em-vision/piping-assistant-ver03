@@ -57,7 +57,7 @@ class EngineeringValidator:
                 )
 
         table_status = ComplianceStatus.PASS
-        if node_id == "B313-table-A-1":
+        if node_id == "asme-b313-table-A-1":
             table_result = self._validate_table_temperature(reader, task_inputs, overrides)
             errors.extend(table_result.errors)
             warnings.extend(table_result.warnings)
@@ -165,13 +165,13 @@ class EngineeringValidator:
                     message=f"Material not found in allowable stress table: {material}",
                     severity=ValidationSeverity.ERROR,
                     input_id="material",
-                    node_id="B313-table-A-1",
+                    node_id="asme-b313-table-A-1",
                 )
             )
             return LayerValidationResult(
                 status=ComplianceStatus.FAIL,
                 errors=errors,
-                affected_nodes=["B313-table-A-1"],
+                affected_nodes=["asme-b313-table-A-1"],
             )
 
         rows = table_data.get("materials", {}).get(material_key, {}).get("rows", [])
@@ -193,7 +193,7 @@ class EngineeringValidator:
                         ),
                         severity=ValidationSeverity.WARNING,
                         input_id="design_temperature",
-                        node_id="B313-table-A-1",
+                        node_id="asme-b313-table-A-1",
                     )
                 )
             else:
@@ -206,7 +206,7 @@ class EngineeringValidator:
                         ),
                         severity=ValidationSeverity.ERROR,
                         input_id="design_temperature",
-                        node_id="B313-table-A-1",
+                        node_id="asme-b313-table-A-1",
                     )
                 )
 

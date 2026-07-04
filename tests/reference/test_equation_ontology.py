@@ -31,18 +31,17 @@ _FORBIDDEN_FIELDS = frozenset(
 
 _EXPECTED_EQUATION_IDS = frozenset(
     {
-        "asme_b313_304_1_1_eq_2",
-        "asme_b313_304_1_2_wall_thickness",
-        "asme_b313_mawp_pressure",
-        "asme_b313_thick_wall_y",
-        "asme_b313_pressure_design_thickness",
-        "asme_b313_302_3_5_eq_1a",
-        "asme_b313_302_3_5_eq_1b",
-        "asme_b313_302_3_5_eq_1c",
-        "asme_b313_304_3_3_eq_6",
-        "asme_b313_304_3_3_eq_6a",
-        "asme_b313_304_3_3_eq_7",
-        "asme_b313_304_3_3_eq_8",
+        "asme-b313-304-1-1-eq-2",
+        "asme-b313-304-1-2-eq-3a",
+        "asme-b313-304-1-2-eq-3b",
+        "asme-b313-mawp-pressure",
+        "asme-b313-pressure-design-thickness",
+        "asme-b313-302-3-5-eq-1a",
+        "asme-b313-302-3-5-eq-1b",
+        "asme-b313-302-3-5-eq-1c",
+        "asme-b313-304-3-3-eq-6",
+        "asme-b313-304-3-3-eq-7",
+        "asme-b313-304-3-3-eq-8",
     }
 )
 
@@ -64,23 +63,47 @@ def _equation_dir() -> Path:
 
 
 def test_equation_nodes_have_required_template_fields() -> None:
-    paths = sorted(_equation_dir().glob("asme_b313_*.yaml"))
-    assert len(paths) == 12
+    paths = sorted(_equation_dir().glob("asme-b313-*.yaml"))
+    assert len(paths) == 11
     ids = {path.stem for path in paths}
     assert ids == _EXPECTED_EQUATION_IDS
     for path in paths:
         meta, _body = split_frontmatter(path.read_text(encoding="utf-8"))
         assert meta["type"] == "equation"
-        assert str(meta["id"]).startswith("asme_")
+        assert str(meta["id"]).startswith("asme-b313-")
         assert validate_equation_node(meta) == [], path.name
         for field in _FORBIDDEN_FIELDS:
             assert field not in meta, f"{path.name} must not contain {field!r} in frontmatter"
 
 
+def test_equation_rejects_parent_edge() -> None:
+    meta = {
+        "type": "equation",
+        "id": "asme-b313-test-eq",
+        "key": "asme-b313-test-eq",
+        "name": "Test",
+        "equation_class": "calculation",
+        "description": "Test",
+        "authority": {
+            "authorized_by": ["304.1.2-a"],
+            "authority_context_required": True,
+        },
+        "requires": [{"symbol": "P", "parameter": "PARAM-design-pressure"}],
+        "metadata": {
+            "status": "active",
+            "last_revision": "2026-07-04",
+            "edited_by": "admin",
+        },
+        "edges": [{"type": "parent", "target": "304.1.2-a"}],
+    }
+    issues = validate_equation_node(meta)
+    assert any("structural edge type: parent" in issue for issue in issues)
+
+
 def test_equation_sidecars_expose_executor_metadata() -> None:
     pack_root = _project_root() / "knowledge" / "standards"
     reader = StandardsReader(pack_root, standard="asme_b31.3")
-    record = reader.load("asme_b313_304_1_2_wall_thickness")
+    record = reader.load("asme-b313-304-1-2-eq-3a")
     assert record.metadata.get("executor") == "calculate_wall_thickness"
     assert record.metadata.get("variables")
     assert record.metadata.get("steps")
@@ -88,17 +111,32 @@ def test_equation_sidecars_expose_executor_metadata() -> None:
 
 def test_legacy_equation_aliases_resolve() -> None:
     aliases = build_b313_legacy_aliases()
-    assert aliases["B313-eq-2"] == "asme_b313_304_1_1_eq_2"
-    assert aliases["304.1.1-eq-2"] == "asme_b313_304_1_1_eq_2"
-    assert aliases["B313-eq-wall-thickness"] == "asme_b313_304_1_2_wall_thickness"
-    assert aliases["B313-eq-mawp"] == "asme_b313_mawp_pressure"
+    assert aliases["B313-eq-2"] == "asme-b313-304-1-1-eq-2"
+    assert aliases["304.1.1-eq-2"] == "asme-b313-304-1-1-eq-2"
+    assert aliases["B313-eq-wall-thickness"] == "asme-b313-304-1-2-eq-3a"
+    assert aliases["b313-3a"] == "asme-b313-304-1-2-eq-3a"
+    assert aliases["b313-3b"] == "asme-b313-304-1-2-eq-3b"
+    assert aliases["asme_b313_304_1_2_wall_thickness"] == "asme-b313-304-1-2-eq-3a"
+    assert aliases["B313-eq-mawp"] == "asme-b313-mawp-pressure"
 
 
 def test_paragraph_references_new_equation_ids() -> None:
     pack_root = _project_root() / "knowledge" / "standards"
     reader = StandardsReader(pack_root, standard="asme_b31.3")
-    record = reader.load("304.1.1")
-    assert "asme_b313_304_1_1_eq_2" in (record.metadata.get("referenced_equations") or [])
-    record_304_1_2 = reader.load("304.1.2")
-    refs = set(record_304_1_2.metadata.get("referenced_equations") or [])
-    assert "asme_b313_304_1_2_wall_thickness" in refs
+    record = reader.load("304.1.1-a")
+    edge_targets = [
+        e.get("target")
+        for e in record.metadata.get("edges") or []
+        if isinstance(e, dict) and e.get("type") == "references_equation"
+    ]
+    assert "asme-b313-304-1-1-eq-2" in edge_targets
+    record_304_1_2 = reader.load("304.1.2-a")
+    edge_targets_304_1_2 = [
+        e.get("target")
+        for e in record_304_1_2.metadata.get("edges") or []
+        if isinstance(e, dict) and e.get("type") == "references_equation"
+    ]
+    assert edge_targets_304_1_2 == [
+        "asme-b313-304-1-2-eq-3a",
+        "asme-b313-304-1-2-eq-3b",
+    ]

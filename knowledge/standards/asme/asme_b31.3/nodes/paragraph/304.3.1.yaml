@@ -2,78 +2,42 @@
 id: 304.3.1
 type: paragraph
 key: b313_304_3_1
-title: General — Branch Connections
+title: General — Branch Connections Scope
 authority: AUTH-ASME-B31.3
 edition: 2024
 paragraph_number: 304.3.1
-paragraph_class: definition
-description: Define scope and applicability of branch connection pressure design rules
-  in §304.3.2 through §304.3.4, including geometric limits and qualification paths.
+text:
+  original: >
+    Except as provided in (b) below, the requirements in paras. 304.3.2 through 304.3.4
+    are applicable to the following branch connections:
+
+    (1) fittings (tees, extruded outlets, branch outlet fittings in accordance with MSS
+    SP-97, laterals, crosses)
+
+    (2) couplings not larger than DN 80 (NPS 3) and unlisted cast or forged branch
+    connection fittings (see para. 300.2) attached to the run pipe by welding
+
+    (3) welding the branch pipe directly to the run pipe (set-in or set-on), with or
+    without added reinforcement, as covered in para. 328.5.4
+hierarchy:
+  parent: '304.3'
+  children:
+    - 304.3.1-b
+    - 304.3.1-c
+    - 304.3.1-d
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: related_to
+    target: 304.3.2-a
+  - type: related_to
+    target: 328.5.4
+  - type: related_to
+    target: '300.2'
 metadata:
   status: draft
-  node_version: 1
   source_revision_year: 2024
-edges:
-- type: belongs_to_authority
-  target: AUTH-ASME-B31.3
-- type: parent
-  target: '304.3'
-- type: related_to
-  target: 304.3.2
-- type: related_to
-  target: 304.3.3
-- type: related_to
-  target: 304.7.2
-  reason: Pressure design qualification when (a) and (b) limits are not met.
-- type: related_to
-  target: 328.5.4
-  reason: Direct weld branch connections per §328.5.4.
-- type: related_to
-  target: '300.2'
-  reason: Unlisted cast or forged branch connection fittings.
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---
-
-# ASME B31.3 §304.3.1 — General
-
-## Paragraph Text
-
-Except as provided in (b) below, the requirements in paras. [304.3.2](node:304.3.2) through [304.3.4](node:304.3.4) are applicable to the following branch connections:
-
-**(1)** fittings (tees, extruded outlets, branch outlet fittings in accordance with MSS SP-97, laterals, crosses)
-
-**(2)** couplings not larger than DN 80 (NPS 3) and unlisted cast or forged branch connection fittings (see para. [300.2](node:300.2)) attached to the run pipe by welding
-
-**(3)** welding the branch pipe directly to the run pipe (set-in or set-on), with or without added reinforcement, as covered in para. [328.5.4](node:328.5.4)
-
-**(b)** The rules in paras. [304.3.2](node:304.3.2) through [304.3.4](node:304.3.4) are minimum requirements, valid only for branch connections in which (using the nomenclature of [Figure 304.3.3-1](figure:304.3.3-1))
-
-(1) the run pipe diameter-to-thickness ratio ($\frac{D_h}{T_h}$) is less than 100 and the branch-to-run diameter ratio ($\frac{D_b}{D_h}$) is not greater than 1.0
-
-(2) for run pipe with $\frac{D_h}{T_h} \geq 100$, the branch diameter, $D_b$, is less than one-half the run diameter, $D_h$
-
-(3) angle $\beta$ is at least 45 deg
-
-(4) the axis of the branch intersects the axis of the run
-
-**(c)** Where the provisions of (a) and (b) above are not met, pressure design shall be qualified as required by para. [304.7.2](node:304.7.2).
-
-**(d)** Other design considerations relating to branch connections are stated in para. [304.3.5](node:304.3.5).
-
----
-
-# Engineering Explanation
-
-This node establishes when the standard branch-connection reinforcement rules apply and when alternative qualification is required. Subsection (b) defines the geometric envelope for which §304.3.2–304.3.4 are minimum, directly applicable requirements.
-
----
-
-# Decision Logic
-
-This node applies when:
-
-- The piping component includes a branch connection subject to §304.3.
-
-This node does not apply when:
-
-- Branch geometry falls outside subsection (b) limits without §304.7.2 qualification.
-- Design considerations in §304.3.5 govern non-pressure topics not covered here.

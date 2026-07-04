@@ -1,0 +1,48 @@
+---
+id: 304.3.3-a
+type: paragraph
+key: b313_304_3_3_a
+title: Reinforcement of Welded Branch Connections — Nomenclature
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.3.3-a
+text:
+  original: >
+    Added reinforcement is required to meet the criteria in (b) and (c) when it is
+    not inherent in the components of the branch connection. Sample problems illustrating
+    the calculations for branch reinforcement are shown in Appendix H.
+
+    (a) Nomenclature. The nomenclature below is used in the pressure design of branch
+    connections. It is illustrated in Figure 304.3.3-1, which does not indicate
+    preferred design or fabrication details. Some of the terms defined in Appendix J
+    are subject to further definitions or variations, as follows: b — subscript referring
+    to branch; D_b — outside diameter of branch pipe; D_h — outside diameter of run
+    pipe (or header pipe); D_s — outside diameter of reinforcing saddle; d_1 — effective
+    length removed from pipe at branch; d_2 — half width of reinforcement zone; h —
+    subscript referring to run or header; L_4 — height of reinforcement zone outside
+    of run pipe; T_b — branch pipe thickness; T_r — minimum thickness of reinforcing
+    ring or saddle; t — pressure design thickness of pipe per para. 304.1; β — smaller
+    angle between axes of branch and run.
+hierarchy:
+  parent: '304.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: related_to
+    target: 304.1.1-b
+  - type: related_to
+    target: 302.3.5-e
+  - type: references_table
+    target: asme-b313-table-A-3
+  - type: related_to
+    target: '300.2'
+  - type: related_to
+    target: Appendix-J
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

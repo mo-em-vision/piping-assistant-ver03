@@ -57,7 +57,7 @@ def calculate_wall_thickness(
     if equation_meta and equation_meta.get("file"):
         file_ref = str(equation_meta["file"])
     return _run_formula(
-        calculation_id="B313-304.1.2:wall_thickness",
+        calculation_id="304.1.2-a:wall_thickness",
         node_dir=node_dir,
         variables=variables,
         reader=reader,
@@ -65,6 +65,23 @@ def calculate_wall_thickness(
         equation_meta=equation_meta,
         file_ref=file_ref,
         fallback_node_id="304.1.2",
+    )
+
+
+def calculate_wall_thickness_3b(
+    *,
+    node_dir: Path,
+    variables: dict[str, float],
+    reader: StandardsReader | None = None,
+    record: NodeRecord | None = None,
+    equation_meta: dict[str, Any] | None = None,
+    **_: Any,
+) -> CalculationResult:
+    meta = dict(equation_meta or {})
+    return _calculation_engine.execute_formula_steps(
+        calculation_id="304.1.2-a:eq-3b",
+        formula_data=meta,
+        variables=variables,
     )
 
 
@@ -81,7 +98,7 @@ def calculate_allowable_displacement_stress_range(
         node_dir=node_dir,
         py_filename="eq_1a_allowable_displacement_stress_range.py",
         md_filename="eq_1a_allowable_displacement_stress_range.md",
-        calculation_id="B313-302.3.5:eq-1a",
+        calculation_id="302.3.5-e:eq-1a",
         variables=variables,
         reader=reader,
         record=record,
@@ -102,7 +119,7 @@ def calculate_allowable_displacement_stress_range_with_margin(
         node_dir=node_dir,
         py_filename="eq_1b_allowable_displacement_stress_range_with_margin.py",
         md_filename="eq_1b_allowable_displacement_stress_range_with_margin.md",
-        calculation_id="B313-302.3.5:eq-1b",
+        calculation_id="302.3.5-e:eq-1b",
         variables=variables,
         reader=reader,
         record=record,
@@ -123,7 +140,7 @@ def calculate_stress_range_factor(
         node_dir=node_dir,
         py_filename="eq_1c_stress_range_factor.py",
         md_filename="eq_1c_stress_range_factor.md",
-        calculation_id="B313-302.3.5:eq-1c",
+        calculation_id="302.3.5-e:eq-1c",
         variables=variables,
         reader=reader,
         record=record,
@@ -205,6 +222,7 @@ def calculate_mawp(
 
 REGISTERED_FUNCTIONS: dict[str, CalculationFn] = {
     "calculate_wall_thickness": calculate_wall_thickness,
+    "calculate_wall_thickness_3b": calculate_wall_thickness_3b,
     "calculate_minimum_required_thickness": calculate_minimum_required_thickness,
     "calculate_pressure_design_thickness": calculate_pressure_design_thickness,
     "calculate_mawp": calculate_mawp,

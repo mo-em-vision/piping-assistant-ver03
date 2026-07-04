@@ -1,0 +1,28 @@
+---
+id: CONCEPT-stress
+type: concept
+key: stress
+name: Stress
+concept_class: physical_quantity
+dimension: DIM-pressure
+description: >
+  The broad engineering concept of stress in piping design, including allowable
+  stress, sustained stress, displacement stress range, and weld joint strength
+  reduction effects on pressure design.
+aliases:
+  - stress
+  - calculated stress
+  - design stress
+edges:
+  - type: has_dimension
+    target: DIM-pressure
+  - type: has_parameter
+    target: PARAM-allowable-stress
+  - type: generalizes
+    target: CONCEPT-allowable-stress
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

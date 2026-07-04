@@ -22,14 +22,14 @@ def test_standards_tables_db_exists(standards_reader: StandardsReader) -> None:
 
 
 def test_resolve_legacy_yaml_alias(standards_reader: StandardsReader) -> None:
-    data = standards_reader.load_table("nodes/B313-table-A-1/tables/A-1.yaml")
+    data = standards_reader.load_table("nodes/asme-b313-table-A-1/tables/A-1.yaml")
     assert data["table_id"] == TABLE_A_1
     assert ASTM_A106_GR_B in data["materials"]
 
 
 def test_load_table_by_id_returns_db_path(standards_reader: StandardsReader) -> None:
     path, data = standards_reader.load_table_by_id("A-1A")
-    assert path.name in {"standards_tables.db", "asme_b313_tables.db"}
+    assert path.name in {"standards_tables.db", "tables.db"}
     assert data["table_id"] == TABLE_A_2
     assert TABLE_A_1A == TABLE_A_2
 

@@ -11,18 +11,18 @@ aliases:
   - °F
   - fahrenheit
   - degf
-conversion:
-  target: UNIT-K
-  factor: 0.5555555555555556
-  offset: 255.37222222222223
 edges:
   - type: belongs_to_dimension
     target: DIM-temperature
   - type: converts_to
     target: UNIT-K
-    factor: 0.5555555555555556
-    offset: 255.37222222222223
+    equation: EQ-unit-degF-to-K
+  - type: converts_to
+    target: UNIT-degC
+    equation: EQ-unit-degF-to-degC
 metadata:
   status: active
   version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---

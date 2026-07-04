@@ -30,7 +30,7 @@ question: >
   Is the pipe subjected to internal or external pressure?
 
 edges:
-  - to: B313-304.1.2
+  - to: 304.1.2-a
     type: next_step
     when:
       field: pressure_loading
@@ -56,7 +56,7 @@ interactions:
     question: >
       Is the pipe subjected to internal or external pressure?
     edges:
-      - to: B313-304.1.2
+      - to: 304.1.2-a
         type: next_step
         when: {field: pressure_loading, in: [internal_pressure]}
       - to: B313-304.1.3

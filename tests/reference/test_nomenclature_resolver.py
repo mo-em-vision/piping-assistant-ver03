@@ -27,7 +27,7 @@ def reader() -> StandardsReader:
 
 
 def test_load_nomenclature_c_defaults(reader: StandardsReader) -> None:
-    nomenclature = load_nomenclature(reader, "B313-304.1.1")
+    nomenclature = load_nomenclature(reader, "304.1.1-b")
     entry = nomenclature["c"]
     assert entry.input_id == "corrosion_allowance"
     assert entry.defaults
@@ -37,7 +37,7 @@ def test_load_nomenclature_c_defaults(reader: StandardsReader) -> None:
 
 
 def test_load_nomenclature_d_b36_reference(reader: StandardsReader) -> None:
-    nomenclature = load_nomenclature(reader, "B313-304.1.1")
+    nomenclature = load_nomenclature(reader, "304.1.1-b")
     entry = nomenclature["D"]
     assert entry.input_id == "outside_diameter"
     assert any(
@@ -128,7 +128,7 @@ def test_enrich_input_spec_bridges_task_input_id() -> None:
 
 
 def test_resolve_input_spec_merges_nomenclature_default(reader: StandardsReader) -> None:
-    nomenclature = load_nomenclature(reader, "B313-304.1.1")
+    nomenclature = load_nomenclature(reader, "304.1.1-b")
     merged = resolve_input_spec(
         {
             "id": "corrosion_allowance",
@@ -143,9 +143,11 @@ def test_resolve_input_spec_merges_nomenclature_default(reader: StandardsReader)
 
 
 def test_corrosion_allowance_question_includes_condition(reader: StandardsReader) -> None:
-    record = reader.load("B313-304.1.2")
-    specs = load_node_interactions(record, reader)
-    corrosion = next(s for s in specs if s.variable == "corrosion_allowance")
-    question = question_for_interaction(corrosion)
-    assert "0.5" in question
-    assert "machined" in question.lower()
+    from engine.reference.nomenclature_resolver import load_nomenclature
+
+    entries = load_nomenclature(reader, "304.1.1-b")
+    corrosion = entries["c"]
+    assert corrosion.defaults
+    default = corrosion.defaults[0]
+    assert default.value == 0.5
+    assert "machined" in str(default.condition or "").lower()

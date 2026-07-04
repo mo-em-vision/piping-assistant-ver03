@@ -192,7 +192,7 @@ def _format_decision_prompt(
 
 def _option_label(value: str) -> str:
     if value == "internal_pressure":
-        return "Internal pressure — design per §304.1.2 (node B313-304.1.2)"
+        return "Internal pressure — design per §304.1.2 (node 304.1.2-a)"
     if value == "external_pressure":
         return "External pressure — design per §304.1.3 (node B313-304.1.3)"
     if value == "nps_lookup":

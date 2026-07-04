@@ -1,0 +1,30 @@
+---
+id: 304.1.2-b
+type: paragraph
+key: b313_304_1_2_b
+title: Internal Pressure Design — Thick Wall Special Consideration
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 304.1.2-b
+text:
+  original: >
+    (b) For t ≥ D/6 or for P/SE > 0.385, calculation of pressure design thickness
+    for straight pipe requires special consideration of factors such as theory of
+    failure, effects of fatigue, and thermal stress.
+hierarchy:
+  parent: '304.1'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: references_validation_rule
+    target: asme-b313-304-1-2-valrule-b
+  - type: related_to
+    target: 304.1.2-a
+metadata:
+  status: active
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

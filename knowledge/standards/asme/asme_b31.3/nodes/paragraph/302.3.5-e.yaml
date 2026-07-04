@@ -1,0 +1,53 @@
+---
+id: 302.3.5-e
+type: paragraph
+key: b313_302_3_5_e
+title: Limits of Calculated Stresses — Weld Joint Strength Reduction Factor
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 302.3.5-e
+text:
+  original: >
+    (e) Weld Joint Strength Reduction Factor, W. At elevated temperatures, the long-term
+    strength of weld joints may be lower than the long-term strength of the base material.
+    For longitudinal or spiral (helical seam) welded piping components, the product of the
+    allowable stress and the applicable weld quality factor, S_E, shall be multiplied by
+    the weld joint strength reduction factor, W, when determining the required wall
+    thickness for internal pressure in accordance with para. 304. The designer is
+    responsible for the application of weld joint strength reduction factors to welds other
+    than longitudinal and spiral (helical seam) (e.g., circumferential). The weld joint
+    strength reduction factor, W, is equal to 1.0 when evaluating occasional loads such
+    as wind and earthquake, or when evaluating permissible variations in accordance with
+    para. 302.2.4. The pressure rating or allowable stress for the occasional load or
+    variation condition is not required to be reduced by the weld joint strength reduction
+    factor. It is also not required when calculating the allowable stress range for
+    displacement stresses, S_A, in para. 302.3.5-d. The weld joint strength reduction
+    factor only applies at weld locations. The weld joint strength reduction factor is the
+    ratio of the nominal stress to cause failure of the weld joint to that of the base
+    material for the same duration. Except as provided in (f) below, the weld joint
+    strength reduction factor, W, shall be in accordance with Table 302.3.5.
+hierarchy:
+  parent: '302.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: references_table
+    target: asme-b313-table-302-3-5-1
+  - type: references_concept
+    target: CONCEPT-stress
+  - type: references_concept
+    target: CONCEPT-weld-joint-efficiency
+  - type: references_concept
+    target: CONCEPT-allowable-stress
+  - type: related_to
+    target: 302.3.5-d
+  - type: related_to
+    target: '304'
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

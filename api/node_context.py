@@ -73,12 +73,22 @@ def _subsection_excerpt(metadata: dict[str, Any]) -> str:
     return ""
 
 
+def _authority_text(metadata: dict[str, Any], body: str) -> str:
+    body_text = body.strip()
+    if body_text:
+        return body_text
+    text_block = metadata.get("text") or {}
+    if isinstance(text_block, dict):
+        return str(text_block.get("original") or "").strip()
+    return ""
+
+
 def hover_excerpt_for_node(record) -> str:
     metadata = record.metadata
     excerpt = _subsection_excerpt(metadata)
     if excerpt:
         return excerpt
-    body_excerpt = _first_body_paragraph(record.body)
+    body_excerpt = _first_body_paragraph(_authority_text(metadata, record.body))
     if body_excerpt:
         return body_excerpt
     purpose = str(metadata.get("purpose", "")).strip()
@@ -109,6 +119,10 @@ def display_heading_for_node(
 def revision_year_from_metadata(metadata: dict[str, Any]) -> int | None:
     raw = metadata.get("revision_year")
     if raw is None or str(raw).strip() == "":
+        nested = metadata.get("metadata") or {}
+        if isinstance(nested, dict):
+            raw = nested.get("source_revision_year")
+    if raw is None or str(raw).strip() == "":
         return None
     return int(raw)
 
@@ -125,7 +139,7 @@ def node_source_payload(reader: StandardsReader, node_id: str) -> dict[str, Any]
         "section": section_label({**metadata, "hierarchy_chain": hierarchy}),
         "hierarchy": hierarchy,
         "revision_year": revision_year_from_metadata(metadata),
-        "body": record.body.strip(),
+        "body": _authority_text(metadata, record.body),
         "hover_excerpt": hover_excerpt_for_node(record),
     }
 

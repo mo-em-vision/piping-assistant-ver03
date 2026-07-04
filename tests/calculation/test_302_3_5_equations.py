@@ -96,9 +96,9 @@ def test_eq_1c_stress_range_factor(
 
 def test_b313_302_3_5_equation_nodes_exist(equation_dir: Path) -> None:
     expected = (
-        "asme_b313_302_3_5_eq_1a",
-        "asme_b313_302_3_5_eq_1b",
-        "asme_b313_302_3_5_eq_1c",
+        "302.3.5.eq.1a",
+        "302.3.5.eq.1b",
+        "302.3.5.eq.1c",
     )
     for node_id in expected:
         path = equation_dir / f"{node_id}.yaml"

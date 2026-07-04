@@ -66,7 +66,7 @@ def test_build_standards_browse_tree_includes_known_nodes(project_root: Path) ->
 
     node_ids = _collect_node_ids(payload["tree"])
     assert "B313-304.1.1" in node_ids
-    assert "B313-table-A-1" in node_ids
+    assert "asme-b313-table-A-1" in node_ids
 
     section_labels = [item["label"] for item in payload["tree"] if item.get("kind") == "group"]
     assert any(label == "Section 304" for label in section_labels)
@@ -87,7 +87,7 @@ def test_appendix_a_tree_omits_redundant_folder_group(project_root: Path) -> Non
     ]
     assert "appendix_A" not in child_labels
     assert "tables" in child_labels
-    assert _find_leaf(payload["tree"], "B313-table-A-1") is not None
+    assert _find_leaf(payload["tree"], "asme-b313-table-A-1") is not None
 
 
 def test_browse_links_pipe_wall_thickness_workflow(project_root: Path) -> None:
@@ -111,7 +111,7 @@ def test_browse_links_pipe_wall_thickness_workflow(project_root: Path) -> None:
     related = node_304.get("related_workflows") or []
     assert any(item.get("id") == "pipe_wall_thickness_design" for item in related)
 
-    table_a1 = _find_leaf(payload["tree"], "B313-table-A-1")
+    table_a1 = _find_leaf(payload["tree"], "asme-b313-table-A-1")
     assert table_a1 is not None
     assert table_a1.get("table_id")
     table_related = table_a1.get("related_workflows") or []

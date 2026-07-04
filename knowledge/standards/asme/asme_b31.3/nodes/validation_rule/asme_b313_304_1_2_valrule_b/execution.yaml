@@ -1,0 +1,44 @@
+variables:
+  t:
+    symbol: t
+    parameter: PARAM-required-wall-thickness
+    description: Pressure design thickness
+    unit: mm
+  D:
+    symbol: D
+    parameter: PARAM-outside-diameter
+    description: Outside diameter of pipe
+    unit: mm
+  P:
+    symbol: P
+    parameter: PARAM-design-pressure
+    description: Internal design gage pressure
+    unit: Pa
+  S:
+    symbol: S
+    parameter: PARAM-allowable-stress
+    description: Stress value from Table A-1
+    unit: Pa
+  E:
+    symbol: E
+    parameter: PARAM-weld-joint-efficiency
+    description: Quality factor from Tables A-2 and A-3
+    unit: dimensionless
+outputs:
+- symbol: thick_wall_special_consideration_required
+  name: thick_wall_special_consideration_required
+  unit: dimensionless
+  type: boolean
+equation_id: valrule-304-1-2-b
+nomenclature_ref: 304.1.1-b
+display: t >= D/6 OR P/(SE) > 0.385
+steps:
+- name: evaluate_thick_wall_conditions
+  description: Check §304.1.2(b) applicability limits
+  expressions:
+  - expression: t >= D / 6
+    assign: thick_wall_by_geometry
+  - expression: P / (S * E) > 0.385
+    assign: thick_wall_by_pressure_ratio
+  - expression: thick_wall_by_geometry or thick_wall_by_pressure_ratio
+    assign: thick_wall_special_consideration_required

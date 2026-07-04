@@ -57,7 +57,7 @@ export const mockTaskState: TaskStateDto = {
     material: {
       id: 'FACT-mock-material',
       key: 'material',
-      parameter: 'PARAM-material-specification',
+      parameter: 'PARAM-material-grade',
       value: { label: 'astm_a106_gr_b' },
       display_value: 'ASTM A106 Grade B',
     },

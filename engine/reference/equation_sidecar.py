@@ -50,7 +50,7 @@ def merge_equation_sidecar_metadata(
     merged = dict(metadata)
     if record_path is None or not node_id:
         return merged
-    if str(merged.get("type", "")) != "equation":
+    if str(merged.get("type", "")) not in {"equation", "validation_rule"}:
         return merged
 
     sidecar_dir = equation_sidecar_dir(record_path, node_id)

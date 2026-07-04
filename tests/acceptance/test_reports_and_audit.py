@@ -61,7 +61,7 @@ class TestReportAcceptance:
 
         assert report.traceability
         assert report.formula_display
-        assert "304.1.2" in markdown or "B313-304.1.2" in markdown
+        assert "304.1.2" in markdown or "304.1.2-a" in markdown
 
 
 class TestReportFormatsAcceptance:

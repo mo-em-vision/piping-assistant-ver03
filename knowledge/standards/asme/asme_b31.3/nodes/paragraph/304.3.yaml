@@ -6,19 +6,33 @@ title: Branch Connections
 authority: AUTH-ASME-B31.3
 edition: 2024
 paragraph_number: '304.3'
-paragraph_class: definition
-description: Branch Connections
+text:
+  original: >
+    Section 304.3 — Branch Connections. Structural navigation node for §304.3
+    sub-paragraphs.
+hierarchy:
+  parent: '304'
+  children:
+    - 304.3.1
+    - 304.3.1-b
+    - 304.3.1-c
+    - 304.3.1-d
+    - 304.3.2-a
+    - 304.3.2-b
+    - 304.3.2-c
+    - 304.3.3-a
+    - 304.3.3-b
+    - 304.3.3-c
+    - 304.3.3-d
+    - 304.3.3-e
+    - 304.3.3-f
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
 metadata:
   status: draft
-  node_version: 1
   source_revision_year: 2024
-edges:
-- type: belongs_to_authority
-  target: AUTH-ASME-B31.3
-- type: parent
-  target: '304'
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
 ---
-
-# ASME B31.3 §304.3 — Branch Connections
-
-Structural navigation node for §304.3 sub-paragraphs (304.3.1–304.3.3).

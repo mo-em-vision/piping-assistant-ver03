@@ -240,12 +240,12 @@ def test_planner_expands_after_all_defaults_confirmed() -> None:
 
     second = planner.plan(intent, state.get_task("pipe-wall-ready"), task_id="pipe-wall-ready"))
     assert second.action == AgentAction.PROPOSE_PATH
-    assert "B313-304.1.2" in second.selected_nodes or "B313-eq-wall-thickness" in second.selected_nodes
+    assert "304.1.2-a" in second.selected_nodes or "B313-eq-wall-thickness" in second.selected_nodes
 
 
 def test_multiple_coefficients_require_sequential_confirmation() -> None:
     reader = _reader()
-    record = reader.load("B313-304.1.2")
+    record = reader.load("304.1.2-a")
     specs = [
         spec
         for spec in load_node_interactions(record, reader)
@@ -272,18 +272,18 @@ def test_multiple_coefficients_require_sequential_confirmation() -> None:
 
     engine = GraphEngine()
     ready = engine.expansion_ready_nodes(
-        ["B313-304.1.2"],
+        ["304.1.2-a"],
         reader,
         existing_inputs=inputs,
     )
-    assert ready == ["B313-304.1.2"]
+    assert ready == ["304.1.2-a"]
 
 
 def test_proposed_default_question_includes_condition() -> None:
     spec = NodeInteractionSpec(
         variable="corrosion_allowance",
         mode=InteractionMode.VALUE_RESOLUTION,
-        node_id="B313-304.1.2",
+        node_id="304.1.2-a",
         sources=("default",),
         default=0.5,
         confirmation_required=True,

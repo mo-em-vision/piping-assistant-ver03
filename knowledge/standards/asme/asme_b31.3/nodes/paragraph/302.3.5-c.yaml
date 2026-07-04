@@ -1,0 +1,33 @@
+---
+id: 302.3.5-c
+type: paragraph
+key: b313_302_3_5_c
+title: Limits of Calculated Stresses — Sustained Loads
+authority: AUTH-ASME-B31.3
+edition: 2024
+paragraph_number: 302.3.5-c
+text:
+  original: >
+    (c) Stresses Due to Sustained Loads, S_L. The sum of the longitudinal stresses due
+    to sustained loads, S_L, e.g., the pressure and weight in any component in a piping
+    system (see para. 320), shall not exceed S_h, where S_h is taken from Table A-1 at
+    the metal temperature of the operating condition being considered.
+hierarchy:
+  parent: '302.3'
+  children: []
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: references_concept
+    target: CONCEPT-stress
+  - type: references_concept
+    target: CONCEPT-allowable-stress
+  - type: references_table
+    target: asme-b313-table-A-1
+metadata:
+  status: draft
+  source_revision_year: 2024
+  node_version: 1
+  last_revision: 2026-07-04
+  edited_by: admin
+---

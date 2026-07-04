@@ -50,6 +50,7 @@ REVERSE_ONLY_QUERY_TYPES = frozenset(
         "dimension_of",
         "parameter_of",
         "constrained_by",
+        "used_by_lookup",
     }
 )
 
@@ -66,6 +67,7 @@ ALLOWED_EDGE_METADATA = frozenset(
         "subsection",
         "factor",
         "offset",
+        "equation",
         "reason",
         "required",
     }
@@ -130,6 +132,10 @@ REVERSE_EDGE_TYPE: dict[str, str] = {
     "references_equation": "equation",
     "references_table": "table",
     "may_use_equation": "equation",
+    "may_use_lookup": "lookup",
+    "reads_table": "used_by_lookup",
+    "used_by_lookup": "reads_table",
+    "returns_parameter": "required_by",
 }
 
 FORWARD_EDGE_TYPE: dict[str, str] = {value: key for key, value in REVERSE_EDGE_TYPE.items()}
