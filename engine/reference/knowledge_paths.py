@@ -82,3 +82,8 @@ def materials_root(
 def datatypes_root(*, project_root: Path | None = None) -> Path:
     """Global datatype ontology root (placeholder until populated)."""
     return global_root(project_root=project_root) / "datatypes"
+
+
+def workflows_root(*, project_root: Path | None = None) -> Path:
+    """Workflow YAML sources at repo root (not under knowledge/)."""
+    return (project_root or resolve_project_root()) / "workflows"

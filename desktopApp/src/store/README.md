@@ -75,7 +75,7 @@ Direct `getState()` calls exist (`useTaskStore.getState()`, `useProjectStore.get
 
 - `src/hooks/useWorkspaceBootstrap.ts`, `useActiveTaskViewModel.ts`
 - Most `src/components/layout/*`, workflow, chat, reports
-- `src/components/dev/DevNodeHoverProvider.tsx`, inspector hooks
+- `dev/desktop_ui/DevNodeHoverProvider.tsx`, inspector hooks
 
 ## Runtime Usage
 

@@ -4,7 +4,7 @@ import {
   type StandardsReferenceKind,
   type TableViewerContext,
 } from '@/store/rightPanelStore'
-import { DevNodeHoverSurface } from '@/components/dev/DevNodeHoverSurface'
+import { DevNodeHoverSurface } from '@dev-ui/DevNodeHoverSurface'
 import { useTaskStore } from '@/store/taskStore'
 import { useUiStore } from '@/store/uiStore'
 import type { NodeProvenanceDto } from '@/types/backend/api'

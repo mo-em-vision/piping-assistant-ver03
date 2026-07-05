@@ -68,7 +68,7 @@ Documented during Architecture Audit Mode. **No recommendation** on which to kee
 | Implementation | Path |
 |----------------|------|
 | Graph Explorer | `dev/graph_explorer/` |
-| Inspector graph panel | `desktopApp/src/components/dev/inspector/InspectorGraphPanel.tsx` |
+| Inspector graph panel | `dev/desktop_ui/inspector/InspectorGraphPanel.tsx` |
 | CLI `graph show` | `cli/commands/graph.py` |
 
 ## Frontmatter parsing

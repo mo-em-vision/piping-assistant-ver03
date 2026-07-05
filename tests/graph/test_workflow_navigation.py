@@ -16,7 +16,7 @@ def test_load_navigation_from_workflow_yaml() -> None:
     )
     config = load_workflow_navigation(reader, "pipe_wall_thickness_design")
     assert "design_pressure" in config.fields_for_phase(NavigationPhase.PARAMETER_GATHERING)
-    assert "straight_pipe_section" in config.assumption_gate_fields
+    assert "pressure_loading" in config.assumption_gate_fields
 
 
 def test_mawp_navigation_geometry_mode_in_path_decisions() -> None:

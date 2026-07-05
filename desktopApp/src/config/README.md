@@ -23,15 +23,15 @@ Single source for app naming, default backend URL, health-check paths, and dev-v
 - No `import.meta` — safe for main process
 
 **`development.ts`** — Confidence: **High**
-- `devMode`: `VITE_DEV_MODE === 'true'` **or** `import.meta.env.DEV`
-- Controls lazy load of `DeveloperInspector` in `WorkspaceLayout`
+- `devToolsAvailable: true` (Vite dev server and unpackaged Electron)
 
 **`production.ts`** — Confidence: **High**
-- `devMode: false` always
+- `devToolsAvailable`: `VITE_ENABLE_DEV_TOOLS === 'true'` (packaged Electron builds set this in `package:win`)
 
 **`env.ts`** — Confidence: **High**
 - `export const env = import.meta.env.DEV ? developmentConfig : productionConfig`
 - Renderer-only (uses `import.meta.env`)
+- `devMode` export is deprecated; use `env.devToolsAvailable` + `useDevToolsStore().devModeActive`
 
 ## Entry Points
 
@@ -58,7 +58,14 @@ Electron main imports `constants` directly, not `env.ts`.
 
 **Always active.** Backend URL and health paths used on every app session.
 
-**`env.devMode`:** When true, `WorkspaceLayout` lazy-imports `DeveloperInspector` and dev hover surfaces check `env.devMode` in `DevNodeHoverSurface`.
+**Two-gate dev tools model:**
+
+| Gate | Meaning |
+| --- | --- |
+| `env.devToolsAvailable` | Build may load dev UI chunks (all Electron builds via `VITE_ENABLE_DEV_TOOLS=true`; always true in Vite dev) |
+| `useDevToolsStore().devModeActive` | User toggled Dev Mode on (persisted in `localStorage`) |
+
+Effective dev UI: `devToolsAvailable && devModeActive`. Backend dev APIs (`DEV_INSPECTION_ENABLED`, `DEV_STUDIO_ENABLED`) are enabled for all Electron spawns; the toggle controls visibility only.
 
 ## Possible Dead Code
 
@@ -97,7 +104,8 @@ backendProcess.ts
 
 ```
 WorkspaceLayout
-  → env.devMode ? lazy(DeveloperInspector) : null
+  → env.devToolsAvailable ? lazy(DeveloperInspector) : null
+  → devModeActive ? mount inspector : null
 ```
 
 ### Connection banner

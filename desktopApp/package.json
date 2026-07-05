@@ -17,7 +17,7 @@
     "test:e2e": "playwright test",
     "stage:backend": "node scripts/stage-backend.mjs",
     "prepare:backend": "powershell -ExecutionPolicy Bypass -File scripts/prepare-backend-venv.ps1",
-    "package:win": "npm run stage:backend && npm run prepare:backend && npm run build && electron-builder --win nsis",
+    "package:win": "npm run stage:backend && npm run prepare:backend && cross-env VITE_ENABLE_DEV_TOOLS=true npm run build && electron-builder --win nsis",
     "package": "npm run package:win",
     "verify:mvp": "npm run test:run -- tests/integration/engineeringWorkflow.test.ts tests/integration/engineeringWorkflow.ui.test.tsx && cd .. && python -m pytest tests/mvp/test_desktop_mvp_workflow.py -q",
     "verify:release": "npm run typecheck && npm run verify:mvp && cd .. && python -m pytest tests/test_release_readiness.py tests/test_cursor_rules.py -q"
@@ -25,6 +25,8 @@
   "dependencies": {
     "@monaco-editor/react": "^4.7.0",
     "@tanstack/react-virtual": "^3.13.10",
+    "@xyflow/react": "^12.4.4",
+    "dagre": "^0.8.5",
     "katex": "^0.17.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -39,6 +41,7 @@
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
+    "@types/dagre": "^0.7.52",
     "@types/node": "^22.15.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

@@ -18,7 +18,7 @@ Self-contained standards content: graph nodes, lookup tables, workflow roots, an
 
 | Path | Role |
 |------|------|
-| `workflows.db` (built) | Compiled workflow nodes from `{pack}/nodes/workflows/*.yaml` |
+| `workflows.db` (built) | Compiled workflow nodes from repo-root `workflows/*.yaml` |
 | `standards_config.db` (built) | Merged registry of materials, dimensions, packs |
 
 Material registry and search catalog live under [`knowledge/global/materials/`](../global/materials/) (not inside `standards/`).
@@ -42,7 +42,8 @@ Material registry and search catalog live under [`knowledge/global/materials/`](
 
 ## Notes
 
-- Each pack: `nodes/`, `tables/` (optional), `nodes/workflows/` (workflow YAML), `*_graph.db`, `*_nodes.db`, `*_tables.db`.
+- Each pack: `nodes/`, `tables/` (optional), `*_graph.db`, `*_nodes.db`, `*_tables.db`.
+- Workflow YAML: repo-root `workflows/` (not under `knowledge/`; linked to packs via `expected_authorities`).
 - Report templates live in `engine/reports/templates/`, not under standard packs.
 - Pack resolution slug: `asme_b31.3` (not full path).
 

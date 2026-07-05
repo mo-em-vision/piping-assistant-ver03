@@ -1,4 +1,4 @@
-import { DevNodeHoverSurface } from '@/components/dev/DevNodeHoverSurface'
+import { DevNodeHoverSurface } from '@dev-ui/DevNodeHoverSurface'
 import { DisplayMath, EngineeringMathText, InlineMath, isEngineeringSymbol } from '@/components/math/engineeringMath'
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 

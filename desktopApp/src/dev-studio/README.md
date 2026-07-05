@@ -1,6 +1,16 @@
 # src/dev-studio — Architecture Audit
 
-**Node Dev Studio** — development-only browser UI for CRUD on standards graph node YAML via backend `/api/v1/dev/*` endpoints. Separate Vite entry; not bundled in default production build.
+**Node Dev Studio** — UI for CRUD on standards graph node YAML via backend `/api/v1/dev/*` endpoints.
+
+**Desktop surfaces (when Dev Mode is on):**
+
+| Surface | Entry |
+| --- | --- |
+| Inline **Node Edit** tab | Right panel via `openNodeEditTab` / dev hovers (`@dev-ui/NodeEditTab`) |
+| Full studio window | Header **Node Dev Studio** → `studio.html` in Electron `BrowserWindow` |
+| Browser-only dev | `npm run dev:studio` (unchanged) |
+
+Packaged Electron builds include `studio.html` when `VITE_ENABLE_DEV_TOOLS=true` (`npm run package:win`).
 
 ## Purpose
 

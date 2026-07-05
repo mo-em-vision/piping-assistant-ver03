@@ -265,9 +265,18 @@ def revealed_input_ids(task: Task, planning: dict[str, Any]) -> list[str]:
     return revealed_pipe_wall_input_ids(task, planning)
 
 
-def _ordered_submittable_ids(task: Task, candidates: set[str]) -> list[str]:
+def _ordered_submittable_ids(
+    task: Task,
+    candidates: set[str],
+    planning: dict[str, Any] | None = None,
+) -> list[str]:
     hidden = _hidden_timeline_inputs(task)
-    step_order = _input_step_order(task)
+    graph_order = None
+    if planning and isinstance(planning.get("graph_input_order"), list):
+        graph_order = planning["graph_input_order"]
+    elif isinstance(task.outputs.get("graph_input_order"), list):
+        graph_order = task.outputs["graph_input_order"]
+    step_order = tuple(graph_order) if graph_order else _input_step_order(task)
     ordered: list[str] = []
     for step_id in step_order:
         if step_id in candidates and (not is_mawp_task(task) or _mawp_step_applies(task, step_id)):
@@ -314,11 +323,24 @@ def _unconfirmed_proposed_defaults_for_phase(
 
 def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]:
     """Parameters the user may submit on the current navigation phase."""
+    from engine.planner.goal_navigation import goal_guided_parameter_ids
+
     edit_session = task.outputs.get("edit_session")
     if isinstance(edit_session, dict) and edit_session.get("parameter"):
         return [str(edit_session["parameter"])]
 
     hidden = _hidden_timeline_inputs(task)
+    goal_params = goal_guided_parameter_ids(task)
+    if goal_params:
+        filtered = [
+            param
+            for param in goal_params
+            if param not in hidden
+            and (not is_mawp_task(task) or _mawp_step_applies(task, param))
+        ]
+        if filtered:
+            return filtered
+
     phase_missing = planning.get("phase_missing") or {}
     current_phase = str(planning.get("current_phase") or "")
     if isinstance(phase_missing, dict) and current_phase:
@@ -334,7 +356,7 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
                 allowed_ids=allowed_ids,
                 phase_fields=set(phase_fields),
             )
-            return _ordered_submittable_ids(task, set(phase_fields) | set(extras))
+            return _ordered_submittable_ids(task, set(phase_fields) | set(extras), planning)
 
     requested_ids: list[str] = []
     for key in ("missing_assumptions", "missing_execution_assumptions", "missing_inputs"):

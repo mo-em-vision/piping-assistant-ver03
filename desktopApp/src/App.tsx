@@ -1,6 +1,7 @@
 import { useBackendConnection } from '@/hooks/useBackend'
 import { useWorkspaceBootstrap } from '@/hooks/useWorkspaceBootstrap'
-import { DevNodeHoverProvider } from '@/components/dev/DevNodeHoverProvider'
+import { DevNodeHoverProvider } from '@dev-ui/DevNodeHoverProvider'
+import { DevModeElectronSync } from '@/components/layout/DevModeElectronSync'
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 
 import './App.css'
@@ -11,6 +12,7 @@ function App() {
 
   return (
     <DevNodeHoverProvider>
+      <DevModeElectronSync />
       <div className="app">
         <WorkspaceLayout
           backendStatus={backendStatus}

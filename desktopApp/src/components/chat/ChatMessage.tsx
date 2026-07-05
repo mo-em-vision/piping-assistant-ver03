@@ -1,5 +1,5 @@
 import { ChatMarkdownContent } from '@/components/chat/ChatMarkdownContent'
-import { DevNodeHoverSurface } from '@/components/dev/DevNodeHoverSurface'
+import { DevNodeHoverSurface } from '@dev-ui/DevNodeHoverSurface'
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 import type { ChatMessageDto, ChatSource } from '@/types/backend/chat'
 

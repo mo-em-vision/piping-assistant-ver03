@@ -1,0 +1,58 @@
+navigation:
+  assumption_gate_fields:
+  - pressure_loading
+  phases:
+    expansion_assumptions: []
+    path_decisions:
+    - pressure_loading
+    parameter_gathering:
+    - design_pressure
+    - nominal_pipe_size
+    - outside_diameter
+    - material
+    - design_temperature
+    - external_design_pressure
+    coefficient_resolution:
+    - joint_category
+    - weld_joint_efficiency
+    - weld_joint_strength_reduction_factor_W
+    - temperature_coefficient_Y
+    execution_assumptions: []
+    definition_equation_completion:
+    - corrosion_allowance
+interactions:
+- variable: pressure_loading
+  mode: decision
+  required: true
+  required_for_expansion: true
+  options:
+  - internal_pressure
+  - external_pressure
+  question: >
+    Is the pipe subjected to internal or external pressure?
+texts:
+- id: pipe-wall-init-text
+  type: text
+  kind: section
+  role: initiation
+  title: Pipe Wall Thickness Design
+  text: >
+    Determine minimum required pipe wall thickness from applicable standards,
+    design conditions, and allowances.
+- id: pipe-wall-result-text
+  type: text
+  role: result_explanation
+  text: >
+    Minimum required wall thickness has been calculated from the active governing
+    equations and validation rules.
+documentation:
+  summary: >
+    Determine minimum required pipe wall thickness from applicable standards,
+    material properties, geometry, design conditions, and allowances.
+  report_summary: >
+    Pipe wall thickness design calculation report.
+suggested_workflows:
+- mawp_design
+goal_output: minimum_required_thickness
+engineering_intent: pipe_wall_thickness_design
+slug: pipe_wall_thickness_design

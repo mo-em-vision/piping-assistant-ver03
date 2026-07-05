@@ -8,10 +8,12 @@ import SidePanel from './components/SidePanel'
 import Toolbar from './components/Toolbar'
 import { fetchAnalysis, fetchNodeDetail, useGraphWebSocket } from './hooks/useGraphWebSocket'
 import { useGraphStore } from './store/graphStore'
+import { readTaskIdFromUrl } from './utils/taskQuery'
 import type { NodeDetail } from './types'
 
 function AppContent() {
-  useGraphWebSocket()
+  const taskId = readTaskIdFromUrl()
+  useGraphWebSocket({ taskId })
   const connected = useGraphStore((s) => s.connected)
   const context = useGraphStore((s) => s.context)
   const nodeDetail = useGraphStore((s) => s.nodeDetail)
@@ -25,10 +27,10 @@ function AppContent() {
 
   useEffect(() => {
     if (!revision) return
-    fetchAnalysis().then((data) => {
+    void fetchAnalysis({ taskId }).then((data) => {
       if (data) setAnalysis(data)
     })
-  }, [revision, setAnalysis])
+  }, [revision, setAnalysis, taskId])
 
   const focusNode = useCallback(
     (nodeId: string) => {
@@ -44,7 +46,7 @@ function AppContent() {
     async (nodeId: string) => {
       setSelectedNodeId(nodeId)
       focusNode(nodeId)
-      const detail = (await fetchNodeDetail(nodeId)) as NodeDetail | null
+      const detail = (await fetchNodeDetail(nodeId, { taskId })) as NodeDetail | null
       setNodeDetail(detail)
     },
     [focusNode, setNodeDetail, setSelectedNodeId],

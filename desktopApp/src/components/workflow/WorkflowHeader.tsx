@@ -1,4 +1,4 @@
-import { DevNodeHoverSurface } from '@/components/dev/DevNodeHoverSurface'
+import { DevNodeHoverSurface } from '@dev-ui/DevNodeHoverSurface'
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 
 import type { ActiveNodeContextDto } from '@/types/backend/api'

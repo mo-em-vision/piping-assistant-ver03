@@ -9,9 +9,11 @@ import type {
 } from '../types'
 import { ALL_NODE_TYPES } from '../utils/nodeStyles'
 import { layoutGraph } from '../utils/layout'
+import { readTaskIdFromUrl } from '../utils/taskQuery'
 
 interface GraphStoreState {
   revision: string
+  taskId: string | null
   context: GraphContext | null
   rawNodes: GraphNodeData[]
   rawEdges: GraphEdgeData[]
@@ -89,6 +91,7 @@ function toFlowEdges(edges: GraphEdgeData[]): Edge[] {
 
 export const useGraphStore = create<GraphStoreState>((set, get) => ({
   revision: '',
+  taskId: readTaskIdFromUrl(),
   context: null,
   rawNodes: [],
   rawEdges: [],

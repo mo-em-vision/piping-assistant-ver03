@@ -20,7 +20,7 @@ asme_b31.3/
 │   └── B313-WF-PIPE-WALL-THICKNESS/
 ```
 
-Workflow entry points live under `nodes/workflows/` (e.g. `pipe-wall-thickness.yaml`, `mawp.yaml`).
+Workflow entry points live at repo-root [`workflows/`](../../../../workflows/) (e.g. `pipe-wall-thickness.yaml`, `mawp.yaml`).
 
 Figure assets belong under the relevant node folder (e.g. `nodes/304.1.2-a/figures/`) when needed, not at pack root.
 
@@ -33,7 +33,7 @@ The first sample nodes follow `docs/core/7. node_structure_design.md` and `docs/
 - `nodes/B313-304.1.3/` — external pressure path
 - `nodes/302.3.5-e/` — W factor reference (Table 302.3.5)
 - `nodes/B313-table-A-1/` — allowable stress lookup (Table A-1)
-- `nodes/workflows/pipe-wall-thickness.yaml` — pipe wall thickness workflow entry point
+- [`workflows/pipe-wall-thickness.yaml`](../../../../workflows/pipe-wall-thickness.yaml) — pipe wall thickness workflow entry point
 
 Node IDs (`B313-*`) are stable across the graph; folder paths use `nodes/{node_id}/` for direct lookup (Ctrl+P by id).
 

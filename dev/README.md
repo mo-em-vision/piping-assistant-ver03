@@ -1,137 +1,87 @@
 # dev/ — Architecture Audit
 
-Audit date: 2026-07-01. Documentation reflects the code as it exists today; no architectural recommendations.
+Audit date: 2026-07-05. Documentation reflects the code as it exists today; no architectural recommendations.
 
 ---
 
 ## Purpose
 
-The `dev/` package is the **Python namespace for development-only tooling** that is not part of the production desktop application build or the main REST API (`api/server.py`). Tools here run as **separate processes** during local development and may read the same session storage and compiled graph databases as the desktop app, but they do not ship in release builds and are not imported by production backend routes.
+The `dev/` package is the **namespace for development-only tooling**. It is not imported by the production REST API ([`api/server.py`](../api/server.py)) and does not ship in release desktop bundles.
 
-Today the folder contains a single substantive tool: **Developer Graph Explorer** (`dev/graph_explorer/`). The root `__init__.py` only documents that intent.
-
-**Related but out of scope for this folder:** inline dev UI under `desktopApp/src/components/dev/` (Developer Inspector, Node Dev Studio tab, dev hovers) lives in the Electron app, not under `dev/`.
+Two substantive tools live here today; root [`__init__.py`](__init__.py) is a docstring-only package marker.
 
 ---
 
-## Files
+## Tools at a glance
 
-| Path | Role |
-|------|------|
-| `__init__.py` | Package docstring: development-only tools, not production. |
-| `graph_explorer/` | Live React Flow visualization of the active task subgraph. **Full audit:** [`graph_explorer/README.md`](graph_explorer/README.md). |
+| Tool | Process model | Primary entry | User guide | Implementation audit |
+|------|---------------|---------------|------------|----------------------|
+| **Graph Explorer** | Separate Python + Vite (`:8765` / `:3000`) | `cd dev/graph_explorer && npm run dev` | [`docs/developer tools/developer_graph_explorer.md`](../docs/developer%20tools/developer_graph_explorer.md) | [`graph_explorer/README.md`](graph_explorer/README.md) |
+| **Desktop dev UI** | In-process via `@dev-ui/*` lazy imports | `desktopApp npm run dev` (Dev badge) | [`docs/developer tools/developer_inspection_framework.md`](../docs/developer%20tools/developer_inspection_framework.md) | [`desktop_ui/README.md`](desktop_ui/README.md) |
 
-No other subpackages or modules exist under `dev/` at audit time.
-
----
-
-## Entry Points
-
-| Entry | How it is reached |
-|-------|-------------------|
-| `python -m dev.graph_explorer` | `dev/graph_explorer/__main__.py` → uvicorn + Starlette on `:8765`. |
-| `npm run dev` (in `dev/graph_explorer/`) | `predev` frees ports 3000/8765; `concurrently` runs Python server + Vite (`:3000`). |
-| `from dev.graph_explorer import …` | Used by tests (`tests/dev/`) and internal graph_explorer modules only. |
-
-`dev/__init__.py` is **not** an executable entry point.
+Per-tool entry points, file inventories, dependencies, and execution traces live in the child READMEs above — not duplicated here.
 
 ---
 
-## Dependencies
+## Shared dev platform
 
-### This folder depends on
+Concerns common to dev debugging across both tools:
 
-| Area | Consumers under `dev/` |
-|------|------------------------|
-| **Config** | `config.loader.CLIConfig` (`graph_explorer/server.py`, `adapter.py`, `explorer_config.py`) |
-| **Engine** | `engine.graph.graph_store`, `engine.graph.graph_engine`, `engine.reference.*`, `engine.state.state_manager` (`graph_explorer/adapter.py`) |
-| **Storage** | `storage.project_repository`, `storage.project_session_store`, `storage.migrate_legacy_sessions` (`graph_explorer/adapter.py`, `explorer_config.py`) |
-| **Models** | `models.task.Task` (`graph_explorer/adapter.py`) |
-| **Scripts** | `scripts.build_graph_db.build_pack_graph_db` (optional auto-rebuild in `graph_explorer/watcher.py`) |
-| **Dev Python packages** | `starlette`, `uvicorn`, `watchdog` (`graph_explorer/requirements.txt`) |
-| **Dev Node packages** | `concurrently` (root `graph_explorer/package.json`); React/Vite stack in `graph_explorer/web/` |
+```mermaid
+flowchart LR
+  DesktopApp["desktopApp / api.server"]
+  Sessions["sessions + desktop.db"]
+  GraphDB["standards *_graph.db"]
+  DesktopUI["dev/desktop_ui"]
+  GraphExplorer["dev/graph_explorer"]
 
-### Who depends on this folder
+  DesktopApp --> Sessions
+  DesktopApp --> GraphDB
+  DesktopUI -->|"inspection API"| DesktopApp
+  DesktopUI -->|"Open in Graph Explorer ?task="| GraphExplorer
+  GraphExplorer --> Sessions
+  GraphExplorer --> GraphDB
+```
 
-Grep for `from dev.` / `import dev` / `dev.graph_explorer` / `dev/graph_explorer` (2026-07-01):
+| Concern | Behavior |
+|---------|----------|
+| **Production boundary** | `api/` does not import `dev`. Graph explorer web ships as a lazy `@graph-explorer` chunk. `desktop_ui` loads when `env.devToolsAvailable && devModeActive`. |
+| **Shared read models** | Active task, `active_nodes`, compiled pack graphs (`GraphStore` / `*_graph.db`), optional `_execution_trace` on task outputs. |
+| **Write policy** | Dev tools are **read-only** for engineering state (Graph Explorer and Inspector observe; Node Edit tab is the exception — writes via Dev Studio API, see [Node Dev Studio](../docs/node_dev_studio.md)). |
+| **Backend env flags** | `DEV_INSPECTION_ENABLED`, `DEV_STUDIO_ENABLED` (Electron dev sets both when unpackaged). Graph Explorer runs as a separate server and needs no API flag. |
+| **Session / user-data alignment** | Graph Explorer uses [`graph_explorer/explorer_config.py`](graph_explorer/explorer_config.py) to match Electron `DESKTOP_USER_DATA` when `GRAPH_EXPLORER_SESSION=auto`. Desktop dev UI uses the same backend the app already talks to. |
+| **Cross-tool link** | Inspector Graph tab opens `http://localhost:3000?task=…` for deep subgraph view — see [`desktop_ui/inspector/InspectorGraphPanel.tsx`](desktop_ui/inspector/InspectorGraphPanel.tsx). |
+| **Crash isolation** | Graph Explorer failure does not stop the desktop app (separate process and ports). |
+
+---
+
+## Who depends on `dev/`
+
+Grep for `from dev.` / `import dev` / `dev.graph_explorer` / `@dev-ui` (2026-07-05):
 
 | Consumer | Relationship |
 |----------|--------------|
-| `tests/dev/test_graph_explorer_adapter.py` | Imports `GraphExplorerAdapter`, `TaskContextReader`, DTOs. |
-| `tests/dev/test_graph_explorer_analysis.py` | Imports `analyze_graph`, DTOs. |
+| `tests/dev/test_graph_explorer_*.py` | Imports `dev.graph_explorer` adapter and analysis modules. |
 | `dev/graph_explorer/scripts/run-dev-server.mjs` | Spawns `python -m dev.graph_explorer`. |
-| Internal `dev/graph_explorer/*.py` | Package-internal imports only. |
+| `desktopApp/` | Imports `dev/desktop_ui` via `@dev-ui/*` (hover, inspector, node edit tab). |
 
-**No imports from:** `api/`, `engine/` (except tests), `desktopApp/` production code, `cli/`, `storage/` (except graph_explorer reading storage APIs).
+**No imports from:** `api/`, `cli/`, or production `engine/` paths (graph_explorer reads engine/storage APIs at runtime only).
 
-Docs referencing `dev/` (not runtime imports): `AGENTS.md`, `docs/developer_graph_explorer.md`, `docs/developer_inspection_framework.md`, `docs/node_dev_studio.md`, `config/README.md`, `models/README.md`, `storage/README.md`, `scripts/README.md`.
-
----
-
-## Runtime Usage
-
-**Not on the production desktop or API execution path.** Active only when a developer explicitly starts Graph Explorer.
-
-### Proof (static analysis, 2026-07-01)
-
-- `api/server.py` does not import `dev`.
-- `desktopApp/electron/` and release `npm run build` do not bundle `dev/graph_explorer/web`.
-- `.gitignore` excludes `dev/graph_explorer/**/node_modules/`.
-- Graph Explorer reads session state written by the desktop backend; it does not write task state.
-
-### Typical developer flow
-
-```text
-desktopApp npm run dev  (or python -m api.server)
-    ↓
-sessions/<project>/tasks.json updated with active_nodes
-standards/**/*_graph.db compiled
-    ↓
-cd dev/graph_explorer && npm run dev
-    ↓
-run-dev-server.mjs → python -m dev.graph_explorer (:8765)
-Vite dev server (:3000) proxies /api, /ws, /health → :8765
-    ↓
-Browser React UI ← WebSocket /ws/graph + REST
-```
-
-See [`graph_explorer/README.md`](graph_explorer/README.md) for module-level traces and per-file inventory.
+Docs referencing `dev/` (not runtime imports): `AGENTS.md`, `docs/developer tools/`, `docs/node_dev_studio.md`, and per-folder audit READMEs under `config/`, `models/`, `storage/`, `scripts/`.
 
 ---
 
-## Possible Dead Code
+## Overlapping capabilities
 
-| Item | Why it appears unused | Confidence |
-|------|------------------------|------------|
-| `dev/__init__.py` | Empty aside from docstring; no re-exports. | High |
-| `dev/graph_explorer/scripts/free-port.mjs` | Wraps `free-dev-ports.mjs` but not referenced by `package.json` or other scripts. | High |
-| See [`graph_explorer/README.md`](graph_explorer/README.md) | Additional dead-code notes inside graph_explorer (e.g. `GraphViewProvider`, unused imports). | — |
+Several graph and authoring surfaces overlap across dev tools, CLI, and Node Dev Studio. See [docs/audit/DUPLICATES.md — Graph visualization (dev)](../docs/audit/DUPLICATES.md#graph-visualization-dev) for the canonical map (Graph Explorer vs Inspector graph panel vs CLI `graph show`). Node authoring is owned by Node Dev Studio; Graph Explorer is read-only.
+
+No recommendation on which visualization to use; documented for navigation only.
 
 ---
 
-## Notes
-
-- **Isolation:** Graph Explorer failure does not stop the desktop app (separate process, separate ports).
-- **Session alignment:** `explorer_config.resolve_session_id` and `apply_desktop_user_data_env` mirror Electron user-data paths so the explorer reads the same `desktop.db` / sessions as the running app when `GRAPH_EXPLORER_SESSION=auto`.
-- **Debug instrumentation:** Multiple graph_explorer files append to repo-root `debug-b5dce6.log` and (in the web hook) POST to a local ingest URL — appears to be temporary agent/debug tracing, not product behavior.
-- **Documentation split:** User guide lives in [`docs/developer_graph_explorer.md`](../docs/developer_graph_explorer.md); this audit and [`graph_explorer/README.md`](graph_explorer/README.md) document implementation as-is.
-
----
-
-## Duplicate Implementations
-
-| Capability | `dev/graph_explorer` | Other location |
-|------------|----------------------|----------------|
-| Active subgraph visualization | React Flow browser UI, induced subgraph from `active_nodes` | `desktopApp/src/components/dev/inspector/InspectorGraphPanel.tsx` (in-app, inspection payload) |
-| Full / CLI graph view | Not implemented (`GraphViewProvider` protocol only) | `cli/commands/graph.py` — `graph show` dependency tree from standards packs |
-| Node authoring | Read-only | Node Dev Studio (`docs/node_dev_studio.md`) — writes YAML |
-
-No recommendation on which to keep; documented for navigation only.
-
----
-
-## Child folder status
+## Child audits
 
 | Folder | README | Audit status |
 |--------|--------|--------------|
-| `graph_explorer/` | [`graph_explorer/README.md`](graph_explorer/README.md) | Complete (2026-07-01) |
+| `graph_explorer/` | [`graph_explorer/README.md`](graph_explorer/README.md) | Complete (2026-07-05) |
+| `desktop_ui/` | [`desktop_ui/README.md`](desktop_ui/README.md) | Complete (2026-07-05) |

@@ -20,9 +20,14 @@ const edgeTypes = { graphEdge: GraphEdgeComponent }
 interface GraphCanvasProps {
   onSelectNode: (nodeId: string) => void
   fitViewTrigger: number
+  colorMode?: 'light' | 'dark'
 }
 
-export default function GraphCanvas({ onSelectNode, fitViewTrigger }: GraphCanvasProps) {
+export default function GraphCanvas({
+  onSelectNode,
+  fitViewTrigger,
+  colorMode = 'dark',
+}: GraphCanvasProps) {
   const flowNodes = useGraphStore((s) => s.flowNodes)
   const flowEdges = useGraphStore((s) => s.flowEdges)
   const updatePositions = useGraphStore((s) => s.updatePositions)
@@ -65,20 +70,25 @@ export default function GraphCanvas({ onSelectNode, fitViewTrigger }: GraphCanva
   )
 
   if (!context?.node_count) {
+    const title = context?.message ?? 'No graph data available.'
+    const detail = !context
+      ? 'Start the graph explorer backend and ensure the desktop app has an active task.'
+      : context.message
+        ? null
+        : 'Run the workflow or submit inputs to expand the graph.'
+
     return (
       <div className="empty-state">
         <div>
-          <p>{context?.message ?? 'No graph data available.'}</p>
-          <p style={{ marginTop: 8 }}>
-            {context
-              ? 'The active task has no nodes in its subgraph yet.'
-              : 'Start the graph explorer backend (npm run dev in dev/graph_explorer) and ensure the desktop app has an active task.'}
-          </p>
-          {context && (
-            <p style={{ marginTop: 8, fontSize: 12, color: '#94a3b8' }}>
-              Session: {context.session_id} · Task: {context.task_id ?? 'none'}
+          <p className="empty-state__title">{title}</p>
+          {detail ? <p className="empty-state__detail">{detail}</p> : null}
+          {context ? (
+            <p className="empty-state__meta">
+              Project: <strong>{context.session_id}</strong>
+              {' · '}
+              Task: <strong>{context.task_id ?? 'none'}</strong>
             </p>
-          )}
+          ) : null}
         </div>
       </div>
     )
@@ -92,14 +102,14 @@ export default function GraphCanvas({ onSelectNode, fitViewTrigger }: GraphCanva
       edgeTypes={edgeTypes}
       onNodeClick={onNodeClick}
       onNodeDragStop={onNodeDragStop}
-      colorMode="dark"
+      colorMode={colorMode}
       fitView
       minZoom={0.05}
       maxZoom={2}
       onlyRenderVisibleElements
       proOptions={{ hideAttribution: true }}
     >
-      <Background gap={20} color="#1e2533" />
+      <Background gap={20} color={colorMode === 'light' ? '#e2e8f0' : '#1e2533'} />
       <Controls />
       <MiniMap nodeColor={minimapNodeColor} maskColor="rgba(15,17,23,0.75)" />
     </ReactFlow>

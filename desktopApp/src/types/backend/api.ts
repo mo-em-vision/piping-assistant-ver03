@@ -171,6 +171,12 @@ export interface NodeCalculationSummaryDto {
   inputs: NodeCalculationInputDto[]
 }
 
+export interface CurrentAskDto {
+  kind: 'input' | 'clarify' | 'waiting'
+  parameter_id?: string | null
+  prompt?: string | null
+}
+
 export interface TaskStateDto {
   task_id: string
   name: string
@@ -200,6 +206,7 @@ export interface TaskStateDto {
   node_calculations?: NodeCalculationSummaryDto[]
   display_outputs: DisplayOutputBlock[]
   active_node_context?: ActiveNodeContextDto | null
+  current_ask?: CurrentAskDto | null
   options: {
     available_workflows?: WorkflowDto[]
   }

@@ -21,7 +21,7 @@ Scripts are **not** imported by the desktop REST API during normal user workflow
 | `build_all_standards_dbs.py` | Orchestrator: runs most build scripts in sequence for a full standards rebuild. |
 | `build_graph_db.py` | Compiles pack sources → `PackGraph` → `*_graph.db` per standard pack. |
 | `build_standards_nodes_db.py` | Discovers node YAML/MD → `{pack}_nodes.db`; may delete legacy flat duplicates. |
-| `build_standards_tasks_db.py` | Compiles `{pack}/nodes/workflows/*.yaml` → global `workflows.db`. |
+| `build_standards_tasks_db.py` | Compiles `workflows/*.yaml` → global `workflows.db`. |
 | `build_standards_registry_db.py` | Compiles registry YAML → `standards_config.db`. |
 | `build_standards_tables_db.py` | Seeds ASME B31.3 lookup tables into `{pack}_tables.db` (hardcoded sample data). |
 | `build_astm_standards_tables_db.py` | Builds ASTM pack `*_tables.db` from seed YAML files. |
@@ -220,7 +220,7 @@ Do not delete based on this audit alone.
 
 | Field | Detail |
 |-------|--------|
-| **Purpose** | Compile workflow YAML from `{pack}/nodes/workflows/*.yaml` into `knowledge/standards/workflows.db`. |
+| **Purpose** | Compile workflow YAML from repo-root `workflows/*.yaml` into `knowledge/standards/workflows.db`. |
 | **Public functions** | `build_all(*, standards_root=None)` |
 | **Inputs** | Workflow `*.yaml` files with `type: workflow` frontmatter. |
 | **Outputs** | `Path` to `workflows.db` or `None` if no workflows. |

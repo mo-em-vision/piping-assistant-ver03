@@ -4,21 +4,17 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Protocol
 
 from config.loader import CLIConfig
-from engine.graph.graph_engine import normalize_root_id, resolve_workflow_node_id
+from engine.graph.graph_engine import normalize_root_id
 from engine.graph.graph_store import GraphStore
 from engine.reference.graph_db import GraphEdgeRecord, GraphNodeRecord
 from engine.reference.standards_paths import list_standard_packs
-from engine.state.state_manager import TaskStateManager
+from engine.state.state_manager import TaskNotFoundError, TaskStateManager
 from models.task import Task
 from storage.migrate_legacy_sessions import migrate_legacy_sessions
 from storage.project_repository import ProjectRepository
 from storage.project_session_store import ProjectSessionStore, get_database_for_config
-
-from dev.graph_explorer.explorer_config import debug_log
 
 from dev.graph_explorer.serializer import (
     EdgeRefDto,
@@ -40,16 +36,6 @@ class TaskContext:
     active_nodes: list[str]
     session_id: str
     execution_states: dict[str, str]
-
-
-class GraphViewProvider(Protocol):
-    def get_context(self) -> GraphContextDto: ...
-
-    def get_snapshot(self) -> GraphSnapshotDto: ...
-
-    def get_node(self, node_id: str) -> NodeDetailDto | None: ...
-
-    def reload(self) -> None: ...
 
 
 def _node_name(record: GraphNodeRecord) -> str:
@@ -89,7 +75,7 @@ class TaskContextReader:
         self.config = config
         self.session_id = session_id
 
-    def read(self) -> TaskContext:
+    def read(self, task_id: str | None = None) -> TaskContext:
         database = get_database_for_config(self.config.sessions_dir)
         migrate_legacy_sessions(database, self.config.sessions_dir)
         repository = ProjectRepository(database)
@@ -97,25 +83,27 @@ class TaskContextReader:
             repository.ensure_project(self.session_id)
         store = ProjectSessionStore(database, self.config.sessions_dir, session_id=self.session_id)
         manager = store.load_state_manager()
-        ctx = self._context_from_manager(manager)
-        # #region agent log
-        debug_log(
-            "D",
-            "task context read",
-            {
-                "session_id": self.session_id,
-                "sessions_dir": str(self.config.sessions_dir),
-                "task_id": ctx.task_id,
-                "active_nodes_count": len(ctx.active_nodes),
-                "active_nodes_sample": ctx.active_nodes[:5],
-                "workflow_id": ctx.workflow_id,
-            },
-        )
-        # #endregion
-        return ctx
+        return self._context_from_manager(manager, task_id=task_id)
 
-    def _context_from_manager(self, manager: TaskStateManager) -> TaskContext:
-        active = manager.get_active_task()
+    def _context_from_manager(
+        self,
+        manager: TaskStateManager,
+        *,
+        task_id: str | None = None,
+    ) -> TaskContext:
+        if task_id:
+            try:
+                active = manager.get_task(task_id)
+            except TaskNotFoundError:
+                return TaskContext(
+                    task_id=None,
+                    workflow_id=None,
+                    active_nodes=[],
+                    session_id=self.session_id,
+                    execution_states={},
+                )
+        else:
+            active = manager.get_active_task()
         if active is None:
             tasks = manager.list_tasks()
             if not tasks:
@@ -166,10 +154,18 @@ class GraphExplorerAdapter:
     def __init__(self, config: CLIConfig, session_id: str) -> None:
         self.config = config
         self.session_id = session_id
-        self._context_reader = TaskContextReader(config, session_id)
+        self._context_readers: dict[str, TaskContextReader] = {}
         self._stores: dict[str, GraphStore] = {}
         self._node_pack: dict[str, str] = {}
         self._reload_stores()
+
+    def _reader(self, session_id: str | None = None) -> TaskContextReader:
+        sid = session_id or self.session_id
+        reader = self._context_readers.get(sid)
+        if reader is None:
+            reader = TaskContextReader(self.config, sid)
+            self._context_readers[sid] = reader
+        return reader
 
     def reload(self) -> None:
         self._reload_stores()
@@ -186,14 +182,17 @@ class GraphExplorerAdapter:
             for node in store.list_nodes():
                 self._node_pack[node.node_id] = slug
 
-    def get_context(self) -> GraphContextDto:
-        ctx = self._context_reader.read()
+    def get_context(self, task_id: str | None = None, session_id: str | None = None) -> GraphContextDto:
+        ctx = self._reader(session_id).read(task_id)
         snapshot = self._build_subgraph(ctx.active_nodes, ctx.execution_states)
         message = None
-        if not ctx.task_id:
+        if task_id and ctx.task_id is None:
+            sid = session_id or self.session_id
+            message = f"Task not found in project session {sid}."
+        elif not ctx.task_id:
             message = "No active task. Create or activate a task in the desktop app."
         elif not ctx.active_nodes:
-            message = "Active task has no active_nodes yet."
+            message = "Active task has no active_nodes yet. Submit inputs or advance the workflow to expand the subgraph."
         return GraphContextDto(
             task_id=ctx.task_id,
             workflow_id=ctx.workflow_id,
@@ -203,25 +202,32 @@ class GraphExplorerAdapter:
             message=message,
         )
 
-    def get_snapshot(self) -> GraphSnapshotDto:
-        ctx = self._context_reader.read()
+    def get_snapshot(self, task_id: str | None = None, session_id: str | None = None) -> GraphSnapshotDto:
+        ctx = self._reader(session_id).read(task_id)
         nodes, edges = self._build_subgraph(ctx.active_nodes, ctx.execution_states)
         revision = self._compute_revision(ctx, nodes, edges)
+        if task_id and ctx.task_id is None:
+            sid = session_id or self.session_id
+            message = f"Task not found in project session {sid}."
+        elif not ctx.active_nodes:
+            message = "Active task has no active_nodes yet. Submit inputs or advance the workflow to expand the subgraph."
+        else:
+            message = None
         context = GraphContextDto(
             task_id=ctx.task_id,
             workflow_id=ctx.workflow_id,
             session_id=ctx.session_id,
             node_count=len(nodes),
             edge_count=len(edges),
-            message=None if ctx.active_nodes else "Active task has no active_nodes yet.",
+            message=message,
         )
         return GraphSnapshotDto(revision=revision, context=context, nodes=nodes, edges=edges)
 
-    def get_node(self, node_id: str) -> NodeDetailDto | None:
+    def get_node(self, node_id: str, task_id: str | None = None, session_id: str | None = None) -> NodeDetailDto | None:
         record = self._find_node(node_id)
         if record is None:
             return None
-        ctx = self._context_reader.read()
+        ctx = self._reader(session_id).read(task_id)
         active = set(ctx.active_nodes)
         slug = self._node_pack.get(node_id, "")
         store = self._stores.get(slug)
@@ -280,8 +286,15 @@ class GraphExplorerAdapter:
             body_preview=body_preview,
         )
 
-    def search_nodes(self, query: str, *, limit: int = 50) -> list[GraphNodeDto]:
-        ctx = self._context_reader.read()
+    def search_nodes(
+        self,
+        query: str,
+        *,
+        task_id: str | None = None,
+        session_id: str | None = None,
+        limit: int = 50,
+    ) -> list[GraphNodeDto]:
+        ctx = self._reader(session_id).read(task_id)
         nodes, _ = self._build_subgraph(ctx.active_nodes)
         needle = query.strip().lower()
         if not needle:

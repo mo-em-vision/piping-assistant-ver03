@@ -10,7 +10,6 @@
   "dependencies": {
     "@xyflow/react": "^12.4.4",
     "dagre": "^0.8.5",
-    "graph-explorer": "file:..",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "zustand": "^5.0.3"

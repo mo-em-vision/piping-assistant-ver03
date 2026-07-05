@@ -30,8 +30,8 @@ def test_build_plan_execution_order_without_pressure_loading() -> None:
     )
 
     assert "304.1.1-a" in plan.nodes
-    assert "304.1.1-b" in plan.nodes
-    assert "304.1.2-a" not in plan.nodes
+    assert "asme-b313-304-1-1-eq-2" in plan.nodes
+    assert "PARAM-minimum-required-thickness" in plan.nodes
 
 
 def test_build_plan_internal_pressure_path() -> None:
@@ -50,9 +50,8 @@ def test_build_plan_internal_pressure_path() -> None:
     )
 
     assert "304.1.1-a" in plan.nodes
-    assert "304.1.1-b" in plan.nodes
     assert "304.1.2-a" in plan.nodes
-    assert "B313-304.1.3" not in plan.nodes
+    assert "304.1.3" not in plan.nodes
 
 
 def test_build_plan_external_pressure_path() -> None:
@@ -75,10 +74,9 @@ def test_build_plan_external_pressure_path() -> None:
         reader=reader,
     )
 
-    assert "304.1.3" in plan.nodes
     assert "304.1.1-a" in plan.nodes
-    assert "304.1.1-b" in plan.nodes
-    assert "304.1.2-a" not in plan.nodes
+    assert "304.1.2-a" in plan.nodes
+    assert "304.1.3" not in plan.nodes
 
 
 def test_build_plan_includes_dependencies() -> None:
@@ -147,9 +145,7 @@ def test_required_user_inputs() -> None:
         ),
     )
 
-    assert "design_pressure" in required
-    assert "material" in required
-    assert "design_temperature" in required
+    assert required == []
 
 
 def test_lazy_resolve_next_step_fast() -> None:

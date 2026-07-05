@@ -3,6 +3,7 @@ import path from 'node:path'
 
 import { constants } from '../../src/config/constants'
 import { BackendProcessService } from './backendProcess'
+import { defaultBackendDevFlags } from './backendDevFlags'
 
 function resolveBackendUrl(): string {
   return process.env.VITE_BACKEND_URL ?? constants.defaultBackendUrl
@@ -23,7 +24,7 @@ export async function runStartup(
     resolveRepoRoot(),
     resolveBackendUrl(),
     app.getPath('userData'),
-    !app.isPackaged,
+    defaultBackendDevFlags,
   )
 
   backendService.onStatusChange(onStatusChange)

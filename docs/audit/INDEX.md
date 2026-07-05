@@ -73,6 +73,7 @@ Not every README uses identical headings; search the file for the closest sectio
 | `ai/agents/` | [ai/agents/README.md](../../ai/agents/README.md) |
 | `dev/` | [dev/README.md](../../dev/README.md) |
 | `dev/graph_explorer/` | [dev/graph_explorer/README.md](../../dev/graph_explorer/README.md) |
+| `dev/desktop_ui/` | [dev/desktop_ui/README.md](../../dev/desktop_ui/README.md) |
 
 ### `engine/` (parent + subfolders)
 

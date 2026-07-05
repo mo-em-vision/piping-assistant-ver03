@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
+
+from engine.reference.knowledge_paths import workflows_root
 
 STANDARD_GROUPS: tuple[str, ...] = ("asme", "astm")
 
@@ -47,12 +50,37 @@ def resolve_global_tasks_db(standards_root: Path) -> Path:
 
 
 def resolve_pack_workflows_dir(pack_root: Path) -> Path:
-    """Return workflow YAML folder for a pack."""
+    """Return shared workflow YAML folder at repo ``workflows/``."""
     pack_root = pack_root.resolve()
-    workflows = pack_root / "nodes" / "workflows"
-    if workflows.is_dir():
-        return workflows
+    external = workflows_root()
+    if external.is_dir():
+        return external
+    legacy = pack_root / "nodes" / "workflows"
+    if legacy.is_dir():
+        return legacy
     return resolve_pack_tasks_dir(pack_root)
+
+
+def workflow_belongs_to_pack(
+    workflow_metadata: dict[str, Any],
+    pack_metadata: dict[str, Any],
+) -> bool:
+    """True when a global workflow's expected authorities include the pack authority."""
+    pack_authority = str(pack_metadata.get("authority") or "").strip()
+    if not pack_authority:
+        return False
+    authorities = workflow_metadata.get("expected_authorities") or []
+    return pack_authority in {str(item).strip() for item in authorities}
+
+
+def workflow_source_rel_path(workflow_path: Path) -> str:
+    """Return stable source path for a workflow YAML (repo-relative)."""
+    workflows_dir = workflows_root()
+    try:
+        rel = workflow_path.resolve().relative_to(workflows_dir.resolve()).as_posix()
+    except ValueError:
+        rel = workflow_path.name
+    return f"workflows/{rel}"
 
 
 def resolve_pack_tasks_dir(pack_root: Path) -> Path:

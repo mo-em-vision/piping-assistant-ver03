@@ -296,11 +296,17 @@ def _parameter_guidance(planning: dict[str, Any], parameter_id: str) -> str | No
         if not isinstance(fields, list) or parameter_id not in fields:
             continue
         questions = phase_questions.get(phase)
-        if not isinstance(questions, list):
+        if isinstance(questions, dict):
+            prompt = questions.get(parameter_id)
+            if isinstance(prompt, str) and prompt.strip():
+                return prompt.strip()
             continue
-        index = fields.index(parameter_id)
-        if index < len(questions):
-            return str(questions[index])
+        if isinstance(questions, list):
+            index = fields.index(parameter_id)
+            if index < len(questions):
+                prompt = questions[index]
+                if isinstance(prompt, str) and prompt.strip():
+                    return prompt.strip()
     return None
 
 

@@ -15,7 +15,6 @@ Organize the three-panel workspace (left nav, center workflow, right references/
 | `layout/` | 18 | 9 | `WorkspaceLayout`, `LeftPanel`, `CenterPanel`, `RightPanel`, `AppHeader` | Shell, resize, panel chrome |
 | `workflow/` | 15 | 9 | `WorkflowComposer`, `WorkflowHeader`, `WorkflowHistory`, `TaskCompletionNextSteps` | Active task workflow UI |
 | `standards/` | 21 | 12 | `StandardsBrowserTab`, `StandardsMarkdownViewer`, `NodeReferenceTab`, `TableReferenceTab` | Standards browse + reference tabs |
-| `dev/` | 16 | 11 | `DevNodeHoverProvider`, `DeveloperInspector`, `NodeEditTab` | Dev-mode hover + inspector |
 | `inputs/` | 13 | 9 | `ParameterForm`, `ParameterInput`, `MaterialSelector` | Parameter input widgets |
 | `outputs/` | 8 | 7 | `OutputRenderer`, `TextOutput`, `EquationOutput` | `display_outputs` rendering |
 | `engineering/` | 12 | 6 | `TaskTimeline`, `TimelineStep`, `NodeCalculationGroup` | Progress/timeline/calculations |
@@ -28,7 +27,7 @@ Organize the three-panel workspace (left nav, center workflow, right references/
 | `common/` | 1 | 1 | `RenameDialog` | Shared rename modal |
 | `ui/` | 2 | 1 | `ExternalLink` | External link with icon |
 
-**Total:** ~133 files under `components/` (including CSS).
+**Total:** ~117 files under `components/` (including CSS). Inline dev UI lives in `dev/desktop_ui/` (imported via `@dev-ui/*`).
 
 ## Entry Points
 
@@ -36,7 +35,7 @@ Components are not standalone executables. Top of render tree:
 
 ```
 App.tsx
-  → DevNodeHoverProvider (dev/)
+  → DevNodeHoverProvider (@dev-ui/)
   → WorkspaceLayout (layout/)
       → AppHeader, LeftPanel, CenterPanel, RightPanel
 ```
@@ -44,7 +43,8 @@ App.tsx
 Lazy entry (dev only):
 
 ```
-WorkspaceLayout → lazy(DeveloperInspector) when env.devMode
+WorkspaceLayout → lazy(@dev-ui/inspector/DeveloperInspector) when env.devMode
+RightPanel → lazy(@dev-ui/NodeEditTab) when node edit tab open
 ```
 
 ## Dependencies
@@ -68,8 +68,8 @@ WorkspaceLayout → lazy(DeveloperInspector) when env.devMode
 
 **Conditional:**
 
-- `dev/DeveloperInspector` — `env.devMode` only
-- `dev/DevNodeHoverProvider` — always mounted; hover UI checks dev flags internally
+- `@dev-ui/inspector/DeveloperInspector` — `env.devMode` only (see `dev/desktop_ui/`)
+- `@dev-ui/DevNodeHoverProvider` — always mounted; hover UI checks dev flags internally
 - `reports/ReportPanel` — right panel when report section visible
 - `standards/*` — right panel standards/reference tabs
 
@@ -122,13 +122,13 @@ WorkspaceLayout
 
 | File | Purpose |
 | --- | --- |
-| `WorkflowComposer.tsx` | Composes input for current parameter |
+| `WorkflowComposer.tsx` | Renders backend ask prompt and input for submittable parameters |
 | `ComposerInput.tsx` / `ComposerInlineInput.tsx` | Text/inline composers |
 | `MaterialSearchInput.tsx` | Material parameter search |
 | `WorkflowHeader.tsx` | Active node context header |
 | `WorkflowHistory.tsx` | Past steps + outputs in timeline |
-| `buildWorkflowHistory.ts` | Merges timeline + display_outputs |
-| `workflowReport.ts` | Prompts / parameter helpers |
+| `buildWorkflowHistory.ts` | Maps `display_outputs` to history items |
+| `workflowAsk.ts` | Resolves backend-driven ask prompt + submittable parameter |
 | `optimisticWorkflowTransition.ts` | Optimistic UI before API returns |
 | `TaskCompletionNextSteps.tsx` | Post-completion report actions |
 
@@ -151,7 +151,9 @@ WorkflowComposer → taskStore.submitParameter
 | `StandardReferenceLink.tsx` | Clickable refs from outputs |
 | `standardsBrowseUtils.ts` / `standardsReferenceLinks.ts` | Helpers |
 
-### `dev/` (16 files)
+### Inline dev UI (`dev/desktop_ui/`)
+
+Moved out of `components/` for consistency with other dev tooling. See [`dev/desktop_ui/README.md`](../../../../dev/desktop_ui/README.md).
 
 | File | Purpose |
 | --- | --- |
@@ -159,13 +161,7 @@ WorkflowComposer → taskStore.submitParameter
 | `DevNodeHoverSurface.tsx` / `DevNodeTooltip.tsx` | Hover UI on outputs |
 | `NodeEditTab.tsx` | Right-panel YAML edit tab |
 | `inspector/DeveloperInspector.tsx` | Floating inspector shell |
-| `inspector/InspectorPanels.tsx` | Tab body loader |
-| `inspector/ExecutionTracePanel.tsx` | Execution trace |
-| `inspector/PlannerPanel.tsx` | Planner decisions |
-| `inspector/ValueProvenancePanel.tsx` | Value provenance |
-| `inspector/InspectorGraphPanel.tsx` | Graph integrity view |
-| `inspector/inspectorStore.ts` | Inspector UI state (local Zustand) |
-| `inspector/useInspectionPayload.ts` | Fetches inspection API |
+| `inspector/*` | Inspector panels, store, hooks |
 
 ### `inputs/` (13 files)
 

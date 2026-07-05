@@ -20,6 +20,11 @@ from engine.reference.knowledge_paths import parameters_root
 from engine.reference.node_types import normalize_node_metadata
 from engine.reference.graph_db import GraphEdgeRecord, GraphNodeRecord
 from engine.reference.node_sources import iter_node_source_paths, source_rel_path
+from engine.reference.standards_paths import (
+    resolve_pack_workflows_dir,
+    workflow_belongs_to_pack,
+    workflow_source_rel_path,
+)
 from engine.reference.equation_sidecar import merge_equation_sidecar_metadata
 from engine.reference.paragraph_sidecar import merge_paragraph_sidecar_metadata
 from engine.reference.workflow_sidecar import merge_workflow_sidecar_metadata
@@ -76,6 +81,32 @@ def _finalize_source_metadata(
     return apply_pack_metadata(enriched, pack_metadata)
 
 
+def _iter_pack_workflow_source_paths(
+    pack_root: Path,
+    pack_metadata: dict[str, Any],
+) -> list[Path]:
+    """Yield workflow YAML and sidecar paths linked to a standards pack."""
+    workflows_dir = resolve_pack_workflows_dir(pack_root)
+    legacy_dir = pack_root / "nodes" / "workflows"
+    if not workflows_dir.is_dir() or workflows_dir == legacy_dir:
+        return []
+
+    paths: list[Path] = []
+    for path in sorted(workflows_dir.glob("*.yaml")):
+        text = path.read_text(encoding="utf-8")
+        metadata, _body = split_frontmatter(text)
+        if str(metadata.get("type") or "") != "workflow":
+            continue
+        if not workflow_belongs_to_pack(metadata, pack_metadata):
+            continue
+        paths.append(path)
+        node_id = str(metadata.get("id") or path.stem).strip()
+        sidecar_dir = path.parent / node_id
+        if sidecar_dir.is_dir():
+            paths.extend(sorted(sidecar_dir.glob("*.yaml")))
+    return paths
+
+
 def compute_source_fingerprint(pack_root: Path) -> str:
     """Fingerprint micro-graph source files under ``nodes/`` for cache invalidation."""
     pack_root = pack_root.resolve()
@@ -99,6 +130,12 @@ def compute_source_fingerprint(pack_root: Path) -> str:
                 side_stat = sidecar_path.stat()
                 side_rel = sidecar_path.relative_to(pack_root).as_posix()
                 parts.append(f"{side_rel}:{side_stat.st_mtime_ns}:{side_stat.st_size}")
+
+    pack_metadata = load_pack_metadata(pack_root)
+    for path in _iter_pack_workflow_source_paths(pack_root, pack_metadata):
+        stat = path.stat()
+        rel = workflow_source_rel_path(path)
+        parts.append(f"{rel}:{stat.st_mtime_ns}:{stat.st_size}")
 
     payload = "\n".join(parts).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
@@ -156,6 +193,43 @@ def _inject_referenced_global_parameters(by_id: dict[str, _DiscoveredSourceNode]
             source_path=path,
         )
         pending.update(_collect_param_references(meta))
+
+
+def _discover_pack_workflow_sources(
+    pack_root: Path,
+    *,
+    pack_metadata: dict[str, Any],
+) -> list[_DiscoveredSourceNode]:
+    """Scan repo-root ``workflows/`` for workflow node sources linked to this pack."""
+    workflows_dir = resolve_pack_workflows_dir(pack_root)
+    legacy_dir = pack_root / "nodes" / "workflows"
+    if not workflows_dir.is_dir() or workflows_dir == legacy_dir:
+        return []
+
+    discovered: list[_DiscoveredSourceNode] = []
+    for path in sorted(workflows_dir.glob("*.yaml")):
+        text = path.read_text(encoding="utf-8")
+        metadata, body = split_frontmatter(text)
+        if str(metadata.get("type") or "") != "workflow":
+            continue
+        if not workflow_belongs_to_pack(metadata, pack_metadata):
+            continue
+        metadata = _finalize_source_metadata(path, metadata, pack_metadata=pack_metadata)
+        node_id = str(metadata.get("id") or path.stem).strip()
+        node_type = str(metadata.get("type") or "node").strip()
+        if not node_id or not is_micro_graph_node(metadata, node_type):
+            continue
+        discovered.append(
+            _DiscoveredSourceNode(
+                node_id=node_id,
+                node_type=node_type,
+                metadata=metadata,
+                body=body,
+                source_rel_path=workflow_source_rel_path(path),
+                source_path=path,
+            )
+        )
+    return discovered
 
 
 def discover_micro_graph_sources(pack_root: Path) -> list[_DiscoveredSourceNode]:
@@ -270,6 +344,10 @@ def discover_micro_graph_sources(pack_root: Path) -> list[_DiscoveredSourceNode]
                 source_path=item.source_path,
             )
     _inject_referenced_global_parameters(by_id)
+    for item in _discover_pack_workflow_sources(pack_root, pack_metadata=pack_metadata):
+        existing = by_id.get(item.node_id)
+        if existing is None:
+            by_id[item.node_id] = item
     return list(by_id.values())
 
 

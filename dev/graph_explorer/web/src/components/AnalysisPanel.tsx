@@ -80,7 +80,18 @@ export default function AnalysisPanel({ analysis, onSelectNode }: AnalysisPanelP
           <h3>Cycles ({analysis.cycles.length})</h3>
           {analysis.cycles.map((cycle, index) => (
             <div key={index} style={{ fontSize: 12, marginBottom: 6 }}>
-              {cycle.join(' → ')}
+              {cycle.map((nodeId, nodeIndex) => (
+                <span key={`${index}-${nodeId}-${nodeIndex}`}>
+                  {nodeIndex > 0 ? ' → ' : null}
+                  <button
+                    type="button"
+                    className="analysis-item analysis-item--inline"
+                    onClick={() => onSelectNode(nodeId)}
+                  >
+                    {nodeId}
+                  </button>
+                </span>
+              ))}
             </div>
           ))}
         </div>
@@ -90,8 +101,15 @@ export default function AnalysisPanel({ analysis, onSelectNode }: AnalysisPanelP
         <div className="detail-section">
           <h3>Disconnected components ({analysis.disconnected_components.length})</h3>
           {analysis.disconnected_components.map((component, index) => (
-            <div key={index} style={{ fontSize: 12, marginBottom: 6 }}>
-              Component {index + 1}: {component.length} nodes
+            <div key={index} style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 12, marginBottom: 4 }}>
+                Component {index + 1} ({component.length} nodes)
+              </div>
+              {component.map((nodeId) => (
+                <div key={nodeId} className="analysis-item" onClick={() => onSelectNode(nodeId)}>
+                  {nodeId}
+                </div>
+              ))}
             </div>
           ))}
         </div>

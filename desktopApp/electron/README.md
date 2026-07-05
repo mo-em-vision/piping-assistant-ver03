@@ -33,7 +33,8 @@ Runs outside the React renderer. Owns `BrowserWindow`, spawns and health-checks 
 - Active: **High** — required for `useBackendConnection` and `useWindowDisplayState`
 
 **`services/backendProcess.ts`**
-- Sets `DEV_STUDIO_ENABLED=1` and `DEV_INSPECTION_ENABLED=1` when `enableDevStudio` (unpackaged)
+- Sets `DEV_STUDIO_ENABLED=1` and `DEV_INSPECTION_ENABLED=1` for all Electron backend spawns (`defaultBackendDevFlags`)
+- Graph explorer child process (`GraphExplorerProcessService`) starts/stops when renderer toggles Dev Mode via `devMode:sync` IPC
 - Polls `buildHealthUrl(backendUrl)` until timeout or connected
 - Active: **High**
 

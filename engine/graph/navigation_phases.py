@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
-from engine.graph.assumption_checker import AssumptionEvaluation
+from engine.graph.assumption_checker import AssumptionEvaluation, field_value
 from engine.graph.workflow_navigation import WorkflowNavigationConfig, load_workflow_navigation
 from engine.reference.standards_reader import StandardsReader
+from models.fact import Fact, fact_is_expansion_ready
 from models.planning import NavigationPhase
 
 
@@ -32,6 +34,39 @@ def _ordered_missing(
     return ordered
 
 
+def _field_satisfied(field_id: str, existing_inputs: dict[str, Fact]) -> bool:
+    fact = existing_inputs.get(field_id)
+    if fact is None:
+        return False
+    if field_value(field_id, existing_inputs) is None:
+        return False
+    return fact_is_expansion_ready(fact)
+
+
+def missing_fields_from_navigation(
+    config: WorkflowNavigationConfig,
+    existing_inputs: dict[str, Fact],
+) -> dict[str, list[str]]:
+    """Return nav-config fields that are not yet expansion-ready in task inputs."""
+    result: dict[str, list[str]] = {}
+    for phase, fields in config.phase_order:
+        missing = [field_id for field_id in fields if not _field_satisfied(field_id, existing_inputs)]
+        if missing:
+            result[phase.value] = missing
+    return result
+
+
+def _merge_phase_missing(
+    base: dict[str, list[str]],
+    extra: dict[str, list[str]],
+) -> dict[str, list[str]]:
+    merged = {phase: list(fields) for phase, fields in base.items()}
+    for phase, fields in extra.items():
+        combined = list(dict.fromkeys((merged.get(phase) or []) + list(fields)))
+        merged[phase] = combined
+    return merged
+
+
 def _questions_for_fields(
     fields: list[str],
     question_map: dict[str, str],
@@ -51,6 +86,7 @@ def build_workflow_phased_navigation(
     user_inputs: list[str],
     execution_eval: AssumptionEvaluation,
     question_map: dict[str, str],
+    existing_inputs: dict[str, Fact] | None = None,
 ) -> PhasedNavigation:
     """Partition missing fields into ordered navigation phases from workflow config."""
     result = PhasedNavigation()
@@ -105,6 +141,10 @@ def build_workflow_phased_navigation(
         NavigationPhase.EXECUTION_ASSUMPTIONS.value: phase5,
         NavigationPhase.DEFINITION_EQUATION_COMPLETION.value: phase_definition,
     }
+
+    if existing_inputs:
+        nav_missing = missing_fields_from_navigation(config, existing_inputs)
+        result.phase_missing = _merge_phase_missing(result.phase_missing, nav_missing)
 
     phase_sequence = (
         NavigationPhase.EXPANSION_ASSUMPTIONS,

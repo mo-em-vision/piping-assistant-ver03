@@ -59,7 +59,7 @@ No file is executed standalone. Consumers import named singletons:
 
 - `src/store/*` (except `rightPanelStore`, `uiStore`, `taskStateManager`)
 - `src/dev-studio/api/devStudioApi.ts`
-- `src/components/standards/*`, `src/components/dev/inspector/*`
+- `src/components/standards/*`, `dev/desktop_ui/inspector/*`
 - `tests/` (mocked or real module imports)
 
 ## Runtime Usage

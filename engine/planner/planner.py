@@ -276,6 +276,7 @@ class Planner:
             user_inputs=missing,
             execution_eval=execution_eval,
             question_map=question_map,
+            existing_inputs=existing_inputs,
         )
 
         all_missing = phased.all_missing

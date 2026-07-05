@@ -384,11 +384,11 @@ def collect_path_interactions(
     seen: set[str] = set()
     for node_id in node_ids:
         record = reader.load(node_id)
-    for spec in load_node_interactions(record, reader):
-        if spec.variable in seen:
-            continue
-        seen.add(spec.variable)
-        merged.append(spec)
+        for spec in load_node_interactions(record, reader):
+            if spec.variable in seen:
+                continue
+            seen.add(spec.variable)
+            merged.append(spec)
     return merged
 
 

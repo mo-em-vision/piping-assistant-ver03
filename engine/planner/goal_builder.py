@@ -9,7 +9,11 @@ from engine.graph.workflow_navigation import load_workflow_navigation
 from engine.planner.planner import _INPUT_QUESTIONS
 from engine.planner.tools import GraphTools
 from engine.reference.standards_reader import StandardsReader
-from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
+from engine.planner.workflow_goal_metadata import (
+    lookup_fields_for_workflow,
+    root_target_for_workflow,
+    selection_fields_for_workflow,
+)
 from engine.state.goal_satisfaction import refresh_goal_satisfaction
 from engine.state.task_facts import active_facts
 from engine.state.task_goals import clear_goal_store, expand_goal, store_goal
@@ -22,20 +26,10 @@ from models.goal import (
 from models.goal_store import GoalStore
 from models.planning import NavigationPhase
 from models.task import Task
+from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 
-_LOOKUP_FIELDS = frozenset(
-    {
-        "allowable_stress",
-        "weld_joint_efficiency",
-        "weld_joint_strength_reduction_factor_W",
-        "temperature_coefficient_Y",
-    }
-)
-
-_SELECTION_FIELDS = frozenset({"pressure_loading", "geometry_input_mode", "d_input_mode"})
-
-_ROOT_TARGETS = {
-    PIPE_WALL_THICKNESS_DESIGN: "required-wall-thickness",
+_DEFAULT_ROOT_TARGETS = {
+    PIPE_WALL_THICKNESS_DESIGN: "minimum-required-thickness",
     MAWP_DESIGN: "maximum-allowable-working-pressure",
 }
 
@@ -68,10 +62,12 @@ def _child_goal_for_field(
     workflow_id: str,
     root_id: str,
     question_map: dict[str, str],
+    selection_fields: frozenset[str],
+    lookup_fields: frozenset[str],
 ) -> Any:
     prompt = question_map.get(field_id) or _INPUT_QUESTIONS.get(field_id) or f"Provide {field_id.replace('_', ' ')}"
     name = prompt.split(".")[0] if "." in prompt else prompt
-    if field_id in _SELECTION_FIELDS:
+    if field_id in selection_fields:
         return selection_goal(
             key=f"select-{field_id}",
             name=name,
@@ -83,7 +79,7 @@ def _child_goal_for_field(
             phase=phase,
             order=order,
         )
-    if field_id in _LOOKUP_FIELDS:
+    if field_id in lookup_fields:
         return lookup_goal(
             key=f"lookup-{field_id}",
             name=name,
@@ -163,10 +159,14 @@ def build_goal_tree(
             user_inputs=missing_inputs,
             execution_eval=execution_eval,
             question_map=qmap,
+            existing_inputs=existing_inputs,
         )
 
     clear_goal_store(task)
-    target = _ROOT_TARGETS.get(slug, "required-wall-thickness")
+    fallback_target = _DEFAULT_ROOT_TARGETS.get(slug, "required-wall-thickness")
+    target = root_target_for_workflow(reader, workflow_id, fallback=fallback_target)
+    selection_fields = selection_fields_for_workflow(reader, workflow_id)
+    lookup_fields = lookup_fields_for_workflow(reader, workflow_id)
     title = _resolve_goal_title(reader, workflow_id, graph)
     root = calculation_goal(
         key="verify-engineering-goal",
@@ -193,6 +193,8 @@ def build_goal_tree(
                 workflow_id=workflow_id,
                 root_id=root.id,
                 question_map=qmap,
+                selection_fields=selection_fields,
+                lookup_fields=lookup_fields,
             )
             expand_goal(task, root.id, child)
 
@@ -208,6 +210,8 @@ def build_goal_tree(
             workflow_id=workflow_id,
             root_id=root.id,
             question_map=qmap,
+            selection_fields=selection_fields,
+            lookup_fields=lookup_fields,
         )
         expand_goal(task, root.id, child)
 

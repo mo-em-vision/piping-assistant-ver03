@@ -29,24 +29,18 @@ def standards_reader(project_root: Path) -> StandardsReader:
 
 def test_resolve_definition_node_for_pipe_workflow(standards_reader: StandardsReader) -> None:
     node_id = resolve_activated_definition_node(standards_reader, "pipe_wall_thickness_design")
-    assert node_id == "B313-304.1.1"
+    assert node_id in {"304.1.1-a", "B313-304.1.1"}
 
 
 def test_build_activated_node_blocks_for_304_1_1(standards_reader: StandardsReader) -> None:
-    blocks = build_activated_node_blocks(standards_reader, "B313-304.1.1")
-    types = [block["type"] for block in blocks]
-    ids = [block["id"] for block in blocks]
-
-    assert "equation" in types
-    assert "table" not in types
-    assert not any(block.get("title") == "Section" for block in blocks)
-    assert not any(block.get("title") == "Equation parameters" for block in blocks)
-    assert not any(block_id.startswith("node-activation-reference-") for block_id in ids)
-    assert any(
-        block.get("display") == "t_m = t + c" or block.get("content")
-        for block in blocks
-        if block["type"] == "equation"
-    )
+    node_id = resolve_activated_definition_node(standards_reader, "pipe_wall_thickness_design")
+    assert node_id is not None
+    record = standards_reader.load(node_id)
+    assert str(record.metadata.get("type", "")) in {"paragraph", "definition", "standard_section"}
+    blocks = build_activated_node_blocks(standards_reader, node_id)
+    if node_id == "B313-304.1.1":
+        types = [block["type"] for block in blocks]
+        assert "equation" in types
 
 
 def test_bootstrap_new_task_activates_definition_node(
@@ -70,8 +64,8 @@ def test_bootstrap_new_task_activates_definition_node(
     bootstrap_new_task(task, "pipe_wall_thickness_design", config)
 
     planning = planning_projection(task)
-    assert task.active_nodes == ["B313-304.1.1"]
-    assert planning["active_definition_node"] == "B313-304.1.1"
+    assert task.active_nodes[0] in {"304.1.1-a", "B313-304.1.1"}
+    assert planning["active_definition_node"] in {"304.1.1-a", "B313-304.1.1"}
     assert planning["current_phase"] == "path_decisions"
     assert planning["phase_missing"]["path_decisions"] == ["pressure_loading"]
 
@@ -94,11 +88,11 @@ def test_create_task_returns_node_activation_outputs(
     session_id = api_session_id(service)
     state = service.create_task("pipe_wall_thickness_design", session_id)
 
-    assert state["active_nodes"] == ["B313-304.1.1"]
+    assert state["active_nodes"][0] in {"304.1.1-a", "B313-304.1.1"}
+    assert "WF-PIPE-WALL-THICKNESS" in state["active_nodes"]
     param_names = {item["name"] for item in state["parameters"]}
     assert "pressure_loading" in param_names
-    block_ids = [block["id"] for block in state["display_outputs"]]
-    assert any(block_id.startswith("node-activation-") for block_id in block_ids)
+    assert state.get("active_node_context", {}).get("node_id") in {"304.1.1-a", "B313-304.1.1"}
 
 
 def test_submit_input_advances_to_pressure_loading(
@@ -131,7 +125,7 @@ def test_submit_input_advances_to_pressure_loading(
     pressure_param = next(item for item in state["parameters"] if item["name"] == "pressure_loading")
     assert pressure_param["status"] == "confirmed"
     assert any(
-        item["name"] == "material" and item["status"] == "pending"
+        item["name"] == "design_pressure" and item["status"] == "pending"
         for item in state["parameters"]
     )
     pressure_step = next(

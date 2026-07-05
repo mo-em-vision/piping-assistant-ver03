@@ -51,30 +51,62 @@ def _priority_key(store: GraphStore, node_id: str, active_nodes: set[str]) -> tu
     return (type_order, priority_num, node_id)
 
 
+def _workflow_metadata(store: GraphStore, root_id: str) -> dict[str, Any]:
+    for candidate in (root_id, store.resolve_node_id(root_id) or ""):
+        if not candidate:
+            continue
+        node = store.get_node(candidate)
+        if node is not None and node.node_type == "workflow":
+            return node.metadata
+    return store.metadata(root_id)
+
+
 def _collect_expansion_assumptions(
     store: GraphStore,
     root_id: str,
 ) -> list[str]:
     """Assumption and interaction nodes directly linked from workflow root."""
     fields: list[str] = []
-    for edge in store.outgoing(root_id):
-        if edge.edge_type not in {"contains", "contains_paragraph", "references", "starts_from_paragraph", "related_to"}:
+    resolved_ids: list[str] = []
+    for candidate in (root_id, store.resolve_node_id(root_id) or ""):
+        if candidate and candidate not in resolved_ids:
+            resolved_ids.append(candidate)
+
+    for wf_id in resolved_ids:
+        for edge in store.outgoing(wf_id):
+            if edge.edge_type not in {
+                "contains",
+                "contains_paragraph",
+                "references",
+                "starts_from_paragraph",
+                "related_to",
+            }:
+                continue
+            node = store.get_node(edge.to_id)
+            if node is None:
+                continue
+            if is_ui_parameter(node.metadata, node.node_type):
+                field_name = parameter_input_id(node.metadata)
+                if field_name and field_name not in fields:
+                    fields.append(field_name)
+
+    for wf_id in resolved_ids:
+        anchored = workflow_anchor_target(_workflow_metadata(store, wf_id))
+        if not isinstance(anchored, str):
             continue
-        node = store.get_node(edge.to_id)
-        if node is None:
-            continue
-        if is_ui_parameter(node.metadata, node.node_type):
-            field_name = parameter_input_id(node.metadata)
-            if field_name:
-                fields.append(field_name)
-    anchored = workflow_anchor_target(store.metadata(root_id))
-    if isinstance(anchored, str):
         for edge in store.outgoing(anchored, edge_types={"contains", "contains_paragraph"}):
             node = store.get_node(edge.to_id)
             if node and is_ui_parameter(node.metadata, node.node_type):
                 field_name = parameter_input_id(node.metadata)
-                if field_name:
+                if field_name and field_name not in fields:
                     fields.append(field_name)
+
+    navigation = _workflow_metadata(store, root_id).get("navigation") or {}
+    for field_name in navigation.get("assumption_gate_fields") or []:
+        name = str(field_name).strip()
+        if name and name not in fields:
+            fields.append(name)
+
     return fields
 
 

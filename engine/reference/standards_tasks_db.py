@@ -1,4 +1,4 @@
-"""Global workflow task content compiled from pack nodes/workflows/ YAML."""
+"""Global workflow task content compiled from repo-root ``workflows/*.yaml``."""
 
 from __future__ import annotations
 

@@ -61,6 +61,28 @@ def test_build_parameter_definitions_from_missing_inputs() -> None:
     assert pressure["submittable"] is True
 
 
+def test_build_parameter_definitions_includes_expansion_phase_guidance() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-thickness-desi-guidance", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "missing_assumptions": ["pressure_loading"],
+        "current_phase": "path_decisions",
+        "phase_missing": {"path_decisions": ["pressure_loading"]},
+        "phase_questions": {
+            "path_decisions": {
+                "pressure_loading": "Is the pipe subject to internal or external pressure?",
+            }
+        },
+    }
+    task.outputs = {"workflow": "pipe_wall_thickness_design"}
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    manager.replace_task(task.task_id, task)
+
+    parameters = build_parameter_definitions(manager.get_task(task.task_id))
+    pressure = next(item for item in parameters if item["name"] == "pressure_loading")
+    assert pressure["guidance"] == "Is the pipe subject to internal or external pressure?"
+
+
 def test_build_parameter_definitions_marks_only_submittable_fields() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test08", status=TaskStatus.AWAITING_INPUT)

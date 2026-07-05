@@ -1,7 +1,7 @@
 import type { TimelineStepStatus } from '@/types/frontend/taskState'
 import type { NodeProvenanceDto } from '@/types/backend/api'
 
-import { DevNodeHoverSurface } from '@/components/dev/DevNodeHoverSurface'
+import { DevNodeHoverSurface } from '@dev-ui/DevNodeHoverSurface'
 
 import './TimelineStep.css'
 

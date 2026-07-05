@@ -632,8 +632,17 @@ class GraphEngine:
             plan=plan,
         )
         specs = collect_path_interactions(reader, resolved_plan.execution_order)
+        root_slug = resolve_workflow_node_id(slug)
+        root_specs = collect_root_interactions(reader, root_slug)
+        merged_specs: list[Any] = []
+        seen_vars: set[str] = set()
+        for spec in (*root_specs, *specs):
+            if spec.variable in seen_vars:
+                continue
+            seen_vars.add(spec.variable)
+            merged_specs.append(spec)
         interaction_eval: InteractionEvaluation = evaluate_pending_interactions(
-            specs,
+            merged_specs,
             existing_inputs or {},
             phase="expansion",
         )

@@ -88,7 +88,7 @@ desktopApp/src/services/api/inspectionApi.ts
   → api/inspection.py (require_inspection_enabled)
   → engine/inspection/builder.py
   → engine/inspection/trace.py, provenance.py, integrity.py
-  → desktopApp/src/components/dev/inspector/DeveloperInspector.tsx
+  → dev/desktop_ui/inspector/DeveloperInspector.tsx
 ```
 
 ## Electron startup

@@ -6,13 +6,12 @@ import { SidePanelContextMenu } from '@/components/layout/SidePanelContextMenu'
 import { TaskErrorList } from '@/components/errors/TaskErrorList'
 import {
   buildWorkflowHistory,
-  getCurrentEditableParameter,
+  getWorkflowAsk,
 } from '@/components/workflow/buildWorkflowHistory'
 import { TaskCompletionNextSteps } from '@/components/workflow/TaskCompletionNextSteps'
 import { WorkflowComposer } from '@/components/workflow/WorkflowComposer'
 import { WorkflowHeader } from '@/components/workflow/WorkflowHeader'
 import { WorkflowHistory } from '@/components/workflow/WorkflowHistory'
-import { getNextStepPrompt } from '@/components/workflow/workflowReport'
 import '@/components/workflow/WorkflowPanel.css'
 import { useActiveTaskViewModel } from '@/hooks/useActiveTaskViewModel'
 import { useChatStore } from '@/store/chatStore'
@@ -41,10 +40,12 @@ export function CenterPanel() {
   const panelRef = useRef<HTMLElement>(null)
   const [askAiMenu, setAskAiMenu] = useState<AskAiMenuState | null>(null)
 
-  const currentParameter = useMemo(
-    () => getCurrentEditableParameter(activeTaskState),
-    [activeTaskState],
-  )
+  const workflowAsk = useMemo(() => {
+    if (!activeTaskState) {
+      return { kind: 'none' as const, prompt: null, parameter: null }
+    }
+    return getWorkflowAsk(activeTaskState, viewModel?.timeline ?? [])
+  }, [activeTaskState, viewModel?.timeline])
 
   const historyItems = useMemo(() => {
     if (!viewModel) {
@@ -53,14 +54,7 @@ export function CenterPanel() {
     return buildWorkflowHistory(viewModel.timeline, activeTaskState?.display_outputs ?? [])
   }, [viewModel, activeTaskState?.display_outputs])
 
-  const nextStepPrompt = useMemo(() => {
-    if (!viewModel) {
-      return null
-    }
-    return getNextStepPrompt(viewModel.timeline, currentParameter)
-  }, [viewModel, currentParameter])
-
-  const showCompletionNextSteps = isTaskCompleted(activeTaskState) && !currentParameter
+  const showCompletionNextSteps = isTaskCompleted(activeTaskState) && workflowAsk.kind === 'none'
   const fallbackProvenance = useMemo(
     () => activeContextToProvenance(activeTaskState?.active_node_context),
     [activeTaskState?.active_node_context],
@@ -145,8 +139,7 @@ export function CenterPanel() {
           <TaskCompletionNextSteps taskId={activeTask.id} />
         ) : (
           <WorkflowComposer
-            parameter={currentParameter}
-            nextStepPrompt={nextStepPrompt}
+            ask={workflowAsk}
             disabled={!viewModel || (loading && !activeTaskState)}
             fallbackProvenance={fallbackProvenance}
           />

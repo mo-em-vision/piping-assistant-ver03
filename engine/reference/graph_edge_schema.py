@@ -231,6 +231,14 @@ def workflow_anchor_target(metadata: dict[str, Any]) -> str | None:
         target = edge_target(item)
         if target:
             return target
+    for entry in metadata.get("entry_points") or []:
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("role") or "") != "definition_anchor":
+            continue
+        paragraph = str(entry.get("paragraph") or "").strip()
+        if paragraph:
+            return paragraph
     return None
 
 

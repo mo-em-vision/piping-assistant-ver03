@@ -1,0 +1,43 @@
+---
+id: WF-PIPE-WALL-THICKNESS
+type: workflow
+key: pipe_wall_thickness_design
+name: Pipe Wall Thickness Design
+workflow_class: design_calculation
+description: >
+  Determine minimum required pipe wall thickness from applicable governing standards,
+  material properties, geometry, design conditions, and allowances via graph expansion.
+domain:
+- piping
+expected_authorities:
+- AUTH-ASME-B31.3
+- AUTH-ASME-B36.10M
+entry_points:
+- paragraph: 304.1.1-a
+  role: definition_anchor
+goal_expansion:
+  root_goal:
+    goal_class: calculation_goal
+    target_parameter: PARAM-minimum-required-thickness
+applicability:
+  applies_to:
+  - CONCEPT-pipe
+  - CONCEPT-wall-thickness
+  - CONCEPT-pressure
+report:
+  report_type: calculation_report
+  required_sections:
+  - objective
+  - authority_context
+  - inputs
+  - equations
+  - calculations
+  - validation
+  - warnings
+  - conclusion
+metadata:
+  status: draft
+  version: 1
+  last_revision: 2026-07-05
+  edited_by: admin
+---

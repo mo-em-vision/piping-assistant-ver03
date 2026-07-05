@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 
-import type { BackendStatusPayload } from '../src/config/constants'
+import type { BackendStatusPayload, GraphExplorerStatusPayload } from '../src/config/constants'
 
 export interface WindowDisplayStatePayload {
   isFullScreen: boolean
@@ -14,6 +14,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('backend:retry'),
   getWindowDisplayState: (): Promise<WindowDisplayStatePayload> =>
     ipcRenderer.invoke('window:getDisplayState'),
+  syncDevMode: (active: boolean): Promise<GraphExplorerStatusPayload | null> =>
+    ipcRenderer.invoke('devMode:sync', active),
+  getGraphExplorerStatus: (): Promise<GraphExplorerStatusPayload | null> =>
+    ipcRenderer.invoke('graphExplorer:getStatus'),
+  openStudioWindow: (): Promise<void> => ipcRenderer.invoke('studio:open'),
   onBackendStatusChange: (callback: (status: BackendStatusPayload) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, status: BackendStatusPayload) => {
       callback(status)
@@ -23,6 +28,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     return () => {
       ipcRenderer.removeListener('backend:status', listener)
+    }
+  },
+  onGraphExplorerStatusChange: (
+    callback: (status: GraphExplorerStatusPayload) => void,
+  ): (() => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, status: GraphExplorerStatusPayload) => {
+      callback(status)
+    }
+
+    ipcRenderer.on('graphExplorer:status', listener)
+
+    return () => {
+      ipcRenderer.removeListener('graphExplorer:status', listener)
     }
   },
   onWindowDisplayStateChange: (

@@ -6,8 +6,8 @@ Navigation only. Paragraph content lives in flat `nodes/paragraph/{id}.yaml` fil
 
 | Analysis | Root |
 |----------|------|
-| Pipe Wall Thickness Design | [nodes/workflows/pipe-wall-thickness.yaml](nodes/workflows/pipe-wall-thickness.yaml) (`WF-PIPE-WALL-THICKNESS`, sidecar `workflows/WF-PIPE-WALL-THICKNESS/runtime.yaml`) |
-| Maximum Allowable Working Pressure (MAWP) | [nodes/workflows/mawp.yaml](nodes/workflows/mawp.yaml) (`WF-MAWP`, sidecar `workflows/WF-MAWP/runtime.yaml`) |
+| Pipe Wall Thickness Design | [`workflows/pipe-wall-thickness.yaml`](../../../../workflows/pipe-wall-thickness.yaml) (`WF-PIPE-WALL-THICKNESS`, sidecar `WF-PIPE-WALL-THICKNESS/runtime.yaml`) |
+| Maximum Allowable Working Pressure (MAWP) | [`workflows/mawp.yaml`](../../../../workflows/mawp.yaml) (`WF-MAWP`, sidecar `WF-MAWP/runtime.yaml`) |
 
 ## Section 302 — Allowable stresses
 

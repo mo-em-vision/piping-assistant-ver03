@@ -1,7 +1,16 @@
 export const constants = {
   appName: 'Engineering Knowledge Graph Assistant',
   defaultBackendUrl: 'http://localhost:8000',
+  graphExplorerUrl: 'http://127.0.0.1:8765',
 } as const
+
+export type GraphExplorerStatus = 'stopped' | 'starting' | 'connected' | 'error'
+
+export interface GraphExplorerStatusPayload {
+  status: GraphExplorerStatus
+  detail?: string
+  url: string
+}
 
 export const backendConfig = {
   healthPath: '/health',

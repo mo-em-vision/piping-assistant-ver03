@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from engine.reference.knowledge_paths import workflows_root
 from engine.reference.standards_paths import (
     list_standard_packs,
     resolve_global_tasks_db,
@@ -33,7 +34,7 @@ def test_resolve_pack_workflows_dir_for_asme_b31_3(project_root: Path) -> None:
     standards_root = project_root / "knowledge" / "standards"
     pack = resolve_standard_pack(standards_root, "asme_b31.3")
     workflows_dir = resolve_pack_workflows_dir(pack)
-    assert workflows_dir == pack / "nodes" / "workflows"
+    assert workflows_dir == workflows_root()
     workflow = workflows_dir / "pipe-wall-thickness.yaml"
     if not workflow.is_file():
         pytest.skip("workflow YAML not present in this workspace")

@@ -38,7 +38,7 @@ Single source of truth for engineering **reference data** (not runtime task stat
 - Embedded children (`embedded_nodes.py`) become first-class graph nodes.
 - `node_types.py` normalizes legacy types to canonical micro-graph types (`equation`, `lookup`, `validation_rule`, `table`, …).
 - ASTM material slugs (`astm_a53`, `astm_a106`, …) resolve to the consolidated `astm` pack via `standards_paths.py`.
-- Global workflow index: `knowledge/standards/workflows.db` (built from `{pack}/nodes/workflows/*.yaml`).
+- Global workflow index: `knowledge/standards/workflows.db` (built from repo-root `workflows/*.yaml`).
 
 ## Execution Traces
 

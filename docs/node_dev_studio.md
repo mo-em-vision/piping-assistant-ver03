@@ -2,7 +2,7 @@
 
 Development-only web application for **authoring micro-graph nodes** in the Ver03 standards corpus. Edit YAML sources, validate relationships and equations, and sync the compiled graph database used by the desktop app at runtime.
 
-The studio runs in a browser on localhost. It does not ship in release builds and does not modify the production Electron UI.
+The studio runs on localhost. In the desktop app, enable **Dev Mode** (header toggle) to use the inline **Node Edit** tab or open the full **Node Dev Studio** window. Packaged Electron builds include dev studio APIs when `VITE_ENABLE_DEV_TOOLS=true` (set in `npm run package:win`).
 
 ---
 
@@ -28,8 +28,8 @@ Node Dev Studio helps developers and AI-assisted workflows maintain the engineer
 |----------|----------|
 | Frontend | Separate Vite entry: `desktopApp/studio.html` → `src/dev-studio/` |
 | Backend | Gated routes under `/api/v1/dev/*`; returns 404 unless `DEV_STUDIO_ENABLED=1` |
-| Desktop app | `desktopApp/src/App.tsx` unchanged; studio never imported in production bundle |
-| Release build | `npm run build` excludes `studio.html` unless `VITE_DEV_STUDIO=true` |
+| Desktop app | **Dev Mode** toggle (`devToolsStore.devModeActive`) gates inline Node Edit + optional `studio.html` window; lazy chunks load when `env.devToolsAvailable` |
+| Release build | `studio.html` included when `VITE_ENABLE_DEV_TOOLS=true`; APIs enabled on all Electron backend spawns |
 | SQLite access | Browser talks to Python API only — no direct DB access from the client |
 | Disable | Unset `DEV_STUDIO_ENABLED` — production API behavior unchanged |
 

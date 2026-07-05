@@ -397,7 +397,7 @@ Select text
 
 ↓
 
-Ask AI
+Ask AI in Side Chat
 
 ↓
 

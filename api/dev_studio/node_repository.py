@@ -12,10 +12,17 @@ from engine.reference.graph_compile import is_micro_graph_node
 from engine.reference.standards_markdown import compose_frontmatter, split_frontmatter
 from engine.validation.node_revision_metadata import stamp_revision_metadata
 from engine.reference.node_sources import iter_node_source_paths, source_rel_path
-from engine.reference.standards_paths import list_standard_packs, resolve_standard_pack
+from engine.reference.standards_paths import (
+    list_standard_packs,
+    resolve_pack_workflows_dir,
+    resolve_standard_pack,
+    workflow_belongs_to_pack,
+    workflow_source_rel_path,
+)
+from engine.reference.pack_metadata import load_pack_metadata
 
 _DEFAULT_TYPE_PATHS: dict[str, str] = {
-    "workflow": "nodes/workflows",
+    "workflow": "workflows",
     "paragraph": "nodes/paragraph",
     "parameter": "nodes/parameters",
     "text": "nodes/text",
@@ -64,20 +71,31 @@ class NodeRepository:
 
     def discover_nodes(self, pack_root: Path) -> list[StoredNode]:
         nodes_dir = pack_root / "nodes"
-        if not nodes_dir.is_dir():
-            return []
         discovered: list[StoredNode] = []
         seen_ids: set[str] = set()
         seen_paths: set[Path] = set()
-        for path in iter_node_source_paths(nodes_dir):
-            if path in seen_paths:
-                continue
-            seen_paths.add(path)
-            stored = self._load_file(pack_root, path)
-            if stored is None or stored.node_id in seen_ids:
-                continue
-            seen_ids.add(stored.node_id)
-            discovered.append(stored)
+        if nodes_dir.is_dir():
+            for path in iter_node_source_paths(nodes_dir):
+                if path in seen_paths:
+                    continue
+                seen_paths.add(path)
+                stored = self._load_file(pack_root, path)
+                if stored is None or stored.node_id in seen_ids:
+                    continue
+                seen_ids.add(stored.node_id)
+                discovered.append(stored)
+        workflows_dir = resolve_pack_workflows_dir(pack_root)
+        pack_metadata = load_pack_metadata(pack_root)
+        if workflows_dir.is_dir():
+            for path in sorted(workflows_dir.glob("*.yaml")):
+                if path in seen_paths:
+                    continue
+                seen_paths.add(path)
+                stored = self._load_workflow_file(path, pack_metadata=pack_metadata)
+                if stored is None or stored.node_id in seen_ids:
+                    continue
+                seen_ids.add(stored.node_id)
+                discovered.append(stored)
         return sorted(discovered, key=lambda item: item.node_id)
 
     def get_node(self, pack: str, node_id: str) -> StoredNode | None:
@@ -103,7 +121,10 @@ class NodeRepository:
             raise ValueError(f"Unsupported node type: {node_type}")
 
         rel_path = source_rel_path or self._default_rel_path(node_id, node_type, metadata)
-        file_path = pack_root / rel_path
+        if node_type == "workflow":
+            file_path = resolve_pack_workflows_dir(pack_root) / Path(rel_path).name
+        else:
+            file_path = pack_root / rel_path
         file_path.parent.mkdir(parents=True, exist_ok=True)
         stamped = stamp_revision_metadata(metadata)
         file_path.write_text(compose_frontmatter(stamped, body), encoding="utf-8")
@@ -183,7 +204,34 @@ class NodeRepository:
             folder = _KIND_PATHS.get(kind)
         if folder is None:
             folder = f"nodes/{node_type}s" if node_type else "nodes"
+        if node_type == "workflow":
+            slug = str(meta.get("slug") or meta.get("key") or node_id).strip().replace("_", "-")
+            return f"{folder}/{slug}.yaml"
         return f"{folder}/{node_id}.yaml"
+
+    def _load_workflow_file(
+        self,
+        path: Path,
+        *,
+        pack_metadata: dict[str, Any],
+    ) -> StoredNode | None:
+        text = path.read_text(encoding="utf-8")
+        metadata, body = split_frontmatter(text)
+        node_id = str(metadata.get("id") or path.stem).strip()
+        node_type = str(metadata.get("type") or "node").strip()
+        if not node_id or not is_micro_graph_node(metadata, node_type):
+            return None
+        if not workflow_belongs_to_pack(metadata, pack_metadata):
+            return None
+        rel = workflow_source_rel_path(path)
+        return StoredNode(
+            node_id=node_id,
+            node_type=node_type,
+            metadata=metadata,
+            body=body,
+            source_rel_path=rel,
+            source_file=path,
+        )
 
     def _load_file(self, pack_root: Path, path: Path) -> StoredNode | None:
         text = path.read_text(encoding="utf-8")

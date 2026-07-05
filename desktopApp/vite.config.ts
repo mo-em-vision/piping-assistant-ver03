@@ -3,7 +3,11 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import electron from 'vite-plugin-electron/simple'
 
+import { repoRoot, resolveAliases } from './resolveAliases.mjs'
+
 const isStudioOnly = process.env.VITE_DEV_STUDIO === 'true'
+const enableDevTools = process.env.VITE_ENABLE_DEV_TOOLS === 'true'
+const desktopAppDir = __dirname
 
 export default defineConfig({
   plugins: isStudioOnly
@@ -23,17 +27,35 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 5173,
     strictPort: false,
+    fs: {
+      allow: [repoRoot],
+    },
   },
   build: {
     rollupOptions: {
       input: isStudioOnly
         ? { studio: path.resolve(__dirname, 'studio.html') }
-        : { main: path.resolve(__dirname, 'index.html') },
+        : {
+            main: path.resolve(__dirname, 'index.html'),
+            ...(enableDevTools ? { studio: path.resolve(__dirname, 'studio.html') } : {}),
+          },
     },
   },
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'src'),
-    },
+    alias: [
+      ...Object.entries(resolveAliases).map(([find, replacement]) => ({ find, replacement })),
+      {
+        find: /^zustand$/,
+        replacement: path.join(desktopAppDir, 'node_modules/zustand/esm/index.mjs'),
+      },
+    ],
+  },
+  optimizeDeps: {
+    exclude: ['zustand'],
+    include: [
+      // @xyflow/react's nested zustand v4 default-imports this CJS shim; pre-bundle for ESM interop.
+      'use-sync-external-store/shim/with-selector.js',
+      '@xyflow/react',
+    ],
   },
 })

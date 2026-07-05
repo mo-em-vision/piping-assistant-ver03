@@ -4,12 +4,6 @@ import type { TaskSummary } from '@/types/frontend/workspace'
 
 import './CreateTaskDialog.css'
 
-const STRAIGHT_PIPE_TASK_CONFIRMATION =
-  'Is the pipe wall thickness you would like to calculate for a straight section of pipe? Non-straight sections (fittings, bends) are not yet supported.'
-
-const MAWP_STRAIGHT_PIPE_CONFIRMATION =
-  'Is the MAWP calculation for a straight section of pipe? Non-straight sections (fittings, bends) are not yet supported.'
-
 interface CreateTaskDialogProps {
   open: boolean
   tasks: TaskSummary[]
@@ -64,18 +58,6 @@ export function CreateTaskDialog({
   }, [query, tasks])
 
   const handleSelect = (workflowId: string) => {
-    if (workflowId === 'pipe_wall_thickness_design') {
-      const confirmed = window.confirm(STRAIGHT_PIPE_TASK_CONFIRMATION)
-      if (!confirmed) {
-        return
-      }
-    }
-    if (workflowId === 'mawp_design') {
-      const confirmed = window.confirm(MAWP_STRAIGHT_PIPE_CONFIRMATION)
-      if (!confirmed) {
-        return
-      }
-    }
     onSelect(workflowId)
   }
 

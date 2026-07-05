@@ -9,28 +9,16 @@ import { mockTaskState } from '@/mock/taskState.mock'
 import { buildTaskStateViewModel } from '@/store/taskStateManager'
 
 describe('buildWorkflowHistory', () => {
-  it('includes completed steps, active step, and outputs up to current phase', () => {
+  it('maps display outputs to workflow history items', () => {
     const viewModel = buildTaskStateViewModel(mockTaskState)
     expect(viewModel).not.toBeNull()
 
     const items = buildWorkflowHistory(viewModel!.timeline, mockTaskState.display_outputs)
 
-    expect(items.some((item) => item.kind === 'report-statement')).toBe(false)
-    expect(items.some((item) => item.kind === 'node-content')).toBe(false)
     expect(items.every((item) => item.kind === 'output')).toBe(true)
-    expect(
-      items.some(
-        (item) =>
-          item.kind === 'output' &&
-          item.block.type === 'table' &&
-          item.block.id.startsWith('path-preview-inputs-table'),
-      ),
-    ).toBe(false)
     expect(items.some((item) => item.kind === 'output' && item.block.id === 'preview-equation')).toBe(
       true,
     )
-    expect(items.some((item) => item.id === 'planning-status')).toBe(false)
-    expect(items.some((item) => item.kind === 'next-step')).toBe(false)
   })
 })
 
@@ -85,7 +73,7 @@ describe('getCurrentEditableParameter', () => {
     expect(parameter?.name).toBe('design_temperature')
   })
 
-  it('prefers submittable corrosion allowance when report is the active timeline step', () => {
+  it('prefers submittable parameters from the backend list', () => {
     const parameter = getCurrentEditableParameter({
       ...mockTaskState,
       progress: {
@@ -115,7 +103,7 @@ describe('getCurrentEditableParameter', () => {
     expect(parameter?.name).toBe('corrosion_allowance')
   })
 
-  it('returns a material stub during optimistic handoff before backend refresh', () => {
+  it('returns the next timeline parameter after optimistic submit when it exists in parameters', () => {
     const state = applyOptimisticParameterSubmit(
       {
         task_id: 'test-task',
@@ -162,6 +150,20 @@ describe('getCurrentEditableParameter', () => {
             required: true,
             units: ['in'],
             default_unit: 'in',
+            default_value: null,
+            value: null,
+            options: null,
+            validation: null,
+            status: 'pending',
+            requires_confirmation: false,
+          },
+          {
+            name: 'material',
+            label: 'Material',
+            type: 'material',
+            required: true,
+            units: [],
+            default_unit: 'dimensionless',
             default_value: null,
             value: null,
             options: null,

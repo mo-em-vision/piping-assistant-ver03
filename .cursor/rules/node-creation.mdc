@@ -12,7 +12,7 @@ When adding paragraph text, formulas, tables, parameters, or workflows:
 1. Read the matching template in `docs/node-templates/` first:
    - `workflow.md`, `standard_section.md`, `text.md`, `equation.md`, `parameter.md`, `quantity.md`, `designation.md`, `table.md`, `assumption.md`, `interaction.md`, `lookup.md`
 2. Place micro-nodes under `standards/<pack>/nodes/` following the section hierarchy:
-   - Workflows: `nodes/workflows/<workflow-id>/node.yaml`
+   - Workflows: `workflows/<slug>.yaml` (repo root, not under `knowledge/`)
    - Sections: `nodes/<section-path>/node.yaml` (e.g. `304/304.1/304.1.1/`)
    - Equations: `nodes/<section-path>/equations/<name>/node.yaml`
    - Shared parameters: `nodes/parameters/<param-id>/node.yaml`

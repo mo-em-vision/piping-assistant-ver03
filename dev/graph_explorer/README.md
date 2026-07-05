@@ -8,6 +8,8 @@ Audit date: 2026-07-01. Documentation reflects the code as it exists today; no a
 
 ## Purpose
 
+Cross-tool context (shared data, production boundary, cross-links): [`../README.md`](../README.md).
+
 Live visualization of the **active task subgraph** for debugging the engineering knowledge graph. A **development-only** tool: separate Python (Starlette) + Vite/React processes; does not ship with the desktop application UI.
 
 Responsibilities:
@@ -32,8 +34,8 @@ The explorer **does not modify** graph sources or task state.
 | `__init__.py` | Package docstring only. |
 | `__main__.py` | CLI entry: uvicorn on `GRAPH_EXPLORER_HOST` / `GRAPH_EXPLORER_PORT`. |
 | `server.py` | Starlette app: REST routes, WebSocket, `GraphExplorerService`, lifespan watcher. |
-| `adapter.py` | `TaskContextReader`, `GraphExplorerAdapter`, `GraphViewProvider` protocol. |
-| `explorer_config.py` | Desktop user-data resolution, session auto-pick, `debug_log`. |
+| `adapter.py` | `TaskContextReader`, `GraphExplorerAdapter`. |
+| `explorer_config.py` | Desktop user-data resolution, session auto-pick. |
 | `serializer.py` | JSON-serializable DTOs for API responses. |
 | `analysis.py` | `analyze_graph` — structural analysis of node/edge lists. |
 | `delta.py` | `compute_delta` — diff snapshots for WebSocket incremental updates. |
@@ -48,7 +50,6 @@ The explorer **does not modify** graph sources or task state.
 | `package-lock.json` | Lockfile for root npm deps. |
 | `scripts/run-dev-server.mjs` | Spawns `python -m dev.graph_explorer` with `PROJECT_ROOT` / `PYTHONPATH`. |
 | `scripts/free-dev-ports.mjs` | Kills processes on ports 3000 and 8765 (Windows + Unix). |
-| `scripts/free-port.mjs` | Backward-compat wrapper calling `free-dev-ports.mjs` (not wired to npm scripts). |
 
 ### Web (`web/`)
 
@@ -114,7 +115,7 @@ Grep `from dev.graph_explorer` / `dev/graph_explorer` / `python -m dev.graph_exp
 |----------|---------|
 | `dev/graph_explorer/__main__.py` | `server.create_app` |
 | `dev/graph_explorer/server.py` | `explorer_config`, `adapter`, `analysis`, `delta`, `serializer`, `watcher` |
-| `dev/graph_explorer/adapter.py` | `explorer_config.debug_log`, `serializer.*` |
+| `dev/graph_explorer/adapter.py` | `serializer.*` |
 | `dev/graph_explorer/analysis.py` | `serializer.GraphEdgeDto`, `GraphNodeDto` |
 | `dev/graph_explorer/delta.py` | `serializer.*` |
 | `tests/dev/test_graph_explorer_adapter.py` | `GraphExplorerAdapter`, `TaskContextReader`, DTOs |
@@ -134,7 +135,7 @@ Grep `from dev.graph_explorer` / `dev/graph_explorer` / `python -m dev.graph_exp
 - Started only via `python -m dev.graph_explorer` or `npm run dev` in this directory.
 - Binds `127.0.0.1:8765` (API) and `localhost:3000` (UI) by default.
 - Reads `CLIConfig.sessions_dir`, `CLIConfig.standards_root`, and `desktop.db` project list — same config loader as CLI/API.
-- Writes only optional `debug-b5dce6.log` at repo root (debug instrumentation).
+- Writes only session/graph reads; no task-state writes.
 
 ### Verification
 
@@ -145,23 +146,8 @@ cd dev/graph_explorer && npm run dev   # manual smoke (not run during audit)
 
 ---
 
-## Possible Dead Code
-
-| Item | Why it appears unused | Confidence |
-|------|------------------------|------------|
-| `GraphViewProvider` (`adapter.py`) | Protocol defined; `GraphExplorerService` uses `GraphExplorerAdapter` directly with no alternate implementations. | High |
-| `resolve_workflow_node_id` import (`adapter.py`) | Imported from `engine.graph.graph_engine` but never referenced in file. | High |
-| `fetchContext()` (`useGraphWebSocket.ts`) | Exported; no callers in repo (grep). | High |
-| `scripts/free-port.mjs` | Not referenced by `package.json` or other scripts. | High |
-| `web/package.json` `"graph-explorer": "file:.."` | Parent package has no runtime exports used by web; likely unused dependency entry. | Medium |
-
-Do not delete based on audit alone.
-
----
-
 ## Notes
 
-- **Agent debug logging:** `__main__.py`, `explorer_config.debug_log`, `run-dev-server.mjs`, `free-dev-ports.mjs`, `vite.config.ts`, and `useGraphWebSocket.ts` contain `#region agent log` blocks writing `debug-b5dce6.log` and/or POSTing to `http://127.0.0.1:7445/ingest/...`. Unusual for production tooling; purpose unknown from static analysis beyond debug session `b5dce6`.
 - **Execution overlay:** `adapter._execution_states_from_task` maps `task.outputs._execution_trace` into node `metadata.execution_state` and edge `metadata.traversed` — integrates with Developer Inspection Framework trace data when present.
 - **Unknown nodes:** Active node IDs missing from graph DB get `node_type: "unknown"` placeholders in the subgraph.
 - **WebSocket keepalive:** Server loop `receive_text()` on `/ws/graph`; client does not send messages — disconnect handling only.
@@ -173,10 +159,11 @@ Do not delete based on audit alone.
 
 | Concern | This package | Elsewhere |
 |---------|--------------|-----------|
-| Task subgraph visualization | Browser React Flow, induced `active_nodes` subgraph | `desktopApp/.../inspector/InspectorGraphPanel.tsx` |
-| Graph structure CLI view | Not implemented (protocol only) | `cli/commands/graph.py` |
+| Full pack / CLI graph view | Not implemented | `cli/commands/graph.py` |
 | Graph DB build | Optional watcher → `build_pack_graph_db` | `scripts/build_graph_db.py`, `scripts/build_all_standards_dbs.py` |
 | Session/task read path | `TaskContextReader` via `ProjectSessionStore` | `api/desktop_service.py`, `cli/session_store.py` |
+
+Cross-tool subgraph visualization (Inspector graph panel vs this package): [`../README.md`](../README.md), [DUPLICATES.md](../../docs/audit/DUPLICATES.md#graph-visualization-dev).
 
 ---
 
@@ -288,7 +275,7 @@ AnalysisPanel displays report
 | **Public API** | `main()` |
 | **Inputs** | Env: `PROJECT_ROOT`, `GRAPH_EXPLORER_HOST`, `GRAPH_EXPLORER_PORT` |
 | **Outputs** | Runs HTTP server until killed |
-| **Side effects** | Binds TCP port; optional append to `debug-b5dce6.log` |
+| **Side effects** | Binds TCP port |
 | **Imported by** | `python -m` execution only |
 | **Imports** | `uvicorn`, `dev.graph_explorer.server.create_app` |
 | **Actively used** | Yes |
@@ -313,13 +300,13 @@ AnalysisPanel displays report
 | Field | Detail |
 |-------|--------|
 | **Purpose** | Bridge session state + `GraphStore` → DTO snapshots. |
-| **Public API** | `TaskContext`, `TaskContextReader`, `GraphExplorerAdapter`, `GraphViewProvider` |
+| **Public API** | `TaskContext`, `TaskContextReader`, `GraphExplorerAdapter` |
 | **Inputs** | `CLIConfig`, `session_id`; active_nodes from task state |
 | **Outputs** | `GraphContextDto`, `GraphSnapshotDto`, `NodeDetailDto`, search results |
-| **Side effects** | Reads SQLite graph DBs and session DB; `debug_log` |
+| **Side effects** | Reads SQLite graph DBs and session DB |
 | **Imported by** | `server.py`, `tests/dev/test_graph_explorer_adapter.py` |
 | **Imports** | `config`, `engine.*`, `models.task`, `storage.*`, `serializer`, `explorer_config` |
-| **Actively used** | Yes (`GraphViewProvider` itself unused as polymorphic type) |
+| **Actively used** | Yes |
 | **Confidence** | High |
 
 ### `explorer_config.py`
@@ -327,11 +314,11 @@ AnalysisPanel displays report
 | Field | Detail |
 |-------|--------|
 | **Purpose** | Align explorer with desktop user-data and project selection. |
-| **Public API** | `resolve_desktop_user_data`, `apply_desktop_user_data_env`, `resolve_session_id`, `debug_log` |
+| **Public API** | `resolve_desktop_user_data`, `apply_desktop_user_data_env`, `resolve_session_id` |
 | **Inputs** | `CLIConfig`, env vars, `ProjectRepository.list_projects` |
 | **Outputs** | Session id string; may set `DESKTOP_USER_DATA` |
 | **Side effects** | `os.environ.setdefault`; debug log file |
-| **Imported by** | `server.py`, `adapter.py` (debug_log only) |
+| **Imported by** | `server.py` |
 | **Imports** | `config.loader`, `storage.project_repository`, `storage.project_session_store` |
 | **Actively used** | Yes |
 | **Confidence** | High |
@@ -397,13 +384,13 @@ AnalysisPanel displays report
 | Field | Detail |
 |-------|--------|
 | **Purpose** | Real-time graph sync and REST helpers. |
-| **Public API** | `useGraphWebSocket`, `fetchNodeDetail`, `fetchAnalysis`, `fetchContext` |
+| **Public API** | `useGraphWebSocket`, `fetchNodeDetail`, `fetchAnalysis` |
 | **Inputs** | WebSocket messages; HTTP responses |
 | **Outputs** | Updates `graphStore` |
 | **Side effects** | WebSocket connection; polling interval; debug POSTs |
 | **Imported by** | `App.tsx` (`useGraphWebSocket`, `fetchNodeDetail`, `fetchAnalysis`) |
 | **Imports** | `graphStore`, `types` |
-| **Actively used** | Yes (`fetchContext` unused) |
+| **Actively used** | Yes |
 | **Confidence** | High |
 
 ### `web/src/store/graphStore.ts`

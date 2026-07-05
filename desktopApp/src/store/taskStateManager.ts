@@ -91,12 +91,20 @@ export function buildTaskStateViewModel(state: TaskStateDto | null): TaskStateVi
   }
 }
 
-export function isReportSectionVisible(timeline: TimelineStepViewModel[]): boolean {
-  const reportStep = timeline.find((step) => step.id === 'report')
-  if (!reportStep) {
-    return false
+export function isReportSectionVisible(
+  timeline: TimelineStepViewModel[],
+  state?: TaskStateDto | null,
+): boolean {
+  if (isTaskCompleted(state)) {
+    return true
   }
-  return reportStep.status === 'active' || reportStep.status === 'done'
+
+  return timeline.some(
+    (step) =>
+      (step.status === 'active' || step.status === 'done') &&
+      typeof step.hint === 'string' &&
+      step.hint.toLowerCase().includes('report'),
+  )
 }
 
 export function isTaskCompleted(state: TaskStateDto | null | undefined): boolean {

@@ -16,6 +16,7 @@ from engine.reference.asme_b31_3_table_ids import (
 )
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_tables import StandardsTablesDatabase
+from models.fact import Fact, NumericValue, fact_scalar_value, fact_unit
 
 
 def interpolate_by_temperature(
@@ -266,21 +267,36 @@ def propose_coefficient_defaults(
     temp = existing_inputs.get("design_temperature")
     if temp is not None and _thin_wall_assumed(existing_inputs):
         temp_unit = "F"
-        raw_temp = temp
-        if hasattr(temp, "value"):
+        if isinstance(temp, Fact):
+            raw_temp = fact_scalar_value(temp)
+            temp_unit = fact_unit(temp) or "F"
+        elif isinstance(temp, NumericValue):
+            raw_temp = temp.amount
+            temp_unit = temp.unit or "F"
+        elif hasattr(temp, "value"):
             raw_temp = temp.value
             temp_unit = getattr(temp, "unit", "F") or "F"
+        else:
+            raw_temp = temp
         try:
             group_raw = existing_inputs.get("metallurgical_group")
             group_value = None
             if group_raw is not None:
-                group_value = group_raw.value if hasattr(group_raw, "value") else group_raw
+                if isinstance(group_raw, Fact):
+                    group_value = fact_scalar_value(group_raw)
+                elif hasattr(group_raw, "value"):
+                    group_value = group_raw.value
+                else:
+                    group_value = group_raw
             material_raw = existing_inputs.get("material")
             material_value = None
             if material_raw is not None:
-                material_value = (
-                    material_raw.value if hasattr(material_raw, "value") else material_raw
-                )
+                if isinstance(material_raw, Fact):
+                    material_value = fact_scalar_value(material_raw)
+                elif hasattr(material_raw, "value"):
+                    material_value = material_raw.value
+                else:
+                    material_value = material_raw
             y_value, _ = lookup_y_coefficient(
                 pack_root,
                 design_temperature=float(raw_temp),
@@ -326,9 +342,24 @@ def propose_coefficient_defaults(
             )
 
     if material is not None and temp is not None:
-        mat_value = material.value if hasattr(material, "value") else material
-        raw_temp = temp.value if hasattr(temp, "value") else temp
-        temp_unit = getattr(temp, "unit", "F") if hasattr(temp, "unit") else "F"
+        if isinstance(material, Fact):
+            mat_value = fact_scalar_value(material)
+        elif hasattr(material, "value"):
+            mat_value = material.value
+        else:
+            mat_value = material
+        if isinstance(temp, Fact):
+            raw_temp = fact_scalar_value(temp)
+            temp_unit = fact_unit(temp) or "F"
+        elif isinstance(temp, NumericValue):
+            raw_temp = temp.amount
+            temp_unit = temp.unit or "F"
+        elif hasattr(temp, "value"):
+            raw_temp = temp.value
+            temp_unit = getattr(temp, "unit", "F") or "F"
+        else:
+            raw_temp = temp
+            temp_unit = "F"
         cat_value = joint_value
         try:
             w_value = lookup_w_factor(

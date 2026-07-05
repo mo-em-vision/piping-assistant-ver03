@@ -48,31 +48,3 @@ def resolve_session_id(config: CLIConfig, requested: str | None) -> str:
         if int(project.get("task_count") or 0) > 0:
             return str(project["id"])
     return requested or "default"
-
-
-def debug_log(hypothesis_id: str, message: str, data: dict) -> None:
-    # #region agent log
-    try:
-        import json
-        import time
-
-        project_root = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parents[2]))
-        log_path = project_root / "debug-b5dce6.log"
-        with log_path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(
-                    {
-                        "sessionId": "b5dce6",
-                        "hypothesisId": hypothesis_id,
-                        "location": "dev.graph_explorer.explorer_config",
-                        "message": message,
-                        "data": data,
-                        "timestamp": int(time.time() * 1000),
-                        "runId": os.environ.get("DEBUG_RUN_ID", "pre-fix"),
-                    }
-                )
-                + "\n"
-            )
-    except Exception:
-        pass
-    # #endregion

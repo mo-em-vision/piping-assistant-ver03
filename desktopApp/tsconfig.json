@@ -17,8 +17,15 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*"],
+      "@dev-ui/*": ["../dev/desktop_ui/*"],
+      "@graph-explorer/*": ["../dev/graph_explorer/web/src/*"],
+      "@graph-explorer/embed": ["../dev/graph_explorer/web/src/embed.ts"],
+      "react": ["./node_modules/react"],
+      "react/jsx-runtime": ["./node_modules/react/jsx-runtime"],
+      "react-dom": ["./node_modules/react-dom"]
     }
   },
-  "include": ["src", "electron", "vite-env.d.ts"]
+  "include": ["src", "electron", "vite-env.d.ts", "../dev/desktop_ui", "../dev/graph_explorer/web/src"],
+  "exclude": ["../dev/desktop_ui/tests"]
 }

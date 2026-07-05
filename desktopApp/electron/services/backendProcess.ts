@@ -19,6 +19,7 @@ import {
 } from '../../src/config/constants'
 
 import { logAppEvent } from './appLogger'
+import type { BackendDevFlags } from './backendDevFlags'
 import { resolvePythonExecutable } from './pythonRuntime'
 
 
@@ -74,15 +75,10 @@ export class BackendProcessService {
 
 
   constructor(
-
     private readonly repoRoot: string,
-
     private readonly backendUrl: string,
-
     private readonly userDataPath?: string,
-
-    private readonly enableDevStudio = false,
-
+    private readonly devFlags: BackendDevFlags = { enableDevInspection: false, enableDevStudio: false },
   ) {}
 
 
@@ -152,8 +148,8 @@ export class BackendProcessService {
         PROJECT_ROOT: this.repoRoot,
 
         ...(this.userDataPath ? { DESKTOP_USER_DATA: this.userDataPath } : {}),
-
-        ...(this.enableDevStudio ? { DEV_STUDIO_ENABLED: '1', DEV_INSPECTION_ENABLED: '1' } : {}),
+        ...(this.devFlags.enableDevStudio ? { DEV_STUDIO_ENABLED: '1' } : {}),
+        ...(this.devFlags.enableDevInspection ? { DEV_INSPECTION_ENABLED: '1' } : {}),
 
       },
 

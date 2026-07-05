@@ -33,6 +33,7 @@ from api.table_context import table_source_payload
 from api.standards_browse import build_standards_browse_payload, resolve_browse_standard
 from api.workflow_bootstrap import (
     bootstrap_new_task,
+    ensure_task_planning,
     maybe_execute_ready_workflow,
     refresh_task_planning,
     standards_reader_for_config,
@@ -100,7 +101,14 @@ class DesktopApiService:
             reader=self._reader(),
         )
 
+    def _maybe_ensure_task_planning(self, task, manager):
+        reader = self._reader()
+        if ensure_task_planning(task, reader):
+            manager.replace_task(task.task_id, task)
+        return task
+
     def _maybe_refresh_stale_pipe_wall_task(self, task, manager):
+        task = self._maybe_ensure_task_planning(task, manager)
         if not is_pipe_wall_thickness_task(task):
             return task
         if not has_execution_trace(task):

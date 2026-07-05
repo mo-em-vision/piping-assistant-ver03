@@ -78,6 +78,7 @@ export function LeftPanel() {
     return initialActiveId ? new Set([initialActiveId]) : new Set()
   })
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
+  const [isCreatingProject, setIsCreatingProject] = useState(false)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null)
   const [renameTarget, setRenameTarget] = useState<RenameTarget>(null)
 
@@ -94,16 +95,21 @@ export function LeftPanel() {
   }
 
   const handleCreateProject = (name: string) => {
-    void createProject(name).then(() => {
-      const newProjectId = useProjectStore.getState().activeProjectId
-      if (newProjectId) {
-        setExpandedProjectIds((current) => new Set(current).add(newProjectId))
-      }
-      setCreateProjectOpen(false)
-      clearActiveTask()
-      void loadWorkspace()
-      void loadMessages()
-    })
+    setIsCreatingProject(true)
+    void createProject(name)
+      .then(() => {
+        const newProjectId = useProjectStore.getState().activeProjectId
+        if (newProjectId) {
+          setExpandedProjectIds((current) => new Set(current).add(newProjectId))
+        }
+        setCreateProjectOpen(false)
+        clearActiveTask()
+        void loadWorkspace()
+        void loadMessages()
+      })
+      .finally(() => {
+        setIsCreatingProject(false)
+      })
   }
 
   const handleToggleProject = (projectId: string) => {
@@ -223,8 +229,8 @@ export function LeftPanel() {
           action={
             <button
               type="button"
-              className="panel-section__header-link"
-              disabled={busy}
+              className="panel-section__header-link panel-section__header-link--action"
+              disabled={isCreatingProject}
               onClick={() => setCreateProjectOpen(true)}
               aria-label="Create new project"
             >
@@ -376,7 +382,7 @@ export function LeftPanel() {
 
       <CreateProjectDialog
         open={createProjectOpen}
-        busy={busy}
+        busy={isCreatingProject}
         onConfirm={handleCreateProject}
         onCancel={() => setCreateProjectOpen(false)}
       />

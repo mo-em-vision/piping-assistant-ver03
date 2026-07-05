@@ -1,5 +1,8 @@
 import { create } from 'zustand'
 
+import { env } from '@/config/env'
+import { useDevToolsStore } from '@/store/devToolsStore'
+
 export type StandardsReferenceKind = 'node' | 'table'
 
 export interface TableViewerContext {
@@ -225,6 +228,9 @@ export const useRightPanelStore = create<RightPanelState>((set, get) => ({
   },
 
   openNodeEditTab: (nodeId, options) => {
+    if (!env.devToolsAvailable || !useDevToolsStore.getState().devModeActive) {
+      return
+    }
     const pack = options?.pack ?? 'asme_b31.3'
     const activate = options?.activate ?? true
     const title = options?.title ? `Edit: ${options.title}` : `Edit: ${nodeId}`

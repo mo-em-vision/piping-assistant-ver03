@@ -37,6 +37,16 @@
   cursor: pointer;
 }
 
+.panel-section__header-link--action {
+  color: #2563eb;
+}
+
+.panel-section__header-link--action:hover:not(:disabled) {
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 .panel-section__header-link:hover:not(:disabled) {
   color: #334155;
 }

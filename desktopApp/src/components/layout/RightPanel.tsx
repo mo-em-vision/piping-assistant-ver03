@@ -9,6 +9,7 @@ import { StandardsBrowserTab } from '@/components/standards/StandardsBrowserTab'
 import { TableReferenceTab } from '@/components/standards/TableReferenceTab'
 import { env } from '@/config/env'
 import { useActiveTaskViewModel } from '@/hooks/useActiveTaskViewModel'
+import { useDevUiActive } from '@/hooks/useDevUiActive'
 import { useRightPanelStore } from '@/store/rightPanelStore'
 import { isReportSectionVisible } from '@/store/taskStateManager'
 import { useTaskStore } from '@/store/taskStore'
@@ -24,9 +25,9 @@ import { ChatTabIcon, pinnedTabAriaLabel, StandardsTabIcon, TaskTabIcon } from '
 import { PanelSection } from './PanelSection'
 import './SidePanel.css'
 
-const NodeEditTab = env.devMode
+const NodeEditTab = env.devToolsAvailable
   ? lazy(async () => {
-      const module = await import('@/components/dev/NodeEditTab')
+      const module = await import('@dev-ui/NodeEditTab')
       return { default: module.NodeEditTab }
     })
   : null
@@ -133,7 +134,7 @@ function TaskContextTab() {
         )}
       </PanelSection>
 
-      {viewModel && isReportSectionVisible(viewModel.timeline) ? (
+      {viewModel && isReportSectionVisible(viewModel.timeline, activeTaskState) ? (
         <PanelSection title="Engineering report">
           <ReportPanel taskId={activeTask.id} />
         </PanelSection>
@@ -153,6 +154,7 @@ function ChatTab() {
 }
 
 export function RightPanel() {
+  const devUiActive = useDevUiActive()
   const activeTask = useTaskStore((state) => state.activeTask)
   const viewModel = useActiveTaskViewModel()
   const tabs = useRightPanelStore((state) => state.tabs)
@@ -296,7 +298,7 @@ export function RightPanel() {
             <MaterialReferenceTab materialId={activeTab.materialId} />
           </div>
         ) : null}
-        {activeTab?.kind === 'node-edit' && NodeEditTab ? (
+        {activeTab?.kind === 'node-edit' && NodeEditTab && devUiActive ? (
           <div className="side-panel__tab-body side-panel__tab-body--reference">
             <Suspense fallback={<p className="node-edit-tab__hint">Loading node editor…</p>}>
               <NodeEditTab

@@ -23,14 +23,28 @@ def config(project_root: Path) -> CLIConfig:
 
 def test_build_subgraph_induced_edges(config: CLIConfig) -> None:
     adapter = GraphExplorerAdapter(config, session_id="default")
-    active = ["B313-WF-PIPE-WALL-THICKNESS", "B313-304.1.1", "B313-param-P"]
+    active = ["WF-PIPE-WALL-THICKNESS", "304.1.1-a", "B313-param-P"]
     nodes, edges = adapter._build_subgraph(active)
 
     node_ids = {node.id for node in nodes}
-    assert "B313-WF-PIPE-WALL-THICKNESS" in node_ids
+    assert "WF-PIPE-WALL-THICKNESS" in node_ids
     for edge in edges:
         assert edge.source in node_ids
         assert edge.target in node_ids
+
+
+def test_read_unknown_task_returns_empty(config: CLIConfig) -> None:
+    reader = TaskContextReader(config, session_id="default")
+    ctx = reader.read(task_id="nonexistent-task-id")
+    assert ctx.task_id is None
+    assert ctx.active_nodes == []
+
+
+def test_get_context_unknown_task_in_session_reports_message(config: CLIConfig) -> None:
+    adapter = GraphExplorerAdapter(config, session_id="default")
+    context = adapter.get_context(task_id="nonexistent-task-id", session_id="default")
+    assert context.task_id is None
+    assert "not found" in (context.message or "").lower()
 
 
 def test_get_snapshot_has_revision(config: CLIConfig) -> None:

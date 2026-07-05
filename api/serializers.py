@@ -31,6 +31,7 @@ from api.workflow_timeline import (
     workflow_input_step_done,
     workflow_step_title,
 )
+from api.workflow_bootstrap import task_ready_for_execution
 from api.parameter_edit import active_edit_parameter, is_timeline_parameter_editable
 from engine.graph.definition_equations import (
     has_execution_trace,
@@ -41,6 +42,7 @@ from engine.graph.graph_engine import GraphEngine
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.state.authority_context_projection import authority_context_summary
 from engine.state.execution_context_projection import execution_context_summary
+from engine.planner.goal_navigation import build_current_ask
 from engine.state.goal_projection import goals_to_api_dict, planning_projection
 from engine.state.state_manager import TaskStateManager
 from models.fact import Fact, ValidationStatus, fact_scalar_value, fact_to_dict, fact_unit
@@ -374,6 +376,22 @@ def _build_pipe_wall_timeline(
     thickness_output = task.outputs.get("required_thickness") or task.outputs.get("thickness")
     thickness_done = thickness_output is not None
     report_done = task.status == TaskStatus.COMPLETED
+    submittable_ids = submittable_parameter_ids(task, planning)
+    pending_input_steps = [
+        step_id
+        for step_id, _title in ordered_steps
+        if step_id not in {"thickness", "report"}
+        and not pipe_wall_input_step_done(task, step_id, all_missing)
+    ]
+    thickness_step_ready = (
+        thickness_done
+        or has_execution_trace(task)
+        or (
+            not submittable_ids
+            and not pending_input_steps
+            and task_ready_for_execution(task)
+        )
+    )
 
     timeline: list[dict[str, Any]] = []
     active_assigned = False
@@ -385,10 +403,14 @@ def _build_pipe_wall_timeline(
                 status = "done"
                 hint = None
                 display_value = _thickness_step_display_value(task, float(thickness_output))
-            elif not active_assigned and current_phase not in {
-                "expansion_assumptions",
-                "path_decisions",
-            }:
+            elif (
+                thickness_step_ready
+                and not active_assigned
+                and current_phase not in {
+                    "expansion_assumptions",
+                    "path_decisions",
+                }
+            ):
                 status = "active"
                 hint = "Waiting for thickness calculation"
                 display_value = None
@@ -599,6 +621,7 @@ def task_state(
         active = next((step for step in timeline if step["status"] == "active"), None)
 
     active_node_context = active_node_context_for_task(task, resolved_reader)
+    current_ask = build_current_ask(task, planning)
 
     return {
         "task_id": task.task_id,
@@ -633,6 +656,7 @@ def task_state(
             reader=resolved_reader,
         ),
         "active_node_context": active_node_context,
+        "current_ask": current_ask,
         "options": {
             "available_workflows": [item for item in WORKFLOW_CATALOG if item["available"]],
         },

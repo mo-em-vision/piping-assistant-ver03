@@ -92,12 +92,15 @@ describe('WorkflowComposer', () => {
 
     render(
       <WorkflowComposer
-        parameter={parameter!}
-        nextStepPrompt="Enter the nominal pipe size."
+        ask={{
+          kind: 'input',
+          prompt: 'Enter the nominal pipe size.',
+          parameter: parameter!,
+        }}
       />,
     )
 
-    const label = screen.getByText('Next Step:')
+    const label = screen.getByText('Ask:')
     expect(label.tagName).toBe('STRONG')
     expect(screen.getByText(/Enter the nominal pipe size\./)).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Value…')).toBeInTheDocument()
@@ -110,21 +113,25 @@ describe('WorkflowComposer', () => {
   it('does not show the confirmation hint when no default value is available', () => {
     render(
       <WorkflowComposer
-        parameter={{
-          name: 'joint_category',
-          label: 'Joint Category',
-          type: 'dropdown',
-          required: true,
-          units: [],
-          default_unit: 'dimensionless',
-          default_value: null,
-          value: null,
-          options: [
-            { value: 'seamless', label: 'Seamless' },
-            { value: 'welded', label: 'Welded' },
-          ],
-          status: 'pending',
-          requires_confirmation: true,
+        ask={{
+          kind: 'input',
+          prompt: null,
+          parameter: {
+            name: 'joint_category',
+            label: 'Joint Category',
+            type: 'dropdown',
+            required: true,
+            units: [],
+            default_unit: 'dimensionless',
+            default_value: null,
+            value: null,
+            options: [
+              { value: 'seamless', label: 'Seamless' },
+              { value: 'welded', label: 'Welded' },
+            ],
+            status: 'pending',
+            requires_confirmation: true,
+          },
         }}
       />,
     )
@@ -138,20 +145,23 @@ describe('WorkflowComposer', () => {
   it('renders inline unit pills beside the next step prompt for numeric inputs', () => {
     render(
       <WorkflowComposer
-        parameter={{
-          name: 'design_pressure',
-          label: 'Design Pressure',
-          type: 'number',
-          required: true,
-          units: ['bar', 'psi', 'kPa'],
-          default_unit: 'bar',
-          default_value: null,
-          value: null,
-          options: [],
-          status: 'pending',
-          requires_confirmation: false,
+        ask={{
+          kind: 'input',
+          prompt: 'Enter the design pressure for the pipe.',
+          parameter: {
+            name: 'design_pressure',
+            label: 'Design Pressure',
+            type: 'number',
+            required: true,
+            units: ['bar', 'psi', 'kPa'],
+            default_unit: 'bar',
+            default_value: null,
+            value: null,
+            options: [],
+            status: 'pending',
+            requires_confirmation: false,
+          },
         }}
-        nextStepPrompt="Enter the design pressure for the pipe."
       />,
     )
 
@@ -165,18 +175,22 @@ describe('WorkflowComposer', () => {
   it('prefills the input when a proposed default value is available', () => {
     render(
       <WorkflowComposer
-        parameter={{
-          name: 'weld_joint_efficiency',
-          label: 'Weld Joint Efficiency',
-          type: 'number',
-          required: true,
-          units: [],
-          default_unit: 'dimensionless',
-          default_value: 1,
-          value: 1,
-          options: [],
-          status: 'confirmation_required',
-          requires_confirmation: true,
+        ask={{
+          kind: 'input',
+          prompt: null,
+          parameter: {
+            name: 'weld_joint_efficiency',
+            label: 'Weld Joint Efficiency',
+            type: 'number',
+            required: true,
+            units: [],
+            default_unit: 'dimensionless',
+            default_value: 1,
+            value: 1,
+            options: [],
+            status: 'confirmation_required',
+            requires_confirmation: true,
+          },
         }}
       />,
     )
@@ -188,22 +202,26 @@ describe('WorkflowComposer', () => {
   it('renders an enabled material search input for the material step', () => {
     render(
       <WorkflowComposer
-        parameter={{
-          name: 'material',
-          label: 'Material',
-          type: 'material',
-          required: true,
-          units: [],
-          default_unit: 'dimensionless',
-          default_value: null,
-          value: null,
-          options: null,
-          validation: null,
-          status: 'pending',
-          requires_confirmation: false,
-          submittable: true,
+        ask={{
+          kind: 'input',
+          prompt:
+            'Select the pipe material. (start typing to see the available options)',
+          parameter: {
+            name: 'material',
+            label: 'Material',
+            type: 'material',
+            required: true,
+            units: [],
+            default_unit: 'dimensionless',
+            default_value: null,
+            value: null,
+            options: null,
+            validation: null,
+            status: 'pending',
+            requires_confirmation: false,
+            submittable: true,
+          },
         }}
-        nextStepPrompt="Select the pipe material. (start typing to see the available options)"
         disabled={false}
       />,
     )

@@ -93,12 +93,8 @@ class GraphWatcher:
             project_root=project_root,
         )
         self._observer.schedule(handler, str(standards_root), recursive=True)
-        session_path = sessions_dir / session_id
-        session_path.mkdir(parents=True, exist_ok=True)
-        self._observer.schedule(handler, str(session_path), recursive=False)
-        tasks_file = session_path / "tasks.json"
-        if tasks_file.is_file():
-            self._observer.schedule(handler, str(tasks_file), recursive=False)
+        sessions_dir.mkdir(parents=True, exist_ok=True)
+        self._observer.schedule(handler, str(sessions_dir), recursive=True)
 
     def start(self) -> None:
         self._observer.start()

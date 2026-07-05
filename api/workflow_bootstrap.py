@@ -19,7 +19,7 @@ from engine.graph.navigation_phases import build_workflow_phased_navigation
 from engine.graph.workflow_navigation import load_workflow_navigation
 from engine.planner.planner import _INPUT_QUESTIONS
 from engine.planner.tools import GraphTools
-from engine.reference.graph_edge_schema import edge_target, iter_stored_edges
+from engine.reference.graph_edge_schema import edge_target, iter_stored_edges, workflow_anchor_target
 from engine.reference.standards_reader import StandardsReader
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.state.task_facts import active_facts, store_fact, store_user_fact
@@ -56,6 +56,9 @@ def resolve_activated_definition_node(
             resolved = engine._resolve_micro_root(resolved_slug, reader)
             wf = store.store.get_node(resolved)
             if wf is not None:
+                anchor = workflow_anchor_target(wf.metadata)
+                if isinstance(anchor, str):
+                    return anchor
                 anchors = wf.metadata.get("anchors_to")
                 if isinstance(anchors, str):
                     return anchors
@@ -75,6 +78,10 @@ def resolve_activated_definition_node(
             paragraph = entry.get("paragraph")
             if paragraph:
                 return str(paragraph)
+
+    anchor = workflow_anchor_target(root.metadata)
+    if isinstance(anchor, str):
+        return anchor
 
     for item in root.metadata.get("depends_on", []) or []:
         if not isinstance(item, dict):
@@ -126,6 +133,60 @@ _PROPOSE_DEFAULTS_ON_FIELDS = frozenset(
 )
 
 _SUPPORTED_PLANNING_WORKFLOWS = frozenset({PIPE_WALL_THICKNESS_DESIGN, MAWP_DESIGN})
+
+
+def _sync_active_nodes(
+    task: Task,
+    *,
+    definition_node: str | None,
+    execution_order: tuple[str, ...] | list[str],
+) -> list[str]:
+    """Keep active_nodes aligned with the definition anchor and current graph preview."""
+    ordered: list[str] = []
+    seen: set[str] = set()
+
+    def add(node_id: str | None) -> None:
+        if node_id and node_id not in seen:
+            seen.add(node_id)
+            ordered.append(node_id)
+
+    add(definition_node)
+    for node_id in execution_order:
+        add(node_id)
+    for node_id in task.active_nodes:
+        add(node_id)
+    return ordered
+
+
+def needs_planning_refresh(task: Task) -> bool:
+    """Return True when a supported workflow task should rebuild its goal tree."""
+    workflow_id = str(task.outputs.get("workflow") or task.outputs.get("selected_root") or "")
+    if workflow_id not in _SUPPORTED_PLANNING_WORKFLOWS:
+        return False
+    if not task.goal_store.goals:
+        return True
+    roots = task.goal_store.roots()
+    if not roots:
+        return True
+    if task.goal_store.children(roots[0].id):
+        if has_execution_trace(task):
+            return False
+        planning = planning_projection(task)
+        return planning.get("current_phase") == NavigationPhase.READY.value
+    return True
+
+
+def ensure_task_planning(task: Task, reader: StandardsReader) -> bool:
+    """Replan stale bootstrap state. Returns True when planning was refreshed."""
+    if not needs_planning_refresh(task):
+        return False
+    from engine.state.goal_migration import migrate_task_goals_from_outputs
+
+    migrate_task_goals_from_outputs(task)
+    if not needs_planning_refresh(task):
+        return False
+    refresh_task_planning(task, reader, propose_defaults=False)
+    return True
 
 
 def refresh_task_planning(
@@ -219,6 +280,7 @@ def refresh_task_planning(
         user_inputs=missing_inputs,
         execution_eval=execution_eval,
         question_map=question_map,
+        existing_inputs=existing_inputs,
     )
 
     assumption_gate_fields = nav_config.assumption_gate_fields
@@ -238,11 +300,11 @@ def refresh_task_planning(
         workflow_id,
         execution_order=preview.execution_order,
     )
-    active_nodes = list(task.active_nodes)
-    if definition_node and definition_node not in active_nodes:
-        active_nodes.insert(0, definition_node)
-    elif definition_node:
-        active_nodes = [definition_node] + [node for node in active_nodes if node != definition_node]
+    active_nodes = _sync_active_nodes(
+        task,
+        definition_node=definition_node,
+        execution_order=preview.execution_order,
+    )
 
     task.outputs["active_definition_node"] = definition_node
     task.outputs["path_decision"] = _path_decision(existing_inputs, exec_nodes)
@@ -260,6 +322,13 @@ def refresh_task_planning(
         phased=phased,
         root_slug=root_slug,
     )
+
+    from engine.resolution.goal_resolver import resolve_ready_goals
+    from engine.state.goal_satisfaction import refresh_goal_satisfaction
+
+    if resolve_ready_goals(task, reader.standards_root):
+        refresh_goal_satisfaction(task)
+
     task.active_nodes = active_nodes
 
     _apply_post_execution_definition_planning(
