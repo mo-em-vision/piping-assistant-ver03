@@ -37,6 +37,7 @@ from api.workflow_bootstrap import (
     maybe_execute_ready_workflow,
     refresh_task_planning,
     standards_reader_for_config,
+    task_ready_for_execution,
 )
 from engine.graph.definition_equations import (
     has_execution_trace,
@@ -55,11 +56,11 @@ from api.task_continuation_service import get_continuation_suggestions
 
 _PROPOSE_DEFAULTS_ON_FIELDS = frozenset(
     {
-        "material",
+        "material_grade",
         "design_temperature",
         "nominal_pipe_size",
         "outside_diameter",
-        "joint_category",
+        "pipe_construction_type",
         "weld_joint_efficiency",
         "weld_joint_strength_reduction_factor_W",
         "temperature_coefficient_Y",
@@ -109,6 +110,8 @@ class DesktopApiService:
 
     def _maybe_refresh_stale_pipe_wall_task(self, task, manager):
         task = self._maybe_ensure_task_planning(task, manager)
+        if not has_execution_trace(task) and task_ready_for_execution(task):
+            task = maybe_execute_ready_workflow(task.task_id, manager, self._reader())
         if not is_pipe_wall_thickness_task(task):
             return task
         if not has_execution_trace(task):
@@ -274,6 +277,25 @@ class DesktopApiService:
         return {"recent_tasks": recent_tasks}
 
     def get_task(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
+        # #region agent log
+        import json as _json
+        import time as _time
+
+        with open("debug-12f291.log", "a", encoding="utf-8") as _f:
+            _f.write(
+                _json.dumps(
+                    {
+                        "sessionId": "12f291",
+                        "hypothesisId": "A",
+                        "location": "desktop_service.py:get_task",
+                        "message": "get_task start",
+                        "data": {"task_id": task_id, "session_id": session_id},
+                        "timestamp": int(_time.time() * 1000),
+                    }
+                )
+                + "\n"
+            )
+        # #endregion
         store = self._store_for(session_id)
         manager = store.load_state_manager()
         try:
@@ -282,7 +304,24 @@ class DesktopApiService:
             raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
         task = self._maybe_refresh_stale_pipe_wall_task(task, manager)
         self._save_manager(manager, session_id)
-        return self._task_state(task, manager)
+        payload = self._task_state(task, manager)
+        # #region agent log
+        with open("debug-12f291.log", "a", encoding="utf-8") as _f:
+            _f.write(
+                _json.dumps(
+                    {
+                        "sessionId": "12f291",
+                        "hypothesisId": "A",
+                        "location": "desktop_service.py:get_task",
+                        "message": "get_task success",
+                        "data": {"task_id": task_id, "status": payload.get("status")},
+                        "timestamp": int(_time.time() * 1000),
+                    }
+                )
+                + "\n"
+            )
+        # #endregion
+        return payload
 
     def get_workflow_state(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
         from api.serializers import workflow_state_payload
@@ -330,6 +369,11 @@ class DesktopApiService:
         from api.inspection import run_integrity
 
         return run_integrity(self._reader())
+
+    def get_operations(self) -> dict[str, Any]:
+        from api.operation_tracker import get_operations_payload
+
+        return get_operations_payload()
 
     def create_task(self, workflow_id: str, session_id: str | None = None) -> dict[str, Any]:
         router = Router()

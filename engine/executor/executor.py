@@ -15,6 +15,7 @@ from engine.graph.definition_equations import (
     try_complete_definition_equations,
 )
 from engine.inspection.dev_guard import inspection_enabled
+from engine.inspection.operation_tracker import track_operation
 from engine.inspection.models import GraphEdgeRef
 from engine.inspection.trace import enrich_execution_result_trace, persist_plan_metadata
 from engine.reference.standards_reader import StandardsReader
@@ -352,15 +353,21 @@ def execute_workflow(
     events: EventLogger | None = None,
 ) -> ExecutionResult:
     """Build an execution plan and run it."""
-    task = state.get_task(task_id)
-    plan = GraphEngine().build_plan(
+    with track_operation(
+        "execute_workflow",
+        category="execution",
         task_id=task_id,
         root_id=root_id,
-        inputs=dict(task.fact_store.active_facts()),
-        reader=reader,
-    )
-    executor = Executor(reader, events=events)
-    return executor.execute_plan(plan, state=state)
+    ):
+        task = state.get_task(task_id)
+        plan = GraphEngine().build_plan(
+            task_id=task_id,
+            root_id=root_id,
+            inputs=dict(task.fact_store.active_facts()),
+            reader=reader,
+        )
+        executor = Executor(reader, events=events)
+        return executor.execute_plan(plan, state=state)
 
 
 def _plan_edge_refs(plan: ExecutionPlan) -> list[GraphEdgeRef]:

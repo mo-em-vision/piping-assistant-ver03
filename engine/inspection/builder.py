@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from api.json_encoding import json_safe
+from engine.inspection.operation_tracker import track_operation
 from engine.inspection.provenance import build_provenance_index
 from engine.inspection.integrity import run_integrity_checks
 from engine.inspection.models import ExecutionTraceStep
@@ -18,6 +19,11 @@ from engine.state.state_manager import TaskStateManager
 from engine.state.authority_context_projection import authority_context_full
 from engine.state.execution_context_projection import execution_context_full
 from engine.state.goal_projection import goals_to_api_dict, planning_projection
+from engine.state.task_state_canonical import (
+    build_canonical_task_state,
+    build_task_inspector_summary,
+)
+from engine.planner.plan_inspector import engineering_plan_view_for_task
 from engine.state.workflow_state import build_workflow_state
 from models.task import Task
 
@@ -29,6 +35,20 @@ def build_inspection_payload(
     reader: StandardsReader | None = None,
 ) -> dict[str, Any]:
     """Build the consolidated inspection API response."""
+    with track_operation(
+        "build_inspection_payload",
+        category="inspection",
+        task_id=task.task_id,
+    ):
+        return _build_inspection_payload_impl(task, manager=manager, reader=reader)
+
+
+def _build_inspection_payload_impl(
+    task: Task,
+    *,
+    manager: TaskStateManager,
+    reader: StandardsReader | None = None,
+) -> dict[str, Any]:
     outputs = dict(task.outputs)
     workflow_id = str(
         outputs.get("workflow")
@@ -64,6 +84,13 @@ def build_inspection_payload(
     performance = _performance_summary(trace_steps)
     integrity = run_integrity_checks(reader) if reader else []
 
+    canonical = build_canonical_task_state(
+        task,
+        manager,
+        reader=reader,
+    )
+    inspector_summary = build_task_inspector_summary(canonical)
+
     return json_safe(
         {
             "task_id": task.task_id,
@@ -76,9 +103,13 @@ def build_inspection_payload(
             "execution_context": execution_context_full(task),
             "authority_context": authority_context_full(task),
             "planning_summary": planning_projection(task),
+            "engineering_plan": engineering_plan_view_for_task(task),
+            "planner_inspector_summary": task.outputs.get("planner_inspector_summary"),
             "provenance_index": [record.to_dict() for record in provenance_index],
             "provenance_warnings": provenance_warnings or list(outputs.get("_provenance_warnings") or []),
             "workflow_state": _workflow_state_dict(workflow_state),
+            "inspector_summary": inspector_summary,
+            "canonical_task_state": canonical,
             "execution_events": outputs.get("_execution_events") or [],
             "lifecycle_events": outputs.get("_lifecycle_events") or [],
             "replay_frames": [frame.to_dict() for frame in replay_frames],

@@ -15,6 +15,10 @@
   overflow: auto;
 }
 
+.inspector-code--tall {
+  max-height: min(480px, 50vh);
+}
+
 .inspector-trace-list {
   list-style: none;
   margin: 0;
@@ -181,4 +185,346 @@
   margin: 0.75rem;
   color: #667085;
   font-size: 0.85rem;
+}
+
+.inspector-workflow-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.inspector-workflow-status__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.inspector-workflow-status__title {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #667085;
+}
+
+.inspector-status-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.inspector-status-grid dt {
+  margin: 0;
+  color: #667085;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.inspector-status-grid dd {
+  margin: 0;
+  color: #101828;
+  word-break: break-word;
+}
+
+.inspector-status-highlight {
+  font-weight: 600;
+  color: #175cd3;
+}
+
+.inspector-node-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.inspector-node-chips__label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  color: #667085;
+  margin-right: 0.15rem;
+}
+
+.inspector-node-chip {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: #f2f4f7;
+  border: 1px solid #e4e7ec;
+  color: #344054;
+}
+
+.inspector-node-chip--current {
+  background: #d1e9ff;
+  border-color: #84caff;
+  color: #175cd3;
+  font-weight: 600;
+}
+
+.inspector-node-chip--pending {
+  background: #fef0c7;
+  border-color: #fec84b;
+}
+
+.inspector-missing-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  color: #b54708;
+}
+
+.inspector-rationale {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #344054;
+}
+
+.inspector-rationale-meta {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #667085;
+}
+
+.inspector-rationale-details {
+  font-size: 0.72rem;
+  color: #475467;
+}
+
+.inspector-trace-section {
+  border-top: 1px solid #e4e7ec;
+  padding-top: 0.5rem;
+}
+
+.inspector-trace-list--compact {
+  max-height: 180px;
+  overflow: auto;
+}
+
+.inspector-trace-step--compact {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 0.25rem 0.4rem;
+  align-items: center;
+  padding: 0.35rem 0.45rem;
+}
+
+.inspector-trace-step--compact .inspector-trace-step__node {
+  margin: 0;
+  font-size: 0.72rem;
+  grid-column: 1 / -1;
+}
+
+.inspector-trace-step--compact .inspector-trace-step__reason {
+  grid-column: 1 / -1;
+  font-size: 0.68rem;
+  color: #667085;
+}
+
+.inspector-trace-step--compact .inspector-trace-step__error {
+  grid-column: 1 / -1;
+}
+
+.inspector-task-state {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
+}
+
+.inspector-task-state__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.inspector-task-state__tab {
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.72rem;
+  color: #344054;
+  cursor: pointer;
+}
+
+.inspector-task-state__tab--active {
+  background: #eef4ff;
+  border-color: #84adff;
+  color: #175cd3;
+}
+
+.inspector-task-state__panel {
+  min-height: 0;
+  overflow: auto;
+}
+
+.inspector-status-muted {
+  color: #667085;
+  font-size: 0.85em;
+}
+
+.inspector-warning-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.78rem;
+  color: #b54708;
+}
+
+.inspector-engineering-plan .inspector-workflow-status__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inspector-plan-status {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #f2f4f7;
+  color: #475467;
+}
+
+.inspector-plan-status--done {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.inspector-plan-status--missing,
+.inspector-plan-status--active {
+  background: #eff8ff;
+  color: #175cd3;
+}
+
+.inspector-plan-status--blocked {
+  background: #fffaeb;
+  color: #b54708;
+}
+
+.inspector-plan-requirements {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.inspector-plan-requirement {
+  border: 1px solid #eaecf0;
+  border-radius: 8px;
+  padding: 0.45rem 0.6rem;
+}
+
+.inspector-plan-requirement__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: baseline;
+}
+
+.inspector-operation-tracker {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e4e7ec;
+}
+
+.inspector-operation-tracker__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.inspector-operation-tracker__status {
+  font-size: 0.7rem;
+  color: #667085;
+}
+
+.inspector-operation-tracker__error {
+  color: #b42318;
+}
+
+.inspector-operation-tracker__idle {
+  font-size: 0.75rem;
+}
+
+.inspector-operation-tracker__recent-title {
+  margin-top: 0.35rem;
+}
+
+.inspector-op-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.inspector-op-list--recent {
+  max-height: 180px;
+  overflow: auto;
+}
+
+.inspector-op-row {
+  border: 1px solid #e4e7ec;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.72rem;
+}
+
+.inspector-op-row--running {
+  border-color: #2e6bff;
+  background: #f5f8ff;
+}
+
+.inspector-op-row--failed {
+  border-color: #fecdca;
+  background: #fff5f5;
+}
+
+.inspector-op-row__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.inspector-op-row__category {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #667085;
+}
+
+.inspector-op-row__duration {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: #101828;
+}
+
+.inspector-op-row__name {
+  margin-top: 0.15rem;
+  word-break: break-word;
+  color: #344054;
+}
+
+.inspector-op-row__meta {
+  margin-top: 0.1rem;
+  color: #667085;
+  font-size: 0.68rem;
+}
+
+.inspector-op-row__error {
+  margin-top: 0.15rem;
+  color: #b42318;
 }

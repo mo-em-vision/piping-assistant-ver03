@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs, urlparse
 
 from api.desktop_service import ApiError, DesktopApiService
+from api.operation_tracker import get_operations_payload
+from engine.inspection.operation_tracker import track_operation
 from api.dev_studio.routes import (
     handle_dev_delete,
     handle_dev_get,
@@ -85,9 +88,44 @@ def _parse_task_route(path: str) -> tuple[str, str | None] | None:
 class ApiHandler(BaseHTTPRequestHandler):
     service: DesktopApiService
     dev_studio: DevStudioService | None = None
+    backend_instance_id: str = ""
 
     def log_message(self, format: str, *args: object) -> None:
         return
+
+    def handle_one_request(self) -> None:
+        try:
+            self.raw_requestline = self.rfile.readline(65537)
+            if len(self.raw_requestline) > 65536:
+                self.requestline = ""
+                self.request_version = ""
+                self.command = ""
+                self.send_error(414)
+                return
+            if not self.raw_requestline:
+                self.close_connection = True
+                return
+            if not self.parse_request():
+                return
+            mname = "do_" + self.command
+            if not hasattr(self, mname):
+                self.send_error(501, f"Unsupported method ({self.command!r})")
+                return
+            path = urlparse(self.path).path.rstrip("/") or "/"
+            skip_tracking = self.command == "OPTIONS" or path == "/health"
+            if skip_tracking:
+                getattr(self, mname)()
+            else:
+                with track_operation(
+                    f"{self.command} {path}",
+                    category="http",
+                    path=path,
+                    method=self.command,
+                ):
+                    getattr(self, mname)()
+            self.wfile.flush()
+        except ConnectionResetError:
+            self.close_connection = True
 
     def do_OPTIONS(self) -> None:
         self.send_response(204)
@@ -103,7 +141,11 @@ class ApiHandler(BaseHTTPRequestHandler):
 
         try:
             if path == "/health":
-                _json_response(self, 200, {"status": "ok"})
+                _json_response(
+                    self,
+                    200,
+                    {"status": "ok", "instance_id": type(self).backend_instance_id},
+                )
                 return
 
             if path == "/api/v1/workflows":
@@ -186,6 +228,10 @@ class ApiHandler(BaseHTTPRequestHandler):
                     )
                     return
                 _json_response(self, 200, self.service.get_standards_node(remainder))
+                return
+
+            if path == "/api/v1/dev/operations":
+                _json_response(self, 200, get_operations_payload())
                 return
 
             if path.startswith("/api/v1/dev/"):
@@ -560,11 +606,16 @@ def create_handler(
     service: DesktopApiService,
     *,
     dev_studio: DevStudioService | None = None,
+    backend_instance_id: str = "",
 ) -> type[ApiHandler]:
     return type(
         "BoundApiHandler",
         (ApiHandler,),
-        {"service": service, "dev_studio": dev_studio},
+        {
+            "service": service,
+            "dev_studio": dev_studio,
+            "backend_instance_id": backend_instance_id,
+        },
     )
 
 
@@ -583,9 +634,35 @@ def main() -> None:
     host = os.environ.get("BACKEND_HOST", "127.0.0.1")
     port = int(os.environ.get("BACKEND_PORT", "8000"))
     project_root = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parent.parent))
+    instance_id = os.environ.get("BACKEND_INSTANCE_ID") or str(uuid.uuid4())
     service = DesktopApiService.from_project_root(project_root)
     dev_studio = _build_dev_studio(service)
-    handler = create_handler(service, dev_studio=dev_studio)
+    handler = create_handler(service, dev_studio=dev_studio, backend_instance_id=instance_id)
+    # #region agent log
+    import time as _time
+    from engine.graph import display_emitter as _display_emitter
+
+    with open("debug-12f291.log", "a", encoding="utf-8") as _f:
+        _f.write(
+            json.dumps(
+                {
+                    "sessionId": "12f291",
+                    "hypothesisId": "F",
+                    "location": "server.py:main",
+                    "message": "backend startup",
+                    "data": {
+                        "instance_id": instance_id,
+                        "display_emitter": _display_emitter.__file__,
+                        "has_resolve_require_binding": hasattr(
+                            _display_emitter, "resolve_require_binding"
+                        ),
+                    },
+                    "timestamp": int(_time.time() * 1000),
+                }
+            )
+            + "\n"
+        )
+    # #endregion
     server = HTTPServer((host, port), handler)
     print(f"API server listening on http://{host}:{port}", flush=True)
     server.serve_forever()

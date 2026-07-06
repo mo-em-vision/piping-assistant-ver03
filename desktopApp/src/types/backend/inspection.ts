@@ -61,12 +61,92 @@ export type IntegrityCheckDto = {
   details?: Record<string, unknown>
 }
 
+export type PlannerInspectorSummaryDto = {
+  root_goal: {
+    title: string
+    target_field: string
+    status: string
+  }
+  next_required_inputs: Array<{
+    field: string
+    label: string
+    expected_value_class: string
+    allowed_units?: string[]
+    priority: number
+  }>
+  alternatives: Array<{
+    resolves: string
+    options: Array<{
+      id: string
+      label: string
+      fields: string[]
+      method: string
+    }>
+  }>
+  derived_or_lookup_values: Array<{
+    field: string
+    method: string
+    depends_on: string[]
+  }>
+  graph_summary: {
+    selected_subgraph_count: number
+    dependency_edge_count: number
+  }
+  warnings: string[]
+}
+
+export type EngineeringPlanViewDto = {
+  overview: {
+    goal: string
+    target: string
+    goal_status: string
+    goal_status_label: string
+    workflow_id: string
+    current_phase?: string | null
+    resolved_count: number
+    remaining_count: number
+    next_input?: { field: string; label: string } | null
+  }
+  phases: Array<{
+    id: string
+    title: string
+    status: string
+    status_label: string
+    requirements: Array<{
+      field: string
+      label: string
+      kind: string
+      status: string
+      status_label: string
+      depends_on?: string[]
+      alternatives?: Array<{ label: string; method: string; fields: string[] }>
+    }>
+  }>
+  calculations: Array<{
+    field: string
+    label: string
+    kind: string
+    status: string
+    status_label: string
+  }>
+  branch_decisions?: Array<{ field: string; value: string; selected_node: string }>
+  input_strategy?: {
+    mode: string
+    resolved_fields: string[]
+    blocked_fields: string[]
+    next_fields: string[]
+  }
+  warnings?: string[]
+}
+
 export type InspectionPayloadDto = {
   task_id: string
   workflow_id: string
   execution_trace: ExecutionTraceStepDto[]
   planner_decisions: Record<string, PlannerDecisionDto>
   goals?: Record<string, unknown>
+  engineering_plan?: EngineeringPlanViewDto | Record<string, unknown>
+  planner_inspector_summary?: PlannerInspectorSummaryDto
   execution_context?: Record<string, unknown>
   authority_context?: Record<string, unknown>
   planning_summary: Record<string, unknown>
@@ -84,16 +164,58 @@ export type InspectionPayloadDto = {
     by_node_ms: Record<string, number>
   }
   breakpoint: { paused?: boolean; step_once?: boolean }
+  inspector_summary?: TaskInspectorSummaryDto
+  canonical_task_state?: Record<string, unknown>
 }
 
-export type InspectorTabId =
-  | 'trace'
-  | 'graph'
-  | 'planner'
-  | 'context'
-  | 'variables'
-  | 'provenance'
-  | 'logs'
-  | 'performance'
-  | 'integrity'
-  | 'replay'
+export type DevOperationDto = {
+  id: string
+  name: string
+  category: string
+  status: string
+  elapsed_ms?: number
+  duration_ms?: number | null
+  started_at: number
+  started_at_epoch_ms?: number
+  finished_at?: number | null
+  parent_id?: string | null
+  error?: string | null
+  metadata?: Record<string, unknown>
+}
+
+export type DevOperationsSnapshotDto = {
+  running: DevOperationDto[]
+  recent: DevOperationDto[]
+}
+
+export type TaskInspectorSummaryDto = {
+  status?: string
+  phase?: string
+  current_blocker?: {
+    type: string
+    field?: string
+    parameter_node_id?: string
+    message?: string
+  }
+  resolved_inputs: Array<{
+    field: string
+    symbol?: string
+    display_value: string
+    source: string
+  }>
+  missing_inputs: string[]
+  selected_branch_decisions: Array<{
+    field: string
+    value: string
+    selected_node: string
+  }>
+  pending_calculations: string[]
+  graph_summary: {
+    expanded_count: number
+    active_count: number
+    resolved_count: number
+    pending_count: number
+  }
+  warnings: string[]
+}
+

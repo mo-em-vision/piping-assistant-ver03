@@ -1,6 +1,6 @@
 import { backendClient } from './backendClient'
 
-import type { InspectionPayloadDto } from '@/types/backend/inspection'
+import type { DevOperationsSnapshotDto, InspectionPayloadDto } from '@/types/backend/inspection'
 
 function withSession(path: string, sessionId?: string): string {
   if (!sessionId) {
@@ -32,5 +32,9 @@ export const inspectionApi = {
     return backendClient.get<{
       checks: Array<{ check_id: string; name: string; passed: boolean; message: string }>
     }>(withSession(`/api/v1/tasks/${taskId}/inspection/integrity`, sessionId))
+  },
+
+  getOperations() {
+    return backendClient.get<DevOperationsSnapshotDto>('/api/v1/dev/operations')
   },
 }
