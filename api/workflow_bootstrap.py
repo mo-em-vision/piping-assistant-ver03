@@ -322,18 +322,6 @@ def _refresh_task_planning_impl(
         has_execution=has_execution_trace(task),
     )
 
-    assumption_gate_fields = nav_config.assumption_gate_fields
-    missing_assumptions = [
-        field_id
-        for field_id in assumption_eval.missing_fields + expansion_eval.missing_fields
-        if field_id in assumption_gate_fields
-    ]
-    missing_execution = [
-        field_id
-        for field_id in list(expansion_eval.missing_fields) + list(execution_eval.missing_fields)
-        if field_id not in assumption_gate_fields
-    ]
-
     definition_node = resolve_activated_definition_node(
         reader,
         workflow_id,
@@ -362,14 +350,6 @@ def _refresh_task_planning_impl(
         exec_nodes,
         existing_inputs,
     )
-    task.outputs["graph_navigation"] = {
-        "current_phase": str(getattr(phased, "current_phase", NavigationPhase.READY).value),
-        "phase_missing": dict(getattr(phased, "phase_missing", {}) or {}),
-        "missing_inputs": list(missing_inputs),
-        "missing_assumptions": list(missing_assumptions),
-        "missing_execution_assumptions": list(missing_execution),
-    }
-
     refresh_goal_tree(
         task,
         reader,
@@ -437,10 +417,9 @@ def task_ready_for_execution(task: Task) -> bool:
         return False
 
     if nav_phase == NavigationPhase.READY.value and not has_execution_trace(task):
-        ready = not any(
-            (nav or {}).get(key)
-            for key in ("missing_inputs", "missing_assumptions", "missing_execution_assumptions")
-        )
+        from engine.planner.graph_navigation import graph_navigation_has_collectable_missing
+
+        ready = not graph_navigation_has_collectable_missing(nav)
         # #region agent log
         from api.debug_trace import agent_debug_log
 

@@ -1,0 +1,146 @@
+"""Tests for graph_navigation derived from engineering plans."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from api.workflow_bootstrap import bootstrap_new_task, refresh_task_planning
+from config.loader import CLIConfig
+from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.graph_navigation import (
+    build_graph_navigation_from_plan,
+    unique_stable,
+    validate_graph_navigation,
+)
+from engine.planner.plan_validation import validate_engineering_plan
+from engine.reference.standards_reader import StandardsReader
+from engine.state.fact_migration import fact_from_engineering_input
+from engine.state.state_manager import TaskStateManager
+from models.task import TaskStatus
+from tests.acceptance.helpers import (
+    internal_pressure_assumption,
+    straight_section_assumption,
+)
+
+
+def _reader() -> StandardsReader:
+    root = Path(__file__).resolve().parents[2]
+    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
+
+
+def _fresh_task():
+    state = TaskStateManager()
+    task = state.create_task("graph-nav-fresh", status=TaskStatus.AWAITING_INPUT)
+    task.outputs["workflow"] = "pipe_wall_thickness_design"
+    task.outputs["selected_root"] = "pipe_wall_thickness_design"
+    return state, task
+
+
+def test_unique_stable_deduplicates_preserving_order() -> None:
+    assert unique_stable(["a", "b", "a", "c", "b"]) == ["a", "b", "c"]
+
+
+def test_fresh_pipe_wall_graph_navigation_from_plan() -> None:
+    _, task = _fresh_task()
+    plan = build_pipe_wall_engineering_plan(task)
+    assert validate_engineering_plan(plan).valid
+
+    nav = build_graph_navigation_from_plan(plan)
+    assert not validate_graph_navigation(nav)
+
+    assert nav["current_phase"] == "expansion_assumptions"
+    assert nav["missing_expansion_assumptions"] == ["straight_pipe_section"]
+    assert nav["missing_path_decisions"] == ["pressure_loading"]
+    assert nav["missing_user_inputs"] == []
+    assert nav["missing_coefficient_inputs"] == []
+    assert nav["missing_execution_assumptions"] == []
+    assert nav["active_field"] == "straight_pipe_section"
+    assert nav["active_requirement_id"] == "REQ-straight_pipe_section"
+    assert "pressure_loading" not in nav["missing_expansion_assumptions"]
+    assert "straight_pipe_section" not in nav["missing_path_decisions"]
+
+    phase_missing = nav["phase_missing"]
+    assert phase_missing["expansion_assumptions"] == ["straight_pipe_section"]
+    assert phase_missing["path_decisions"] == ["pressure_loading"]
+    assert phase_missing["parameter_gathering"] == [
+        "internal_design_gage_pressure",
+        "diameter_input_mode",
+        "material_grade",
+        "design_temperature",
+        "corrosion_allowance",
+    ]
+    assert phase_missing["coefficient_resolution"] == ["pipe_construction_type"]
+    assert phase_missing["equation_execution"] == []
+    assert phase_missing["validation"] == []
+    assert phase_missing["reporting"] == []
+
+
+def test_straight_pipe_resolved_graph_navigation_advances_path_decision() -> None:
+    state, task = _fresh_task()
+    state.store_fact(
+        task.task_id,
+        fact_from_engineering_input(
+            straight_section_assumption(),
+            task_id=task.task_id,
+            workflow_id="pipe_wall_thickness_design",
+        ),
+    )
+    task = state.get_task(task.task_id)
+    plan = build_pipe_wall_engineering_plan(task, existing_inputs=dict(task.fact_store.active_facts()))
+    nav = build_graph_navigation_from_plan(plan)
+
+    assert nav["current_phase"] == "path_decisions"
+    assert nav["missing_expansion_assumptions"] == []
+    assert nav["missing_path_decisions"] == ["pressure_loading"]
+    assert nav["active_field"] == "pressure_loading"
+    assert nav["active_requirement_id"] == "REQ-pressure_loading"
+
+
+def test_gates_resolved_graph_navigation_collects_parameter_gathering() -> None:
+    state, task = _fresh_task()
+    for inp in (straight_section_assumption(), internal_pressure_assumption()):
+        state.store_fact(
+            task.task_id,
+            fact_from_engineering_input(
+                inp,
+                task_id=task.task_id,
+                workflow_id="pipe_wall_thickness_design",
+            ),
+        )
+    task = state.get_task(task.task_id)
+    plan = build_pipe_wall_engineering_plan(task, existing_inputs=dict(task.fact_store.active_facts()))
+    nav = build_graph_navigation_from_plan(plan)
+
+    assert nav["current_phase"] == "parameter_gathering"
+    assert nav["missing_user_inputs"] == ["internal_design_gage_pressure"]
+    assert nav["active_field"] == "internal_design_gage_pressure"
+    assert nav["missing_coefficient_inputs"] == []
+
+
+def test_bootstrap_stores_graph_navigation_on_task(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[2]
+    config = CLIConfig(
+        report_format="html",
+        language="english",
+        default_standard="ASME_B31.3",
+        sessions_dir=tmp_path / "sessions",
+        standards_root=root / "knowledge" / "standards",
+        openai_api_key=None,
+        openai_model="gpt-4o-mini",
+        openai_base_url=None,
+    )
+    state = TaskStateManager()
+    task = state.create_task("graph-nav-bootstrap", status=TaskStatus.AWAITING_INPUT)
+    bootstrap_new_task(task, "pipe_wall_thickness_design", config)
+
+    nav = task.outputs.get("graph_navigation")
+    assert isinstance(nav, dict)
+    assert nav.get("active_field") == "straight_pipe_section"
+    assert "missing_assumptions" not in nav
+    assert "missing_inputs" not in nav
+    assert not validate_graph_navigation(nav)
+
+    refresh_task_planning(task, _reader(), propose_defaults=False)
+    nav = task.outputs.get("graph_navigation")
+    assert isinstance(nav, dict)
+    assert nav.get("current_phase") == "expansion_assumptions"

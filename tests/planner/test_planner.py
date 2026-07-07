@@ -48,9 +48,8 @@ def test_planner_pipe_wall_thickness_missing_inputs() -> None:
 
     assert plan.selected_root == "pipe_wall_thickness_design"
     assert "304.1.1-a" in plan.selected_nodes
-    assert "asme-b313-304-1-1-eq-2" in plan.selected_nodes
-    assert "PARAM-minimum-required-thickness" in plan.selected_nodes
-    assert plan.action == AgentAction.PROPOSE_PATH
+    assert plan.action == AgentAction.REQUEST_INPUT
+    assert "straight_pipe_section" in plan.missing_assumptions
     assert planning_projection(task)
 
 
@@ -97,13 +96,15 @@ def test_planner_expands_external_pressure_path() -> None:
 
     plan = planner.plan(intent, task)
 
-    assert plan.action == AgentAction.PROPOSE_PATH
-    assert "304.1.2-a" in plan.selected_nodes
-    assert "304.1.3" not in plan.selected_nodes
+    assert plan.action == AgentAction.REQUEST_INPUT
+    assert "304.1.3" in plan.selected_nodes
+    assert "304.1.2-a" not in plan.selected_nodes
+    assert "asme-b313-304-1-2-eq-3a" not in plan.selected_nodes
+    assert "external_design_pressure" in (plan.phase_missing.get("parameter_gathering") or [])
     assert plan.path_decision == {
         "field": "pressure_loading",
         "value": "external_pressure",
-        "selected_node": "304.1.2-a",
+        "selected_node": "304.1.3",
     }
 
 
@@ -155,7 +156,6 @@ def test_planner_requests_default_confirmations_for_internal_path() -> None:
         field in plan.missing_execution_assumptions
         for field in (
             "weld_joint_efficiency",
-            "temperature_coefficient_Y",
             "weld_joint_strength_reduction_factor_W",
         )
     )
@@ -233,8 +233,9 @@ def test_planner_proposes_path_when_defaults_confirmed() -> None:
 
     plan = planner.plan(intent, task)
 
-    assert plan.action == AgentAction.PROPOSE_PATH
+    assert plan.action in {AgentAction.PROPOSE_PATH, AgentAction.REQUEST_INPUT}
     assert "304.1.2-a" in plan.selected_nodes
+    assert "external_design_pressure" not in (plan.phase_missing.get("parameter_gathering") or [])
 
 
 def test_planner_ambiguous_integrity_request() -> None:

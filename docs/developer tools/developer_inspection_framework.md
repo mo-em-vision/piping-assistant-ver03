@@ -92,14 +92,14 @@ dev/desktop_ui/inspector/
   DeveloperInspector.tsx      Tab shell
   ExecutionTracePanel.tsx
   InspectorGraphPanel.tsx
-  PlannerPanel.tsx
-  ValueProvenancePanel.tsx
-  InspectorPanels.tsx         Context, Variables, Logs, Performance, Integrity, Replay
+  PlannerDevPanel.tsx         Planner summary + engineering plan + traversal view
+  EngineeringPlanPanel.tsx    Readable plan phases / requirements
+  TaskStateDevPanel.tsx       Execution traversal (graph engine)
   inspectorStore.ts           Selection, replay index, panel state
   useInspectionPayload.ts     Poll inspection API for active task
 
 desktopApp/src/services/api/inspectionApi.ts
-desktopApp/src/types/backend/inspection.ts
+desktopApp/src/types/backend/inspection.ts   PlannerInspectorSummaryDto, PlannerTraversalInspectorViewDto
 ```
 
 ---
@@ -246,6 +246,30 @@ Per-node records are built from `ExecutionPlan` structure (`engine/inspection/pl
 | `rejected_candidates` | Nodes skipped with reasons |
 
 Select a trace step in the Inspector, then open the **Planner** tab to see the decision for that node.
+
+### Planner traversal (engineering plan)
+
+Separate from per-trace `PlannerDecision` records: the normalized **`EngineeringPlan.traversal`** field (`PlannerTraversalState`) captures how the planner is walking the workflow graph while building requirements — not the graph engine execution order.
+
+Built in `engine/planner/planner_traversal.py` when `build_pipe_wall_engineering_plan()` runs; exposed on the task as:
+
+| Output | Contents |
+|--------|----------|
+| `engineering_plan.traversal` | Full `PlannerTraversalState` (persisted) |
+| `planner_inspector_summary.traversal_summary` | Compact counts + active node id/title |
+| `planner_inspector_summary.planner_traversal_view` | Inspector panel: active node, pending expansion, expanded nodes, branch decisions, recent events |
+
+| Field | Meaning |
+|-------|---------|
+| `current_active_node_id` | Next planner traversal node (matches `input_strategy.next_fields[0]` mapped to `PARAM-*`) |
+| `pending_expansion_nodes` | Known nodes blocked by unresolved gates or branch decisions (`waiting_on`, `reason`) |
+| `expanded_nodes` | Nodes already expanded (e.g. workflow root) with produced requirements |
+| `branch_decisions` | Unresolved/resolved path decisions with `candidate_nodes` (e.g. `pressure_loading` → `304.1.2-a`, `304.1.3`) |
+| `traversal_events` | Ordered log: `node_expanded`, `node_selected`, `branch_decision_required`, `node_deferred`, … |
+
+Open the **Planner** dev tab → **Planner traversal** (expandable) after starting a pipe wall thickness task. Invariants are checked in `engine/planner/plan_validation.py` (no duplicate pending, no expanded/pending overlap, branch paragraphs not active before branch resolves).
+
+Tests: `tests/planner/test_planner_traversal.py`.
 
 ---
 

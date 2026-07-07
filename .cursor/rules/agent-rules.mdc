@@ -22,5 +22,15 @@ Apply it when planning, coding, debugging, adding dependencies, writing tests, o
 9. **Communication** — explain what and why; flag uncertainty precisely.
 10. **Common failure modes** — stop if you drift into kitchen-sink refactors or wrong abstractions.
 11. **Node structure** — workflows from root nodes only; graph traversal reads node data; use node templates; confirm template changes with the user.
+12. **User-facing prompts** — planner owns navigation (what to ask); `engine/messaging/` owns prompt copy (how to phrase it). Resolve via `build_parameter_input_prompt()`; defaults in `workflow_parameter_prompts.py`. Do not add prompt strings to `engine/planner/`.
+13. **Graph-driven workflow paths** — no hardcoded branches, steps, or parameter lists in engine/API/UI; paths from node expansion, assumptions, and edge `when` clauses. Replan after each input. See `docs/rules.md` §13 and `.cursor/rules/graph-expansion.mdc`.
+14. **Parameter key consistency** — lookup `inputs[].id`, fact keys, and workflow lists match `PARAM-*` `key`; see `docs/rules.md` §14 and `.cursor/rules/parameter-key-consistency.mdc`.
+15. **Derived parameter value display** — unresolved values produced by equations or lookups show a `value_reference` link in equation input tables, not "Awaiting user input"; see `docs/rules.md` §15.
+16. **Lookup-derived parameters** — table lookup outputs (E, W, Y, S, …) are resolved from lookup keys via graph `returns_parameter` edges; do not ask users to confirm invented defaults; see `docs/rules.md` §16.
+17. **PARAM-driven composer metadata** — every gatherable parameter needs a `PARAM-*` node; composer label/type/units/options come from node metadata only (no engine fallbacks); see `docs/rules.md` §17 and `.cursor/rules/param-composer-metadata.mdc`.
+18. **Lookup conditionals** — table boundary/clamp rules on output `PARAM-*` nodes via `lookup_conditionals`; generic interpreter in `engine/graph/lookup_conditionals.py` only; see `docs/rules.md` §18 and `.cursor/rules/lookup-conditionals.mdc`.
+19. **Planner traversal debug state** — `PlannerTraversalState` on `EngineeringPlan` for inspector debugging; derived in `planner_traversal.py`; does not drive paths; see `docs/rules.md` §19.
 
-For node, standards, or workflow work, re-read **§11** in `docs/rules.md` before editing.
+For node, standards, or workflow work, re-read **§11**, **§13**, **§14**, and **§18** in `docs/rules.md` before editing.
+
+For parameter asks, material autocomplete, or workflow composer copy, re-read **§12** and **§17** in `docs/rules.md` before editing.

@@ -67,12 +67,23 @@ export type PlannerInspectorSummaryDto = {
     target_field: string
     status: string
   }
-  next_required_inputs: Array<{
+  next_input?: {
     field: string
     label: string
+    phase: string
     expected_value_class: string
     allowed_units?: string[]
     priority: number
+    activation_status?: 'active' | 'conditional' | 'not_applicable'
+  } | null
+  outstanding_required_inputs: Array<{
+    field: string
+    label: string
+    phase: string
+    expected_value_class: string
+    allowed_units?: string[]
+    priority: number
+    activation_status?: 'active' | 'conditional' | 'not_applicable'
   }>
   alternatives: Array<{
     resolves: string
@@ -87,12 +98,72 @@ export type PlannerInspectorSummaryDto = {
     field: string
     method: string
     depends_on: string[]
+    status: string
   }>
-  graph_summary: {
+  planner_graph_summary: {
     selected_subgraph_count: number
+    expanded_node_count: number
     dependency_edge_count: number
+    branch_decision_count: number
   }
+  traversal_summary?: {
+    current_active_node_id: string | null
+    current_active_node_title?: string | null
+    pending_expansion_count: number
+    expanded_count: number
+    unresolved_branch_decisions: string[]
+  } | null
+  planner_traversal_view?: PlannerTraversalInspectorViewDto | null
   warnings: string[]
+}
+
+export type PlannerTraversalInspectorViewDto = {
+  current_active_node: {
+    node_id: string
+    node_type: string
+    title?: string
+    phase?: string
+    reason: string
+  } | null
+  pending_expansion_nodes: Array<{
+    node_id: string
+    node_type: string
+    title?: string
+    phase?: string
+    waiting_on: string[]
+    reason: string
+  }>
+  expanded_nodes: Array<{
+    node_id: string
+    node_type: string
+    title?: string
+    expanded_at_order: number
+    produced_requirements: string[]
+    produced_edges: string[]
+  }>
+  branch_decisions: Array<{
+    field: string
+    value: string | null
+    selected_node: string | null
+    candidate_nodes: string[]
+    status: 'unresolved' | 'resolved'
+  }>
+  recent_events: Array<{
+    order: number
+    event_type:
+      | 'node_selected'
+      | 'node_expanded'
+      | 'requirement_created'
+      | 'edge_created'
+      | 'branch_decision_required'
+      | 'branch_decision_resolved'
+      | 'node_deferred'
+      | 'node_marked_not_applicable'
+    node_id?: string
+    requirement_id?: string
+    edge_id?: string
+    message: string
+  }>
 }
 
 export type EngineeringPlanViewDto = {
@@ -210,7 +281,7 @@ export type TaskInspectorSummaryDto = {
     selected_node: string
   }>
   pending_calculations: string[]
-  graph_summary: {
+  execution_graph_summary: {
     expanded_count: number
     active_count: number
     resolved_count: number

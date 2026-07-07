@@ -6,9 +6,10 @@ from typing import Any
 
 from engine.graph.navigation_phases import build_workflow_phased_navigation
 from engine.graph.workflow_navigation import load_workflow_navigation
-from engine.planner.planner import _INPUT_QUESTIONS
+from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
 from engine.planner.tools import GraphTools
 from engine.reference.standards_reader import StandardsReader
+from engine.messaging.workflow_parameter_prompts import resolve_workflow_parameter_prompt
 from engine.planner.workflow_goal_metadata import (
     lookup_fields_for_workflow,
     root_target_for_workflow,
@@ -53,6 +54,12 @@ def _resolve_goal_title(reader: StandardsReader, workflow_id: str, graph: GraphT
         return workflow_id.replace("_", " ")
 
 
+def _short_label_for_field(field_id: str) -> str:
+    from engine.planner.question_spec_builder import build_question_spec
+
+    return build_question_spec(field_id).label
+
+
 def _child_goal_for_field(
     *,
     field_id: str,
@@ -61,19 +68,17 @@ def _child_goal_for_field(
     task: Task,
     workflow_id: str,
     root_id: str,
-    question_map: dict[str, str],
     selection_fields: frozenset[str],
     lookup_fields: frozenset[str],
 ) -> Any:
-    prompt = question_map.get(field_id) or _INPUT_QUESTIONS.get(field_id) or f"Provide {field_id.replace('_', ' ')}"
-    name = prompt.split(".")[0] if "." in prompt else prompt
+    name = _short_label_for_field(field_id)
     if field_id in selection_fields:
         return selection_goal(
             key=f"select-{field_id}",
             name=name,
             target_parameter=field_id,
             task_id=task.task_id,
-            prompt=prompt,
+            prompt="",
             workflow_id=workflow_id,
             parent_goal=root_id,
             phase=phase,
@@ -85,7 +90,7 @@ def _child_goal_for_field(
             name=name,
             target_parameter=field_id,
             task_id=task.task_id,
-            required_facts=["material", "design_temperature"],
+            required_facts=["material_grade", "design_temperature"],
             workflow_id=workflow_id,
             parent_goal=root_id,
             phase=phase,
@@ -96,12 +101,41 @@ def _child_goal_for_field(
         name=name,
         target_parameter=field_id,
         task_id=task.task_id,
-        prompt=prompt,
+        prompt="",
         workflow_id=workflow_id,
         parent_goal=root_id,
         phase=phase,
         order=order,
     )
+
+
+def _build_with_engineering_plan(
+    task: Task,
+    reader: StandardsReader,
+    *,
+    preview: Any,
+    phased: Any,
+    existing_inputs: dict,
+    path_decision: dict[str, str] | None,
+) -> GoalStore | None:
+    from engine.planner.engineering_plan_builder import build_engineering_plan
+    from engine.planner.legacy_goal_adapter import (
+        apply_engineering_plan_to_goal_store,
+        store_engineering_plan_on_task,
+    )
+
+    plan = build_engineering_plan(
+        task,
+        reader,
+        preview=preview,
+        phased=phased,
+        existing_inputs=existing_inputs,
+        path_decision=path_decision,
+    )
+    if plan is None:
+        return None
+    store_engineering_plan_on_task(task, plan)
+    return apply_engineering_plan_to_goal_store(task, plan)
 
 
 def build_goal_tree(
@@ -144,11 +178,41 @@ def build_goal_tree(
         task_inputs=existing_inputs,
         plan=preview,
     )
-    execution_eval = graph.evaluate_execution_assumptions(slug, existing_inputs=existing_inputs, plan=preview)
+    from api.workflow_timeline import composer_parameter_ids
 
-    qmap: dict[str, str] = dict(_INPUT_QUESTIONS)
+    missing_inputs = composer_parameter_ids(task, missing_inputs)
+    execution_eval = graph.evaluate_execution_assumptions(slug, existing_inputs=existing_inputs, plan=preview)
+    from engine.graph.definition_equations import has_execution_trace, pending_definition_equation_inputs
+
+    if has_execution_trace(task):
+        for input_id in pending_definition_equation_inputs(
+            task,
+            reader,
+            preview.execution_order,
+        ):
+            if input_id not in execution_eval.missing_fields:
+                execution_eval.missing_fields.append(input_id)
+
+    qmap: dict[str, str] = {}
+    field_ids = list(
+        dict.fromkeys(
+            list(assumption_eval.missing_fields)
+            + list(expansion_eval.missing_fields)
+            + list(execution_eval.missing_fields)
+            + list(missing_inputs)
+        )
+    )
+    for field_id in field_ids:
+        prompt = build_parameter_input_prompt(reader, task, field_id)
+        if prompt:
+            qmap[field_id] = prompt
+    for eval_obj in (expansion_eval, assumption_eval, execution_eval):
+        for field_id, question in eval_obj.field_questions.items():
+            qmap.setdefault(field_id, question)
     if question_map:
-        qmap.update(question_map)
+        for field_id, question in question_map.items():
+            if question:
+                qmap[field_id] = question
 
     if phased is None:
         nav_config = load_workflow_navigation(reader, slug)
@@ -160,7 +224,24 @@ def build_goal_tree(
             execution_eval=execution_eval,
             question_map=qmap,
             existing_inputs=existing_inputs,
+            post_thickness_outputs=dict(task.outputs),
+            has_execution=has_execution_trace(task),
         )
+
+    path_decision = task.outputs.get("path_decision")
+    if not isinstance(path_decision, dict):
+        path_decision = None
+
+    plan_store = _build_with_engineering_plan(
+        task,
+        reader,
+        preview=preview,
+        phased=phased,
+        existing_inputs=existing_inputs,
+        path_decision=path_decision,
+    )
+    if plan_store is not None:
+        return plan_store
 
     clear_goal_store(task)
     fallback_target = _DEFAULT_ROOT_TARGETS.get(slug, "required-wall-thickness")
@@ -176,7 +257,6 @@ def build_goal_tree(
         workflow_id=workflow_id,
     )
     root.provenance.created_from_user_intent = workflow_id
-    root.metadata["selected_nodes"] = list(getattr(preview, "execution_order", ()) or [])
     store_goal(task, root, as_root=True)
 
     order = 0
@@ -184,6 +264,8 @@ def build_goal_tree(
     for phase in NavigationPhase:
         fields = phase_missing.get(phase.value, [])
         for field_id in fields:
+            if field_id in {"outside_diameter", "nominal_pipe_size"}:
+                continue
             order += 1
             child = _child_goal_for_field(
                 field_id=field_id,
@@ -192,13 +274,14 @@ def build_goal_tree(
                 task=task,
                 workflow_id=workflow_id,
                 root_id=root.id,
-                question_map=qmap,
                 selection_fields=selection_fields,
                 lookup_fields=lookup_fields,
             )
             expand_goal(task, root.id, child)
 
     for field_id in missing_inputs:
+        if field_id in {"outside_diameter", "nominal_pipe_size"}:
+            continue
         if any(g.key in {f"input-{field_id}", f"select-{field_id}", f"lookup-{field_id}"} for g in task.goal_store.goals.values()):
             continue
         order += 1
@@ -209,7 +292,6 @@ def build_goal_tree(
             task=task,
             workflow_id=workflow_id,
             root_id=root.id,
-            question_map=qmap,
             selection_fields=selection_fields,
             lookup_fields=lookup_fields,
         )

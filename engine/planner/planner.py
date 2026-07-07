@@ -6,9 +6,13 @@ from dataclasses import asdict
 from typing import Any
 
 from engine.events.event_logger import EventLogger
+from engine.graph.graph_engine import GraphEngine
+from engine.graph.path_decision import resolve_path_decision
 from engine.graph.navigation_phases import build_workflow_phased_navigation
 from engine.graph.workflow_navigation import load_workflow_navigation
 from engine.graph.assumption_checker import field_value
+from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
+from engine.messaging.workflow_parameter_prompts import resolve_workflow_parameter_prompt
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskNotFoundError, TaskStateManager
 from models.agent import AgentAction, IntentResult
@@ -28,78 +32,6 @@ _DEFAULT_PRIORITIES: dict[str, list[str]] = {
         "thin-wall applicability check",
     ],
 }
-
-_INPUT_QUESTIONS: dict[str, str] = {
-    "straight_pipe_section": (
-        "Is the pipe wall thickness you would like to calculate for a straight section of pipe? "
-        "Non-straight sections (fittings, bends) are not yet supported."
-    ),
-    "pressure_loading": (
-        "Is the pipe subjected to internal or external pressure? "
-        "Internal pressure design uses §304.1.2; external pressure design uses §304.1.3."
-    ),
-    "design_pressure": (
-        "To continue the calculation, I need the design pressure because "
-        "wall thickness is governed by internal pressure per ASME B31.3 §304.1.2."
-    ),
-    "outside_diameter": (
-        "Please provide the outside diameter of the pipe (mm or in) so the required "
-        "wall thickness can be calculated."
-    ),
-    "nominal_pipe_size": (
-        "Please provide the nominal pipe size (NPS) so outside diameter D can be "
-        "looked up per ASME B36.10."
-    ),
-    "d_input_mode": (
-        "Provide outside diameter D by nominal pipe size (NPS, looked up per ASME B36.10) "
-        "or enter the outside diameter directly (mm or in)?"
-    ),
-    "corrosion_allowance": (
-        "For c (mechanical allowances): the default is 0.5 mm when machined surfaces "
-        "or grooves where tolerance is not specified. Confirm or enter another value."
-    ),
-    "material": (
-        "I need the pipe material specification to look up allowable stress "
-        "at the design temperature."
-    ),
-    "design_temperature": (
-        "Please provide the design temperature because allowable stress "
-        "depends on metal temperature."
-    ),
-    "external_design_pressure": (
-        "Please provide the external design pressure for external pressure "
-        "wall thickness design per ASME B31.3 §304.1.3."
-    ),
-    "weld_joint_efficiency": (
-        "Please confirm the weld joint quality factor E = 1.0 "
-        "(default for seamless pipe), or provide a different value."
-    ),
-    "weld_joint_strength_reduction_factor_W": (
-        "Please confirm the weld strength reduction factor W = 1.0, "
-        "or provide a different value."
-    ),
-    "temperature_coefficient_Y": (
-        "Please confirm the temperature coefficient Y = 0.4, "
-        "or provide a different value."
-    ),
-    "joint_category": (
-        "Confirm the pipe/joint category for quality factor E lookup (Tables A-2 and A-3). "
-        "Default is seamless pipe."
-    ),
-    "geometry_input_mode": (
-        "Provide geometry by nominal pipe size and schedule (looked up per ASME B36.10) "
-        "or enter the outside diameter and actual wall thickness directly?"
-    ),
-    "pipe_schedule": (
-        "Enter the pipe schedule so outside diameter and wall thickness can be "
-        "looked up per ASME B36.10."
-    ),
-    "actual_wall_thickness": (
-        "Enter the actual or ordered wall thickness of the pipe."
-    ),
-}
-
-_THICKNESS_NODES = ("304.1.2-a", "B313-304.1.3")
 
 
 class Planner:
@@ -216,27 +148,18 @@ class Planner:
             existing_inputs=existing_inputs,
         )
         missing_assumptions = list(assumption_eval.missing_fields)
-        assumption_questions = [
-            assumption_eval.field_questions.get(field_id, f"Please confirm: {field_id}")
-            for field_id in missing_assumptions
-        ]
 
         expansion_eval = self._graph.evaluate_expansion_interactions(
             root_slug,
             existing_inputs=existing_inputs,
         )
         missing_expansion = list(expansion_eval.missing_fields)
-        expansion_questions = [
-            expansion_eval.field_questions.get(field_id, f"Please confirm: {field_id}")
-            for field_id in missing_expansion
-        ]
 
         missing = self._graph.required_user_inputs(
             root_slug,
             existing_inputs=existing_ids,
             task_inputs=existing_inputs,
         )
-        input_questions = [_INPUT_QUESTIONS.get(i, f"Please provide: {i}") for i in missing]
 
         execution_eval = self._graph.evaluate_execution_assumptions(
             root_slug,
@@ -247,26 +170,35 @@ class Planner:
             for field_id in execution_eval.missing_fields
             if field_id not in missing_expansion
         ]
-        execution_questions = [
-            execution_eval.field_questions.get(
-                field_id,
-                _INPUT_QUESTIONS.get(field_id, f"Please confirm: {field_id}"),
-            )
-            for field_id in missing_execution
-        ]
 
         exec_nodes = self._graph.expansion_ready_nodes(
             exec_nodes,
             existing_inputs=existing_inputs,
         )
 
-        question_map: dict[str, str] = dict(_INPUT_QUESTIONS)
-        for field_id, question in assumption_eval.field_questions.items():
-            question_map.setdefault(field_id, question)
-        for field_id, question in expansion_eval.field_questions.items():
-            question_map.setdefault(field_id, question)
-        for field_id, question in execution_eval.field_questions.items():
-            question_map.setdefault(field_id, question)
+        field_ids = list(
+            dict.fromkeys(
+                missing_assumptions
+                + missing_expansion
+                + missing_execution
+                + list(missing)
+            )
+        )
+        question_map: dict[str, str] = {}
+        if task is not None:
+            for field_id in field_ids:
+                prompt = build_parameter_input_prompt(self._reader, task, field_id)
+                if prompt:
+                    question_map[field_id] = prompt
+        else:
+            for field_id in field_ids:
+                question_map[field_id] = resolve_workflow_parameter_prompt(field_id)
+        for eval_obj in (assumption_eval, expansion_eval, execution_eval):
+            for field_id, question in eval_obj.field_questions.items():
+                question_map[field_id] = resolve_workflow_parameter_prompt(
+                    field_id,
+                    field_question=question,
+                )
 
         nav_config = load_workflow_navigation(self._reader, root_slug)
         phased = build_workflow_phased_navigation(
@@ -340,22 +272,15 @@ class Planner:
 
         return plan
 
-    @staticmethod
     def _path_decision(
+        self,
         inputs: dict[str, Any],
         exec_nodes: list[str],
     ) -> dict[str, str] | None:
-        loading = field_value("pressure_loading", inputs)
-        if not loading:
-            return None
-        thickness_node = next((node for node in exec_nodes if node in _THICKNESS_NODES), None)
-        if thickness_node is None:
-            return None
-        return {
-            "field": "pressure_loading",
-            "value": loading,
-            "selected_node": thickness_node,
-        }
+        engine = GraphEngine()
+        micro = engine._micro_engine(self._reader)
+        store = micro.store if micro is not None else None
+        return resolve_path_decision(store, exec_nodes, inputs)
 
     @staticmethod
     def _structured_intent(intent: IntentResult) -> StructuredIntent:
