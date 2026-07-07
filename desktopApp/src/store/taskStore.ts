@@ -12,6 +12,12 @@ import { useUiStore } from '@/store/uiStore'
 import { toUserFacingError } from '@/types/backend/errors'
 import { confirmTaskDeletion } from '@/utils/confirmTaskDeletion'
 import { mergeDisplayOutputs } from '@/utils/mergeDisplayOutputs'
+import { injectArchivedPrompt } from '@/utils/archiveWorkflowPrompt'
+import {
+  clearTranscriptCache,
+  loadTranscriptCache,
+  saveTranscriptCache,
+} from '@/utils/transcriptCache'
 import type { UserFacingError } from '@/types/frontend/userError'
 import type { TaskStateDto, TaskSummaryDto } from '@/types/backend/api'
 import type { TaskSummary } from '@/types/frontend/workspace'
@@ -87,20 +93,24 @@ function syncUiForActiveTask(hasTask: boolean) {
   }
 }
 
-function withPreservedDisplayOutputs(
+export function withPreservedDisplayOutputs(
   previous: TaskStateDto | null,
   incoming: TaskStateDto,
+  options?: { submittedParameter?: string },
 ): TaskStateDto {
-  if (!previous || previous.task_id !== incoming.task_id) {
-    return incoming
-  }
+  const incomingWithArchive = injectArchivedPrompt(previous, incoming, options?.submittedParameter)
+
+  const priorBlocks =
+    previous && previous.task_id === incoming.task_id
+      ? (previous.display_outputs ?? [])
+      : loadTranscriptCache(incoming.task_id)
+
+  const merged = mergeDisplayOutputs(priorBlocks, incomingWithArchive.display_outputs ?? [])
+  saveTranscriptCache(incoming.task_id, merged)
 
   return {
-    ...incoming,
-    display_outputs: mergeDisplayOutputs(
-      previous.display_outputs ?? [],
-      incoming.display_outputs ?? [],
-    ),
+    ...incomingWithArchive,
+    display_outputs: merged,
   }
 }
 
@@ -229,13 +239,17 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
           .flat()
           .find((item) => item.id === taskId)
       if (task) {
+        const mergedState = withPreservedDisplayOutputs(null, {
+          ...mockTaskState,
+          task_id: task.id,
+        })
         set({
           activeTask: {
-            ...stateToSummary(mockTaskState),
+            ...stateToSummary(mergedState),
             id: task.id,
             projectId: projectId ?? task.projectId,
           },
-          activeTaskState: mockTaskState,
+          activeTaskState: mergedState,
         })
         syncUiForActiveTask(true)
       }
@@ -261,10 +275,11 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       }
 
       const state = await taskApi.activate(taskId, sessionId)
+      const mergedState = withPreservedDisplayOutputs(null, state)
       set({
         sessionId,
-        activeTask: stateToSummary(state),
-        activeTaskState: state,
+        activeTask: stateToSummary(mergedState),
+        activeTaskState: mergedState,
         loading: false,
         userError: null,
       })
@@ -278,9 +293,10 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     if (useMockData) {
       const task = get().availableTasks.find((item) => item.id === workflowId)
       if (task) {
+        const mergedState = withPreservedDisplayOutputs(get().activeTaskState, mockTaskState)
         set({
-          activeTask: stateToSummary(mockTaskState),
-          activeTaskState: mockTaskState,
+          activeTask: stateToSummary(mergedState),
+          activeTaskState: mergedState,
         })
         syncUiForActiveTask(true)
       }
@@ -305,9 +321,10 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     set({ loading: true, userError: null })
     try {
       const state = await taskApi.create(workflowId, sessionId)
+      const mergedState = withPreservedDisplayOutputs(null, state)
       set({
-        activeTask: stateToSummary(state),
-        activeTaskState: state,
+        activeTask: stateToSummary(mergedState),
+        activeTaskState: mergedState,
         loading: false,
         userError: null,
       })
@@ -355,6 +372,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       if (activeTask?.id === taskId) {
         collapseRightPanelForNoTask()
       }
+      clearTranscriptCache(taskId)
       set((state) => ({
         activeTask: state.activeTask?.id === taskId ? null : state.activeTask,
         activeTaskState: state.activeTask?.id === taskId ? null : state.activeTaskState,
@@ -376,6 +394,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     set({ loading: true, userError: null })
     try {
       await taskApi.delete(taskId, resolvedProjectId)
+      clearTranscriptCache(taskId)
 
       if (activeTask?.id === taskId) {
         collapseRightPanelForNoTask()
@@ -482,23 +501,27 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
       set({
         userError: null,
-        activeTaskState: {
-          ...state,
-          parameters: nextParameters,
-          facts: {
-            ...state.facts,
-            [parameter]: {
-              input_id: parameter,
-              value,
-              unit: unit ?? 'dimensionless',
-              display_value: resolvedDisplayValue,
+        activeTaskState: withPreservedDisplayOutputs(
+          state,
+          {
+            ...state,
+            parameters: nextParameters,
+            facts: {
+              ...state.facts,
+              [parameter]: {
+                input_id: parameter,
+                value,
+                unit: unit ?? 'dimensionless',
+                display_value: resolvedDisplayValue,
+              },
+            },
+            progress: {
+              ...state.progress,
+              missing_inputs: state.progress.missing_inputs.filter((item) => item !== parameter),
             },
           },
-          progress: {
-            ...state.progress,
-            missing_inputs: state.progress.missing_inputs.filter((item) => item !== parameter),
-          },
-        },
+          { submittedParameter: parameter },
+        ),
         submittingParameter: null,
       })
       return
@@ -509,7 +532,11 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
     if (snapshot) {
       set({
-        activeTaskState: applyOptimisticParameterSubmit(snapshot, parameter, value, unit, displayValue),
+        activeTaskState: withPreservedDisplayOutputs(
+          snapshot,
+          applyOptimisticParameterSubmit(snapshot, parameter, value, unit, displayValue),
+          { submittedParameter: parameter },
+        ),
       })
     }
 
@@ -520,7 +547,9 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         get().sessionId ?? getActiveSessionId(),
       )
 
-      const mergedState = withPreservedDisplayOutputs(get().activeTaskState, state)
+      const mergedState = withPreservedDisplayOutputs(get().activeTaskState, state, {
+        submittedParameter: parameter,
+      })
 
       set({
         activeTask: stateToSummary(mergedState),

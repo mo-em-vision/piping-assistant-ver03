@@ -14,9 +14,9 @@ Each node represents exactly one independently meaningful engineering concept. N
 
 All relationships between nodes must be explicit and semantically typed. Meaning must arise from relationships rather than hidden assumptions.
 
-## Law 5 — Planner Determines Requirements
+## Law 5 — Planner Orders Navigation; Graph Determines Active Requirements
 
-The Planner identifies what information is required to satisfy engineering Goals. It reasons over knowledge but never performs execution.
+The Planner translates Goals into a plan and orders the next missing information. Graph expansion determines which engineering requirements, branches, and parameter asks are active. The Planner reasons over knowledge but never performs execution or alone defines engineering truth.
 
 ## Law 6 — Execution is Deterministic
 
@@ -61,9 +61,9 @@ The Kernel decides _what happens next
 **Planner:**
 ```
 - understands goals
-- expands dependencies
-- interacts with graph
-- reasons about missing information
+- builds navigation plan and orders next missing information
+- interacts with graph expansion output
+- does not alone determine active engineering requirements
 ```
 
 

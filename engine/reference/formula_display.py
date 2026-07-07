@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from engine.graph.assumption_checker import field_value
 from engine.graph.param_priority import require_target_id
 from engine.reference.embedded_nodes import find_embedded_body
 from engine.reference.node_types import is_section_node
@@ -42,9 +43,14 @@ def load_formula_display(reader: StandardsReader, node_id: str) -> str | None:
     return None
 
 
-def load_equation_context(reader: StandardsReader, node_id: str) -> dict[str, Any]:
+def load_equation_context(
+    reader: StandardsReader,
+    node_id: str,
+    *,
+    task_facts: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Load display formula, name, and ordered variable symbols for a node."""
-    resolved_id = _resolve_equation_node_id(reader, node_id)
+    resolved_id = _resolve_equation_node_id(reader, node_id, task_facts=task_facts)
     node = reader.load(resolved_id)
     if str(node.metadata.get("type", "")) == "equation":
         return _equation_context_from_micro_node(reader, node)
@@ -102,11 +108,25 @@ def load_equation_context(reader: StandardsReader, node_id: str) -> dict[str, An
     }
 
 
-def _resolve_equation_node_id(reader: StandardsReader, node_id: str) -> str:
+def _resolve_equation_node_id(
+    reader: StandardsReader,
+    node_id: str,
+    *,
+    task_facts: dict[str, Any] | None = None,
+) -> str:
     record = reader.load(node_id)
     node_type = str(record.metadata.get("type", ""))
     if node_type == "equation":
         return node_id
+
+    equation_id = _equation_reference_from_edges(
+        reader,
+        record.metadata,
+        task_facts=task_facts,
+    )
+    if equation_id:
+        return equation_id
+
     if not is_section_node(record.metadata, node_type):
         return node_id
     for ref in record.metadata.get("contains", []) or []:
@@ -120,9 +140,67 @@ def _resolve_equation_node_id(reader: StandardsReader, node_id: str) -> str:
     return node_id
 
 
+def _equation_display_text(metadata: dict[str, Any]) -> str | None:
+    display = metadata.get("display_latex") or metadata.get("sympy")
+    if display:
+        text = str(display).strip()
+        return text or None
+    nested = metadata.get("display")
+    if isinstance(nested, dict):
+        text = nested.get("text") or nested.get("latex")
+        if text:
+            return str(text).strip() or None
+    if isinstance(nested, str) and nested.strip():
+        return nested.strip()
+    return None
+
+
+def _equation_reference_from_edges(
+    reader: StandardsReader,
+    metadata: dict[str, Any],
+    *,
+    task_facts: dict[str, Any] | None = None,
+) -> str | None:
+    facts = task_facts or {}
+    for edge in metadata.get("edges") or []:
+        if not isinstance(edge, dict):
+            continue
+        if str(edge.get("type", "")) != "references_equation":
+            continue
+        target = str(edge.get("target", "")).strip()
+        if not target:
+            continue
+        when = edge.get("when")
+        if isinstance(when, dict) and not _edge_when_applies(when, facts):
+            continue
+        try:
+            target_record = reader.load(target)
+        except FileNotFoundError:
+            continue
+        if str(target_record.metadata.get("type", "")) == "equation":
+            return target
+    return None
+
+
+def _edge_when_applies(when: dict[str, Any], facts: dict[str, Any]) -> bool:
+    field_name = str(when.get("field", "")).strip()
+    if when.get("absent"):
+        return field_value(field_name, facts) is None
+    if when.get("present"):
+        return field_value(field_name, facts) is not None
+    allowed = when.get("in")
+    if field_name and isinstance(allowed, list):
+        value = field_value(field_name, facts)
+        return value in allowed
+    equals = when.get("equals")
+    if field_name and equals is not None:
+        return field_value(field_name, facts) == equals
+    return True
+
+
 def _equation_context_from_micro_node(reader: StandardsReader, node: Any) -> dict[str, Any]:
     meta = node.metadata
-    display = str(meta.get("display_latex") or meta.get("sympy") or "").strip() or None
+    display = _equation_display_text(meta)
     variables: list[str] = []
     for ref in meta.get("requires", []) or []:
         ref_id = require_target_id(ref)

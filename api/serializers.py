@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from api.error_catalog import enrich_api_error_payload
+from api.flow_guidance import build_flow_guidance_payload
 from api.equation_inputs_display import (
     _input_display_value,
     format_thickness_result_display,
@@ -801,6 +802,10 @@ def task_state(
             manager,
             task.task_id,
             reader=resolved_reader,
+        ),
+        "flow_guidance": build_flow_guidance_payload(
+            task,
+            resolved_reader,
         ),
         "inspector_summary": inspector_summary,
     }

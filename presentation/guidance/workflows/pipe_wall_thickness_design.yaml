@@ -1,0 +1,42 @@
+# Flow Guidance Layer — traversal narration only (presentation data, not engineering truth).
+# Must not duplicate parameter prompt copy or equation/formula bodies.
+# Reference node_id / equation_id in refs only.
+
+workflow_id: pipe_wall_thickness_design
+
+entries:
+  - id: expansion-gate-intro
+    match:
+      current_phase: expansion_assumptions
+      traversal_event: branch_decision_required
+      edge_reason: straight_pipe_section
+    text: >-
+      Before collecting design parameters, the workflow confirms whether this
+      analysis applies to a straight pipe section. This gate controls which
+      standard paragraphs enter the active path.
+    refs:
+      node_id: "304.1.2-a"
+
+  - id: pressure-loading-branch
+    match:
+      current_phase: path_decisions
+      traversal_event: branch_decision_required
+      edge_reason: pressure_loading
+    text: >-
+      The workflow is selecting the internal versus external pressure branch.
+      The active governing equation will depend on this decision.
+    refs:
+      node_id: "304.1.2-a"
+      equation_id: asme-b313-required-wall-thickness
+
+  - id: parameter-gathering-entry
+    match:
+      current_phase: parameter_gathering
+      active_node_id: "304.1.2-a"
+      node_role: equation
+      traversal_event: node_selected
+    text: >-
+      Design parameters for the selected branch will be collected next. Values
+      feed the governing thickness equation on the active path.
+    refs:
+      equation_id: asme-b313-required-wall-thickness

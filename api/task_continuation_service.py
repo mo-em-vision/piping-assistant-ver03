@@ -7,7 +7,7 @@ from typing import Any
 from ai.agents.task_continuation_agent import TaskContinuationAgent
 from api.chat_context import build_task_context_brief
 from api.serializers import task_state
-from cli.session_store import SessionStore
+from storage.session_store import SessionStore
 from config.loader import CLIConfig
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager

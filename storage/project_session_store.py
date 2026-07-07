@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from cli.session_store import _input_from_dict, _input_to_dict, _task_from_dict, _task_to_dict
+from storage.session_store import _input_from_dict, _input_to_dict, _task_from_dict, _task_to_dict
 from engine.state.state_manager import TaskAlreadyExistsError, TaskNotFoundError, TaskStateManager
 from models.task import Task, TaskStatus
 from storage.desktop_database import DesktopDatabase

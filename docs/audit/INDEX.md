@@ -13,7 +13,7 @@ In chat or issues, cite:
 Examples:
 
 ```text
-@audit cli/README.md#execution-traces
+@audit api/README.md#execution-traces
 @audit docs/audit/DUPLICATES.md#graph-loading--compile
 @audit engine/planner/README.md#possible-dead-code
 ```
@@ -21,7 +21,7 @@ Examples:
 Markdown link form (same anchor):
 
 ```text
-[cli execution traces](../../cli/README.md#execution-traces)
+[api execution traces](../../api/README.md#execution-traces)
 ```
 
 **Anchor rules:** lowercase; spaces → hyphens; `&` → `--`; punctuation dropped. Matches GitHub/Cursor heading anchors for `## Heading Name`.
@@ -50,7 +50,7 @@ Not every README uses identical headings; search the file for the closest sectio
 
 | Document | Anchor examples | Scope |
 |----------|-----------------|-------|
-| [ARCHITECTURE_AUDIT.md](../../ARCHITECTURE_AUDIT.md) | `#top-level-layout`, `#entry-points`, `#execution-traces` | Repo root map |
+| [ARCHITECTURE_AUDIT.md](ARCHITECTURE_AUDIT.md) | `#top-level-layout`, `#entry-points`, `#execution-traces` | Repo root map |
 | [docs/audit/PROGRESS.md](PROGRESS.md) | `#known-gaps` | Audit status |
 | [docs/audit/DUPLICATES.md](DUPLICATES.md) | `#graph-loading--compile`, `#planning--intent`, … | Parallel implementations |
 | [docs/audit/EXECUTION_TRACES.md](EXECUTION_TRACES.md) | `#desktop--task-input-to-rendered-output`, `#cli--interactive-chat`, … | End-to-end paths |
@@ -62,7 +62,6 @@ Not every README uses identical headings; search the file for the closest sectio
 
 | Folder | Audit doc |
 |--------|-----------|
-| `cli/` | [cli/README.md](../../cli/README.md) |
 | `api/` | [api/README.md](../../api/README.md) |
 | `api/dev_studio/` | [api/dev_studio/README.md](../../api/dev_studio/README.md) |
 | `models/` | [models/README.md](../../models/README.md) |
@@ -72,7 +71,6 @@ Not every README uses identical headings; search the file for the closest sectio
 | `ai/` | [ai/README.md](../../ai/README.md) |
 | `ai/agents/` | [ai/agents/README.md](../../ai/agents/README.md) |
 | `dev/` | [dev/README.md](../../dev/README.md) |
-| `dev/graph_explorer/` | [dev/graph_explorer/README.md](../../dev/graph_explorer/README.md) |
 | `dev/desktop_ui/` | [dev/desktop_ui/README.md](../../dev/desktop_ui/README.md) |
 
 ### `engine/` (parent + subfolders)

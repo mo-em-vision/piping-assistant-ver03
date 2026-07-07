@@ -143,7 +143,137 @@ export type PlannerInspectorSummaryDto = {
     unresolved_branch_decisions: string[]
   } | null
   planner_traversal_view?: PlannerTraversalInspectorViewDto | null
+  traversal_path?: PlannerTraversalPathRowDto[]
+  header?: PlannerInspectorHeaderDto
+  phase_panel?: PlannerPhasePanelDto
+  requirements_panel?: PlannerRequirementRowDto[]
+  current_phase_inputs?: PlannerInspectorSummaryDto['outstanding_required_inputs']
+  future_phase_inputs?: PlannerInspectorSummaryDto['outstanding_required_inputs']
   warnings: string[]
+}
+
+export type PlannerInspectorHeaderDto = {
+  workflow_id: string
+  workflow_name: string
+  current_phase: string
+  current_phase_label: string
+  current_active_node_id: string | null
+  current_active_node_title?: string | null
+  next_action?: { field: string; label: string } | null
+  status_badge:
+    | 'waiting_for_input'
+    | 'ready'
+    | 'blocked'
+    | 'executing'
+    | 'completed'
+    | 'invalidated'
+    | string
+  why_here?: string | null
+  traversal_support_level?: 'full' | 'limited' | 'none' | string
+  traversal_support_note?: string | null
+}
+
+export type PlannerPhasePanelDto = {
+  current_phase: string
+  current_phase_label: string
+  active_field: string | null
+  completed_fields: Array<{ field: string; label: string }>
+  missing_in_phase: PlannerInspectorSummaryDto['outstanding_required_inputs']
+  future_fields: PlannerInspectorSummaryDto['outstanding_required_inputs']
+}
+
+export type PlannerTraversalPathRowDto = {
+  node_id: string
+  title?: string | null
+  node_type?: string | null
+  state: 'completed' | 'current' | 'pending' | 'blocked' | 'skipped' | string
+  reason?: string | null
+  waiting_on: string[]
+}
+
+export type PlannerRequirementRowDto = {
+  id?: string
+  field: string
+  label: string
+  category: string
+  resolution_kind: string
+  display_status: string
+  awaiting_user_input: boolean
+  resolution_label?: string
+  depends_on: string[]
+  source_node_id?: string | null
+  phase?: string | null
+}
+
+export type TaskStateViewsDto = {
+  state_summary: TaskStateSummaryDto
+  facts_view: TaskFactRowDto[]
+  decisions_view: TaskDecisionRowDto[]
+  outputs_view: TaskOutputRowDto[]
+  validation_view: TaskValidationViewDto
+  trace_timeline: TraceTimelineRowDto[]
+}
+
+export type TaskStateSummaryDto = {
+  task_id: string
+  task_name?: string | null
+  status: string
+  workflow_id: string
+  selected_root: string
+  current_phase: string
+  readiness: string
+  current_blocker?: Record<string, unknown> | null
+  expanded_node_count: number
+  missing_input_count: number
+}
+
+export type TaskFactRowDto = {
+  field: string
+  label: string
+  symbol?: string | null
+  value: unknown
+  unit?: string | null
+  source: string
+  status: string
+  parameter_node_id?: string | null
+}
+
+export type TaskDecisionRowDto = {
+  kind: string
+  field: string
+  value: unknown
+  selected_node?: string | null
+  source: string
+  activated_branch?: string | null
+}
+
+export type TaskOutputRowDto = {
+  field: string
+  label: string
+  value: unknown
+  unit?: string | null
+  producing_node?: string | null
+  status: string
+  warnings: string[]
+}
+
+export type TaskValidationViewDto = {
+  status: string
+  errors: string[]
+  warnings: string[]
+  overrides: string[]
+  conflicts: Array<{ field: string; reason: string }>
+  affected_nodes: string[]
+}
+
+export type TraceTimelineRowDto = {
+  order: number
+  event_type: string
+  label: string
+  node_id?: string | null
+  message: string
+  timestamp?: string | null
+  source: string
 }
 
 export type PlannerTraversalStateDto = {
@@ -390,6 +520,7 @@ export type InspectionPayloadDto = {
   breakpoint: { paused?: boolean; step_once?: boolean }
   inspector_summary?: TaskInspectorSummaryDto
   canonical_task_state?: Record<string, unknown>
+  task_state_views?: TaskStateViewsDto
 }
 
 export type DevOperationDto = {

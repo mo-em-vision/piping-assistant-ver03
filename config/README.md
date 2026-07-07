@@ -29,7 +29,7 @@ There is no `config/__init__.py` in the repository; the package is resolved when
 | Entry | How it is reached |
 |-------|-------------------|
 | `settings.py` (module import) | Imported by `config/loader.py` and `ai/client.py`. Side effect: `load_env_files()` runs once at import. |
-| `CLIConfig.load()` | Called from `cli/app.py`, `api/desktop_service.py`, `dev/graph_explorer/server.py`, and tests. |
+| `CLIConfig.load()` | Called from `api/desktop_service.py` and tests. |
 | `config.yaml` | Read only via `CLIConfig.load()` (default path: sibling of `loader.py`). Not executed directly. |
 
 `config.yaml` and `settings.py` are not meant to be run as scripts.
@@ -52,11 +52,9 @@ There is no `config/__init__.py` in the repository; the package is resolved when
 
 | Consumer | Import |
 |----------|--------|
-| `cli/app.py`, `cli/commands/*` | `config.loader.CLIConfig` |
 | `api/desktop_service.py`, `api/workflow_bootstrap.py`, `api/chat_service.py`, `api/task_continuation_service.py` | `CLIConfig` |
 | `ai/client.py` | `config.settings.Settings`, `settings` |
-| `dev/graph_explorer/server.py`, `adapter.py`, `explorer_config.py` | `CLIConfig` |
-| `tests/api/*`, `tests/cli/*`, `tests/config/*`, `tests/mvp/conftest.py`, `tests/dev/*` | `CLIConfig` and/or `Settings` |
+| `tests/api/*`, `tests/config/*`, `tests/mvp/conftest.py` | `CLIConfig` and/or `Settings` |
 | Docs (`README.md`, `docs/core/*`) | Referenced by path only |
 
 The desktop Electron app does **not** import this package; it passes `DESKTOP_USER_DATA` to the backend child process (`desktopApp/electron/services/backendProcess.ts`).
@@ -70,9 +68,8 @@ The desktop Electron app does **not** import this package; it passes `DESKTOP_US
 Evidence:
 
 1. **Desktop API startup** — `DesktopApiService.from_project_root()` calls `CLIConfig.load(project_root=root)` (`api/desktop_service.py`).
-2. **CLI startup** — `cli/app.py` calls `CLIConfig.load()` via `get_config()` when the Typer app is built.
+2. **CLI startup** — removed; desktop uses `api/desktop_service.py`.
 3. **AI client** — `ai/client.py` reads `settings` (populated after `load_env_files()` on import).
-4. **Graph Explorer** — `dev/graph_explorer/server.py` loads `CLIConfig` at server start.
 
 Typical runtime flow:
 
@@ -182,14 +179,14 @@ api/workflow_bootstrap.py → standards_reader_for_config(config)
 engine/reference/standards_reader.py (uses config.standards_root)
 ```
 
-### CLI chat session
+### Desktop chat session
 
 ```
-piping-assistant chat (cli/app.py)
+api/chat_service.py
     ↓
-get_config() → CLIConfig.load()
+api/chat_orchestrator.py (ChatOrchestrator)
     ↓
-cli/commands/chat.py → run_chat(config)
+get_config() → CLIConfig.load() via api/desktop_service.py
 ```
 
 ### OpenAI calls

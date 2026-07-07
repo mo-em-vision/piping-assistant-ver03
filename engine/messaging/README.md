@@ -19,7 +19,7 @@ Format questions, numbered choices, and formula+parameter blocks for CLI chat an
 
 **Depends on:** `engine/graph/node_interaction`, `engine/reference/` (reader, formula_display, nomenclature), `engine/planner` (tests), `models/input`
 
-**Used by:** `ai/response/response_handler.py`, `cli/orchestrator.py`, `api/equation_inputs_display.py`
+**Used by:** `ai/response/response_handler.py`, `api/chat_orchestrator.py`, `api/equation_inputs_display.py`
 
 ## Runtime Usage
 

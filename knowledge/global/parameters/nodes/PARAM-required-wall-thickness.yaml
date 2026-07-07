@@ -6,7 +6,10 @@ name: Pressure Design Thickness
 parameter_class: calculated_quantity
 dimension: DIM-length
 description: >
-  pressure design thickness
+  Pressure design thickness (symbol t) per §304.1.2. On a design-pressure path
+  this is the required minimum thickness calculated from eq. (3a) or (3b). On a
+  MAWP path this is the available pressure design thickness derived from actual
+  or nominal wall thickness minus applicable allowances (t = t_actual - c).
 canonical_symbol: t
 aliases:
   - pressure design thickness
@@ -40,6 +43,6 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-04
+  last_revision: 2026-07-07
   edited_by: admin
 ---

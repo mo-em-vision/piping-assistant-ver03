@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { isReportSectionVisible } from '@/store/taskStateManager'
+import { buildTaskStateViewModel, isReportSectionVisible } from '@/store/taskStateManager'
+import { mockTaskState } from '@/mock/taskState.mock'
 import type { TimelineStepViewModel } from '@/types/frontend/taskState'
 
 function timelineWithReportHint(status: TimelineStepViewModel['status']): TimelineStepViewModel[] {
@@ -36,5 +37,24 @@ describe('isReportSectionVisible', () => {
 
   it('is visible when the task is completed', () => {
     expect(isReportSectionVisible([], { status: 'completed' } as never)).toBe(true)
+  })
+})
+
+describe('task state missing inputs', () => {
+  it('reflects only the current phase missing inputs from backend state', () => {
+    const state = {
+      ...mockTaskState,
+      progress: {
+        ...mockTaskState.progress,
+        missing_inputs: ['design_temperature'],
+        submittable_parameters: ['design_temperature'],
+      },
+    }
+
+    const viewModel = buildTaskStateViewModel(state)
+
+    expect(state.progress.missing_inputs).toEqual(['design_temperature'])
+    expect(state.progress.missing_inputs).not.toContain('nominal_pipe_size')
+    expect(viewModel?.currentStepId).not.toBe('nominal_pipe_size')
   })
 })

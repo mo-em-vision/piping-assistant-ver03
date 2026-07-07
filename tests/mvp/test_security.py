@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import pytest
 
-from cli.app import app
 from engine.executor.executor import execute_workflow
 from engine.state.state_manager import TaskNotFoundError, TaskStateManager
 from engine.validation.validation_engine import ValidationEngine
@@ -12,9 +11,7 @@ from models.execution import ExecutionStatus
 from models.input import EngineeringInput, InputSource
 from models.validation import ComplianceStatus
 from tests.acceptance.helpers import PIPE_WALL_THICKNESS_ROOT, sample_inputs
-from typer.testing import CliRunner
 from tests.helpers.facts import fact_get_value
-from models.fact import SourceType, ValidationStatus
 
 
 class TestInputInjectionTesting:
@@ -91,11 +88,3 @@ class TestUserInputAttacks:
         assert manager_a.get_task("pipe-wall-thickness-design-task-a").inputs
         with pytest.raises(TaskNotFoundError):
             manager_b.get_task("pipe-wall-thickness-design-task-a")
-
-    def test_cli_rejects_invalid_task_id_for_trace(self) -> None:
-        result = CliRunner().invoke(app, ["task", "trace", "../../../etc/passwd"])
-        assert result.exit_code != 0
-
-    def test_unexpected_cli_command_does_not_crash(self) -> None:
-        result = CliRunner().invoke(app, ["not-a-real-command"])
-        assert result.exit_code != 0

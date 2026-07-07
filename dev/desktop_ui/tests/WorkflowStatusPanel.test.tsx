@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { PlannerDevPanel } from '@dev-ui/inspector/PlannerDevPanel'
+import { PlannerTraversalTimeline } from '@dev-ui/inspector/PlannerTraversalTimeline'
 import { TaskStateDevPanel } from '@dev-ui/inspector/TaskStateDevPanel'
 
 import type { InspectionPayloadDto } from '@/types/backend/inspection'
@@ -33,6 +34,24 @@ const samplePayload: InspectionPayloadDto = {
         expected_value_class: 'selection',
         priority: 1,
       },
+      {
+        field: 'pressure_loading',
+        label: 'Pressure Loading',
+        phase: 'path_decisions',
+        expected_value_class: 'selection',
+        priority: 2,
+      },
+    ],
+    current_phase_inputs: [
+      {
+        field: 'straight_pipe_section',
+        label: 'Straight Pipe Section',
+        phase: 'expansion_assumptions',
+        expected_value_class: 'selection',
+        priority: 1,
+      },
+    ],
+    future_phase_inputs: [
       {
         field: 'pressure_loading',
         label: 'Pressure Loading',
@@ -81,6 +100,81 @@ const samplePayload: InspectionPayloadDto = {
       expanded_count: 1,
       unresolved_branch_decisions: ['pressure_loading'],
     },
+    traversal_path: [
+      {
+        node_id: 'PARAM-straight-pipe-section',
+        title: 'Straight Pipe Section',
+        node_type: 'parameter',
+        state: 'current',
+        reason: 'Required to confirm whether straight pipe thickness rules apply.',
+        waiting_on: [],
+      },
+      {
+        node_id: 'PARAM-pressure-loading',
+        title: 'Pressure Loading',
+        node_type: 'parameter',
+        state: 'blocked',
+        reason: 'Pressure branch cannot be selected until expansion assumptions are resolved.',
+        waiting_on: ['PARAM-straight-pipe-section'],
+      },
+    ],
+    header: {
+      workflow_id: 'pipe_wall_thickness_design',
+      workflow_name: 'Pipe Wall Thickness Design',
+      current_phase: 'expansion_assumptions',
+      current_phase_label: 'Expansion assumptions',
+      current_active_node_id: 'PARAM-straight-pipe-section',
+      current_active_node_title: 'Straight Pipe Section',
+      next_action: { field: 'straight_pipe_section', label: 'Straight Pipe Section' },
+      status_badge: 'waiting_for_input',
+      why_here: 'Required to confirm whether straight pipe thickness rules apply.',
+      traversal_support_level: 'full',
+      traversal_support_note: null,
+    },
+    phase_panel: {
+      current_phase: 'expansion_assumptions',
+      current_phase_label: 'Expansion assumptions',
+      active_field: 'straight_pipe_section',
+      completed_fields: [],
+      missing_in_phase: [],
+      future_fields: [
+        {
+          field: 'pressure_loading',
+          label: 'Pressure Loading',
+          phase: 'path_decisions',
+          expected_value_class: 'selection',
+          priority: 2,
+        },
+      ],
+    },
+    requirements_panel: [
+      {
+        id: 'conditional-allowable_stress',
+        field: 'allowable_stress',
+        label: 'Allowable Stress',
+        category: 'conditional',
+        resolution_kind: 'conditional',
+        display_status: 'pending',
+        awaiting_user_input: false,
+        resolution_label: 'Conditional — not user input',
+        depends_on: [],
+        source_node_id: null,
+        phase: 'coefficient_resolution',
+      },
+      {
+        id: 'lookup-allowable_stress',
+        field: 'allowable_stress',
+        label: 'Allowable Stress',
+        category: 'lookup_derived',
+        resolution_kind: 'table_lookup',
+        display_status: 'pending',
+        awaiting_user_input: false,
+        resolution_label: 'Lookup-derived',
+        depends_on: ['material_grade', 'design_temperature'],
+        source_node_id: 'LOOKUP-allowable-stress',
+        phase: null,
+      },
+    ],
     planner_traversal_view: {
       current_active_node: {
         node_id: 'PARAM-straight-pipe-section',
@@ -89,70 +183,65 @@ const samplePayload: InspectionPayloadDto = {
         phase: 'expansion_assumptions',
         reason: 'Required to confirm whether straight pipe thickness rules apply.',
       },
-      pending_expansion_nodes: [
-        {
-          node_id: 'PARAM-pressure-loading',
-          node_type: 'parameter',
-          title: 'Pressure Loading',
-          phase: 'path_decisions',
-          waiting_on: ['PARAM-straight-pipe-section'],
-          reason: 'Pressure branch cannot be selected until expansion assumptions are resolved.',
-        },
-      ],
+      pending_expansion_nodes: [],
       expanded_nodes: [],
       branch_decisions: [],
       recent_events: [],
     },
     warnings: [],
   },
-  planning_summary: {
-    goal: 'Required wall thickness',
-    action: 'request_input',
-    current_phase: 'parameter_gathering',
-    phase_missing: { parameter_gathering: ['internal_design_gage_pressure'] },
-    selected_nodes: ['302.3.5-e'],
-  },
+  planning_summary: {},
   provenance_index: [],
   provenance_warnings: [],
-  workflow_state: {
-    current_node: 'PARAM-internal-design-gage-pressure',
-    visited_nodes: ['304.1.1-a', '302.3.5-e'],
-  },
-  inspector_summary: {
-    status: 'awaiting_input',
-    phase: 'parameter_gathering',
-    current_blocker: {
-      type: 'missing_input',
-      field: 'internal_design_gage_pressure',
-      parameter_node_id: 'PARAM-internal-design-gage-pressure',
+  workflow_state: {},
+  task_state_views: {
+    state_summary: {
+      task_id: 'task-1',
+      task_name: 'task-1',
+      status: 'awaiting_input',
+      workflow_id: 'pipe_wall_thickness_design',
+      selected_root: 'pipe_wall_thickness_design',
+      current_phase: 'parameter_gathering',
+      readiness: 'waiting_for_input',
+      expanded_node_count: 1,
+      missing_input_count: 1,
     },
-    resolved_inputs: [],
-    missing_inputs: ['internal_design_gage_pressure'],
-    selected_branch_decisions: [],
-    pending_calculations: [],
-    execution_graph_summary: {
-      expanded_count: 1,
-      active_count: 1,
-      resolved_count: 0,
-      pending_count: 0,
+    facts_view: [
+      {
+        field: 'internal_design_gage_pressure',
+        label: 'Internal Design Gage Pressure',
+        symbol: 'P',
+        value: null,
+        unit: 'bar',
+        source: 'user_input',
+        status: 'missing',
+        parameter_node_id: 'PARAM-internal-design-gage-pressure',
+      },
+    ],
+    decisions_view: [],
+    outputs_view: [],
+    validation_view: {
+      status: 'ok',
+      errors: [],
+      warnings: [],
+      overrides: [],
+      conflicts: [],
+      affected_nodes: [],
     },
-    warnings: [],
+    trace_timeline: [
+      {
+        order: 1,
+        event_type: 'input_requested',
+        label: 'Input requested',
+        node_id: 'PARAM-internal-design-gage-pressure',
+        message: 'Field: internal_design_gage_pressure',
+        source: 'execution',
+      },
+    ],
   },
   execution_events: [],
   lifecycle_events: [],
-  replay_frames: [
-    {
-      frame_index: 0,
-      step_index: null,
-      active_node: '302.3.5-e',
-      visited_nodes: [],
-      pending_nodes: ['PARAM-pressure'],
-      variables: {},
-      outputs: {},
-      planner_state: {},
-      context: {},
-    },
-  ],
+  replay_frames: [],
   replay_snapshot: {},
   integrity_checks: [],
   performance: { total_duration_ms: 0, step_count: 0, by_node_ms: {} },
@@ -160,32 +249,59 @@ const samplePayload: InspectionPayloadDto = {
 }
 
 describe('PlannerDevPanel', () => {
-  it('shows engineering-plan planner summary and traversal', () => {
+  it('shows human-friendly planner sections without raw JSON in default view', () => {
     render(
       <PlannerDevPanel payload={samplePayload} selectedNodeId={null} plannerDecision={null} />,
     )
-    expect(screen.getAllByText('Expansion assumptions').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('Source:')).toBeInTheDocument()
-    expect(screen.getByText('Next input')).toBeInTheDocument()
-    expect(screen.getByText('Dependency graph summary')).toBeInTheDocument()
-    expect(screen.getByText('Outstanding required inputs')).toBeInTheDocument()
-    expect(screen.getByText('Conditional future requirements')).toBeInTheDocument()
-    expect(screen.getByText('Derived / lookup requirements')).toBeInTheDocument()
-    expect(screen.getByText('Calculations')).toBeInTheDocument()
-    expect(screen.getAllByText(/Straight Pipe Section/).length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('Traversal summary')).toBeInTheDocument()
-    expect(screen.getByText('Planner traversal')).toBeInTheDocument()
-    expect(screen.queryByText('Waiting for user input')).not.toBeInTheDocument()
-    expect(screen.queryByText('Parameter gathering')).not.toBeInTheDocument()
+    expect(screen.getByText('Pipe Wall Thickness Design')).toBeInTheDocument()
+    expect(screen.getByText('Waiting for input')).toBeInTheDocument()
+    expect(screen.getByText('Traversal path')).toBeInTheDocument()
+    expect(screen.getByText('Inspector debug')).toBeInTheDocument()
+    expect(screen.getByText(/Developer \/ debug view only/)).toBeInTheDocument()
+    expect(screen.getByText('Planner phase details')).toBeInTheDocument()
+    expect(screen.queryByText('engineering_plan')).not.toBeInTheDocument()
+    expect(screen.getByText('Advanced / Raw Data — Canonical engineering plan')).toBeInTheDocument()
+  })
+})
+
+describe('PlannerTraversalTimeline', () => {
+  it('renders completed current blocked and skipped rows', () => {
+    render(
+      <PlannerTraversalTimeline
+        rows={[
+          { node_id: 'n1', title: 'Done', node_type: 'paragraph', state: 'completed', waiting_on: [] },
+          { node_id: 'n2', title: 'Now', node_type: 'parameter', state: 'current', waiting_on: [] },
+          { node_id: 'n3', title: 'Blocked', node_type: 'parameter', state: 'blocked', waiting_on: ['n2'], reason: 'waiting' },
+          { node_id: 'n4', title: 'Skipped', node_type: 'paragraph', state: 'skipped', waiting_on: [], reason: 'not applicable' },
+        ]}
+      />,
+    )
+    expect(screen.getByText('Done')).toBeInTheDocument()
+    expect(screen.getByText('Now')).toBeInTheDocument()
+    expect(screen.getByText('Blocked')).toBeInTheDocument()
+    expect(screen.getByText('Skipped')).toBeInTheDocument()
+    expect(screen.getByText('Waiting on: n2')).toBeInTheDocument()
+  })
+
+  it('shows limited traversal support note when empty', () => {
+    render(
+      <PlannerTraversalTimeline
+        rows={[]}
+        supportLevel="none"
+        supportNote="Traversal timeline is only built for pipe wall thickness workflows today."
+      />,
+    )
+    expect(screen.getByText(/pipe wall thickness workflows today/i)).toBeInTheDocument()
+    expect(screen.getByText(/Traversal timeline support/i)).toBeInTheDocument()
   })
 })
 
 describe('TaskStateDevPanel', () => {
-  it('shows compact summary by default', () => {
+  it('shows structured task state panels without raw JSON in default view', () => {
     render(<TaskStateDevPanel payload={samplePayload} activeTaskState={null} />)
-    expect(screen.getByText('Task status')).toBeInTheDocument()
-    expect(screen.getByText('internal_design_gage_pressure')).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: 'Raw State' })).toBeInTheDocument()
-    expect(screen.queryByText('Inspection payload')).not.toBeInTheDocument()
+    expect(screen.getByText('Facts / inputs')).toBeInTheDocument()
+    expect(screen.getByText(/Developer \/ debug view only/)).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Raw State' })).not.toBeInTheDocument()
+    expect(screen.getByText('Advanced / Raw Data — Canonical task state')).toBeInTheDocument()
   })
 })

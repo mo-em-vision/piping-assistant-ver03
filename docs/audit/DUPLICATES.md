@@ -23,15 +23,14 @@ Documented during Architecture Audit Mode. **No recommendation** on which to kee
 | Implementation | Path | Used by |
 |----------------|------|---------|
 | Engine reader | `engine/reference/standards_reader.py` | API, engine, scripts |
-| CLI shim | `cli/standards_reader.py` | CLI display commands |
 
 ## Planning / intent
 
 | Implementation | Path | Used by |
 |----------------|------|---------|
 | Deterministic planner | `engine/planner/planner.py` | Workflow navigation |
-| LLM planner fallback | `ai/agents/planner_agent.py` | CLI orchestrator |
-| Deterministic router | `engine/router.py` | CLI first pass |
+| LLM planner fallback | `ai/agents/planner_agent.py` | Chat orchestrator |
+| Deterministic router | `engine/router.py` | Workflow bootstrap |
 | LLM intent | `ai/agents/intent_agent.py` | CLI orchestrator |
 | Unused routing agent | `ai/agents/routing_agent.py` | Tests only |
 
@@ -47,7 +46,7 @@ Documented during Architecture Audit Mode. **No recommendation** on which to kee
 | Implementation | Path | Used by |
 |----------------|------|---------|
 | Desktop SQLite | `storage/project_session_store.py` | API / desktop |
-| CLI filesystem | `cli/session_store.py` | CLI `task` commands |
+| Filesystem session store | `storage/session_store.py` | API chat helpers, tests |
 
 ## Parameter registry
 
@@ -67,9 +66,7 @@ Documented during Architecture Audit Mode. **No recommendation** on which to kee
 
 | Implementation | Path |
 |----------------|------|
-| Graph Explorer | `dev/graph_explorer/` |
 | Inspector graph panel | `dev/desktop_ui/inspector/InspectorGraphPanel.tsx` |
-| CLI `graph show` | `cli/commands/graph.py` |
 
 ## Frontmatter parsing
 

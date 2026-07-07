@@ -46,6 +46,15 @@ conditions:
     description: Thick-wall geometry limit per §304.1.2(b)
   - expression: P / (S * E) > 0.385
     description: High pressure-to-strength ratio per §304.1.2(b)
+on_fail:
+  severity: warning
+  blocks_goal: false
+  message: >
+    Thick-wall special consideration may be required per §304.1.2(b).
+applicability:
+  applies_when:
+  - parameter: PARAM-internal-design-gage-pressure
+    operator: present
 edges:
 - type: requires_parameter
   target: PARAM-required-wall-thickness
@@ -72,6 +81,6 @@ metadata:
   status: active
   version: 1
   legacy_equation_id: valrule-304-1-2-b
-  last_revision: 2026-07-04
+  last_revision: 2026-07-07
   edited_by: admin
 ---

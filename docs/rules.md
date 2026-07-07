@@ -38,6 +38,8 @@ Prove fixes with tests that exercise real behavior. After API/backend changes: `
 
 Define success criteria and a short plan for non-trivial work before coding.
 
+Every feature plan must include an **Architecture Consistency Review** (§23; status CLEAR / NEEDS_DOC_UPDATE / NEEDS_DECISION / BLOCKED) and a **Plan Review Gate** (§22; status APPROVED / REVISE / BLOCKED) before implementation. Do not implement until the consistency review is **CLEAR** (or doc updates are done) and the gate is **APPROVED**. See **§22**, **§23**, and [`docs/process/plan_review_gate.md`](process/plan_review_gate.md).
+
 ---
 
 ## 7. Debugging
@@ -134,17 +136,16 @@ The active execution subgraph is resolved from authored knowledge nodes: `assump
 ### Engine and API must
 
 - Derive **which nodes are active** from `expand_workflow()` / `GraphEngine.build_plan()` and edge `when` evaluation.
-- Derive **which parameters to ask** from active parameter nodes and nomenclature on the expanded path (`required_user_inputs()`), plus execution-assumption evaluation — not from a fixed per-workflow field list.
+- Derive **which parameters to ask** from active compiled `PARAM-*` nodes on the expanded path (`required_user_inputs()`), plus execution-assumption evaluation — not from a fixed per-workflow field list.
 - **Replan after each confirmed input** so branch-specific parameters (e.g. external design pressure) disappear when that branch is ruled out.
 - Use navigation config **only** for phase ordering and gate-phase fields, never to inject path-specific parameters that the graph did not expand.
 
 ### Do not
 
-- Hardcode paragraph ids, branch ids, or task field names in planner, serializers, `workflow_timeline.py`, `workflow_bootstrap.py`, or graph explorer projectors to select execution paths.
+- Hardcode paragraph ids, branch ids, or task field names in planner, serializers, `workflow_timeline.py`, or `workflow_bootstrap.py` to select execution paths.
 - List all branch parameters unconditionally in `runtime.yaml` `navigation.phases.parameter_gathering`.
 - Merge static navigation phase lists over graph-derived `required_user_inputs` (gate phases only).
 - Encode workflow branching in TypeScript or `if workflow == "pipe_wall_…"` blocks in the backend.
-- Add new path logic only in the graph explorer frontend; backend expansion must enforce the same rules.
 
 ### Where to author a new branch or gate
 
@@ -410,4 +411,222 @@ Validation runs in `build_pipe_wall_engineering_plan()` **after** `finalize_engi
 
 - `engine/planner/plan_validation.py`
 - `.cursor/rules/agent-rules.mdc` — cite §19–§20 for planner inspector work
+
+---
+
+## 21. Flow Guidance Layer (traversal narration)
+
+**User-facing traversal narration lives in the Flow Guidance Layer — not in the planner, graph engine, engineering nodes, CLI, or deterministic parameter prompt builders.**
+
+The Flow Guidance Layer explains *why* the system is moving through a workflow, *why* a node is being evaluated, and *what* the user should expect next. It is presentation-only data and code.
+
+### Components
+
+| Component            | Module                                     | Owns                                                                                                                                               | Does not own                                                      |
+| -------------------- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| **GuidanceResolver** | `engine/presentation/guidance_resolver.py` | Traversal narration from `presentation/guidance/workflows/*.yaml` keyed by workflow context                                                        | Parameter prompts, equation bodies, planner copy, graph traversal |
+| **ResponseComposer** | `engine/presentation/response_composer.py` | Merging guidance blocks + deterministic messaging prompts + validation warnings + node/equation asset references into UI-neutral structured output | Planning, graph traversal, validation, execution                  |
+| **Types**            | `models/presentation.py`                   | `GuidanceBlock`, `GuidanceContext`, `PresentationBlock`, `PresentationResponse`                                                                    | Engineering truth                                                 |
+
+### GuidanceResolver inputs (allowed)
+
+Resolve narration from:
+
+- `workflow_id`
+- `current_phase`
+- `active_node_id`
+- `node_role`
+- `traversal_event`
+- `edge_reason`
+- task state metadata required for template matching only, such as confirmed inputs, current phase, selected branch, warnings, and active task id
+
+`PlannerTraversalState` may supply `traversal_event` and `active_node_id` as **context facts only**. Its `message` fields are debug copy — **must not** become user-facing guidance.
+
+### GuidanceResolver outputs
+
+Structured `GuidanceBlock` objects (`source: "guidance"`). Blocks may **reference** `node_id`, `equation_id`, `table_id`, or `paragraph_id` in `refs` — they must not embed engineering truth.
+
+### ResponseComposer outputs
+
+`PresentationResponse` with:
+
+| Field                 | Meaning                                                                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `presentation_blocks` | Rebuilt current presentation snapshot for the current task/workflow state. **Owned by `PresentationResponse`, not by workflow logic.** |
+| `transcript_blocks`   | **Append-only** historical conversation/output blocks                                                                                   |
+| `active_prompt`       | The current deterministic ask block produced by `engine/messaging/`. It is not guidance YAML and is not historical transcript content until displayed/appended. |
+
+Output must be **UI-neutral** structured blocks (dict/JSON-serializable). CLI may render first; API/Desktop consume the same shape later.
+
+### Distinction: `presentation_blocks` vs `transcript_blocks`
+
+|           | `presentation_blocks`                                                                 | `transcript_blocks`                                            |
+| --------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Lifecycle | Rebuilt each turn from current state                                                  | Append-only; never overwrite prior entries                     |
+| Ownership | `PresentationResponse` — not workflow state, not a presentation store on the task   | Session/conversation history                                   |
+| Content   | Current phase snapshot (parameters, equations, warnings)                              | Historical guidance, equations, explanations shown to the user |
+| Tests     | Use field name `presentation_blocks`                                                  | Use field name `transcript_blocks` — never conflate            |
+
+Changing `presentation_blocks` after a phase advance must **not** erase `transcript_blocks`. Do **not** attach presentation state directly to workflow state.
+
+### Guidance YAML (`presentation/guidance/workflows/`)
+
+**Allowed:** traversal narration, branch context, “what happens next” prose, references to node/equation/table/paragraph ids.
+
+**Forbidden:**
+
+- Deterministic parameter/formula prompt copy (owned by `engine/messaging/formula_parameter_prompt.py` and related prompt builders: `step_prompt.py`, `workflow_parameter_prompts.py`, and desktop/API `parameter_input_prompt.py`)
+- Duplicates of `build_step_prompt()`, `build_formula_parameter_prompt()`, or `build_parameter_input_prompt()` output
+- Equation bodies, LaTeX, or formula text (reference `equation_id` only)
+- Verbatim paragraph engineering text from knowledge nodes
+- Planner `PlannerTraversalState.message` strings
+- Hardcoded CLI orchestrator strings
+
+Guidance templates are **presentation data**, not engineering truth.
+
+### Deterministic prompts (unchanged — §12)
+
+Parameter and step prompt text remains owned by `engine/messaging/`:
+
+- `build_parameter_input_prompt()`
+- `build_step_prompt()`
+- `build_formula_parameter_prompt()`
+
+ResponseComposer **combines** guidance with these prompts; it does not replace them.
+
+### Layer restrictions
+
+| Layer                            | Must not store workflow-specific guidance copy                          |
+| -------------------------------- | ----------------------------------------------------------------------- |
+| Planner (`engine/planner/`)      | Yes                                                                     |
+| Graph Engine (`engine/graph/`)   | Yes                                                                     |
+| Engineering nodes (`knowledge/`) | Yes (intrinsic assets only: paragraph text, equation intro, `ai_hints`) |
+| CLI (`cli/`)                     | Removed — desktop API only                                              |
+| Workflow state / task model      | Yes — do not make workflow state a presentation store                   |
+
+State/session storage may persist `transcript_blocks`, but it must **not** derive engineering meaning from them. Transcript blocks are display history only.
+
+### Do not
+
+- Let `presentation_blocks` become part of workflow logic.
+- Let guidance YAML become another prompt system.
+- Let planner/debug messages become user-facing guidance.
+
+### Tests
+
+- `tests/presentation/test_guidance_resolver.py`
+- `tests/presentation/test_response_composer.py`
+- `tests/api/test_append_only_transcript_blocks.py`
+- `tests/api/test_guidance_blocks.py`
+- `tests/api/test_chat_orchestrator.py`
+
+### Design references
+
+- `docs/core/5. workflow_design.md` — phased input + Flow Guidance Layer
+- `api/flow_guidance.py` — `task_state["flow_guidance"]` payload
+- `api/chat_orchestrator.py` — chat-turn composition + `new_transcript_blocks`
+- `docs/core/11. planner_layer_design.md` — planner vs guidance boundary
+- `docs/core/14. graph_engine_design.md` — graph vs guidance boundary
+- `engine/presentation/README.md` — module inventory
+
+---
+
+## 22. Plan Review Gate
+
+Every Cursor feature plan must include a visible **Plan Review Gate** section inside the plan itself — **after** the Architecture Consistency Review (§23), before any implementation begins.
+
+**Purpose:** Give non-technical reviewers (project owner, CEO, product manager) a plain-English check on safety, architecture alignment, testability, and implementation readiness — without copying the plan to an external tool.
+
+**Cursor rules:** `.cursor/rules/plan-review-gate.mdc`, `.cursor/rules/feature-planning.mdc`  
+**Process doc:** `docs/process/plan_review_gate.md`
+
+### Status
+
+| Status | Implementation |
+| --- | --- |
+| **APPROVED** | Allowed |
+| **REVISE** | Not allowed — correct the plan first |
+| **BLOCKED** | Not allowed — resolve missing decisions first |
+
+### Required plan sections (before the gate)
+
+- Feature summary and user-visible behavior
+- Allowed files/modules vs out-of-scope layers
+- Acceptance criteria in plain English
+- Test plan (general, workflow-specific, regression, user-visible output)
+- **Architecture Consistency Review** (§23) — status must be **CLEAR** (or required doc updates completed) before **APPROVED**
+
+### Required gate sections
+
+Status, Plain-English Summary, Business/User Impact, Architecture Alignment, Main Risks, Missing Decisions, Test Coverage Required, Documentation / Rules Updates Required, Out of Scope, Implementation Permission.
+
+### Status assignment (summary)
+
+- Architecture Consistency Review not **CLEAR** → **REVISE** or **BLOCKED**
+- Missing tests → **REVISE**
+- Unclear architecture boundaries → **REVISE**
+- Unrelated layer changes → **REVISE** or **BLOCKED**
+- UI/output fix via Planner, Graph, Execution, or engineering nodes (unjustified) → **REVISE**
+- General feature tested only on one workflow → **REVISE**
+- Hardcoding `pipe_wall_thickness_design` in general components → **REVISE**
+- Guidance/prompts in wrong layer → **REVISE** (see §12, §21)
+- Broad scope without split steps → **REVISE** or **BLOCKED**
+
+Full template, decision rules, compliance checklist, and example: `.cursor/rules/plan-review-gate.mdc`.
+
+---
+
+## 23. Architecture Consistency Review
+
+Every Cursor feature plan must include a visible **Architecture Consistency Review** section **before** the Plan Review Gate — inside the plan itself, not in a separate file.
+
+**Purpose:** Surface architectural conflicts with `docs/rules.md` and aligned design docs in plain English for non-technical reviewers, before implementation begins.
+
+**Cursor rules:** `.cursor/rules/plan-review-gate.mdc`, `.cursor/rules/feature-planning.mdc`  
+**Process doc:** `docs/process/plan_review_gate.md`
+
+### Required section format
+
+```markdown
+# Architecture Consistency Review
+
+| Field | Value |
+| --- | --- |
+| Existing source files checked | … |
+| Possible conflicts found | … |
+| Conflicting source of truth | … |
+| Proposed resolution | … |
+| User impact | … |
+| Risk if ignored | … |
+| Required doc/rule/test updates | … |
+| Status | CLEAR / NEEDS_DOC_UPDATE / NEEDS_DECISION / BLOCKED |
+```
+
+### Status behavior
+
+| Status | Meaning | Plan Review Gate |
+| --- | --- | --- |
+| **CLEAR** | No architectural conflicts detected | May proceed to gate review |
+| **NEEDS_DOC_UPDATE** | Docs are inconsistent but intended architecture is clear | Gate must be **REVISE** until docs are updated or plan includes doc fixes |
+| **NEEDS_DECISION** | Two sources of truth conflict with no clear winner | Gate must be **REVISE** or **BLOCKED** |
+| **BLOCKED** | Implementation would violate `docs/rules.md` | Gate must be **BLOCKED** |
+
+If status is not **CLEAR**, the Plan Review Gate must not be **APPROVED**.
+
+### Compliance checklist (must answer in every plan)
+
+1. Does this plan introduce hardcoded workflow fields, branch IDs, paragraph IDs, or frontend engineering logic?
+2. Does this plan ask for lookup-derived outputs instead of lookup keys?
+3. Does this plan bypass `PARAM-*` metadata for gatherable parameters?
+4. Does this plan put prompt copy in the planner, graph engine, execution layer, CLI, API serializers, or frontend?
+5. Does this plan put traversal narration outside the Flow Guidance Layer?
+6. Does this plan add fixed required input lists where graph expansion should decide active inputs?
+7. Does this plan use old node layout instructions as if they are current?
+8. Does this plan confuse `RuleEngine` with `ValidationEngine`?
+9. Does this plan use legacy planner/goal maps as canonical output?
+10. Does this plan require doc/rule/test updates before implementation?
+
+If any answer indicates a violation, the Plan Review Gate must not be **APPROVED**.
+
+Full template and integration rules: `.cursor/rules/plan-review-gate.mdc`, `docs/process/plan_review_gate.md`.
 

@@ -33,22 +33,6 @@ User (CreateTaskDialog)
   → desktopApp/src/components/workflow/WorkflowPanel.tsx
 ```
 
-## CLI — interactive chat
-
-```
-main.py
-  → cli/app.py
-  → cli/commands/chat.py
-  → cli/orchestrator.py
-  → ai/agents/intent_agent.py (IntentAgent)
-  → engine/router.py
-  → ai/agents/planner_agent.py (PlannerAgent)
-  → engine/planner/planner.py
-  → ai/agents/input_agent.py (InputAgent)
-  → engine/executor/executor.py
-  → cli/display.py
-```
-
 ## API — chat assist (in-task Q&A)
 
 ```
@@ -57,6 +41,27 @@ desktopApp/src/services/api/chatApi.ts
   → api/chat_service.py
   → ai/agents/task_assist_agent.py
   → engine/reference/standards_reader.py (context)
+```
+
+## Flow Guidance — task state snapshot
+
+```
+serializers.task_state
+  → api/flow_guidance.build_flow_guidance_payload(task, reader)
+  → engine/presentation/guidance_resolver.GuidanceResolver.resolve
+    → presentation/guidance/workflows/<workflow_id>.yaml
+  → engine/presentation/response_composer.ResponseComposer.compose
+    → engine/messaging/ (step_prompt, formula_parameter_prompt)
+  → task_state["flow_guidance"]  (presentation_blocks, transcript_blocks, active_prompt)
+```
+
+## Flow Guidance — chat turn (waiting_input)
+
+```
+api/chat_orchestrator.ChatOrchestrator.handle_turn
+  → GuidanceResolver + ResponseComposer
+  → ChatResponse.data: presentation, new_transcript_blocks
+  → storage/session_store.SessionStore.append_message(transcript_blocks=...)
 ```
 
 ## Report generation
@@ -101,12 +106,3 @@ desktopApp/electron/main.ts
   → Vite renderer (desktopApp/src/main.tsx)
 ```
 
-## Graph Explorer (dev only)
-
-```
-python -m dev.graph_explorer
-  → dev/graph_explorer/adapter.py (reads sessions/*/tasks.json)
-  → engine/graph/graph_store.py
-  → dev/graph_explorer/server.py (:8765)
-  → dev/graph_explorer/web (React Flow :3000)
-```

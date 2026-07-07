@@ -53,8 +53,8 @@
 ## Lecture 7 — The Graph as a Compiler
 
 1. User requests are transformed into engineering execution plans.
-2. The planner builds engineering intent before execution begins.
-3. The graph acts as the semantic representation of engineering knowledge.
+2. The planner translates user intent into goals and orders the next missing information.
+3. Graph expansion determines active engineering requirements, branches, and parameter asks.
 4. Execution plans resemble compiler execution plans.
 5. Knowledge representation and execution remain separate.
 6. Optimization occurs by minimizing unnecessary reasoning and user interaction.
@@ -162,11 +162,12 @@
 4. Backward inference starts from desired outputs and discovers required inputs.
 5. Forward inference propagates new Facts through dependent calculations.
 6. Applicability conditions are evaluated during inference.
-7. The planner performs deterministic reasoning using the graph; it does not guess.
-8. The LLM interprets user intent but does not perform engineering reasoning.
-9. The Inference Frontier identifies the next missing Fact required for progress.
-10. User interaction should request only the minimum information needed to advance inference.
-11. **Law 22 — Inference expands possibility; execution produces reality.**
+7. The planner performs deterministic navigation using the graph; it does not guess engineering truth.
+8. Graph expansion determines which requirements are active on the current path.
+9. The LLM interprets user intent but does not perform engineering reasoning.
+10. The Inference Frontier identifies the next missing Fact required for progress.
+11. User interaction should request only the minimum information needed to advance inference.
+12. **Law 22 — Inference expands possibility; execution produces reality.**
 
 # Lecture 17
 

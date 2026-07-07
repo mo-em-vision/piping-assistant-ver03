@@ -4,7 +4,7 @@ Development-only debugging environment for verifying that the application execut
 
 The framework does **not** ship in production builds and does **not** change planner or business logic.
 
-**Related tools:** [Developer Graph Explorer](developer_graph_explorer.md) (deep graph viz), [Node Dev Studio](node_dev_studio.md) (node authoring), inline dev hovers (`DevNodeHoverSurface`).
+**Related tools:** [Node Dev Studio](node_dev_studio.md) (node authoring), inline dev hovers (`DevNodeHoverSurface`).
 
 ---
 ## maintaining Audit Files
@@ -21,7 +21,7 @@ The Developer Inspector answers: *“Where did this value come from, and why did
 | **Execution Trace** | Per-node stack trace: inputs, outputs, duration, status, selection reason |
 | **Value Provenance** | Source node, property, upstream/downstream graph links, transformation history |
 | **Planner** | Why each node was selected, edge followed, rejected candidates |
-| **Graph** | Execution-state colors on the active subgraph; link to Graph Explorer |
+| **Graph** | Active subgraph summary in the inspector layout |
 | **Replay** | Step through stored execution frames without re-running calculations |
 | **Integrity** | Smoke checks that the graph (not filenames or hardcoded UI) is the source of truth |
 | **Logs / Performance** | Audit events, lifecycle events, per-node timing |
@@ -43,7 +43,7 @@ The Developer Inspector answers: *“Where did this value come from, and why did
 |----------|-------|--------|
 | `DEV_INSPECTION_ENABLED` | Backend | Enables inspection API and enriched executor metadata |
 | `VITE_ENABLE_DEV_TOOLS` | Frontend build | Ships dev UI chunks in packaged Electron (`devToolsAvailable`) |
-| Dev Mode toggle | Frontend runtime | User enables Inspector, hovers, embedded Graph Explorer, Node Edit |
+| Dev Mode toggle | Frontend runtime | User enables Inspector, hovers, Node Edit |
 | `DEV_STUDIO_ENABLED` | Backend | Enables Node Dev Studio API (all Electron builds) |
 
 ---
@@ -66,7 +66,6 @@ engine/inspection/builder.py  →  consolidated payload
 GET /api/v1/tasks/{taskId}/inspection?session_id=...
        │
        ├── Desktop Developer Inspector (bottom dock panel)
-       └── Graph Explorer (execution_state overlay on nodes/edges)
 ```
 
 ### Backend module layout
@@ -87,23 +86,35 @@ api/inspection.py       API helpers (get payload, breakpoints, integrity run)
 
 ### Frontend layout
 
+Primary developer surface: **right-panel dev tabs** (`Planner`, `Task State`, `Operations`) when Dev Mode is enabled.
+
 ```
 dev/desktop_ui/inspector/
-  DeveloperInspector.tsx      Tab shell
-  ExecutionTracePanel.tsx
-  InspectorGraphPanel.tsx
-  PlannerDevPanel.tsx         Planner summary from engineering_plan + validation + traversal
-  PlannerTraversalPanel.tsx   Active node, pending expansion, branch decisions, events
-  plannerInspectorSummary.ts  resolvePlannerInspectorSummary, buildPlannerTraversalInspectorView
-  validateEngineeringPlan.ts  Client-side plan invariant checks (mirrors plan_validation.py)
-  EngineeringPlanPanel.tsx    Readable plan phases / requirements (debug details)
-  TaskStateDevPanel.tsx       Execution traversal (graph engine)
-  inspectorStore.ts           Selection, replay index, panel state
-  useInspectionPayload.ts     Poll inspection API for active task
+  PlannerDevTab.tsx             Right panel: Planner tab entry
+  PlannerDevPanel.tsx           Header card, traversal timeline, phase/requirements/warnings
+  PlannerHeaderCard.tsx         Workflow, phase, active node, status badge, why_here
+  PlannerTraversalTimeline.tsx  Vertical traversal path (completed/current/blocked/skipped)
+  PlannerPhasePanel.tsx         Current vs future phase fields
+  PlannerRequirementsPanel.tsx  Conditional, lookup, calculation requirements
+  PlannerWarningsPanel.tsx      Plan validation + planner warnings
+  TaskStateDevTab.tsx           Right panel: Task State tab entry
+  TaskStateDevPanel.tsx         Structured facts, decisions, outputs, validation, timeline
+  TaskStateHeaderCard.tsx       Task summary card
+  FactsTable.tsx                Facts / inputs table
+  DecisionsPanel.tsx            Branch decisions and assumptions
+  OutputsPanel.tsx              Produced outputs
+  ValidationPanel.tsx           Validation status and conflicts
+  TraceTimelinePanel.tsx        Execution + lifecycle event timeline
+  InspectorAdvancedSection.tsx  Collapsed raw JSON (Advanced / Raw Data)
+  plannerInspectorSummary.ts    resolvePlannerInspectorSummary
+  validateEngineeringPlan.ts    Client-side plan invariant checks (mirrors plan_validation.py)
+  useInspectionPayload.ts       Poll inspection API for active task
 
 desktopApp/src/services/api/inspectionApi.ts
-desktopApp/src/types/backend/inspection.ts   PlannerInspectorSummaryDto, PlannerTraversalInspectorViewDto
+desktopApp/src/types/backend/inspection.ts   PlannerInspectorSummaryDto, TaskStateViewsDto
 ```
+
+Legacy bottom-dock `DeveloperInspector.tsx` (execution trace) may exist but is not the primary dev surface for planner/task state.
 
 ---
 
@@ -136,19 +147,9 @@ npm run dev
 ### Using the inspector
 
 1. Create or activate a task and run a workflow (submit inputs, execute).
-2. Click **Inspector** in the app header (visible when the **Dev** badge is shown).
-3. Use the bottom dock panel tabs to explore trace, graph, planner decisions, provenance, and replay.
-
-### Graph Explorer (optional, deeper view)
-
-```powershell
-cd dev/graph_explorer
-npm run dev
-```
-
-Open `http://localhost:3000`. From the Inspector **Graph** tab, use **Open in Graph Explorer** for the full React Flow canvas with execution-state coloring and animated traversed edges.
-
-See [Developer Graph Explorer — Execution overlay](developer_graph_explorer.md#12-execution-overlay-developer-inspection-framework).
+2. Enable **Dev Mode** in the app header.
+3. Open the **Planner** or **Task State** tab in the right panel while stepping through the workflow.
+4. Use **Advanced / Raw Data** collapsed sections for canonical JSON when needed.
 
 ---
 
@@ -166,6 +167,17 @@ Response fields:
 
 | Field | Description |
 |-------|-------------|
+| `engineering_plan` | **Canonical** normalized engineering plan (source of truth) |
+| `engineering_plan_view` | Human-readable phases/overview |
+| `planner_inspector_summary` | Compact planner debug rebuilt from `engineering_plan` on each fetch |
+| `planner_inspector_summary.header` | Workflow, phase, active node, status badge, `why_here` (inspector debug only) |
+| `planner_inspector_summary.phase_panel` | Current-phase active/completed/missing/future fields |
+| `planner_inspector_summary.traversal_path` | Ordered timeline rows for traversal UI |
+| `planner_inspector_summary.requirements_panel` | Unified requirement rows with resolution kind and display status |
+| `inspector_summary` | Compact task-state summary |
+| `canonical_task_state` | Layered canonical task state |
+| `task_state_views` | UI-friendly projections: `state_summary`, `facts_view`, `decisions_view`, `outputs_view`, `validation_view`, `trace_timeline` |
+| `legacy_goal_map` | Deprecated goal_store projection — debug only |
 | `execution_trace` | Normalized steps: `step_index`, `node_id`, `node_type`, `status`, `duration_ms`, `selection_reason`, `inputs`, `outputs`, edges |
 | `planner_decisions` | Map of `node_id` → why selected, trigger dependency, edge, rule, rejected candidates |
 | `planning_summary` | Root-level planner summary from task outputs |
@@ -252,22 +264,38 @@ Select a trace step in the Inspector, then open the **Planner** tab to see the d
 
 ### Planner tab (engineering plan)
 
-The **Planner** dev tab is driven by **`engineering_plan`** (canonical), not the legacy `goal_store` projection.
+The **Planner** dev tab is driven by **`engineering_plan`** (canonical), not the legacy `goal_store` projection. The default view is human-readable cards and tables; raw JSON is under **Advanced / Raw Data**.
 
 | Section | Source |
 |---------|--------|
-| Root goal, phase, next input | `planner_inspector_summary` (rebuilt from `engineering_plan` on inspection fetch) |
-| Outstanding / conditional / lookup / calculation reqs | `planner_inspector_summary` |
-| Dependency graph summary | `planner_inspector_summary.planner_graph_summary` |
-| Plan validation | `validateEngineeringPlan(engineering_plan)` + `engineering_plan.debug` |
-| Traversal summary + panel | `traversal_summary`, `planner_traversal_view`, `engineering_plan.traversal` |
-| Legacy goal map | `<details>` debug only — `legacy_goal_map` |
+| Header card | `planner_inspector_summary.header` |
+| Traversal path timeline | `planner_inspector_summary.traversal_path` |
+| Phase panel (current vs future) | `planner_inspector_summary.phase_panel` |
+| Requirements panel | `planner_inspector_summary.requirements_panel` |
+| Warnings | `planner_inspector_summary.warnings` + `validateEngineeringPlan(engineering_plan)` |
+| Legacy goal map | Collapsed **Advanced / Raw Data** — `legacy_goal_map` |
 
-`build_planner_inspector_summary()` (`engine/planner/plan_inspector.py`) shape:
+`build_planner_inspector_summary()` (`engine/planner/plan_inspector.py`) includes:
 
-- `root_goal`, `current_phase`, `next_input` (at most one in `single_next_question` mode)
-- `outstanding_required_inputs`, `conditional_requirements`, `derived_or_lookup_values`, `calculations`
+- `root_goal`, `current_phase`, `next_input`, `outstanding_required_inputs`
+- `current_phase_inputs`, `future_phase_inputs`
+- `conditional_requirements`, `derived_or_lookup_values`, `calculations`, `system_resolved_requirements`
+- `header`, `phase_panel`, `traversal_path`, `requirements_panel`
 - `planner_graph_summary`, `traversal_summary`, `planner_traversal_view`, `warnings`
+
+### Task State tab
+
+The **Task State** dev tab renders `task_state_views` from the inspection payload (`engine/inspection/task_state_views.py`):
+
+| Section | Source |
+|---------|--------|
+| State summary card | `task_state_views.state_summary` |
+| Facts / inputs table | `task_state_views.facts_view` |
+| Decisions and assumptions | `task_state_views.decisions_view` |
+| Outputs produced | `task_state_views.outputs_view` |
+| Validation and warnings | `task_state_views.validation_view` |
+| Event timeline | `task_state_views.trace_timeline` |
+| Raw canonical state | Collapsed **Advanced / Raw Data** |
 
 ### Planner traversal (engineering plan)
 
@@ -293,12 +321,14 @@ Built in `engine/planner/planner_traversal.py` when `build_pipe_wall_engineering
 
 Open the **Planner** dev tab after starting a pipe wall thickness task. Expand **Planner traversal** for the full walk state.
 
-Invariants: `engine/planner/plan_validation.py` (`validate_engineering_plan`, `validate_engineering_plan_dict`). Validation runs after `finalize_engineering_plan()`; failures appear under **Plan validation** in the Planner tab.
+Invariants: `engine/planner/plan_validation.py` (`validate_engineering_plan`, `validate_engineering_plan_dict`). Validation runs after `finalize_engineering_plan()`; failures appear in the **Warnings** section of the Planner tab.
 
 Tests:
 
 - `tests/planner/test_planner_traversal.py`
+- `tests/planner/test_planner_inspector_views.py`
 - `tests/planner/test_fresh_pipe_wall_normalized_plan.py`
+- `tests/inspection/test_task_state_views.py`
 - `tests/planner/test_planner_output_shape.py`
 - `dev/desktop_ui/tests/validateEngineeringPlan.test.tsx`
 
@@ -318,13 +348,9 @@ Nodes are colored by execution status:
 | skipped | orange |
 | failed | red |
 
-### Graph Explorer overlay
+### Graph panel
 
-When `_execution_trace` exists on the active task:
-
-- Node `metadata.execution_state` is set on the subgraph snapshot
-- Traversed edges carry `metadata.traversed: true` and animate in the canvas
-- Revision hash includes execution state so WebSocket updates fire as the task runs
+The inspector graph area shows workflow context alongside execution trace details in the sidebar.
 
 ---
 
@@ -380,9 +406,6 @@ python -m pytest tests/api/test_inspection_api.py tests/execution/test_inspectio
 # Replay determinism
 python -m pytest tests/acceptance/test_reproducibility.py::TestReproducibilityAcceptance::test_replay_frames_are_deterministic -q
 
-# Graph Explorer execution overlay
-python -m pytest tests/dev/test_graph_explorer_adapter.py -q
-
 # Frontend
 cd desktopApp && npm run test:run -- ../dev/desktop_ui/tests/ExecutionTracePanel.test.tsx
 ```
@@ -393,13 +416,12 @@ cd desktopApp && npm run test:run -- ../dev/desktop_ui/tests/ExecutionTracePanel
 
 - Does not modify node schema, planner algorithms, or validation rules
 - Does not expose inspection UI or API in production builds
-- Does not replace Node Dev Studio (authoring) or Graph Explorer (structural analysis) — complements them
+- Does not replace Node Dev Studio (authoring) — complements it
 
 ---
 
 ## 15. Related documentation
 
-- [Developer Graph Explorer](developer_graph_explorer.md) — active subgraph visualization and execution overlay
 - [Node Dev Studio](node_dev_studio.md) — YAML node authoring
 - [Graph platform architecture](architecture/graph_platform.md) — compile pipeline and runtime graph
 - [Developer Inspection Framework spec](todo/Developer%20Inspection%20Framework.md) — original requirements document

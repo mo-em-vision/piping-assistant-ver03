@@ -18,7 +18,7 @@ Turn completed (or partial) tasks into auditable engineering documents. Template
 
 **Depends on:** `engine/reference/`, `engine/reports/*`, `models/report`, optional AI in `presentation.py`
 
-**Used by:** `cli/commands/reports.py`, `api/report_service.py`, `ai/agents/synthesis_agent.py`, acceptance/e2e tests
+**Used by:** `api/report_service.py`, `ai/agents/synthesis_agent.py`, acceptance/e2e tests
 
 ## Runtime Usage
 

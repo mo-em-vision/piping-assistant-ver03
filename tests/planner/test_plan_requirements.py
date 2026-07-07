@@ -84,6 +84,17 @@ def test_diameter_resolution_has_top_level_alternatives_and_question_spec() -> N
     assert diameter.question_spec is not None
     assert diameter.question_spec.field == "diameter_input_mode"
 
+    by_id = {alt.id: alt for alt in diameter.alternatives}
+    direct = by_id["ALT-direct-outside-diameter"]
+    assert direct.fields == ["outside_diameter"]
+    assert direct.resolves == "outside_diameter"
+    assert direct.method == "direct_input"
+
+    nps = by_id["ALT-nps-lookup"]
+    assert nps.fields == ["nominal_pipe_size"]
+    assert nps.resolves == "outside_diameter"
+    assert nps.method == "lookup"
+
     payload = diameter.to_dict()
     assert "alternatives" in payload
     assert "question_spec" in payload

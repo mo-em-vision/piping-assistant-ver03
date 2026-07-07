@@ -9,11 +9,11 @@ from engine.graph.workflow_navigation import load_workflow_navigation
 from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
 from engine.planner.tools import GraphTools
 from engine.reference.standards_reader import StandardsReader
-from engine.messaging.workflow_parameter_prompts import resolve_workflow_parameter_prompt
 from engine.planner.workflow_goal_metadata import (
     lookup_fields_for_workflow,
     root_target_for_workflow,
     selection_fields_for_workflow,
+    workflow_title_for_goal,
 )
 from engine.state.goal_satisfaction import refresh_goal_satisfaction
 from engine.state.task_facts import active_facts
@@ -27,31 +27,8 @@ from models.goal import (
 from models.goal_store import GoalStore
 from models.planning import NavigationPhase
 from models.task import Task
-from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 
-_DEFAULT_ROOT_TARGETS = {
-    PIPE_WALL_THICKNESS_DESIGN: "minimum-required-thickness",
-    MAWP_DESIGN: "maximum-allowable-working-pressure",
-}
-
-
-def _resolve_goal_title(reader: StandardsReader, workflow_id: str, graph: GraphTools) -> str:
-    from engine.graph.graph_engine import GraphEngine, normalize_root_id
-
-    root_slug = normalize_root_id(workflow_id)
-    engine = GraphEngine()
-    try:
-        if engine.uses_micro_graph(reader, root_slug):
-            micro = engine._micro_engine(reader)
-            if micro is not None:
-                resolved = engine._resolve_micro_root(root_slug, reader)
-                wf = micro.store.get_node(resolved)
-                if wf is not None:
-                    return str(wf.metadata.get("title") or workflow_id)
-        root_record = reader.load(root_slug)
-        return str(root_record.metadata.get("title") or root_record.metadata.get("purpose") or workflow_id)
-    except FileNotFoundError:
-        return workflow_id.replace("_", " ")
+_DEFAULT_ROOT_TARGET_FALLBACK = "required-wall-thickness"
 
 
 def _short_label_for_field(field_id: str) -> str:
@@ -244,11 +221,14 @@ def build_goal_tree(
         return plan_store
 
     clear_goal_store(task)
-    fallback_target = _DEFAULT_ROOT_TARGETS.get(slug, "required-wall-thickness")
-    target = root_target_for_workflow(reader, workflow_id, fallback=fallback_target)
+    target = root_target_for_workflow(
+        reader,
+        workflow_id,
+        fallback=_DEFAULT_ROOT_TARGET_FALLBACK,
+    )
     selection_fields = selection_fields_for_workflow(reader, workflow_id)
     lookup_fields = lookup_fields_for_workflow(reader, workflow_id)
-    title = _resolve_goal_title(reader, workflow_id, graph)
+    title = workflow_title_for_goal(reader, workflow_id)
     root = calculation_goal(
         key="verify-engineering-goal",
         name=title,

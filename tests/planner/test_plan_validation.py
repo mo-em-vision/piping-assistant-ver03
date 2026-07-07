@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
+
 from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
 from engine.planner.plan_validation import validate_engineering_plan
 from engine.state.state_manager import TaskStateManager
-from models.engineering_plan import PlanDependency
+from models.engineering_plan import PlanDependency, TraversalExpandedNode
 from models.task import TaskStatus
 
 
@@ -40,3 +42,61 @@ def test_validate_accepts_nominal_pipe_size_lookup_input_edge() -> None:
         and edge.type == "lookup_input"
         for edge in plan.dependencies
     )
+
+
+def test_validate_rejects_duplicate_pending_expansion_nodes() -> None:
+    plan = _fresh_plan()
+    assert plan.traversal is not None
+    duplicate = deepcopy(plan.traversal.pending_expansion_nodes[0])
+    plan.traversal.pending_expansion_nodes.append(duplicate)
+
+    result = validate_engineering_plan(plan)
+    assert not result.valid
+    assert any("duplicate node ids" in error for error in result.errors)
+
+
+def test_validate_rejects_pending_and_expanded_node_overlap() -> None:
+    plan = _fresh_plan()
+    assert plan.traversal is not None
+    pending = plan.traversal.pending_expansion_nodes[0]
+    plan.traversal.expanded_nodes.append(
+        TraversalExpandedNode(
+            node_id=pending.node_id,
+            node_type=pending.node_type,
+            expanded_at_order=len(plan.traversal.expanded_nodes) + 1,
+            title=pending.title,
+        )
+    )
+
+    result = validate_engineering_plan(plan)
+    assert not result.valid
+    assert any("overlap" in error for error in result.errors)
+
+
+def test_validate_rejects_branch_candidate_active_before_decision_resolved() -> None:
+    plan = _fresh_plan()
+    assert plan.traversal is not None
+    plan.traversal.current_active_node_id = "304.1.2-a"
+    if plan.traversal.current_active_node is not None:
+        plan.traversal.current_active_node.node_id = "304.1.2-a"
+
+    result = validate_engineering_plan(plan)
+    assert not result.valid
+    assert any("is active before branch" in error for error in result.errors)
+
+
+def test_validate_rejects_branch_candidate_expanded_before_decision_resolved() -> None:
+    plan = _fresh_plan()
+    assert plan.traversal is not None
+    plan.traversal.expanded_nodes.append(
+        TraversalExpandedNode(
+            node_id="304.1.2-a",
+            node_type="calculation",
+            expanded_at_order=len(plan.traversal.expanded_nodes) + 1,
+            title="Straight Pipe Under Internal Pressure",
+        )
+    )
+
+    result = validate_engineering_plan(plan)
+    assert not result.valid
+    assert any("is expanded before branch" in error for error in result.errors)

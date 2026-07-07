@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cli.session_store import SessionStore
+from storage.session_store import SessionStore
 from engine.executor.executor import execute_workflow
 from engine.reports.report_generator import ReportGenerator
 from models.execution import ExecutionStatus

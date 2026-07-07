@@ -69,7 +69,6 @@ All `*.py` files in this folder are runnable via `python scripts/<name>.py` (`if
 
 | Callable | Imported by |
 |----------|-------------|
-| `build_graph_db.build_pack_graph_db` | `dev/graph_explorer/watcher.py` |
 | `build_graph_db.build_all` | `build_all_standards_dbs.py` |
 | `build_astm_standards_tables_db.build_all` | `build_all_standards_dbs.py`, `build_material_catalog_db.py` |
 | `build_astm_standards_tables_db.import_material_properties_pack` | Internal to `build_astm_standards_tables_db.py` only |
@@ -101,7 +100,6 @@ Seed YAML files are read only by `build_astm_standards_tables_db.py` (paths hard
 | Consumer | Relationship |
 |----------|--------------|
 | `build_all_standards_dbs.py` | Imports other scripts |
-| `dev/graph_explorer/watcher.py` | Imports `build_pack_graph_db` on file change |
 | `tests/reference/*`, `tests/mvp/test_node_and_standard_content.py` | Import builders or assume DBs exist |
 | `engine/graph/graph_engine.py`, `engine/reference/standards_reader.py`, `engine/reference/material_catalog_db.py`, `engine/executor/*_resolver.py` | Error messages reference script names; runtime reads built SQLite |
 | `README.md`, `AGENTS.md`, `docs/*` | Document manual invocation |
@@ -192,7 +190,7 @@ Do not delete based on this audit alone.
 | **Inputs** | Pack `nodes/` directory under each standard pack. |
 | **Outputs** | Path to written graph DB per pack. |
 | **Side effects** | Writes/overwrites SQLite via `write_graph_cache`. |
-| **Imported by** | `build_all_standards_dbs.py`, `dev/graph_explorer/watcher.py`. |
+| **Imported by** | `build_all_standards_dbs.py`. |
 | **Imports** | `engine.graph.graph_builder.GraphBuilder`, `engine.reference.graph_cache`, `pack_graph_db`, `standards_paths`. |
 | **Actively used** | Yes. |
 | **Confidence** | **High** |
@@ -466,18 +464,6 @@ build_material_catalog_db.build_all()             → material catalog DB
 build_pipe_dimensions_db.build_all()              → pipe_dimensions.db per pack
     ↓
 (NOT CALLED: build_standards_tasks_db.build_all)  → workflows.db unchanged by orchestrator
-```
-
-### Graph Explorer live rebuild
-
-```
-File change under standards/<org>/<pack>/nodes/**
-    ↓
-dev/graph_explorer/watcher.py → GraphChangeHandler._maybe_rebuild_pack()
-    ↓
-scripts/build_graph_db.build_pack_graph_db(pack_root)
-    ↓
-engine/graph/graph_builder.GraphBuilder.build() → write_graph_cache()
 ```
 
 ### Runtime task execution (uses script output, not scripts)

@@ -25,10 +25,4 @@ Write-Host "Installing backend dependencies into bundled venv..."
 & $pythonExe -m pip install --upgrade pip
 & $pythonExe -m pip install -r $requirements
 
-$graphRequirements = Join-Path $BackendRoot "dev\graph_explorer\requirements.txt"
-if (Test-Path $graphRequirements) {
-  Write-Host "Installing graph explorer dependencies..."
-  & $pythonExe -m pip install -r $graphRequirements
-}
-
 Write-Host "Backend runtime ready at $pythonExe"

@@ -16,6 +16,7 @@ entry_points:
   role: definition_anchor
 expected_parameters:
 - PARAM-straight-pipe-section
+- PARAM-wall-thickness-basis
 - PARAM-geometry-input-mode
 - PARAM-nominal-pipe-size
 - PARAM-pipe-schedule
@@ -30,20 +31,21 @@ expected_parameters:
 - PARAM-weld-strength-reduction-factor-W
 - PARAM-temperature-coefficient-Y
 - PARAM-allowable-stress
-- PARAM-mawp
+- PARAM-maximum-allowable-working-pressure
 goal_expansion:
   root_goal:
     goal_class: calculation_goal
-    target_parameter: PARAM-mawp
+    target_parameter: PARAM-maximum-allowable-working-pressure
 phases:
 - key: expansion_assumptions
   purpose: Confirm assumptions required before graph expansion.
   required_parameters:
   - PARAM-straight-pipe-section
 - key: path_decisions
-  purpose: Select geometry input mode.
+  purpose: Select geometry input mode and wall thickness basis.
   required_parameters:
   - PARAM-geometry-input-mode
+  - PARAM-wall-thickness-basis
 - key: parameter_gathering
   purpose: Collect geometry and material inputs.
   required_parameters:
@@ -66,6 +68,14 @@ phases:
 - key: definition_equation_completion
   purpose: Complete definition and equation inputs.
   required_parameters: []
+assumptions:
+- id: pressure_loading
+  field: pressure_loading
+  description: MAWP applies to straight pipe under internal pressure per §304.1.2.
+  required_for_expansion: true
+  allowed_values:
+  - internal_pressure
+  default: internal_pressure
 applicability:
   applies_to:
   - CONCEPT-pipe
@@ -83,19 +93,31 @@ report:
   - warnings
   - conclusion
 edges:
+- type: requires_parameter
+  target: PARAM-wall-thickness-basis
 - type: depends_on
   target: asme-b313-table-A-1
-- type: requires_parameter
-  target: WF-PIPE-WALL-THICKNESS
+- type: may_use_lookup
+  target: asme-b313-table-A-1
+- type: may_use_lookup
+  target: asme-b313-table-A-2
+- type: may_use_lookup
+  target: asme-b313-table-A-3
+- type: may_use_lookup
+  target: asme-b313-table-304-1-1-1
+- type: may_use_lookup
+  target: asme-b313-table-302-3-5-1
 - type: starts_from_paragraph
   target: 304.1.2-a
 - type: may_use_equation
   target: asme-b313-pressure-design-thickness
 - type: may_use_equation
   target: asme-b313-mawp-pressure
+- type: may_use_validation_rule
+  target: asme-b313-304-1-2-valrule-a
 metadata:
-  status: draft
+  status: active
   version: 1
-  last_revision: 2026-07-04
+  last_revision: 2026-07-07
   edited_by: admin
 ---

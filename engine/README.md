@@ -4,7 +4,7 @@ Python engineering backend: standards knowledge loading, graph traversal, planni
 
 ## Purpose
 
-Owns all deterministic engineering behavior for Ver03. The desktop app (`desktopApp/`) and CLI (`cli/`) call into `api/` and `engine/`; they do not duplicate formulas, standards parsing, or workflow logic.
+Owns all deterministic engineering behavior for Ver03. The desktop app (`desktopApp/`) calls into `api/` and `engine/`; it does not duplicate formulas, standards parsing, or workflow logic.
 
 ## Subfolders
 
@@ -37,7 +37,7 @@ Owns all deterministic engineering behavior for Ver03. The desktop app (`desktop
 
 | Entry | Used by |
 |-------|---------|
-| `engine.router.route` | `cli/orchestrator.py`, `api/workflow_bootstrap.py`, tests |
+| `engine.router.route` | `api/chat_orchestrator.py`, `api/workflow_bootstrap.py`, tests |
 | `engine.graph.GraphEngine` | Planner, executor, API bootstrap, agents |
 | `engine.planner.Planner` | `ai/agents/planner_agent.py`, tests, e2e |
 | `engine.executor.execute_workflow` | `api/workflow_bootstrap.py`, acceptance tests |
@@ -47,13 +47,13 @@ Owns all deterministic engineering behavior for Ver03. The desktop app (`desktop
 
 ## Dependencies
 
-**Inbound:** `api/`, `cli/`, `ai/`, `scripts/`, `dev/graph_explorer/`, `tests/`
+**Inbound:** `api/`, `ai/`, `scripts/`, `tests/`
 
 **Outbound:** `models/` (task, execution, validation, report DTOs), `config/` (paths), `standards/` (source data on disk)
 
 ## Runtime Usage
 
-**Active.** Primary path: user message → `api/` or `cli/` → `Planner` / `GraphEngine` → input collection → `ValidationEngine` → `Executor` → `TaskStateManager` → reports/presentation APIs.
+**Active.** Primary path: user message → `api/` → `Planner` / `GraphEngine` → input collection → `ValidationEngine` → `Executor` → `TaskStateManager` → reports/presentation APIs.
 
 Micro-graph mode is default when `StandardsReader.graph_store.available` (compiled `*_graph.db` exists).
 
@@ -61,7 +61,7 @@ Micro-graph mode is default when `StandardsReader.graph_store.available` (compil
 
 | Item | Why |
 |------|-----|
-| `router.MAWP_DESIGN` | Exported only via constant; routing works but less tested than pipe wall thickness |
+| `router.MAWP_DESIGN` | Routed via `IntentAgent` + `tests/api/test_mawp_*`; graph expansion in `tests/graph/test_mawp_*` |
 | Legacy `depends_on` traversal in `graph_engine.py` | Gated by `VER03_LEGACY_GRAPH_TRAVERSAL`; micro-graph preferred |
 | `_STUB_ROOTS` in `graph_engine.py` | `integrity_check`, `pressure_test_verification` advertised but `implemented: False` |
 | `engine/units/__init__.py` | Empty `__all__`; consumers import submodules directly |
@@ -92,7 +92,7 @@ desktopApp → api/desktop_service.py | api/workflow_bootstrap.py
 ### Report generation
 
 ```
-cli/commands/reports.py | tests/e2e/scenario_runner.py
+api/report_service.py | tests/e2e/scenario_runner.py
   → report_data.build_report_from_task
   → ReportGenerator.generate → formatters (md/html/json/pdf)
 ```

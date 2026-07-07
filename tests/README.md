@@ -30,8 +30,6 @@ Python backend and integration test suite for Ver03. Discovered and run via root
 | `execution/` | Inspection trace & lifecycle events | `engine/executor/`, inspection hooks |
 | `integrity/` | Graph integrity checks (dev inspection) | `engine/inspection/integrity` |
 | `config/` | Settings & desktop user-data paths | `config/` |
-| `cli/` | Typer CLI entry | `cli/` |
-| `dev/` | Developer Graph Explorer adapter | `dev/graph_explorer/` |
 | `e2e/` | Full backend pipeline scenarios | Cross-cutting (`engine/*`, `models/`) |
 | `acceptance/` | MVP acceptance criteria (doc-driven) | Cross-cutting + `docs/tests/2.*` |
 | `mvp/` | MVP test strategy (doc-driven) | Cross-cutting + `api/`, `docs/tests/3.*` |
@@ -78,7 +76,7 @@ assertions / pytest.raises / parametrized cases
 | `cd desktopApp && npm run verify:mvp` | Frontend integration tests + `tests/mvp/test_desktop_mvp_workflow.py` |
 | `cd desktopApp && npm run verify:release` | typecheck + verify:mvp + release readiness tests |
 
-Targeted subsets are also documented in `docs/developer_inspection_framework.md`, `docs/node_dev_studio.md`, and `dev/graph_explorer/README.md`.
+Targeted subsets are also documented in `docs/developer_inspection_framework.md` and `docs/node_dev_studio.md`.
 
 ---
 
@@ -509,46 +507,6 @@ Validates **`config/`** — settings loading and desktop user-data directory res
 ### Files
 
 `test_settings.py`, `test_desktop_user_data.py`
-
----
-
-## `cli/` (6 modules)
-
-### Purpose
-
-Validates **`cli/`** Typer application — task list, node inspect/validate, orchestrator, session store, config, chat startup, standards reader wiring.
-
-### Files
-
-`test_app.py`, `test_orchestrator.py`, `test_session_store.py`, `test_config.py`, `test_chat_startup.py`, `test_standards_reader.py`
-
-### Dependencies
-
-- `cli/app`, `typer.testing.CliRunner`
-
-### Runtime Usage
-
-CLI is a separate entry from desktop Electron; smoke-tested for engineering node commands.
-
----
-
-## `dev/` (2 modules)
-
-### Purpose
-
-Validates **`dev/graph_explorer/`** — adapter subgraph building and analysis helpers (development-only tool).
-
-### Files
-
-`test_graph_explorer_adapter.py`, `test_graph_explorer_analysis.py`, `__init__.py`
-
-### Dependencies
-
-- `dev/graph_explorer/adapter`, `dev/graph_explorer/serializer`, `config/`
-
-### Runtime Usage
-
-Not on desktop release path; used when Graph Explorer dev server is running (`dev/graph_explorer/`).
 
 ---
 

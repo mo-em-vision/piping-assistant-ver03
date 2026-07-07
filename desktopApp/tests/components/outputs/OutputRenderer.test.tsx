@@ -57,4 +57,37 @@ describe('OutputRenderer', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: '§304.1.2' })).toBeInTheDocument()
   })
+
+  it('shows value_reference links for derived equation input values', () => {
+    render(
+      <OutputRenderer
+        blocks={[
+          {
+            id: 'preview-equation',
+            type: 'equation',
+            content: 't = PD / 2(SEW + PY)',
+            display: 't = PD / 2(SEW + PY)',
+            input_table: {
+              columns: [
+                { key: 'symbol', label: 'Symbol', sortable: false },
+                { key: 'definition', label: 'Definition', sortable: false },
+                { key: 'value', label: 'Value', sortable: false },
+              ],
+              rows: [
+                {
+                  symbol: 'S',
+                  definition: 'Allowable stress',
+                  value: '',
+                  value_reference: { node_id: 'B313-table-A-1', label: 'Table A-1' },
+                },
+              ],
+            },
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Table A-1' })).toBeInTheDocument()
+    expect(screen.queryByText('Awaiting user input')).not.toBeInTheDocument()
+  })
 })

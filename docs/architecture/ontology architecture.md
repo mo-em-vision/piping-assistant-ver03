@@ -531,7 +531,9 @@ Goals define what is desired.
 
 Facts define what is known.
 
-The Planner determines what must be discovered.
+The Planner orders what to ask next from Goals and the engineering plan.
+
+Graph expansion determines which requirements are active on the current path.
 
 The Execution Layer determines what can be calculated.
 

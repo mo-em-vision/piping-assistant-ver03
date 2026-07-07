@@ -138,8 +138,13 @@ For large modifications Cursor should provide:
 - implementation approach
 - expected behavior
 - possible risks
+- **Plan Review Gate** — mandatory section inside the plan (`docs/process/plan_review_gate.md`)
 
-before editing.
+The Plan Review Gate is written for non-technical reviewers (project owner, CEO, product manager). It ends with status **APPROVED**, **REVISE**, or **BLOCKED**.
+
+**Do not implement** until the Plan Review Gate status is **APPROVED**.
+
+See `.cursor/rules/plan-review-gate.mdc` and `.cursor/rules/feature-planning.mdc`.
 
 ---
 

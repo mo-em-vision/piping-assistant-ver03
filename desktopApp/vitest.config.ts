@@ -19,10 +19,6 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ['zustand'],
-    include: [
-      'use-sync-external-store/shim/with-selector.js',
-      '@xyflow/react',
-    ],
   },
   server: {
     fs: {

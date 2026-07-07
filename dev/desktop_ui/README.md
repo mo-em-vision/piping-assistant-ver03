@@ -8,9 +8,9 @@ Audit date: 2026-07-05. Documentation reflects the code as it exists today.
 
 Shared dev platform (production boundary, session/graph read models, cross-tool links): [`../README.md`](../README.md#shared-dev-platform).
 
-React components for **inline development UI** embedded in the Electron desktop app: node hover tooltips, Developer Inspector panels, and the in-app Node Edit tab. Lazy-loaded when `env.devToolsAvailable`; rendered only when the user enables **Dev Mode** (`useDevToolsStore().devModeActive`). Graph Explorer embed lives in `InspectorGraphPanel` via `@graph-explorer/embed`.
+React components for **inline development UI** embedded in the Electron desktop app: node hover tooltips, Developer Inspector panels, and the in-app Node Edit tab. Lazy-loaded when `env.devToolsAvailable`; rendered only when the user enables **Dev Mode** (`useDevToolsStore().devModeActive`).
 
-Source lives under `dev/desktop_ui/` for consistency with other dev tooling (`dev/graph_explorer/`). The desktop app imports this package via the `@dev-ui/*` path alias (configured in `desktopApp/vite.config.ts` and `desktopApp/tsconfig.json`).
+Source lives under `dev/desktop_ui/`. The desktop app imports this package via the `@dev-ui/*` path alias (configured in `desktopApp/vite.config.ts` and `desktopApp/tsconfig.json`).
 
 ---
 
@@ -37,7 +37,7 @@ Source lives under `dev/desktop_ui/` for consistency with other dev tooling (`de
 | `DevNodeHoverSurface` | Output/workflow/standards components — dev hover |
 | `DeveloperInspector` | `WorkspaceLayout` — lazy when `devToolsAvailable`; mounted when Dev Mode active |
 | `NodeEditTab` | `RightPanel` — lazy when `devToolsAvailable`; tab content when Dev Mode active |
-| `InspectorGraphPanel` | Embedded `@graph-explorer` canvas (Inspector Graph tab) |
+| `InspectorGraphPanel` | Inspector graph area placeholder (execution trace remains in sidebar) |
 
 ---
 

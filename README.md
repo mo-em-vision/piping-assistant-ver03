@@ -60,24 +60,13 @@ Configuration file: [`config/config.yaml`](config/config.yaml) (`default_standar
 
 ## Usage
 
+Start the desktop backend API:
+
 ```bash
-# Interactive engineering chat
-python main.py chat
-
-# Task management
-python main.py task list
-python main.py task show <task_id>
-
-# Inspect standards graph
-python main.py graph show pipe_wall_thickness_design
-python main.py node show B313-304.1.1
-
-# Generate report
-python main.py report generate <task_id> --format html
-python main.py report generate <task_id> --format pdf --with-ai
+python -m api.server
 ```
 
-Equivalent module invocation: `python -m cli chat`
+Then run the desktop app from `desktopApp/` (`npm run dev`). See [AGENTS.md](AGENTS.md) for full developer setup.
 
 ## Standards layout
 
@@ -163,13 +152,14 @@ This builds `pipe_dimensions.db` in each registered pack (e.g. `standards/asme/a
 
 ```
 Ver03/
-├── main.py              # CLI entry point
-├── cli/                 # Typer + Rich CLI
+├── api/                 # REST API for desktop app
 ├── ai/                  # Agents, prompts, LLM client
 ├── engine/              # Graph, planner, validation, executor, reports, state
 ├── models/              # Pure dataclass data models
-├── standards/           # On-disk engineering knowledge
-├── config/              # CLI configuration
+├── storage/             # Desktop SQLite + session persistence
+├── desktopApp/          # Electron + React client
+├── knowledge/           # On-disk engineering knowledge
+├── config/              # Application configuration
 ├── tests/               # Pytest suite
 └── docs/core/           # Architecture and design documentation
 ```

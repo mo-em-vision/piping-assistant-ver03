@@ -30,11 +30,15 @@ def test_fresh_pipe_wall_traversal_state() -> None:
     assert plan.traversal is not None
 
     traversal = plan.traversal
-    assert traversal.current_active_node_id == param_node_id_for_input("straight_pipe_section")
+    straight_param = param_node_id_for_input("straight_pipe_section")
+    assert traversal.current_active_node_id == straight_param
     assert traversal.current_active_node is not None
+    assert traversal.current_active_node.node_id == straight_param
     assert traversal.current_active_node.phase == "expansion_assumptions"
 
     pending_ids = {item.node_id for item in traversal.pending_expansion_nodes}
+    pending_node_ids = [item.node_id for item in traversal.pending_expansion_nodes]
+    assert len(pending_node_ids) == len(set(pending_node_ids))
     assert param_node_id_for_input("pressure_loading") in pending_ids
     assert "304.1.2-a" in pending_ids
     assert "304.1.3" not in pending_ids
@@ -63,10 +67,11 @@ def test_fresh_pipe_wall_traversal_state() -> None:
     assert workflow_expanded.title == "Pipe Wall Thickness Workflow"
 
     pressure_decision = next(item for item in traversal.branch_decisions if item.field == "pressure_loading")
+    assert pressure_decision.field == "pressure_loading"
     assert pressure_decision.status == "unresolved"
     assert pressure_decision.value is None
-    assert "304.1.2-a" in pressure_decision.candidate_nodes
-    assert "304.1.3" in pressure_decision.candidate_nodes
+    assert pressure_decision.selected_node is None
+    assert pressure_decision.candidate_nodes == ["304.1.2-a", "304.1.3"]
 
     summary = build_planner_inspector_summary(plan)
     assert summary["traversal_summary"]["current_active_node_id"] == traversal.current_active_node_id
@@ -92,8 +97,10 @@ def test_traversal_active_node_follows_phase_order_after_straight_pipe() -> None
     plan = build_pipe_wall_engineering_plan(task)
 
     assert plan.traversal is not None
-    assert plan.traversal.current_active_node_id == param_node_id_for_input("pressure_loading")
+    pressure_param = param_node_id_for_input("pressure_loading")
+    assert plan.traversal.current_active_node_id == pressure_param
     assert plan.traversal.current_active_node is not None
+    assert plan.traversal.current_active_node.node_id == pressure_param
     assert plan.traversal.current_active_node.phase == "path_decisions"
 
     coefficient_params = {
@@ -126,9 +133,9 @@ def test_traversal_after_pressure_branch_resolved() -> None:
     assert plan.traversal is not None
     assert plan.traversal.current_active_node is not None
     assert plan.traversal.current_active_node.phase == "parameter_gathering"
-    assert plan.traversal.current_active_node_id == param_node_id_for_input(
-        "internal_design_gage_pressure"
-    )
+    internal_pressure_param = param_node_id_for_input("internal_design_gage_pressure")
+    assert plan.traversal.current_active_node_id == internal_pressure_param
+    assert plan.traversal.current_active_node.node_id == internal_pressure_param
 
     pending_ids = {item.node_id for item in plan.traversal.pending_expansion_nodes}
     assert "304.1.2-a" not in pending_ids

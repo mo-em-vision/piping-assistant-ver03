@@ -18,7 +18,7 @@ In-memory engineering task lifecycle and adapters to `WorkflowState` / presentat
 
 **Depends on:** `engine/reference/`, `engine/graph/`, `engine/presentation/`, `engine/execution/`, `models/task`, `models/workflow_state`
 
-**Used by:** `api/`, `cli/`, `storage/project_session_store.py`, `engine/executor/`, `engine/planner/`, `engine/inspection/`
+**Used by:** `api/`, `storage/project_session_store.py`, `engine/executor/`, `engine/planner/`, `engine/inspection/`
 
 ## Runtime Usage
 
@@ -38,7 +38,7 @@ In-memory engineering task lifecycle and adapters to `WorkflowState` / presentat
 ## Execution Traces
 
 ```
-api/desktop_service / cli/session_store
+api/desktop_service / storage/session_store
   → TaskStateManager.create_task / store_input / store_output
   → state_manager.build_workflow_state (on read)
     → workflow_state.build_workflow_state

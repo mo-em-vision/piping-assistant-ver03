@@ -35,7 +35,7 @@ After a code change, walk this list for the **affected folder(s)**:
 8. **Cross-cutting** — if needed:
    - [DUPLICATES.md](DUPLICATES.md)
    - [EXECUTION_TRACES.md](EXECUTION_TRACES.md)
-   - [ARCHITECTURE_AUDIT.md](../../ARCHITECTURE_AUDIT.md) (repo-level only)
+   - [ARCHITECTURE_AUDIT.md](ARCHITECTURE_AUDIT.md) (repo-level only)
 
 Set **Confidence** (High / Medium / Low) when uncertain; use *Unknown from static analysis.* when you cannot prove from code.
 

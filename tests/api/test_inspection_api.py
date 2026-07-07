@@ -50,5 +50,9 @@ def test_inspection_enabled_returns_payload(tmp_path: Path, project_root: Path) 
         assert "replay_frames" in payload
         assert "integrity_checks" in payload
         assert "performance" in payload
+        assert "task_state_views" in payload
+        summary = payload.get("planner_inspector_summary") or {}
+        assert "header" in summary
+        assert "traversal_path" in summary
     finally:
         os.environ.pop("DEV_INSPECTION_ENABLED", None)

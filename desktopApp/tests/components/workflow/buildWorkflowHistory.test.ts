@@ -7,6 +7,7 @@ import {
 } from '@/components/workflow/buildWorkflowHistory'
 import { mockTaskState } from '@/mock/taskState.mock'
 import { buildTaskStateViewModel } from '@/store/taskStateManager'
+import type { DisplayOutputBlock } from '@/types/backend/outputs'
 
 describe('buildWorkflowHistory', () => {
   it('maps display outputs to workflow history items', () => {
@@ -19,6 +20,57 @@ describe('buildWorkflowHistory', () => {
     expect(items.some((item) => item.kind === 'output' && item.block.id === 'preview-equation')).toBe(
       true,
     )
+  })
+
+  it('preserves display_outputs order regardless of timeline', () => {
+    const outputs: DisplayOutputBlock[] = [
+      { id: 'text-1', type: 'text', content: 'Explanation first' },
+      {
+        id: 'equation-1',
+        type: 'equation',
+        content: 't = 1',
+        display: 't = 1',
+      },
+      {
+        id: 'table-1',
+        type: 'table',
+        columns: [{ key: 'symbol', label: 'Symbol' }],
+        rows: [{ symbol: 'P' }],
+      },
+    ]
+    const reversedTimeline = [...(buildTaskStateViewModel(mockTaskState)?.timeline ?? [])].reverse()
+
+    const items = buildWorkflowHistory(reversedTimeline, outputs)
+
+    expect(items.map((item) => item.block.id)).toEqual(['text-1', 'equation-1', 'table-1'])
+  })
+
+  it('maps every block type to output kind', () => {
+    const outputs: DisplayOutputBlock[] = [
+      { id: 'text-1', type: 'text', content: 'Body text' },
+      {
+        id: 'equation-1',
+        type: 'equation',
+        content: 't = 1',
+        display: 't = 1',
+      },
+      {
+        id: 'table-1',
+        type: 'table',
+        columns: [{ key: 'symbol', label: 'Symbol' }],
+        rows: [{ symbol: 'P' }],
+      },
+    ]
+
+    const items = buildWorkflowHistory([], outputs)
+
+    expect(items).toHaveLength(3)
+    expect(items.every((item) => item.kind === 'output')).toBe(true)
+    expect(items.map((item) => item.id)).toEqual([
+      'output-text-1',
+      'output-equation-1',
+      'output-table-1',
+    ])
   })
 })
 

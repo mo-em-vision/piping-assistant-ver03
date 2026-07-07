@@ -19,7 +19,7 @@ Single source of truth for engineering **reference data** (not runtime task stat
 
 **Depends on:** `knowledge/standards/` tree, `engine/graph/pack_graph.py`, `engine/units/unit_ids.py`
 
-**Used by:** `engine/graph/`, `engine/executor/`, `engine/validation/`, `api/`, `cli/`, `scripts/build_*.py`, `ai/`, `dev/graph_explorer/`
+**Used by:** `engine/graph/`, `engine/executor/`, `engine/validation/`, `api/`, `scripts/build_*.py`, `ai/`
 
 ## Runtime Usage
 

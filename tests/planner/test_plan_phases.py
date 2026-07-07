@@ -66,7 +66,8 @@ def test_derive_input_strategy_from_plan() -> None:
 
 def test_derive_plan_phases_skips_empty_validation() -> None:
     from engine.planner.pipe_wall_plan import build_pipe_wall_requirements
+    from tests.helpers.goals import PIPE_WALL_ROOT_GOAL_ID
 
-    requirements = build_pipe_wall_requirements()
+    requirements = build_pipe_wall_requirements(root_goal_id=PIPE_WALL_ROOT_GOAL_ID)
     phases = derive_plan_phases(requirements)
     assert all(phase.id != "validation" for phase in phases)

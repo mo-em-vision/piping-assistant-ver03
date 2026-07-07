@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mockProjects } from '@/mock/workspace.mock'
 import { mockTaskState } from '@/mock/taskState.mock'
 import { chatApi } from '@/services/api/chatApi'
+import { inputApi } from '@/services/api/inputApi'
 import { useChatStore } from '@/store/chatStore'
 import { useProjectStore } from '@/store/projectStore'
 import { useRightPanelStore } from '@/store/rightPanelStore'
@@ -17,8 +18,15 @@ vi.mock('@/services/api/chatApi', () => ({
   },
 }))
 
+vi.mock('@/services/api/inputApi', () => ({
+  inputApi: {
+    submit: vi.fn(),
+  },
+}))
+
 const mockedSend = vi.mocked(chatApi.send)
 const mockedClear = vi.mocked(chatApi.clear)
+const mockedInputSubmit = vi.mocked(inputApi.submit)
 
 describe('chatStore sendMessage', () => {
   beforeEach(() => {
@@ -233,5 +241,60 @@ describe('chatStore clearMessages', () => {
     expect(useChatStore.getState().messages).toEqual([])
     expect(useChatStore.getState().lastContext).toBeNull()
     expect(useChatStore.getState().userError).toBeNull()
+  })
+})
+
+describe('chatStore workflow transcript isolation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.stubEnv('VITE_MOCK_DATA', 'false')
+    useProjectStore.setState({
+      projects: mockProjects,
+      activeProjectId: mockProjects[0]?.id ?? null,
+    })
+    useChatStore.setState({
+      messages: [
+        {
+          id: 'msg-1',
+          role: 'user',
+          content: 'What is allowable stress?',
+          timestamp: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+      loading: false,
+      sending: false,
+      userError: null,
+      lastContext: null,
+    })
+    useTaskStore.setState({
+      activeTask: {
+        id: mockTaskState.task_id,
+        name: mockTaskState.name,
+        description: mockTaskState.description,
+        discipline: mockTaskState.discipline,
+        status: 'in_progress',
+      },
+      activeTaskState: mockTaskState,
+      sessionId: mockProjects[0]?.id ?? null,
+    })
+    mockedInputSubmit.mockResolvedValue({
+      ...mockTaskState,
+      inputs: {
+        nominal_pipe_size: {
+          input_id: 'nominal_pipe_size',
+          value: '6',
+          unit: 'dimensionless',
+          display_value: '6',
+        },
+      },
+    })
+  })
+
+  it('does not mutate chat messages when workflow parameters are submitted', async () => {
+    const messagesBefore = useChatStore.getState().messages
+
+    await useTaskStore.getState().submitParameter('nominal_pipe_size', '6')
+
+    expect(useChatStore.getState().messages).toEqual(messagesBefore)
   })
 })

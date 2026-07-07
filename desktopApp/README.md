@@ -52,7 +52,7 @@ Root package for the Engineering Workspace desktop application. Contains:
 **Inbound (depend on this package):**
 
 - Repository root pytest MVP tests (`tests/mvp/test_desktop_mvp_workflow.py`)
-- `dev/graph_explorer` (reads live task state from running backend/desktop session)
+- `dev/desktop_ui` (inspector, hovers, node edit tab)
 
 ## Runtime Usage
 

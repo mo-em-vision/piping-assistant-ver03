@@ -8,7 +8,7 @@ import pytest
 
 from api.desktop_service import ApiError, DesktopApiService
 from api.serializers import _task_display_name
-from cli.session_store import _task_from_dict, _task_to_dict
+from storage.session_store import _task_from_dict, _task_to_dict
 from config.loader import CLIConfig
 from models.task import Task, TaskStatus, new_task
 

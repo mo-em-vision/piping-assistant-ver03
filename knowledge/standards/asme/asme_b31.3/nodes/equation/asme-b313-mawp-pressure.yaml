@@ -25,7 +25,7 @@ requires:
   parameter: PARAM-weld-strength-reduction-factor-W
 - symbol: t
   required: true
-  description: Pressure design thickness
+  description: Available pressure design thickness (t_actual minus allowances)
   parameter: PARAM-required-wall-thickness
 - symbol: D
   required: true
@@ -63,10 +63,18 @@ metadata:
   status: active
   version: 1
   legacy_equation_id: mawp_pressure
-  last_revision: 2026-07-04
+  last_revision: 2026-07-07
   edited_by: admin
 display:
   text: MAWP = 2SEWt / (D - 2Yt)
+applicability:
+  applies_when:
+  - parameter: PARAM-pressure-loading
+    operator: equals
+    value: internal_pressure
+  - parameter: PARAM-straight-pipe-section
+    operator: equals
+    value: true
 paragraph_number: 304.1.2-a
 variables:
   S:
@@ -83,7 +91,7 @@ variables:
     unit: dimensionless
   t:
     symbol: t
-    description: Pressure design thickness
+    description: Available pressure design thickness (t_actual minus allowances)
     unit: mm
   D:
     symbol: D

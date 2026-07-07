@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from engine.planner.question_spec_builder import build_question_spec
+from engine.planner.workflow_goal_metadata import RootGoalSpec
 from engine.reference.parameter_keys import param_node_id_for_input
 from models.engineering_plan import (
     ActivationCondition,
@@ -25,10 +26,11 @@ _ALT_DIRECT_OUTSIDE_DIAMETER = "ALT-direct-outside-diameter"
 
 _GATE_REQUIREMENT_IDS = frozenset({"REQ-straight_pipe_section", "REQ-pressure_loading"})
 
-ROOT_GOAL_ID = "GOAL-calculate-minimum-required-thickness"
-ROOT_GOAL_KEY = "calculate-minimum-required-thickness"
-ROOT_TARGET_PARAM = "PARAM-minimum-required-thickness"
-ROOT_TARGET_FIELD = "minimum_required_thickness"
+_REQUIRED_ROOT_OUTPUTS = (
+    "minimum_required_thickness",
+    "required_wall_thickness",
+    "calculation_report",
+)
 
 _USER_INPUT_FIELDS = (
     "internal_design_gage_pressure",
@@ -104,24 +106,20 @@ def req_id(field: str) -> str:
     return f"REQ-{field}"
 
 
-def root_calculation_goal() -> CalculationGoal:
+def root_calculation_goal(spec: RootGoalSpec) -> CalculationGoal:
     return CalculationGoal(
-        id=ROOT_GOAL_ID,
-        key=ROOT_GOAL_KEY,
-        title="Calculate minimum required pipe wall thickness",
-        target_parameter=ROOT_TARGET_PARAM,
-        target_field=ROOT_TARGET_FIELD,
+        id=spec.id,
+        key=spec.key,
+        title=spec.title,
+        target_parameter=spec.target_parameter,
+        target_field=spec.target_field,
         status="blocked",
         blocked_by=[],
-        required_outputs=[
-            "minimum_required_thickness",
-            "required_wall_thickness",
-            "calculation_report",
-        ],
+        required_outputs=list(_REQUIRED_ROOT_OUTPUTS),
     )
 
 
-def diameter_resolution_requirement() -> PlanRequirement:
+def diameter_resolution_requirement(*, root_goal_id: str) -> PlanRequirement:
     return PlanRequirement(
         id="REQ-diameter_resolution",
         field="outside_diameter",
@@ -129,7 +127,7 @@ def diameter_resolution_requirement() -> PlanRequirement:
         requirement_class="user_input",
         status="missing",
         phase="parameter_gathering",
-        required_by=[ROOT_GOAL_ID],
+        required_by=[root_goal_id],
         depends_on=[],
         alternatives=[
             RequirementAlternative(
@@ -204,7 +202,7 @@ def user_input_requirement(field: str, *, phase: str, required_by: list[str]) ->
     )
 
 
-def gate_requirement(field: str, *, phase: str) -> PlanRequirement:
+def gate_requirement(field: str, *, phase: str, root_goal_id: str) -> PlanRequirement:
     req_class = "branch_decision" if field == "pressure_loading" else "user_input"
     return PlanRequirement(
         id=req_id(field),
@@ -213,7 +211,7 @@ def gate_requirement(field: str, *, phase: str) -> PlanRequirement:
         requirement_class=req_class,
         status="missing",
         phase=phase,
-        required_by=[ROOT_GOAL_ID],
+        required_by=[root_goal_id],
         depends_on=[],
         question_spec=build_question_spec(field, priority_override=0),
         resolution={"method": "user_input", "output_field": field},
@@ -226,6 +224,7 @@ def lookup_requirement(
     depends_on: list[str],
     *,
     source_node_id: str | None = None,
+    root_goal_id: str,
 ) -> PlanRequirement:
     resolution: dict[str, str] = {"method": "lookup", "output_field": field}
     if source_node_id:
@@ -237,7 +236,7 @@ def lookup_requirement(
         requirement_class="table_lookup",
         status="blocked",
         phase="coefficient_resolution",
-        required_by=[ROOT_GOAL_ID],
+        required_by=[root_goal_id],
         depends_on=depends_on,
         resolution=resolution,
     )
@@ -249,6 +248,7 @@ def equation_requirement(
     depends_on: list[str],
     *,
     source_node_id: str,
+    root_goal_id: str,
 ) -> PlanRequirement:
     return PlanRequirement(
         id=req_id_value,
@@ -257,7 +257,7 @@ def equation_requirement(
         requirement_class="equation_result",
         status="blocked",
         phase="equation_execution",
-        required_by=[ROOT_GOAL_ID],
+        required_by=[root_goal_id],
         depends_on=depends_on,
         resolution={
             "method": "equation",
@@ -267,7 +267,7 @@ def equation_requirement(
     )
 
 
-def report_requirement() -> PlanRequirement:
+def report_requirement(*, root_goal_id: str) -> PlanRequirement:
     return PlanRequirement(
         id="REQ-calculation_report",
         field="calculation_report",
@@ -275,27 +275,27 @@ def report_requirement() -> PlanRequirement:
         requirement_class="report_output",
         status="blocked",
         phase="reporting",
-        required_by=[ROOT_GOAL_ID],
+        required_by=[root_goal_id],
         depends_on=["REQ-minimum_required_thickness_eq"],
         resolution={"method": "report", "output_field": "calculation_report"},
         title="Calculation Report",
     )
 
 
-def build_pipe_wall_requirements() -> dict[str, PlanRequirement]:
+def build_pipe_wall_requirements(*, root_goal_id: str) -> dict[str, PlanRequirement]:
     requirements: dict[str, PlanRequirement] = {}
 
     for field in _GATE_FIELDS:
         phase = "expansion_assumptions" if field == "straight_pipe_section" else "path_decisions"
-        requirements[req_id(field)] = gate_requirement(field, phase=phase)
+        requirements[req_id(field)] = gate_requirement(field, phase=phase, root_goal_id=root_goal_id)
 
     requirements[req_id("internal_design_gage_pressure")] = user_input_requirement(
         "internal_design_gage_pressure",
         phase="parameter_gathering",
-        required_by=[ROOT_GOAL_ID],
+        required_by=[root_goal_id],
     )
 
-    requirements["REQ-diameter_resolution"] = diameter_resolution_requirement()
+    requirements["REQ-diameter_resolution"] = diameter_resolution_requirement(root_goal_id=root_goal_id)
     requirements[req_id("nominal_pipe_size")] = nominal_pipe_size_requirement()
     requirements["REQ-outside_diameter_lookup"] = outside_diameter_lookup_requirement()
 
@@ -303,29 +303,33 @@ def build_pipe_wall_requirements() -> dict[str, PlanRequirement]:
         requirements[req_id(field)] = user_input_requirement(
             field,
             phase="parameter_gathering",
-            required_by=[ROOT_GOAL_ID],
+            required_by=[root_goal_id],
         )
 
     requirements[req_id("corrosion_allowance")] = user_input_requirement(
         "corrosion_allowance",
         phase="parameter_gathering",
-        required_by=[ROOT_GOAL_ID],
+        required_by=[root_goal_id],
     )
 
     for field in _COEFFICIENT_INPUT_FIELDS:
         requirements[req_id(field)] = user_input_requirement(
             field,
             phase="coefficient_resolution",
-            required_by=[ROOT_GOAL_ID],
+            required_by=[root_goal_id],
         )
 
     for lookup_id, field, deps, source in _LOOKUP_REQUIREMENTS:
-        requirements[lookup_id] = lookup_requirement(lookup_id, field, deps, source_node_id=source)
+        requirements[lookup_id] = lookup_requirement(
+            lookup_id, field, deps, source_node_id=source, root_goal_id=root_goal_id
+        )
 
     for eq_id, field, deps, source in _EQUATION_REQUIREMENTS:
-        requirements[eq_id] = equation_requirement(eq_id, field, deps, source_node_id=source)
+        requirements[eq_id] = equation_requirement(
+            eq_id, field, deps, source_node_id=source, root_goal_id=root_goal_id
+        )
 
-    requirements["REQ-calculation_report"] = report_requirement()
+    requirements["REQ-calculation_report"] = report_requirement(root_goal_id=root_goal_id)
 
     for requirement_id, req in requirements.items():
         if requirement_id in _GATE_REQUIREMENT_IDS:
@@ -335,11 +339,14 @@ def build_pipe_wall_requirements() -> dict[str, PlanRequirement]:
     return requirements
 
 
-def build_pipe_wall_dependencies() -> list[PlanDependency]:
+def build_pipe_wall_dependencies(*, root_goal_id: str) -> list[PlanDependency]:
     """Backward-compatible alias; prefer build_plan_dependencies(requirements)."""
     from engine.planner.plan_dependencies import build_plan_dependencies
 
-    return build_plan_dependencies(build_pipe_wall_requirements(), workflow_id=PIPE_WALL_WORKFLOW)
+    return build_plan_dependencies(
+        build_pipe_wall_requirements(root_goal_id=root_goal_id),
+        workflow_id=PIPE_WALL_WORKFLOW,
+    )
 
 
 def root_blocked_by_for_gathering() -> list[str]:

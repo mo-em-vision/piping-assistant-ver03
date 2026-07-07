@@ -1,0 +1,65 @@
+# Flow Guidance Layer — traversal narration only (presentation data, not engineering truth).
+# Must not duplicate parameter prompt copy, equation/formula bodies, substituted values, or results.
+# Reference node_id / equation_id in refs only.
+
+workflow_id: mawp_design
+
+entries:
+  - id: expansion-gate-intro
+    match:
+      current_phase: expansion_assumptions
+      traversal_event: branch_decision_required
+      edge_reason: straight_pipe_section
+    text: >-
+      Before collecting geometry and material inputs, the workflow confirms this
+      analysis applies to a straight pipe section under internal pressure per
+      §304.1.2.
+    refs:
+      node_id: "304.1.2-a"
+
+  - id: geometry-mode-branch
+    match:
+      current_phase: path_decisions
+      traversal_event: branch_decision_required
+      edge_reason: geometry_input_mode
+    text: >-
+      Select how pipe geometry will be provided: nominal pipe size and schedule
+      lookup, or direct outside diameter and wall thickness entry.
+    refs:
+      node_id: "304.1.2-a"
+
+  - id: wall-thickness-basis
+    match:
+      current_phase: path_decisions
+      traversal_event: branch_decision_required
+      edge_reason: wall_thickness_basis
+    text: >-
+      Identify the wall thickness basis used for the pressure design thickness
+      derivation (measured actual, nominal schedule, or minimum after mill
+      tolerance).
+    refs:
+      node_id: asme-b313-pressure-design-thickness
+
+  - id: coefficient-resolution-entry
+    match:
+      current_phase: coefficient_resolution
+      traversal_event: node_selected
+    text: >-
+      Material and construction inputs will be used to resolve allowable stress
+      and joint efficiency coefficients from governing tables before the MAWP
+      equation is evaluated.
+    refs:
+      node_id: asme-b313-table-A-1
+
+  - id: parameter-gathering-entry
+    match:
+      current_phase: parameter_gathering
+      active_node_id: asme-b313-pressure-design-thickness
+      node_role: equation
+      traversal_event: node_selected
+    text: >-
+      Geometry and allowance inputs will be collected next. Available pressure
+      design thickness is derived from the selected wall thickness basis before
+      the MAWP equation is applied.
+    refs:
+      equation_id: asme-b313-pressure-design-thickness

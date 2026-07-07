@@ -8,7 +8,7 @@ import pytest
 
 from api.chat_service import clear_chat_messages, list_chat_messages, send_chat_message
 from api.desktop_service import DesktopApiService
-from cli.session_store import SessionStore
+from storage.session_store import SessionStore
 from config.loader import CLIConfig
 from engine.state.state_manager import TaskStateManager
 from engine.reference.asme_b31_3_table_ids import TABLE_304_1_1

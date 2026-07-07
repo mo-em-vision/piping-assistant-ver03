@@ -41,6 +41,12 @@ _NODE_REFERENCES: dict[str, dict[str, str]] = {
         "title": "Allowable Stress Lookup",
         "excerpt": "Allowable stress values are selected from Table A-1 for the design material and temperature.",
     },
+    "asme-b313-mawp-pressure": {
+        "standard": "ASME B31.3",
+        "paragraph": "304.1.2",
+        "title": "Maximum Allowable Working Pressure",
+        "excerpt": "MAWP for straight pipe under internal pressure using the thin-wall equation.",
+    },
     "B313-MAWP-CALCULATION": {
         "standard": "ASME B31.3",
         "paragraph": "304.1.2",
@@ -242,6 +248,9 @@ def _build_mawp_display_outputs(
 
     if _mawp_calculated(task, has_trace=has_trace):
         blocks.extend(_mawp_equation_preview_blocks(task, reader))
+        derivation = _mawp_thickness_derivation_block(trace)
+        if derivation:
+            blocks.append(derivation)
         substituted = _mawp_substituted_equation_block(trace)
         if substituted:
             blocks.append(substituted)
@@ -264,20 +273,56 @@ def _mawp_calculated(task: Task, *, has_trace: bool) -> bool:
     return task.outputs.get("mawp") is not None or task.outputs.get("MAWP") is not None
 
 
+_MAWP_TRACE_NODE_IDS = frozenset({"asme-b313-mawp-pressure", "B313-MAWP-CALCULATION"})
+_PRESSURE_DESIGN_TRACE_NODE_IDS = frozenset(
+    {"asme-b313-pressure-design-thickness", "B313-MAWP-PRESSURE-DESIGN"}
+)
+
+
+def _equation_display_text(reader: StandardsReader, node_id: str, fallback: str) -> str:
+    try:
+        ctx = load_equation_context(reader, node_id)
+        if isinstance(ctx, dict):
+            display = ctx.get("display")
+            if isinstance(display, dict):
+                text = display.get("text")
+                if text:
+                    return str(text)
+            elif display:
+                return str(display)
+        elif getattr(ctx, "display", None):
+            return str(ctx.display)
+    except (FileNotFoundError, TypeError, ValueError):
+        pass
+    return fallback
+
+
 def _mawp_equation_preview_blocks(task: Task, reader: StandardsReader) -> list[dict[str, Any]]:
-    del reader
     blocks: list[dict[str, Any]] = []
-    reference = _NODE_REFERENCES.get("B313-MAWP-CALCULATION")
-    if reference:
-        blocks.append(_path_preview_intro_block("B313-MAWP-CALCULATION", reference))
+    for ref_id in ("asme-b313-mawp-pressure", "B313-MAWP-CALCULATION"):
+        reference = _NODE_REFERENCES.get(ref_id)
+        if reference:
+            blocks.append(_path_preview_intro_block(ref_id, reference))
+            break
+
+    pressure_design_formula = _equation_display_text(
+        reader,
+        "asme-b313-pressure-design-thickness",
+        _MAWP_PRESSURE_DESIGN_FORMULA,
+    )
+    mawp_formula = _equation_display_text(
+        reader,
+        "asme-b313-mawp-pressure",
+        _MAWP_FORMULA,
+    )
 
     blocks.append(
         {
             "id": "mawp-pressure-design-equation",
             "type": "equation",
             "title": None,
-            "content": _display_to_latex(_MAWP_PRESSURE_DESIGN_FORMULA),
-            "display": _MAWP_PRESSURE_DESIGN_FORMULA,
+            "content": _display_to_latex(pressure_design_formula),
+            "display": pressure_design_formula,
             "input_table": build_mawp_pressure_design_input_table(task, reader=reader),
         }
     )
@@ -286,8 +331,8 @@ def _mawp_equation_preview_blocks(task: Task, reader: StandardsReader) -> list[d
             "id": "mawp-formula-equation",
             "type": "equation",
             "title": None,
-            "content": _display_to_latex(_MAWP_FORMULA),
-            "display": _MAWP_FORMULA,
+            "content": _display_to_latex(mawp_formula),
+            "display": mawp_formula,
             "input_table": build_mawp_formula_inputs_input_table(task, reader=reader),
             "nomenclature_reference": {
                 "standard": "ASME B31.3",
@@ -304,7 +349,8 @@ def _mawp_substituted_equation_block(trace: list[Any] | None) -> dict[str, Any] 
     for entry in trace:
         if not isinstance(entry, dict):
             continue
-        if str(entry.get("node_id")) != "B313-MAWP-CALCULATION":
+        node_id = str(entry.get("node_id"))
+        if node_id not in _MAWP_TRACE_NODE_IDS:
             continue
         node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
         calc = node_trace.get("calculation") if isinstance(node_trace.get("calculation"), dict) else {}
@@ -322,6 +368,43 @@ def _mawp_substituted_equation_block(trace: list[Any] | None) -> dict[str, Any] 
             "type": "equation",
             "title": None,
             "content": latex,
+            "display": display,
+        }
+    return None
+
+
+def _mawp_thickness_derivation_block(trace: list[Any] | None) -> dict[str, Any] | None:
+    """Surface pressure design thickness derivation from execution trace."""
+    if not isinstance(trace, list):
+        return None
+    for entry in trace:
+        if not isinstance(entry, dict):
+            continue
+        node_id = str(entry.get("node_id"))
+        if node_id not in _PRESSURE_DESIGN_TRACE_NODE_IDS:
+            continue
+        node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
+        calc = node_trace.get("calculation") if isinstance(node_trace.get("calculation"), dict) else {}
+        variables_si = node_trace.get("variables_si") if isinstance(node_trace.get("variables_si"), dict) else {}
+        final = calc.get("final_result") if isinstance(calc.get("final_result"), dict) else {}
+        t_value = final.get("value")
+        t_actual = variables_si.get("t_actual")
+        c_value = variables_si.get("c")
+        if t_value is None:
+            continue
+        t_text = format_thickness_result_display(float(t_value))
+        parts = ["Pressure design thickness derivation:"]
+        if t_actual is not None and c_value is not None:
+            t_actual_text = format_thickness_result_display(float(t_actual))
+            c_text = format_thickness_result_display(float(c_value))
+            parts.append(f"t_actual = {t_actual_text}, c = {c_text}")
+        parts.append(f"t = t_actual - c = {t_text}")
+        display = " ".join(parts)
+        return {
+            "id": "mawp-thickness-derivation",
+            "type": "text",
+            "title": "Thickness basis",
+            "content": display,
             "display": display,
         }
     return None

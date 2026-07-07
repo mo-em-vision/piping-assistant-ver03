@@ -68,6 +68,10 @@ edges:
 
       present: true
 
+  - type: references_equation
+
+    target: asme-b313-mawp-pressure
+
   - type: references_concept
 
     target: CONCEPT-pressure

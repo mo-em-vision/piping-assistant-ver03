@@ -6,9 +6,9 @@ name: Actual Wall Thickness
 parameter_class: geometric_quantity
 dimension: DIM-length
 description: >
-  Pipe wall thickness (measured or minimum in accordance with the purchase
-  specification). Used when actual or ordered thickness is known instead of
-  calculating design thickness from pressure.
+  Pipe wall thickness used as t_actual for MAWP derivation. May be measured or
+  ordered actual thickness, nominal schedule thickness from NPS/schedule lookup,
+  or minimum thickness after mill tolerance depending on wall_thickness_basis.
 canonical_symbol: t_actual
 aliases:
   - actual wall thickness
@@ -26,7 +26,7 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-06
+  last_revision: 2026-07-07
   edited_by: admin
   canonical_unit: UNIT-mm
 ---

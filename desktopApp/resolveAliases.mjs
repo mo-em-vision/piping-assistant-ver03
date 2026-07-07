@@ -12,10 +12,6 @@ function pkg(name) {
 export const resolveAliases = {
   '@': path.resolve(desktopAppDir, 'src'),
   '@dev-ui': path.resolve(repoRoot, 'dev/desktop_ui'),
-  '@graph-explorer': path.resolve(repoRoot, 'dev/graph_explorer/web/src'),
-  '@graph-explorer/embed': path.resolve(repoRoot, 'dev/graph_explorer/web/src/embed.ts'),
-  '@xyflow/react': pkg('@xyflow/react'),
-  dagre: pkg('dagre'),
   react: pkg('react'),
   'react/jsx-runtime': path.join(pkg('react'), 'jsx-runtime.js'),
   'react/jsx-dev-runtime': path.join(pkg('react'), 'jsx-dev-runtime.js'),

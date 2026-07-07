@@ -31,7 +31,14 @@ Apply it when planning, coding, debugging, adding dependencies, writing tests, o
 18. **Lookup conditionals** — table boundary/clamp rules on output `PARAM-*` nodes via `lookup_conditionals`; generic interpreter in `engine/graph/lookup_conditionals.py` only; see `docs/rules.md` §18 and `.cursor/rules/lookup-conditionals.mdc`.
 19. **Planner traversal debug state** — `PlannerTraversalState` on `EngineeringPlan` for inspector debugging; derived in `planner_traversal.py`; does not drive paths; inspector reads `engineering_plan`; see `docs/rules.md` §19.
 20. **Engineering plan validation** — `validate_engineering_plan()` invariants on normalized plan output; rejects flat `GOAL-*`/`REQ-*` maps; see `docs/rules.md` §20.
+21. **Flow Guidance Layer** — traversal narration in `presentation/guidance/workflows/` via `GuidanceResolver`; `ResponseComposer` merges guidance with `engine/messaging/` prompts; `presentation_blocks` owned by `PresentationResponse` (not workflow state); `transcript_blocks` append-only display history; see `docs/rules.md` §21.
+22. **Plan Review Gate** — every feature plan must include a **Plan Review Gate** section after Architecture Consistency Review; status APPROVED / REVISE / BLOCKED; write for non-technical reviewers; do not implement until APPROVED; see `docs/process/plan_review_gate.md`, `.cursor/rules/plan-review-gate.mdc`, `.cursor/rules/feature-planning.mdc`.
+23. **Architecture Consistency Review** — every feature plan must include an **Architecture Consistency Review** before the Plan Review Gate; status CLEAR / NEEDS_DOC_UPDATE / NEEDS_DECISION / BLOCKED; surfaces doc/architecture conflicts in plain English; see `docs/rules.md` §23.
 
 For node, standards, or workflow work, re-read **§11**, **§13**, **§14**, and **§18** in `docs/rules.md` before editing.
 
 For parameter asks, material autocomplete, or workflow composer copy, re-read **§12** and **§17** in `docs/rules.md` before editing.
+
+For traversal narration and CLI transcript blocks, re-read **§21** in `docs/rules.md` before editing.
+
+For feature plans and non-trivial changes, include the **Architecture Consistency Review** (§23) and **Plan Review Gate** (§22) per `.cursor/rules/plan-review-gate.mdc` before writing production code.

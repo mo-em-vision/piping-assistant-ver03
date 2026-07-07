@@ -263,4 +263,67 @@ describe('getWorkflowAsk', () => {
     expect(ask.parameter?.name).toBe('corrosion_allowance')
     expect(ask.prompt).toContain('0.5 mm')
   })
+
+  it('reflects only the current submittable parameter', () => {
+    const ask = getWorkflowAsk({
+      ...mockTaskState,
+      progress: {
+        ...mockTaskState.progress,
+        submittable_parameters: ['design_temperature'],
+        missing_inputs: ['design_temperature', 'corrosion_allowance'],
+      },
+      parameters: [
+        {
+          name: 'nominal_pipe_size',
+          label: 'Nominal Pipe Size',
+          type: 'dropdown',
+          required: true,
+          units: [],
+          default_unit: 'dimensionless',
+          default_value: '4',
+          value: '4',
+          options: [{ value: '4', label: 'NPS 4' }],
+          validation: null,
+          status: 'confirmed',
+          requires_confirmation: false,
+          submittable: false,
+        },
+        {
+          name: 'design_temperature',
+          label: 'Design Temperature',
+          type: 'number',
+          required: true,
+          units: ['C'],
+          default_unit: 'C',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          submittable: true,
+          guidance: 'Enter design temperature.',
+        },
+        {
+          name: 'corrosion_allowance',
+          label: 'Corrosion allowance',
+          type: 'number',
+          required: true,
+          units: ['mm'],
+          default_unit: 'mm',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          submittable: false,
+        },
+      ],
+    })
+
+    expect(ask.kind).toBe('input')
+    expect(ask.parameter?.name).toBe('design_temperature')
+    expect(ask.parameter?.name).not.toBe('corrosion_allowance')
+  })
 })

@@ -6,9 +6,9 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from cli.orchestrator import ChatOrchestrator
-from cli.responses import CLIResponse
-from cli.session_store import SessionStore
+from api.chat_orchestrator import ChatOrchestrator
+from api.chat_response import ChatResponse
+from storage.session_store import SessionStore
 from config.loader import CLIConfig
 from engine.state.state_manager import TaskNotFoundError, TaskStateManager
 
@@ -258,7 +258,7 @@ def _send_task_assist(
         "session_id": store.session_id,
         "user_message": serialize_message(user_message, 0),
         "assistant_message": serialize_message(assistant_message, 1),
-        "response": CLIResponse(
+        "response": ChatResponse(
             status="assisted",
             message=assist_reply.reply,
             task_id=task_id,
@@ -312,7 +312,7 @@ def _send_selection_explanation(
         "session_id": store.session_id,
         "user_message": serialize_message(user_message, 0),
         "assistant_message": serialize_message(assistant_message, 1),
-        "response": CLIResponse(
+        "response": ChatResponse(
             status="explained",
             message=explain_reply.explanation,
             task_id=task_id,
@@ -322,7 +322,7 @@ def _send_selection_explanation(
     }
 
 
-def _assistant_content(response: CLIResponse) -> str:
+def _assistant_content(response: ChatResponse) -> str:
     parts = [part for part in (response.message, response.question) if part]
     if parts:
         return "\n\n".join(parts)

@@ -1,0 +1,35 @@
+---
+id: PARAM-wall-thickness-basis
+type: parameter
+key: wall_thickness_basis
+name: Wall Thickness Basis
+parameter_class: selection
+description: >
+  Identifies how the wall thickness used for MAWP pressure design thickness
+  derivation was obtained: measured actual, nominal schedule from standards
+  tables, or minimum after mill tolerance.
+canonical_symbol: wall_thickness_basis
+aliases:
+  - wall thickness basis
+  - thickness basis
+introduced_by:
+  - WF-MAWP
+edges:
+  - type: used_by
+    target: asme-b313-pressure-design-thickness
+  - type: used_by
+    target: asme-b313-mawp-pressure
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-07
+  edited_by: admin
+  composer_input: dropdown
+  composer_options:
+    - value: measured_actual
+      label: Measured / ordered actual wall thickness
+    - value: nominal_schedule
+      label: Nominal schedule wall thickness (NPS + schedule lookup)
+    - value: minimum_after_mill_tolerance
+      label: Minimum wall thickness after mill tolerance
+---

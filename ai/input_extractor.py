@@ -14,9 +14,12 @@ from ai.user_response_extractor import (
 )
 from engine.executor.unit_manager import normalize_unit
 from models.fact import Fact, FactClass, ValidationStatus, fact_from_user_submission, fact_scalar_value, fact_unit
-from engine.reference.parameter_keys import MATERIAL_GRADE_KEY
 from engine.reference.material_ids import ASTM_A106_GR_B
-from engine.reference.parameter_keys import MATERIAL_GRADE_KEY
+from engine.reference.parameter_keys import (
+    INTERNAL_DESIGN_GAGE_PRESSURE_KEY,
+    MATERIAL_GRADE_KEY,
+    canonical_parameter_key,
+)
 from engine.graph.node_interaction import NodeInteractionSpec
 
 _DEFAULT_SYMBOL_MAP: dict[str, str] = {
@@ -116,7 +119,7 @@ def extract_pipe_wall_thickness_inputs(
 
     interactions = pending_interactions
     if interactions is None:
-        interactions = default_pipe_wall_thickness_decision_interactions()
+        interactions = ()
     for input_id, inp in extract_interaction_responses(
         message,
         interactions,
@@ -161,7 +164,10 @@ def _normalize_extracted_input(inp: Fact, *, task_id: str) -> Fact:
 
 
 def _field_allowed(field_id: str, allowed_fields: frozenset[str] | None) -> bool:
-    return allowed_fields is None or field_id in allowed_fields
+    if allowed_fields is None:
+        return True
+    canonical = canonical_parameter_key(field_id)
+    return field_id in allowed_fields or canonical in allowed_fields
 
 
 def _extract_symbol_labeled_inputs(
@@ -220,7 +226,7 @@ def _parse_symbol_assignment(
     *,
     task_id: str,
 ) -> Fact | InputRejection | None:
-    if input_id == "design_pressure":
+    if input_id in {INTERNAL_DESIGN_GAGE_PRESSURE_KEY, "design_pressure"}:
         return _parse_pressure_symbol(raw_value, task_id=task_id)
     if input_id == "outside_diameter":
         return _parse_length_symbol(input_id, raw_value, task_id=task_id)
@@ -266,7 +272,14 @@ def _parse_pressure_symbol(raw_value: str, *, task_id: str) -> Fact | InputRejec
             raw_value=raw_display,
             reason="unrecognized pressure unit; please use psi, bar, mpa, kpa, or pa",
         )
-    return fact_from_user_submission(key="design_pressure", value=value, unit=unit if unit != "barg" else "bar", task_id=task_id, original_value=value, original_unit=unit)
+    return fact_from_user_submission(
+        key=INTERNAL_DESIGN_GAGE_PRESSURE_KEY,
+        value=value,
+        unit=unit if unit != "barg" else "bar",
+        task_id=task_id,
+        original_value=value,
+        original_unit=unit,
+    )
 
 
 def _parse_length_symbol(
@@ -433,9 +446,9 @@ def _extract_pressure(
     task_id: str = "",
     allowed_fields: frozenset[str] | None = None,
 ) -> None:
-    if "design_pressure" in result.extracted:
+    if INTERNAL_DESIGN_GAGE_PRESSURE_KEY in result.extracted or "design_pressure" in result.extracted:
         return
-    if not _field_allowed("design_pressure", allowed_fields):
+    if not _field_allowed(INTERNAL_DESIGN_GAGE_PRESSURE_KEY, allowed_fields):
         return
     if _symbol_labeled_present(message, "P"):
         return
@@ -467,7 +480,14 @@ def _extract_pressure(
         )
         return
 
-    result.extracted["design_pressure"] = fact_from_user_submission(key="design_pressure", value=value, unit=unit if unit != "barg" else "bar", task_id=task_id, original_value=value, original_unit=unit)
+    result.extracted[INTERNAL_DESIGN_GAGE_PRESSURE_KEY] = fact_from_user_submission(
+        key=INTERNAL_DESIGN_GAGE_PRESSURE_KEY,
+        value=value,
+        unit=unit if unit != "barg" else "bar",
+        task_id=task_id,
+        original_value=value,
+        original_unit=unit,
+    )
 
 
 def _extract_nps(

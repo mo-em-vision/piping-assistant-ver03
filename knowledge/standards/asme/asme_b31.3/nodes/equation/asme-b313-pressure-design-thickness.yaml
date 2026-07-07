@@ -35,7 +35,7 @@ metadata:
   status: active
   version: 1
   legacy_equation_id: pressure_design_thickness
-  last_revision: 2026-07-04
+  last_revision: 2026-07-07
   edited_by: admin
 display:
   text: t = t_actual - c
@@ -62,5 +62,5 @@ outputs:
   unit: mm
   type: quantity
 equation_id: pressure_design_thickness
-nomenclature_ref: WF-MAWP
+nomenclature_ref: 304.1.1-b
 ---

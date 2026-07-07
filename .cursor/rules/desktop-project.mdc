@@ -7,7 +7,7 @@ alwaysApply: true
 
 ## Workflow
 
-Before significant changes: read `docs/desktopApp/` docs → inspect related code → plan → implement → run tests → summarize changes and risks.
+Before significant changes: read `docs/desktopApp/` docs → inspect related code → plan (with **Plan Review Gate** per `docs/process/plan_review_gate.md`) → implement only if gate is **APPROVED** → run tests → summarize changes and risks.
 
 Ask before changing: API contracts, backend/frontend boundaries, state-management approach, or system architecture.
 

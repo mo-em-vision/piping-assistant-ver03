@@ -2,11 +2,13 @@ navigation:
   assumption_gate_fields:
   - straight_pipe_section
   - geometry_input_mode
+  - wall_thickness_basis
   phases:
     expansion_assumptions:
     - straight_pipe_section
     path_decisions:
     - geometry_input_mode
+    - wall_thickness_basis
     parameter_gathering:
     - nominal_pipe_size
     - pipe_schedule
@@ -23,6 +25,19 @@ provisional_assumptions:
 - field: thin_wall
   default: true
   description: Assume t < D/6 until thickness is verified.
+- field: pressure_loading
+  default: internal_pressure
+  description: MAWP applies to internal pressure loading per §304.1.2.
+interactions:
+- variable: geometry_input_mode
+  mode: decision
+  required: true
+  required_for_expansion: true
+  options:
+  - nps_and_schedule
+  - direct_od_and_thickness
+  question: >
+    How should pipe geometry be provided for this MAWP calculation?
 inputs:
 - id: pressure_design_thickness
   name: t

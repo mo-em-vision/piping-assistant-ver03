@@ -77,6 +77,8 @@ applicability:
     value: true
   - parameter: PARAM-inside-diameter
     operator: absent
+  - parameter: PARAM-internal-design-gage-pressure
+    operator: present
 equation_number: 3a
 paragraph_number: 304.1.2-a
 variables:

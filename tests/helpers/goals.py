@@ -8,6 +8,9 @@ from engine.state.execution_context_sync import refresh_execution_context_for_ta
 from engine.state.goal_migration import goals_from_planning_summary
 from models.task import Task
 
+# Stable id derived from pipe wall workflow goal_expansion metadata.
+PIPE_WALL_ROOT_GOAL_ID = "GOAL-calculate-minimum-required-thickness"
+
 
 def apply_planning_to_goals(
     task: Task,

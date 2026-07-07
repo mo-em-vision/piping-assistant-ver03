@@ -52,10 +52,5 @@ export default defineConfig({
   },
   optimizeDeps: {
     exclude: ['zustand'],
-    include: [
-      // @xyflow/react's nested zustand v4 default-imports this CJS shim; pre-bundle for ESM interop.
-      'use-sync-external-store/shim/with-selector.js',
-      '@xyflow/react',
-    ],
   },
 })

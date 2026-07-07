@@ -547,3 +547,85 @@ def build_planner_traversal_inspector_view(
         "branch_decisions": [item.to_dict() for item in traversal.branch_decisions],
         "recent_events": [item.to_dict() for item in recent_events],
     }
+
+
+def build_traversal_path_view(traversal: PlannerTraversalState) -> list[dict[str, Any]]:
+    """Ordered timeline rows for inspector UI (debug visualization only)."""
+    rows: list[dict[str, Any]] = []
+    seen_node_ids: set[str] = set()
+
+    for item in sorted(traversal.expanded_nodes, key=lambda node: node.expanded_at_order):
+        seen_node_ids.add(item.node_id)
+        rows.append(
+            {
+                "node_id": item.node_id,
+                "title": item.title,
+                "node_type": item.node_type,
+                "state": "completed",
+                "reason": None,
+                "waiting_on": [],
+            }
+        )
+
+    if traversal.current_active_node is not None:
+        active = traversal.current_active_node
+        seen_node_ids.add(active.node_id)
+        rows.append(
+            {
+                "node_id": active.node_id,
+                "title": active.title,
+                "node_type": active.node_type,
+                "state": "current",
+                "reason": active.reason,
+                "waiting_on": [],
+            }
+        )
+
+    skipped_node_ids: set[str] = set()
+    for event in traversal.traversal_events:
+        if event.event_type not in {"node_marked_not_applicable", "node_deferred"}:
+            continue
+        if not event.node_id or event.node_id in seen_node_ids:
+            continue
+        skipped_node_ids.add(event.node_id)
+        rows.append(
+            {
+                "node_id": event.node_id,
+                "title": None,
+                "node_type": None,
+                "state": "skipped",
+                "reason": event.message,
+                "waiting_on": [],
+            }
+        )
+
+    for item in traversal.pending_expansion_nodes:
+        if item.node_id in seen_node_ids or item.node_id in skipped_node_ids:
+            continue
+        state = "blocked" if item.waiting_on else "pending"
+        rows.append(
+            {
+                "node_id": item.node_id,
+                "title": item.title,
+                "node_type": item.node_type,
+                "state": state,
+                "reason": item.reason,
+                "waiting_on": list(item.waiting_on),
+            }
+        )
+
+    for item in traversal.candidate_next_nodes:
+        if item.node_id in seen_node_ids or item.node_id in skipped_node_ids:
+            continue
+        rows.append(
+            {
+                "node_id": item.node_id,
+                "title": item.title,
+                "node_type": item.node_type,
+                "state": "pending",
+                "reason": item.reason,
+                "waiting_on": [],
+            }
+        )
+
+    return rows

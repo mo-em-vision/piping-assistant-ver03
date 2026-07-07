@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from cli.orchestrator import ChatOrchestrator
+from api.chat_orchestrator import ChatOrchestrator
 from engine.reports.report_data import build_report_from_task
 from engine.reports.report_generator import ReportGenerator
 from engine.state.state_manager import TaskStateManager

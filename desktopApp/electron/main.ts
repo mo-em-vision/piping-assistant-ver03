@@ -6,15 +6,12 @@ import { createApplicationMenu } from './menu'
 import { getLogDirectory, initAppLogger, logAppEvent } from './services/appLogger'
 import type { BackendProcessService } from './services/backendProcess'
 import { normalizeDevServerUrl } from './services/devServer'
-import { GraphExplorerProcessService } from './services/graphExplorerProcess'
 import { runStartup } from './services/startup'
 
 const isDev = !app.isPackaged
 
 let mainWindow: BrowserWindow | null = null
 let backendService: BackendProcessService | null = null
-let graphExplorerService: GraphExplorerProcessService | null = null
-
 function sendBackendStatus(): void {
   if (!mainWindow || !backendService) {
     return
@@ -81,14 +78,6 @@ async function createWindow(): Promise<void> {
   sendWindowDisplayState()
 }
 
-function sendGraphExplorerStatus(): void {
-  if (!mainWindow || !graphExplorerService) {
-    return
-  }
-
-  mainWindow.webContents.send('graphExplorer:status', graphExplorerService.getStatus())
-}
-
 function registerIpcHandlers(): void {
   ipcMain.handle('backend:getStatus', () => backendService?.getStatus() ?? null)
 
@@ -100,24 +89,6 @@ function registerIpcHandlers(): void {
     const status = await backendService.retry()
     sendBackendStatus()
     return status
-  })
-
-  ipcMain.handle('graphExplorer:getStatus', () => graphExplorerService?.getStatus() ?? null)
-
-  ipcMain.handle('devMode:sync', async (_event, active: boolean) => {
-    if (!graphExplorerService) {
-      return null
-    }
-
-    if (active) {
-      const status = await graphExplorerService.start()
-      sendGraphExplorerStatus()
-      return status
-    }
-
-    await graphExplorerService.stop()
-    sendGraphExplorerStatus()
-    return graphExplorerService.getStatus()
   })
 
   ipcMain.handle('window:getDisplayState', () => ({
@@ -149,11 +120,6 @@ async function bootstrap(): Promise<void> {
   registerIpcHandlers()
 
   logAppEvent('info', 'Starting application bootstrap')
-
-  graphExplorerService = new GraphExplorerProcessService(app.getPath('userData'))
-  graphExplorerService.onStatusChange(() => {
-    sendGraphExplorerStatus()
-  })
 
   const backendPromise = runStartup((payload) => {
     logAppEvent('info', 'Backend status changed', `${payload.status}${payload.detail ? ` (${payload.detail})` : ''}`)
@@ -190,7 +156,6 @@ void app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
   void backendService?.stop()
-  void graphExplorerService?.stop()
 })
 
 app.on('window-all-closed', () => {

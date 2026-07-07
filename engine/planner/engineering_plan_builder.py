@@ -11,11 +11,11 @@ from engine.graph.workflow_navigation import WorkflowNavigationConfig
 from engine.planner.activation_conditions import resolve_activation_status
 from engine.planner.pipe_wall_plan import (
     PIPE_WALL_WORKFLOW,
-    ROOT_GOAL_ID,
     build_pipe_wall_requirements,
     req_id,
     root_calculation_goal,
 )
+from engine.planner.workflow_goal_metadata import resolve_root_goal_spec
 from engine.planner.plan_dependencies import build_plan_dependencies
 from engine.planner.plan_phases import build_plan_phases_and_strategy
 from engine.planner.plan_validation import validate_engineering_plan
@@ -187,11 +187,23 @@ def build_pipe_wall_engineering_plan(
     has_execution: bool = False,
     post_thickness_outputs: dict[str, Any] | None = None,
 ) -> EngineeringPlan:
-    del reader
     workflow_id = str(task.outputs.get("workflow") or PIPE_WALL_THICKNESS_DESIGN)
     inputs = dict(existing_inputs or task.fact_store.active_facts())
 
-    requirements = build_pipe_wall_requirements()
+    if reader is None:
+        from pathlib import Path
+
+        reader = StandardsReader(
+            Path(__file__).resolve().parents[2] / "knowledge" / "standards",
+            standard="asme_b31.3",
+        )
+
+    root_spec = resolve_root_goal_spec(
+        reader,
+        workflow_id,
+        fallback_target_field="minimum_required_thickness",
+    )
+    requirements = build_pipe_wall_requirements(root_goal_id=root_spec.id)
     _apply_statuses(requirements, existing_inputs=inputs)
 
     thickness_ready = bool(
@@ -208,7 +220,7 @@ def build_pipe_wall_engineering_plan(
         if corrosion.question_spec:
             corrosion.question_spec.ask_policy = "ask_now"
 
-    root = root_calculation_goal()
+    root = root_calculation_goal(root_spec)
     hard_blocked, provisional_blocked = _compute_root_blocking(requirements)
     root.blocked_by = hard_blocked
     root.provisional_blocked_by = provisional_blocked

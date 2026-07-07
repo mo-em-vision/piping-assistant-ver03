@@ -139,7 +139,11 @@ def build_formula_parameter_prompt(
     if node_id is None:
         return None
 
-    eq_ctx = load_equation_context(reader, node_id)
+    eq_ctx = load_equation_context(
+        reader,
+        node_id,
+        task_facts=dict(task.fact_store.active_facts()),
+    )
     display = eq_ctx.get("display")
     if not display:
         return None
@@ -218,7 +222,11 @@ def classify_formula_parameters(
     record = reader.load(node_id)
     nomenclature = load_nomenclature_for_node(reader, record.metadata)
     interaction_specs = load_node_interactions(record, reader)
-    eq_ctx = load_equation_context(reader, node_id)
+    eq_ctx = load_equation_context(
+        reader,
+        node_id,
+        task_facts=dict(task_inputs),
+    )
     variable_order = list(eq_ctx.get("variables") or [])
     if not variable_order:
         variable_order = ["P", "D", "S", "E", "W", "Y"]
@@ -678,7 +686,11 @@ def guidance_for_parameter_input(
     record = reader.load(node_id)
     nomenclature = load_nomenclature_for_node(reader, record.metadata)
     interaction_specs = load_node_interactions(record, reader)
-    eq_ctx = load_equation_context(reader, node_id)
+    eq_ctx = load_equation_context(
+        reader,
+        node_id,
+        task_facts=facts,
+    )
     variable_order = list(eq_ctx.get("variables") or [])
 
     for symbol in variable_order:

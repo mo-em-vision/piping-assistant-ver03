@@ -1,0 +1,121 @@
+---
+description: Feature planning workflow — plan first, include Plan Review Gate, implement only when APPROVED.
+alwaysApply: true
+---
+
+# Feature planning
+
+Before implementing any non-trivial feature, produce a plan that follows project docs. **Do not skip the Plan Review Gate.**
+
+Related rules:
+
+- Plan Review Gate: [`.cursor/rules/plan-review-gate.mdc`](.cursor/rules/plan-review-gate.mdc)
+- Process doc: [`docs/process/plan_review_gate.md`](docs/process/plan_review_gate.md)
+- Agent rules: [`docs/rules.md`](docs/rules.md)
+- Feature contract template: [`docs/Feature creation prompt template.md`](docs/Feature%20creation%20prompt%20template.md)
+
+---
+
+## Planning workflow
+
+```
+Understand requirement
+        ↓
+Read documentation (docs/rules.md, relevant docs/core/ and docs/desktopApp/)
+        ↓
+Inspect existing code in target modules
+        ↓
+Write feature plan (scope, allowed files, acceptance criteria)
+        ↓
+Architecture Consistency Review  ← mandatory, inside the plan
+        ↓
+Plan Review Gate  ← mandatory, inside the plan
+        ↓
+CLEAR + APPROVED? ──no──→ revise plan (do not implement)
+        │
+       yes
+        ↓
+Implement minimum code to pass approved tests
+        ↓
+Run verification commands
+        ↓
+Update audit docs if code changed (docs/audit/MAINTENANCE.md)
+```
+
+---
+
+## Every feature plan must include
+
+### 1. Feature summary
+
+- Feature name and purpose (why it exists)
+- User-visible behavior after completion
+- Affected layers (Planner, Graph, Execution, Validation, Report, Guidance, CLI, API, Desktop)
+
+### 2. Allowed and forbidden changes
+
+| Allowed to change | Must not change |
+| --- | --- |
+| List explicit file paths or modules | List explicit out-of-scope layers/files |
+
+Follow [`docs/core/3. component_responsibilities.md`](docs/core/3.%20component_responsibilities.md). Do not invent new architecture or rename components.
+
+### 3. Acceptance criteria (plain English)
+
+State what "done" means for a product owner — observable outcomes, not internal function names.
+
+### 4. Test plan
+
+Group tests as:
+
+1. General behavior tests (not tied to one workflow)
+2. Workflow-specific tests (at least one real workflow integration)
+3. Regression tests
+4. User-visible output tests
+
+If tests are missing or only cover one workflow for a general change → Plan Review Gate status **REVISE**.
+
+### 5. Architecture Consistency Review
+
+**Before the Plan Review Gate.** See [`.cursor/rules/plan-review-gate.mdc`](.cursor/rules/plan-review-gate.mdc) and [`docs/rules.md`](docs/rules.md) §23.
+
+### 6. Plan Review Gate
+
+**Always last section of the plan**, before any implementation. See [`.cursor/rules/plan-review-gate.mdc`](.cursor/rules/plan-review-gate.mdc).
+
+---
+
+## Implementation gate
+
+| Plan Review Gate status | Action |
+| --- | --- |
+| **APPROVED** (and Architecture Consistency Review **CLEAR**) | May implement |
+| **REVISE** | Stop. Revise plan. Do not edit production code. |
+| **BLOCKED** | Stop. Resolve missing decisions with user. Do not implement. |
+
+When the user says "implement" but the plan lacks an Architecture Consistency Review, lacks a Plan Review Gate, consistency review is not **CLEAR**, or gate status is not APPROVED:
+
+1. Add or update both sections in the plan response.
+2. Do not write production code until consistency review is **CLEAR** and gate is **APPROVED**.
+
+---
+
+## Build order (when plan is approved)
+
+Follow existing project order — do not reorder layers:
+
+```
+Structure → data flow → backend connection → visualization → interaction → polish
+```
+
+See [`docs/desktopApp/14_desktop_app_implementation_roadmap.md`](docs/desktopApp/14_desktop_app_implementation_roadmap.md).
+
+---
+
+## Global prompt prefix
+
+For significant Cursor tasks, prepend:
+
+> Strictly follow /docs. Do NOT invent new architecture. Do NOT rename components. If something is missing, stub it.
+
+See [`docs/core/12. Cursor Build Sequence (SAFE STEP-BY-STEP PLAN).md`](docs/core/12.%20Cursor%20Build%20Sequence%20(SAFE%20STEP-BY-STEP%20PLAN).md).

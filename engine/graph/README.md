@@ -21,7 +21,7 @@ Resolves **which nodes run** and **in what order** for a workflow root. `GraphEn
 
 **Depends on:** `engine/reference/` (reader, node_types, nomenclature, graph_db records)
 
-**Used by:** `engine/planner/`, `engine/executor/`, `engine/state/`, `engine/presentation/`, `engine/execution/`, `api/workflow_bootstrap.py`, `api/workflow_timeline.py`, `cli/orchestrator.py`, `ai/`
+**Used by:** `engine/planner/`, `engine/executor/`, `engine/state/`, `engine/presentation/`, `engine/execution/`, `api/workflow_bootstrap.py`, `api/workflow_timeline.py`, `api/chat_orchestrator.py`, `ai/`
 
 ## Runtime Usage
 
@@ -91,12 +91,12 @@ GraphEngine.prefetch → MicroGraphEngine.prefetch
 | `graph_store.py` | In-memory graph facade | `GraphStore` | widespread |
 | `graph_timeline.py` | Parameter step ordering | `graph_input_step_order`, `graph_step_titles` | workflow_bootstrap, workflow_timeline |
 | `lazy_expander.py` | Step expansion state machine | `expand_workflow`, `ExpansionState` | micro_graph_engine, prefetch |
-| `micro_graph_engine.py` | Micro-graph workflow API | `MicroGraphEngine` | graph_engine |
+| `micro_graph_engine.py` | Micro-graph workflow API | `MicroGraphEngine`, `build_plan`, `required_user_inputs`, `seed_parameter_registry` | graph_engine |
 | `navigation_phases.py` | Phased missing-field navigation | `build_workflow_phased_navigation`, `allowed_fields_for_phase` | planner, orchestrator, api |
 | `node_behaviors.py` | Type behavior registry | `is_executable_equation`, `is_data_parameter` | lazy_expander, lifecycle_emitter |
 | `node_interaction.py` | User interaction specs | `NodeInteractionSpec`, `evaluate_node_interactions` | graph_engine, messaging, ai |
 | `pack_graph.py` | In-memory pack graph | `PackGraph` | graph_store, graph_builder |
-| `parameter_registry.py` | Legacy descriptor seeding | `seed_parameter_registry` | graph_engine (legacy only) |
+| `parameter_registry.py` | Legacy descriptor seeding (fallback) | `seed_parameter_registry` from definition nomenclature | graph_engine (legacy traversal only) |
 | `param_priority.py` | Parameter collection order | `parameter_collection_priority` | workflow_parameters, graph_timeline |
 | `prefetch.py` | Background expansion cache | `prefetch_async`, `PrefetchCache` | micro_graph_engine |
 | `relationship_resolver.py` | Equation `requires` → parameters | `resolve_require_bindings` | definition_equations, node_runner, display_emitter |

@@ -1,4 +1,4 @@
-import type { BackendStatusPayload, GraphExplorerStatusPayload } from '@/config/constants'
+import type { BackendStatusPayload } from '@/config/constants'
 
 export interface WindowDisplayStatePayload {
   isFullScreen: boolean
@@ -11,9 +11,6 @@ export interface ElectronAPI {
   onBackendStatusChange: (callback: (status: BackendStatusPayload) => void) => () => void
   getWindowDisplayState: () => Promise<WindowDisplayStatePayload>
   onWindowDisplayStateChange: (callback: (state: WindowDisplayStatePayload) => void) => () => void
-  syncDevMode?: (active: boolean) => Promise<GraphExplorerStatusPayload | null>
-  getGraphExplorerStatus?: () => Promise<GraphExplorerStatusPayload | null>
-  onGraphExplorerStatusChange?: (callback: (status: GraphExplorerStatusPayload) => void) => () => void
 }
 
 declare global {

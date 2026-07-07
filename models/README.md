@@ -74,7 +74,6 @@ Grep (`from models.` / `import models`) found **80+** importing files across:
 | `api/` | `desktop_service.py`, `serializers.py`, `workflow_bootstrap.py`, `report_service.py`, `output_blocks.py`, … |
 | `cli/` | `session_store.py`, `commands/chat.py`, `orchestrator.py`, `display.py` |
 | `storage/` | `project_session_store.py` (`Task`, `TaskStatus`) |
-| `dev/` | `graph_explorer/adapter.py` |
 | `tests/` | Broad coverage under `tests/api/`, `tests/engine/`, `tests/agents/`, etc. |
 
 No TypeScript/desktop frontend imports from `models/` (backend-only).

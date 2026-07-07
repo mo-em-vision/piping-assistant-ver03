@@ -1,6 +1,7 @@
 import { useTaskStore } from '@/store/taskStore'
 
-import { SummarySection, TaskStateDevPanel } from './TaskStateDevPanel'
+import { SummarySection } from './TaskStateSummarySection'
+import { TaskStateDevPanel } from './TaskStateDevPanel'
 import { useInspectionPayload } from './useInspectionPayload'
 
 export function TaskStateDevTab() {

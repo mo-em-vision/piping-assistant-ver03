@@ -107,7 +107,8 @@ def test_lookup_and_equation_requirements_have_incoming_edges() -> None:
 
 def test_build_plan_dependencies_from_requirements_only() -> None:
     from engine.planner.pipe_wall_plan import PIPE_WALL_WORKFLOW, build_pipe_wall_requirements
+    from tests.helpers.goals import PIPE_WALL_ROOT_GOAL_ID
 
-    requirements = build_pipe_wall_requirements()
+    requirements = build_pipe_wall_requirements(root_goal_id=PIPE_WALL_ROOT_GOAL_ID)
     edges = build_plan_dependencies(requirements, workflow_id=PIPE_WALL_WORKFLOW)
     assert len(edges) == len(_EXPECTED_PIPE_WALL_EDGES)

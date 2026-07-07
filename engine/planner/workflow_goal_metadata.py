@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 from engine.graph.graph_engine import GraphEngine, normalize_root_id, resolve_workflow_node_id
+from engine.reference.parameter_keys import param_node_id_for_input
 from engine.reference.standards_reader import StandardsReader
 from engine.reference.workflow_sidecar import _param_to_field
+
 
 _DEFAULT_SELECTION_FIELDS = frozenset({"pressure_loading", "geometry_input_mode", "d_input_mode"})
 _DEFAULT_LOOKUP_FIELDS = frozenset(
@@ -17,6 +20,17 @@ _DEFAULT_LOOKUP_FIELDS = frozenset(
         "temperature_coefficient_Y",
     }
 )
+
+
+@dataclass(frozen=True)
+class RootGoalSpec:
+    """Root calculation goal identity resolved from workflow node metadata."""
+
+    id: str
+    key: str
+    title: str
+    target_parameter: str
+    target_field: str
 
 
 def _workflow_node_metadata(reader: StandardsReader, workflow_id: str) -> dict[str, Any]:
@@ -32,6 +46,84 @@ def _workflow_node_metadata(reader: StandardsReader, workflow_id: str) -> dict[s
             metadata = node.metadata
             return metadata if isinstance(metadata, dict) else {}
     return {}
+
+
+def _root_goal_config(metadata: dict[str, Any]) -> dict[str, Any]:
+    goal_expansion = metadata.get("goal_expansion") or {}
+    if not isinstance(goal_expansion, dict):
+        return {}
+    root_goal = goal_expansion.get("root_goal") or {}
+    return dict(root_goal) if isinstance(root_goal, dict) else {}
+
+
+def _workflow_title(metadata: dict[str, Any], *, workflow_id: str) -> str:
+    for key in ("title", "name", "purpose"):
+        value = str(metadata.get(key) or "").strip()
+        if value:
+            return value
+    description = str(metadata.get("description") or "").strip()
+    if description:
+        return description.splitlines()[0].strip()
+    documentation = metadata.get("documentation") or {}
+    if isinstance(documentation, dict):
+        summary = str(documentation.get("summary") or "").strip()
+        if summary:
+            return summary.splitlines()[0].strip()
+    return workflow_id.replace("_", " ")
+
+
+def _derive_goal_key(target_field: str) -> str:
+    return f"calculate-{target_field.replace('_', '-')}"
+
+
+def _derive_goal_id(key: str) -> str:
+    return f"GOAL-{key}"
+
+
+def resolve_root_goal_spec(
+    reader: StandardsReader,
+    workflow_id: str,
+    *,
+    fallback_target_field: str = "required_wall_thickness",
+) -> RootGoalSpec:
+    """Resolve root goal id/key/title/target from workflow node metadata."""
+    metadata = _workflow_node_metadata(reader, workflow_id)
+    root_goal_cfg = _root_goal_config(metadata)
+
+    target_param = str(root_goal_cfg.get("target_parameter") or "").strip()
+    if target_param:
+        target_field = _param_to_field(target_param)
+        target_parameter = (
+            target_param if target_param.startswith("PARAM-") else param_node_id_for_input(target_field)
+        )
+    else:
+        goal_output = metadata.get("goal_output")
+        if goal_output:
+            target_field = _param_to_field(str(goal_output))
+        else:
+            target_field = fallback_target_field.replace("-", "_")
+        target_parameter = param_node_id_for_input(target_field)
+
+    key = str(root_goal_cfg.get("key") or "").strip() or _derive_goal_key(target_field)
+    goal_id = str(root_goal_cfg.get("id") or "").strip() or _derive_goal_id(key)
+    title = (
+        str(root_goal_cfg.get("title") or root_goal_cfg.get("name") or "").strip()
+        or _workflow_title(metadata, workflow_id=workflow_id)
+    )
+
+    return RootGoalSpec(
+        id=goal_id,
+        key=key,
+        title=title,
+        target_parameter=target_parameter,
+        target_field=target_field,
+    )
+
+
+def workflow_title_for_goal(reader: StandardsReader, workflow_id: str) -> str:
+    """Human-readable workflow title for root goal naming."""
+    metadata = _workflow_node_metadata(reader, workflow_id)
+    return _workflow_title(metadata, workflow_id=workflow_id)
 
 
 def selection_fields_for_workflow(reader: StandardsReader, workflow_id: str) -> frozenset[str]:
@@ -75,15 +167,9 @@ def root_target_for_workflow(
     *,
     fallback: str,
 ) -> str:
-    metadata = _workflow_node_metadata(reader, workflow_id)
-    goal_expansion = metadata.get("goal_expansion") or {}
-    if isinstance(goal_expansion, dict):
-        root_goal = goal_expansion.get("root_goal") or {}
-        if isinstance(root_goal, dict):
-            target = root_goal.get("target_parameter")
-            if target:
-                return _param_to_field(str(target))
-    goal_output = metadata.get("goal_output")
-    if goal_output:
-        return _param_to_field(str(goal_output))
-    return fallback
+    spec = resolve_root_goal_spec(
+        reader,
+        workflow_id,
+        fallback_target_field=fallback.replace("-", "_"),
+    )
+    return spec.target_field

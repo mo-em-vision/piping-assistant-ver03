@@ -176,6 +176,7 @@ describe('engineering workflow integration', () => {
   beforeEach(() => {
     vi.resetModules()
     vi.unstubAllGlobals()
+    vi.stubEnv('VITE_MOCK_DATA', 'false')
   })
 
   it('creates task, submits input, and generates report via API mocks', async () => {
@@ -297,5 +298,158 @@ describe('engineering workflow integration', () => {
     await useReportStore.getState().generateReport(currentTask.task_id, 'html')
     expect(useReportStore.getState().summary?.generated).toBe(true)
     expect(useReportStore.getState().userError).toBeNull()
+  })
+
+  it('preserves prior display_outputs after submitParameter', async () => {
+    const { createTaskState, jsonResponse } = await import('../helpers/apiMocks')
+
+    const equationBlock = {
+      id: 'path-preview-equation-B313-304.1.2',
+      type: 'equation' as const,
+      content: 't = PD / 2(SEW + PY)',
+      display: 't = PD / 2(SEW + PY)',
+    }
+
+    let currentTask = createTaskState({
+      display_outputs: [equationBlock],
+      current_ask: {
+        kind: 'input',
+        parameter_id: 'nominal_pipe_size',
+        prompt: 'Select the nominal pipe size.',
+      },
+    })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = input.toString()
+        const method = (init?.method ?? 'GET').toUpperCase()
+
+        if (url.includes('/api/v1/workflows')) {
+          return jsonResponse({ workflows: [] })
+        }
+
+        if (url.match(/\/api\/v1\/tasks(\?|$)/) && method === 'GET') {
+          return jsonResponse({
+            session_id: 'default',
+            active_task_id: currentTask.task_id,
+            tasks: [],
+          })
+        }
+
+        if (url.includes(`/api/v1/tasks/${currentTask.task_id}`) && method === 'GET' && !url.includes('/inputs')) {
+          return jsonResponse(currentTask)
+        }
+
+        if (method === 'POST' && url.includes('/inputs')) {
+          currentTask = createTaskState({
+            ...currentTask,
+            inputs: {
+              nominal_pipe_size: {
+                input_id: 'nominal_pipe_size',
+                value: '6',
+                unit: 'dimensionless',
+                display_value: '6',
+              },
+            },
+            progress: {
+              ...currentTask.progress,
+              missing_inputs: [],
+            },
+            display_outputs: [
+              {
+                id: 'planning-status',
+                type: 'text',
+                content: 'Updated status',
+              },
+            ],
+          })
+          return jsonResponse(currentTask)
+        }
+
+        return jsonResponse({ error: { code: 'not_found', message: `${method} ${url}` } }, 404)
+      }),
+    )
+
+    const { useProjectStore } = await import('@/store/projectStore')
+    const { useTaskStore } = await import('@/store/taskStore')
+
+    useProjectStore.setState({ activeProjectId: 'default' })
+    useTaskStore.setState({
+      sessionId: 'default',
+      activeTask: {
+        id: currentTask.task_id,
+        name: currentTask.name,
+        description: currentTask.description,
+        discipline: currentTask.discipline,
+        status: 'in_progress',
+      },
+      activeTaskState: currentTask,
+    })
+
+    await useTaskStore.getState().submitParameter('nominal_pipe_size', '6')
+
+    const outputs = useTaskStore.getState().activeTaskState?.display_outputs ?? []
+    expect(outputs.some((block) => block.id === equationBlock.id)).toBe(true)
+    expect(outputs.some((block) => block.id === 'archived-prompt-nominal_pipe_size')).toBe(true)
+  })
+
+  it('refreshActiveTask preserves transcript blocks when backend snapshot shrinks', async () => {
+    const { createTaskState, jsonResponse } = await import('../helpers/apiMocks')
+
+    const equationBlock = {
+      id: 'path-preview-equation-B313-304.1.2',
+      type: 'equation' as const,
+      content: 't = PD / 2(SEW + PY)',
+      display: 't = PD / 2(SEW + PY)',
+    }
+
+    const currentTask = createTaskState({
+      display_outputs: [equationBlock],
+    })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = input.toString()
+        const method = (init?.method ?? 'GET').toUpperCase()
+
+        if (
+          url.includes(`/api/v1/tasks/${currentTask.task_id}`) &&
+          method === 'GET' &&
+          !url.includes('/inputs')
+        ) {
+          return jsonResponse(
+            createTaskState({
+              ...currentTask,
+              display_outputs: [],
+            }),
+          )
+        }
+
+        return jsonResponse({ error: { code: 'not_found', message: `${method} ${url}` } }, 404)
+      }),
+    )
+
+    const { useProjectStore } = await import('@/store/projectStore')
+    const { useTaskStore } = await import('@/store/taskStore')
+
+    useProjectStore.setState({ activeProjectId: 'default' })
+    useTaskStore.setState({
+      sessionId: 'default',
+      activeTask: {
+        id: currentTask.task_id,
+        name: currentTask.name,
+        description: currentTask.description,
+        discipline: currentTask.discipline,
+        status: 'in_progress',
+      },
+      activeTaskState: currentTask,
+    })
+
+    await useTaskStore.getState().refreshActiveTask()
+
+    const outputs = useTaskStore.getState().activeTaskState?.display_outputs ?? []
+    expect(outputs.some((block) => block.id === equationBlock.id)).toBe(true)
   })
 })

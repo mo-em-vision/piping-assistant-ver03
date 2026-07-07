@@ -51,6 +51,8 @@ describe('engineering workflow UI (mock mode)', () => {
       expect(screen.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeInTheDocument()
     })
 
+    expect(screen.getByText('Governing equation')).toBeInTheDocument()
+
     const npsField = screen.getByPlaceholderText('Value…')
     await user.clear(npsField)
     await user.type(npsField, '6')
@@ -64,6 +66,46 @@ describe('engineering workflow UI (mock mode)', () => {
       expect(fact?.display_value).toBe('6 NPS')
     })
 
+    expect(screen.getByText('Governing equation')).toBeInTheDocument()
+    expect(
+      screen.getByText(/minimum required wall thickness for straight pipe under internal pressure/i),
+    ).toBeInTheDocument()
+
     expect(screen.queryByRole('heading', { name: 'Engineering report' })).not.toBeInTheDocument()
+  })
+
+  it('keeps explanation text visible after advancing to the next parameter prompt', async () => {
+    const { default: App } = await import('@/App')
+    const user = userEvent.setup()
+
+    render(<App />)
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Create new task' })).toBeEnabled()
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Create new task' }))
+    await user.click(screen.getByRole('button', { name: /pipe thickness calculation/i }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/minimum required wall thickness for straight pipe under internal pressure/i),
+      ).toBeInTheDocument()
+    })
+
+    const npsField = screen.getByPlaceholderText('Value…')
+    await user.clear(npsField)
+    await user.type(npsField, '6')
+    await user.click(screen.getByRole('button', { name: 'Submit' }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/minimum required wall thickness for straight pipe under internal pressure/i),
+      ).toBeInTheDocument()
+    })
+
+    expect(
+      screen.getByText(/Select the nominal pipe size|Waiting for nominal pipe size/i),
+    ).toBeInTheDocument()
   })
 })

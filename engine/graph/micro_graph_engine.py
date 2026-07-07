@@ -27,6 +27,8 @@ from engine.graph.lookup_parameter_resolution import (
 from engine.graph.param_priority import parameter_collection_priority, parameter_concept_id, parameter_defined_in
 from engine.graph.prefetch import prefetch_async
 from engine.reference.node_types import is_ui_parameter, parameter_input_id
+from engine.reference.parameter_metadata import prepare_parameter_metadata
+from engine.units.unit_ids import symbol_from_unit_id
 from engine.graph.traversal import bfs_neighbors, topological_order
 from engine.reference.graph_edge_schema import workflow_anchor_target
 from engine.reference.graph_db import GraphEdgeRecord
@@ -265,30 +267,50 @@ class MicroGraphEngine:
         workflow: str | None = None,
         keywords: list[str] | None = None,
     ) -> list[WorkflowCandidate]:
+        from engine.graph.root_discovery import (
+            broad_discovery_confidence,
+            is_specific_lookup,
+            workflow_lookup_confidence,
+        )
+
         candidates: list[WorkflowCandidate] = []
         keyword_text = " ".join(keywords or []).lower()
+        specific_lookup = is_specific_lookup(workflow)
         for node in self._store.list_workflows():
             workflow_id = str(node.metadata.get("slug") or node.node_id)
             intent = str(node.metadata.get("engineering_intent", "") or "")
             title = str(node.metadata.get("title", node.node_id))
-            confidence = 0.4
-            if workflow and (workflow == intent or workflow == workflow_id or workflow == node.node_id):
-                confidence = 0.95
-            else:
-                for token in (intent, title, workflow_id, node.node_id, str(node.metadata.get("purpose", ""))):
-                    if token and token.lower() in keyword_text:
-                        confidence = max(confidence, 0.75)
-            if confidence >= 0.4:
-                candidates.append(
-                    WorkflowCandidate(
-                        root_id=workflow_id,
-                        title=title,
-                        engineering_intent=intent or None,
-                        standard="asme_b31.3",
-                        confidence=confidence,
-                        implemented=True,
-                    )
+            purpose = str(node.metadata.get("purpose", "") or "")
+
+            if specific_lookup:
+                confidence = workflow_lookup_confidence(
+                    workflow or "",
+                    slug=workflow_id,
+                    intent=intent,
+                    node_id=node.node_id,
                 )
+                if confidence <= 0.0:
+                    continue
+            else:
+                confidence = broad_discovery_confidence(
+                    keyword_text=keyword_text,
+                    intent=intent,
+                    title=title,
+                    slug=workflow_id,
+                    node_id=node.node_id,
+                    purpose=purpose,
+                )
+
+            candidates.append(
+                WorkflowCandidate(
+                    root_id=workflow_id,
+                    title=title,
+                    engineering_intent=intent or None,
+                    standard="asme_b31.3",
+                    confidence=confidence,
+                    implemented=True,
+                )
+            )
         candidates.sort(key=lambda item: item.confidence, reverse=True)
         return candidates
 
@@ -449,15 +471,25 @@ class MicroGraphEngine:
             input_id = str(node.metadata.get("input_id") or node.metadata.get("key") or "").strip()
             if not input_id or input_id in registry:
                 continue
-            defined_in = parameter_defined_in(node.metadata)
+            param_meta = prepare_parameter_metadata(node.metadata)
+            defined_in = parameter_defined_in(param_meta)
+            symbol = str(param_meta.get("symbol") or "").strip()
+            description = str(
+                param_meta.get("title") or param_meta.get("description") or symbol or ""
+            ).strip()
+            unit = str(param_meta.get("unit") or "").strip()
+            if not unit:
+                canonical_unit = str(param_meta.get("canonical_unit") or "").strip()
+                if canonical_unit:
+                    unit = symbol_from_unit_id(canonical_unit)
             registry[input_id] = ParameterDescriptor(
                 input_id=input_id,
-                symbol=str(node.metadata.get("symbol", "")),
-                description=str(node.metadata.get("title") or node.metadata.get("symbol", "")),
+                symbol=symbol,
+                description=description,
                 introduced_at_node=defined_in[0] if defined_in else node_id,
-                unit=str(node.metadata.get("unit", "")),
+                unit=unit,
                 defined_in_nodes=defined_in,
-                concept_id=parameter_concept_id(node.metadata),
+                concept_id=parameter_concept_id(param_meta),
             )
         return registry
 

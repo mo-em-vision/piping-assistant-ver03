@@ -36,14 +36,25 @@ def test_task_state_engineering_plan_is_canonical_not_goal_map() -> None:
 
     plan = payload.get("engineering_plan")
     assert isinstance(plan, dict)
+    assert plan["task_id"] == task.task_id
+    assert plan["workflow_id"] == "pipe_wall_thickness_design"
     assert "plan_id" in plan
     assert "requirements" in plan
     assert "root_goal" in plan
     assert "dependencies" in plan
+    assert "input_strategy" in plan
+    assert "phases" in plan
+    assert "graph" in plan
     assert "legacy_goal_map" in plan
     assert "traversal" in plan
     assert "GOAL-calculate-minimum-required-thickness" not in plan
     assert "REQ-straight_pipe_section" in plan["requirements"]
+    assert plan["root_goal"]["target_parameter"] == "PARAM-minimum-required-thickness"
+    assert plan["root_goal"]["required_outputs"] == [
+        "minimum_required_thickness",
+        "required_wall_thickness",
+        "calculation_report",
+    ]
 
     legacy = payload.get("legacy_goal_map")
     assert isinstance(legacy, dict)

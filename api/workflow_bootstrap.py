@@ -34,7 +34,11 @@ from models.planning import NavigationPhase
 from models.task import Task, TaskStatus
 from api.material_catalog_service import warm_material_catalog
 from api.workflow_timeline import is_mawp_task, submittable_parameter_ids, sync_timeline_input_order
-from engine.executor.mawp_geometry_resolver import apply_geometry_input_mode_default
+from engine.executor.mawp_geometry_resolver import (
+    apply_geometry_input_mode_default,
+    apply_mawp_pressure_loading_default,
+    apply_wall_thickness_basis_from_geometry,
+)
 from engine.inspection.operation_tracker import track_operation
 
 
@@ -231,6 +235,8 @@ def _refresh_task_planning_impl(
     uses_micro = engine.uses_micro_graph(reader, root_slug)
     if root_slug == MAWP_DESIGN:
         apply_geometry_input_mode_default(task)
+        apply_mawp_pressure_loading_default(task)
+        apply_wall_thickness_basis_from_geometry(task)
     existing_inputs = dict(active_facts(task))
 
     lazy_plan = uses_micro and not engine.expansion_gate_ready(
@@ -615,4 +621,6 @@ def _bootstrap_new_task_impl(task: Task, workflow_id: str, config: CLIConfig) ->
         )
     if workflow_id == MAWP_DESIGN:
         apply_geometry_input_mode_default(task)
+        apply_mawp_pressure_loading_default(task)
+        apply_wall_thickness_basis_from_geometry(task)
     refresh_task_planning(task, reader)

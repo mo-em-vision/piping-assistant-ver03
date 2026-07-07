@@ -4,10 +4,10 @@ Ver03 is a **Python engineering backend** plus an **Electron + React desktop cli
 
 ## Before coding
 
-1. Read and follow `docs/rules.md` (workflow, verification, debugging, node structure, **§12 planner vs messaging prompts**, **§13 graph-driven workflow paths**).
+1. Read and follow `docs/rules.md` (workflow, verification, debugging, node structure, **§12 planner vs messaging prompts**, **§13 graph-driven workflow paths**, **§21 Flow Guidance Layer**).
 2. Read the relevant doc under `docs/desktopApp/` (start with `14_desktop_app_implementation_roadmap.md`).
 3. Inspect existing code in the target area (stores, `api/`, `desktopApp/src/`).
-4. Propose a short plan for non-trivial changes (files, approach, risks).
+4. Propose a short plan for non-trivial changes (files, approach, risks) with an **Architecture Consistency Review** and **Plan Review Gate** (`docs/process/plan_review_gate.md`, `docs/rules.md` §22–§23). Do not implement until consistency review is **CLEAR** and gate status is **APPROVED**.
 
 ## Architecture boundaries
 
@@ -66,19 +66,6 @@ Isolated graph node CRUD UI for editing YAML sources under `standards/*/nodes/`.
 
 The studio writes YAML and syncs `*_graph.db` incrementally. It is excluded from release builds (`npm run build` does not include `studio.html` unless `VITE_DEV_STUDIO=true`).
 
-## Developer Graph Explorer (development only)
-
-Live React Flow visualization of the **active task subgraph** (`active_nodes` from session state). Separate process — does not affect the desktop app if it crashes.
-
-```bash
-cd dev/graph_explorer
-pip install -r requirements.txt
-npm run install:all
-npm run dev
-```
-
-Open `http://localhost:3000`. Requires the desktop app (or `python -m api.server`) to be running with an active task. See [`docs/developer_graph_explorer.md`](docs/developer_graph_explorer.md).
-
 ## Developer Inspector (development only)
 
 Centralized debugging panel in the desktop app for execution trace, provenance, planner decisions, replay, and graph integrity checks.
@@ -96,12 +83,13 @@ Centralized debugging panel in the desktop app for execution trace, provenance, 
 
 3. Click **Inspector** in the app header when a task is active.
 
-For deep graph visualization with execution-state overlay, also run the [Developer Graph Explorer](#developer-graph-explorer-development-only).
-
 ## Key paths
 
 ```
 api/server.py              # Desktop REST API
+api/flow_guidance.py       # Flow Guidance payload on task_state
+engine/presentation/       # GuidanceResolver, ResponseComposer (docs/rules.md §21)
+presentation/guidance/     # Traversal narration YAML per workflow
 desktopApp/electron/       # Main process, backend child process
 desktopApp/src/store/      # Zustand state
 desktopApp/src/services/api/  # Backend client
@@ -115,7 +103,7 @@ docs/audit/                # Living architecture audit (INDEX, MAINTENANCE, DUPL
 Per-folder audit READMEs describe **current implementation** (not design intent). When you change code, update the matching audit sections in the same task — see [docs/audit/MAINTENANCE.md](docs/audit/MAINTENANCE.md).
 
 - **Index:** [docs/audit/INDEX.md](docs/audit/INDEX.md) — all audit paths and section anchors
-- **Cite a section:** `@audit cli/README.md#execution-traces` or markdown `#anchor` links
+- **Cite a section:** `@audit api/README.md#execution-traces` or markdown `#anchor` links
 - **Cross-cutting:** [docs/audit/DUPLICATES.md](docs/audit/DUPLICATES.md), [docs/audit/EXECUTION_TRACES.md](docs/audit/EXECUTION_TRACES.md)
 
 ## After coding

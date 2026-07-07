@@ -314,7 +314,7 @@ describe('PlannerDevPanel validation section', () => {
         plannerDecision={null}
       />,
     )
-    expect(screen.getByText('Plan validation')).toBeInTheDocument()
+    expect(screen.getByText('Warnings')).toBeInTheDocument()
     expect(screen.getByText('Valid normalized engineering plan.')).toBeInTheDocument()
   })
 })

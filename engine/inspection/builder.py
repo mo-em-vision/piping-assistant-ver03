@@ -28,6 +28,7 @@ from engine.planner.plan_inspector import (
     engineering_plan_view_for_task,
     planner_inspector_summary_for_task,
 )
+from engine.inspection.task_state_views import build_task_state_views
 from engine.state.workflow_state import build_workflow_state
 from models.task import Task
 
@@ -94,6 +95,12 @@ def _build_inspection_payload_impl(
         reader=reader,
     )
     inspector_summary = build_task_inspector_summary(canonical)
+    task_state_views = build_task_state_views(
+        task,
+        canonical,
+        execution_events=outputs.get("_execution_events") or [],
+        lifecycle_events=outputs.get("_lifecycle_events") or [],
+    )
 
     return json_safe(
         {
@@ -115,6 +122,7 @@ def _build_inspection_payload_impl(
             "workflow_state": _workflow_state_dict(workflow_state),
             "inspector_summary": inspector_summary,
             "canonical_task_state": canonical,
+            "task_state_views": task_state_views,
             "execution_events": outputs.get("_execution_events") or [],
             "lifecycle_events": outputs.get("_lifecycle_events") or [],
             "replay_frames": [frame.to_dict() for frame in replay_frames],

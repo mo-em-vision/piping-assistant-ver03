@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from engine.router import PIPE_WALL_THICKNESS_DESIGN, route
+from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN, route
 from models.agent import AgentAction, AgentContext, IntentResult
 
 from ai.agents._constants import (
+    MAWP_ROOT,
     PIPE_WALL_THICKNESS_ROOT,
     detect_missing_context,
 )
@@ -22,7 +23,7 @@ class IntentAgent(BaseAgent):
             return self._from_workflow_continuation(request, context)
 
         workflow = route(request)
-        if workflow == PIPE_WALL_THICKNESS_DESIGN:
+        if workflow in {PIPE_WALL_THICKNESS_DESIGN, MAWP_DESIGN}:
             return self._from_router_match(request, workflow)
 
         try:
@@ -44,13 +45,16 @@ class IntentAgent(BaseAgent):
         request: str,
         context: AgentContext,
     ) -> IntentResult:
-        workflow = context.workflow or PIPE_WALL_THICKNESS_DESIGN
-        missing = list(context.missing_inputs) if context.missing_inputs else detect_missing_context(request)
+        workflow = context.workflow or ""
+        missing = list(context.missing_inputs) if context.missing_inputs else []
+        if not missing and workflow != MAWP_DESIGN:
+            missing = detect_missing_context(request)
+        root = MAWP_ROOT if workflow == MAWP_DESIGN else PIPE_WALL_THICKNESS_ROOT
         return IntentResult(
             intent=workflow,
             domain="piping",
             possible_standards=["ASME B31.3"],
-            root_nodes=[PIPE_WALL_THICKNESS_ROOT],
+            root_nodes=[root],
             missing_context=missing,
             confidence=0.95,
             workflow=workflow,
@@ -58,11 +62,12 @@ class IntentAgent(BaseAgent):
         )
 
     def _from_router_match(self, request: str, workflow: str) -> IntentResult:
+        root = MAWP_ROOT if workflow == MAWP_DESIGN else PIPE_WALL_THICKNESS_ROOT
         return IntentResult(
             intent=workflow,
             domain="piping",
             possible_standards=["ASME B31.3"],
-            root_nodes=[PIPE_WALL_THICKNESS_ROOT],
+            root_nodes=[root],
             missing_context=detect_missing_context(request),
             confidence=0.95,
             workflow=workflow,

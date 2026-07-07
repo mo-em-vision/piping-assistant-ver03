@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ai.agents.input_agent import InputAgent
 from ai.agents.planner_agent import PlannerAgent
-from cli.orchestrator import ChatOrchestrator
+from api.chat_orchestrator import ChatOrchestrator
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
 from models.agent import AgentAction, IntentResult

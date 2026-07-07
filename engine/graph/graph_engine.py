@@ -226,49 +226,61 @@ class GraphEngine:
         keywords: list[str] | None = None,
     ) -> list[WorkflowCandidate]:
         """Scan workflow nodes and return candidates ranked by match confidence."""
+        from engine.graph.root_discovery import (
+            broad_discovery_confidence,
+            is_specific_lookup,
+            workflow_lookup_confidence,
+        )
+
         micro = self._micro_engine(reader)
         if micro is not None and micro.store.list_workflows():
             return micro.discover_roots(workflow=workflow, keywords=keywords)
 
         candidates: list[WorkflowCandidate] = []
         keyword_text = " ".join(keywords or []).lower()
+        specific_lookup = is_specific_lookup(workflow)
 
         for path in sorted(reader.tasks_dir.glob("*/root.md")):
             record = reader.load_file(path)
             slug = path.parent.name
             intent = str(record.metadata.get("engineering_intent", "") or "")
             title = str(record.metadata.get("title", slug))
-            confidence = 0.4
+            purpose = str(record.metadata.get("purpose", "") or "")
 
-            if workflow and (workflow == intent or workflow == slug):
-                confidence = 0.95
-            elif workflow and workflow.replace("-", "_") in slug.replace("-", "_"):
-                confidence = 0.9
-            else:
-                for token in (intent, title, slug, str(record.metadata.get("purpose", ""))):
-                    if token and token.lower() in keyword_text:
-                        confidence = max(confidence, 0.75)
-
-            if confidence >= 0.4:
-                candidates.append(
-                    WorkflowCandidate(
-                        root_id=slug,
-                        title=title,
-                        engineering_intent=intent or None,
-                        standard=reader.standard,
-                        confidence=confidence,
-                        implemented=True,
-                    )
+            if specific_lookup:
+                confidence = workflow_lookup_confidence(
+                    workflow or "",
+                    slug=slug,
+                    intent=intent,
                 )
+                if confidence <= 0.0:
+                    continue
+            else:
+                confidence = broad_discovery_confidence(
+                    keyword_text=keyword_text,
+                    intent=intent,
+                    title=title,
+                    slug=slug,
+                    purpose=purpose,
+                )
+
+            candidates.append(
+                WorkflowCandidate(
+                    root_id=slug,
+                    title=title,
+                    engineering_intent=intent or None,
+                    standard=reader.standard,
+                    confidence=confidence,
+                    implemented=True,
+                )
+            )
 
         for stub in _STUB_ROOTS:
             stub_keywords = tuple(str(k).lower() for k in stub["keywords"])  # type: ignore[index]
-            if workflow and workflow == str(stub["engineering_intent"]):
-                match = True
-            elif keyword_text:
-                match = any(kw in keyword_text for kw in stub_keywords)
+            if specific_lookup:
+                match = workflow == str(stub["engineering_intent"])
             else:
-                match = False
+                match = bool(keyword_text) and any(kw in keyword_text for kw in stub_keywords)
 
             if match:
                 candidates.append(

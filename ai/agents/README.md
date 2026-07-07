@@ -76,12 +76,12 @@ task_continuation_agent.py → base, ai/client
 
 | Consumer | Agents used |
 | --- | --- |
-| `cli/orchestrator.py` | `ContextAgent`, `InputAgent`, `IntentAgent`, `PlannerAgent`; `_constants.missing_pipe_inputs` |
+| `api/chat_orchestrator.py` | `ContextAgent`, `InputAgent`, `IntentAgent`, `PlannerAgent`; `_constants.missing_pipe_inputs` |
 | `api/chat_service.py` | `TaskAssistAgent`, `SelectionExplainAgent` |
 | `api/task_continuation_service.py` | `TaskContinuationAgent` |
 | `engine/reports/presentation.py` | `SynthesisAgent` |
 | `ai/__init__.py` | Six core agents from `agents/__init__.py` |
-| `tests/agents/*`, `tests/cli/`, `tests/acceptance/`, `tests/mvp/` | Various |
+| `tests/agents/*`, `tests/acceptance/`, `tests/mvp/` | Various |
 
 `RoutingAgent` is exported but not imported by orchestrator or API services.
 
@@ -89,10 +89,10 @@ task_continuation_agent.py → base, ai/client
 
 | Agent | On execution path? | Evidence |
 | --- | --- | --- |
-| `IntentAgent` | **Yes** | `cli/orchestrator.py` every chat message |
-| `PlannerAgent` | **Yes** | `cli/orchestrator.py` |
-| `InputAgent` | **Yes** | `cli/orchestrator.py` |
-| `ContextAgent` | **Yes** | `cli/orchestrator.py` |
+| `IntentAgent` | **Yes** | `api/chat_orchestrator.py` every chat message |
+| `PlannerAgent` | **Yes** | `api/chat_orchestrator.py` |
+| `InputAgent` | **Yes** | `api/chat_orchestrator.py` |
+| `ContextAgent` | **Yes** | `api/chat_orchestrator.py` |
 | `TaskAssistAgent` | **Yes** | `api/chat_service.py` |
 | `SelectionExplainAgent` | **Yes** | `api/chat_service.py` |
 | `TaskContinuationAgent` | **Yes** | `api/task_continuation_service.py` |
@@ -210,7 +210,7 @@ engine/reports/presentation.py
 | **Inputs** | Message string or stored inputs dict |
 | **Outputs** | Lists of missing field ids |
 | **Side effects** | None |
-| **Imported by** | `intent_agent.py`, `input_agent.py`, `routing_agent.py`, `context_agent.py`, `cli/orchestrator.py` |
+| **Imported by** | `intent_agent.py`, `input_agent.py`, `routing_agent.py`, `context_agent.py`, `api/chat_orchestrator.py` |
 | **Actively used** | **Yes** |
 | **Confidence** | **High** |
 
@@ -237,7 +237,7 @@ engine/reports/presentation.py
 | **Inputs** | User message, optional `AgentContext` |
 | **Outputs** | `IntentResult` |
 | **Side effects** | LLM call on unmatched router path |
-| **Imported by** | `cli/orchestrator.py`, `ai/__init__.py`, tests |
+| **Imported by** | `api/chat_orchestrator.py`, `ai/__init__.py`, tests |
 | **Imports** | `engine/router`, `models/agent`, `base`, `_constants` |
 | **Actively used** | **Yes** |
 | **Confidence** | **High** |
@@ -252,7 +252,7 @@ engine/reports/presentation.py
 | **Inputs** | `IntentResult`, optional `Task`, `user_message` |
 | **Outputs** | `NavigationPlan` or `PlannerResult` |
 | **Side effects** | Delegates to `engine.planner.Planner`; optional LLM |
-| **Imported by** | `cli/orchestrator.py`, `ai/__init__.py`, tests |
+| **Imported by** | `api/chat_orchestrator.py`, `ai/__init__.py`, tests |
 | **Actively used** | **Yes** |
 | **Confidence** | **High** |
 
@@ -266,7 +266,7 @@ engine/reports/presentation.py
 | **Inputs** | `Task`, workflow, `AgentContext`, `NavigationPlan` |
 | **Outputs** | `InputAgentResult` |
 | **Side effects** | Optional LLM call |
-| **Imported by** | `cli/orchestrator.py`, `ai/__init__.py`, tests |
+| **Imported by** | `api/chat_orchestrator.py`, `ai/__init__.py`, tests |
 | **Actively used** | **Yes** |
 | **Confidence** | **High** |
 
@@ -294,7 +294,7 @@ engine/reports/presentation.py
 | **Inputs** | Message, optional `AgentContext` |
 | **Outputs** | `ContextResult` |
 | **Side effects** | Optional LLM call |
-| **Imported by** | `cli/orchestrator.py`, `ai/__init__.py`, tests |
+| **Imported by** | `api/chat_orchestrator.py`, `ai/__init__.py`, tests |
 | **Actively used** | **Yes** |
 | **Confidence** | **High** |
 

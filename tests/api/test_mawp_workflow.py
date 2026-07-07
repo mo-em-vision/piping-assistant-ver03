@@ -44,7 +44,8 @@ def test_mawp_bootstrap_planning(temp_service: DesktopApiService) -> None:
     project = temp_service.create_project("MAWP Project")
     state = temp_service.create_task(MAWP_DESIGN, project["id"])
     assert state["workflow_id"] == MAWP_DESIGN
-    task = temp_service._load_manager().get_task(state["task_id"])
+    manager = temp_service._store_for(project["id"]).load_state_manager()
+    task = manager.get_task(state["task_id"])
     planning = planning_projection(task)
     assert planning["selected_root"] == MAWP_DESIGN
     assert planning["current_phase"] in {
@@ -60,6 +61,17 @@ def test_mawp_task_detection() -> None:
     task = manager.create_task("mawp-detect")
     task.outputs["workflow"] = MAWP_DESIGN
     assert is_mawp_task(task) is True
+
+
+def test_mawp_bootstrap_seeds_pressure_loading_and_geometry_defaults(
+    temp_service: DesktopApiService,
+) -> None:
+    project = temp_service.create_project("MAWP Defaults")
+    state = temp_service.create_task(MAWP_DESIGN, project["id"])
+    manager = temp_service._store_for(project["id"]).load_state_manager()
+    task = manager.get_task(state["task_id"])
+    assert task.fact_store.active_fact("pressure_loading") is not None
+    assert task.fact_store.active_fact("geometry_input_mode") is not None
 
 
 def test_revealed_mawp_inputs_include_geometry() -> None:

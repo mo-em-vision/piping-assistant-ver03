@@ -41,9 +41,10 @@ FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str], ...] = (
 FORMULA_INPUT_STEP_IDS = frozenset(row[0] for row in FORMULA_INPUT_DISPLAY_ROWS)
 
 MAWP_PRESSURE_DESIGN_ROWS: tuple[tuple[str, str], ...] = (
+    ("wall_thickness_basis", "basis"),
     ("actual_wall_thickness", "t_actual"),
     ("corrosion_allowance", "c"),
-    ("pressure_design_thickness", "t"),
+    ("required_wall_thickness", "t"),
 )
 
 MAWP_FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str], ...] = (

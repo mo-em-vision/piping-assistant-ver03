@@ -5,6 +5,7 @@ import { StandardReferenceLink } from '@/components/standards/StandardReferenceL
 import { WorkflowComposer } from '@/components/workflow/WorkflowComposer'
 import { WorkflowHeader } from '@/components/workflow/WorkflowHeader'
 import { WorkflowHistory } from '@/components/workflow/WorkflowHistory'
+import type { WorkflowHistoryItem } from '@/components/workflow/buildWorkflowHistory'
 import { useRightPanelStore } from '@/store/rightPanelStore'
 import { useTaskStore } from '@/store/taskStore'
 import { mockTaskState } from '@/mock/taskState.mock'
@@ -68,6 +69,88 @@ describe('WorkflowHistory', () => {
     expect(screen.getByText('Assumptions:')).toBeInTheDocument()
     expect(screen.getByText(/Applied to a straight section of a pipe\./)).toBeInTheDocument()
     expect(screen.getByText('Assumptions:').tagName).toBe('STRONG')
+  })
+
+  it('retains equation after new block appended', () => {
+    const equationItem: WorkflowHistoryItem = {
+      id: 'output-preview-equation',
+      kind: 'output',
+      block: {
+        id: 'preview-equation',
+        type: 'equation',
+        title: 'Governing equation',
+        content: 't = PD / 2(SEW + PY)',
+        display: 't = PD / 2(SEW + PY)',
+      },
+    }
+
+    const { rerender } = render(<WorkflowHistory items={[equationItem]} />)
+    expect(screen.getByText('Governing equation')).toBeInTheDocument()
+
+    rerender(
+      <WorkflowHistory
+        items={[
+          equationItem,
+          {
+            id: 'output-planning-status',
+            kind: 'output',
+            block: {
+              id: 'planning-status',
+              type: 'text',
+              title: 'Task status:',
+              content: 'Complete the fields below to continue.',
+            },
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Governing equation')).toBeInTheDocument()
+    expect(screen.getByText(/Complete the fields below to continue/)).toBeInTheDocument()
+  })
+
+  it('updates equation input table values in place', () => {
+    const equationItem: WorkflowHistoryItem = {
+      id: 'output-preview-equation',
+      kind: 'output',
+      block: {
+        id: 'preview-equation',
+        type: 'equation',
+        content: 't = PD / 2(SEW + PY)',
+        display: 't = PD / 2(SEW + PY)',
+        input_table: {
+          columns: [
+            { key: 'symbol', label: 'Symbol', sortable: false },
+            { key: 'definition', label: 'Definition', sortable: false },
+            { key: 'value', label: 'Value', sortable: false },
+          ],
+          rows: [{ symbol: 'D', definition: 'Outside diameter', value: 'Awaiting user input' }],
+        },
+      },
+    }
+
+    const { rerender } = render(<WorkflowHistory items={[equationItem]} />)
+    expect(screen.getByText('Awaiting user input')).toBeInTheDocument()
+
+    rerender(
+      <WorkflowHistory
+        items={[
+          {
+            ...equationItem,
+            block: {
+              ...equationItem.block,
+              input_table: {
+                columns: equationItem.block.input_table!.columns,
+                rows: [{ symbol: 'D', definition: 'Outside diameter', value: '114.3 mm' }],
+              },
+            },
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('114.3 mm')).toBeInTheDocument()
+    expect(screen.queryByText('Awaiting user input')).not.toBeInTheDocument()
   })
 })
 

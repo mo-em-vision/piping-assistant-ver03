@@ -19,7 +19,7 @@ expression:
 requires:
 - symbol: t
   required: true
-  description: Pressure design thickness from eq. (3a) or (3b)
+  description: Pressure design thickness from eq. (3a), eq. (3b), or MAWP derivation (t_actual - c)
   parameter: PARAM-required-wall-thickness
 - symbol: D
   required: true
@@ -51,6 +51,8 @@ edges:
   target: asme-b313-304-1-2-eq-3a
 - type: constrains_equation
   target: asme-b313-304-1-2-eq-3b
+- type: constrains_equation
+  target: asme-b313-mawp-pressure
 metadata:
   status: active
   version: 1

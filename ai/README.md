@@ -62,8 +62,8 @@ Markdown system prompts for LLM agents. Loaded via `prompts_loader.load_prompt()
 | --- | --- | --- |
 | `ai/__init__.py` | No | Package import surface |
 | `OpenAIClient.from_settings()` | Indirect | Called when agents need an LLM and no client is injected |
-| `extract_pipe_wall_thickness_inputs()` | Indirect | Called from `cli/orchestrator.py` on every active-task chat message |
-| Agent `.analyze()` / `.plan()` / `.reply()` / etc. | Indirect | Invoked by `cli/orchestrator.py`, `api/chat_service.py`, `api/task_continuation_service.py`, `engine/reports/presentation.py` |
+| `extract_pipe_wall_thickness_inputs()` | Indirect | Called from `api/chat_orchestrator.py` on every active-task chat message |
+| Agent `.analyze()` / `.plan()` / `.reply()` / etc. | Indirect | Invoked by `api/chat_orchestrator.py`, `api/chat_service.py`, `api/task_continuation_service.py`, `engine/reports/presentation.py` |
 | `prompts_loader.load_prompt()` | Indirect | Called from `BaseAgent` and a few agents with `extra_system` |
 
 Nothing in `ai/` has `if __name__ == "__main__"`.
@@ -109,12 +109,12 @@ ai/response/            → input_extractor.py (InputRejection), models/agent.py
 
 | Area | Imports |
 | --- | --- |
-| `cli/orchestrator.py` | `ContextAgent`, `InputAgent`, `IntentAgent`, `PlannerAgent`, `missing_pipe_inputs`, `OpenAIClient`, `MissingAPIKeyError`, `extract_pipe_wall_thickness_inputs`, `default_pipe_wall_thickness_decision_interactions`, `ResponseHandler` |
+| `api/chat_orchestrator.py` | `ContextAgent`, `InputAgent`, `IntentAgent`, `PlannerAgent`, `missing_pipe_inputs`, `OpenAIClient`, `MissingAPIKeyError`, `extract_pipe_wall_thickness_inputs`, `default_pipe_wall_thickness_decision_interactions`, `ResponseHandler` |
 | `api/chat_service.py` | `SelectionExplainAgent`, `TaskAssistAgent` (orchestrator also used) |
 | `api/task_continuation_service.py` | `TaskContinuationAgent` |
 | `api/parameter_definitions.py` | `default_pipe_wall_thickness_decision_interactions` |
 | `engine/reports/presentation.py` | `SynthesisAgent` |
-| `tests/agents/`, `tests/ai/`, `tests/cli/`, `tests/graph/`, `tests/acceptance/`, `tests/mvp/` | Various agents and extractors |
+| `tests/agents/`, `tests/ai/`, `tests/graph/`, `tests/acceptance/`, `tests/mvp/` | Various agents and extractors |
 
 No `from ai import …` usage found; consumers import submodule paths.
 
@@ -124,13 +124,13 @@ No `from ai import …` usage found; consumers import submodule paths.
 
 Evidence:
 
-1. **CLI / desktop chat workflow** (`cli/orchestrator.py`): `IntentAgent` → `PlannerAgent` → `InputAgent` + `ContextAgent`; `extract_pipe_wall_thickness_inputs` stores inputs; `ResponseHandler` formats prompts. Used by `api/chat_service.py` via `ChatOrchestrator`.
+1. **CLI / desktop chat workflow** (`api/chat_orchestrator.py`): `IntentAgent` → `PlannerAgent` → `InputAgent` + `ContextAgent`; `extract_pipe_wall_thickness_inputs` stores inputs; `ResponseHandler` formats prompts. Used by `api/chat_service.py` via `ChatOrchestrator`.
 2. **Desktop chat Q&A** (`api/chat_service.py`): `TaskAssistAgent`, `SelectionExplainAgent` for follow-up questions and highlight explanations.
 3. **Task continuation** (`api/task_continuation_service.py`): `TaskContinuationAgent.suggest()` after task completion.
 4. **Report presentation** (`engine/reports/presentation.py` ← `report_generator.py`): optional `SynthesisAgent` narrative enhancement when `use_ai=True`.
 5. **Parameter definitions API** (`api/parameter_definitions.py`): decision interaction specs for pipe wall thickness.
 
-`RoutingAgent` is implemented and tested but **not** wired into `cli/orchestrator.py` or `api/` (see Possible Dead Code).
+`RoutingAgent` is implemented and tested but **not** wired into `api/chat_orchestrator.py` or `api/` (see Possible Dead Code).
 
 ## Possible Dead Code
 
@@ -171,7 +171,7 @@ Agents and synthesis must not alter engineering numeric values. `SynthesisAgent.
 ```
 User message (desktop chat or CLI)
     ↓
-api/chat_service.py → ChatOrchestrator.handle_message()   [cli/orchestrator.py]
+api/chat_service.py → ChatOrchestrator.handle_message()   [api/chat_orchestrator.py]
     ↓
 extract_pipe_wall_thickness_inputs()   [ai/input_extractor.py]
     → user_response_extractor (pending decisions / confirmations)
@@ -279,7 +279,7 @@ Enhanced markdown in report payload
 | **Inputs** | API key, prompts, optional message history |
 | **Outputs** | `dict[str, Any]` parsed JSON |
 | **Side effects** | HTTP call to OpenAI when methods invoked |
-| **Imported by** | `ai/agents/base.py`, `ai/__init__.py`, `cli/orchestrator.py`, several agent modules and tests |
+| **Imported by** | `ai/agents/base.py`, `ai/__init__.py`, `api/chat_orchestrator.py`, several agent modules and tests |
 | **Imports** | `config.settings`, `openai` (lazy) |
 | **Actively used** | **Yes** |
 | **Confidence** | **High** |
@@ -307,7 +307,7 @@ Enhanced markdown in report payload
 | **Inputs** | None (reads `standards/asme_b31.3` via `StandardsReader`) |
 | **Outputs** | `tuple[NodeInteractionSpec, ...]` |
 | **Side effects** | Reads standards files; LRU cache |
-| **Imported by** | `ai/input_extractor.py`, `cli/orchestrator.py`, `api/parameter_definitions.py` |
+| **Imported by** | `ai/input_extractor.py`, `api/chat_orchestrator.py`, `api/parameter_definitions.py` |
 | **Imports** | `engine/graph/node_interaction.py`, `engine/reference/standards_reader.py` |
 | **Actively used** | **Yes** |
 | **Confidence** | **High** |
@@ -321,7 +321,7 @@ Enhanced markdown in report payload
 | **Inputs** | User message, optional pending interactions, existing inputs, allowed fields |
 | **Outputs** | `ExtractionResult` with `EngineeringInput` dict and rejections |
 | **Side effects** | None |
-| **Imported by** | `cli/orchestrator.py`, `ai/response/response_handler.py` (type only), `tests/ai/test_input_extractor.py` |
+| **Imported by** | `api/chat_orchestrator.py`, `ai/response/response_handler.py` (type only), `tests/ai/test_input_extractor.py` |
 | **Imports** | `ai/interaction_specs.py`, `ai/user_response_extractor.py`, `engine/*`, `models/input.py` |
 | **Actively used** | **Yes** |
 | **Confidence** | **High** |
@@ -346,7 +346,7 @@ Enhanced markdown in report payload
 | --- | --- |
 | **Purpose** | Re-export `ResponseHandler` |
 | **Public** | `ResponseHandler` |
-| **Imported by** | `ai/__init__.py`, `cli/orchestrator.py`, tests |
+| **Imported by** | `ai/__init__.py`, `api/chat_orchestrator.py`, tests |
 | **Actively used** | **Yes** |
 | **Confidence** | **High** |
 
@@ -359,7 +359,7 @@ Enhanced markdown in report payload
 | **Inputs** | `models.agent` results, optional `StandardsReader`, `Task`, `NavigationPlan`, rejections |
 | **Outputs** | Formatted `str` or `None` |
 | **Side effects** | Lazy imports from `engine.messaging` |
-| **Imported by** | `cli/orchestrator.py`, `ai/__init__.py`, `tests/agents/test_synthesis_agent.py` |
+| **Imported by** | `api/chat_orchestrator.py`, `ai/__init__.py`, `tests/agents/test_synthesis_agent.py` |
 | **Imports** | `models/agent.py`, `ai/input_extractor.py` (InputRejection) |
 | **Actively used** | **Yes** |
 | **Confidence** | **High** |

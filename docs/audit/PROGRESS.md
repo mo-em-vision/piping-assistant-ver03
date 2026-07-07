@@ -5,8 +5,7 @@ Tracks folder-by-folder audit status per [Architecture Audit Mode](../todo/Archi
 | Phase | Folder | Status | README |
 |-------|--------|--------|--------|
 | 0 | docs/audit/, .cursor/rules/ | done | this file |
-| 1 | repo root | done | [ARCHITECTURE_AUDIT.md](../../ARCHITECTURE_AUDIT.md) |
-| 1 | cli/ | done | [cli/README.md](../../cli/README.md) |
+| 1 | repo root | done | [ARCHITECTURE_AUDIT.md](ARCHITECTURE_AUDIT.md) |
 | 1 | api/ | done | [api/README.md](../../api/README.md) |
 | 1 | models/ | done | [models/README.md](../../models/README.md) |
 | 1 | storage/ | done | [storage/README.md](../../storage/README.md) |

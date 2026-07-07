@@ -44,6 +44,36 @@ def apply_geometry_input_mode_default(task: Task) -> None:
     )
 
 
+def apply_mawp_pressure_loading_default(task: Task) -> None:
+    """Seed internal pressure for MAWP workflow expansion gates."""
+    if task.fact_store.active_fact("pressure_loading") is not None:
+        return
+    store_system_categorical_fact(
+        task,
+        key="pressure_loading",
+        label="internal_pressure",
+    )
+
+
+def apply_wall_thickness_basis_from_geometry(task: Task) -> None:
+    """Infer wall thickness basis when geometry mode implies a known source."""
+    if task.fact_store.active_fact("wall_thickness_basis") is not None:
+        return
+    mode = _geometry_mode(task)
+    if mode == "nps_and_schedule":
+        store_system_categorical_fact(
+            task,
+            key="wall_thickness_basis",
+            label="nominal_schedule",
+        )
+    elif mode == "direct_od_and_thickness":
+        store_system_categorical_fact(
+            task,
+            key="wall_thickness_basis",
+            label="measured_actual",
+        )
+
+
 def apply_nominal_pipe_size_for_mawp(task: Task, standards_root: Path) -> None:
     """Look up outside diameter from NPS (schedule applied separately)."""
     nps_input = task.fact_store.active_fact("nominal_pipe_size")
@@ -146,6 +176,11 @@ def apply_pipe_schedule_lookup(task: Task, standards_root: Path) -> None:
         table_ref=B36_10_TABLE_REF,
         symbol="t_actual",
         description="Wall thickness from ASME B36.10M",
+    )
+    store_system_categorical_fact(
+        task,
+        key="wall_thickness_basis",
+        label="nominal_schedule",
     )
 
     task.outputs["outside_diameter_lookup"] = {

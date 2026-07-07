@@ -1,0 +1,260 @@
+---
+description: Every feature plan must include a built-in Plan Review Gate before implementation — written for non-technical reviewers.
+alwaysApply: true
+---
+
+# Plan Review Gate
+
+Every Cursor feature plan **must** include a visible **Architecture Consistency Review** section and a **Plan Review Gate** section inside the plan itself — not in a separate file, not hidden, not deferred until implementation.
+
+**Do not implement** until the Architecture Consistency Review status is **CLEAR** (or required doc updates are completed) and the Plan Review Gate status is **APPROVED**.
+
+Full process: [`docs/process/plan_review_gate.md`](docs/process/plan_review_gate.md). Architecture source of truth: [`docs/rules.md`](docs/rules.md) §22–§23, [`docs/core/3. component_responsibilities.md`](docs/core/3.%20component_responsibilities.md).
+
+---
+
+## When to generate
+
+Generate both sections:
+
+1. **Inside every feature plan** — before any implementation step.
+2. **After the plan body** — scope, files, approach, acceptance criteria — but **before** the first code change.
+3. **In plain English** — for a non-technical project owner / CEO / product manager. Avoid function-level detail unless absolutely necessary.
+4. **Order** — Architecture Consistency Review first, then Plan Review Gate.
+
+If the user asks only for a plan (Plan mode or "do not implement yet"), both sections are **mandatory** in that same response.
+
+---
+
+## Architecture Consistency Review (required before the gate)
+
+Every plan must include this section **before** the Plan Review Gate.
+
+### Status values
+
+| Status | Meaning | Plan Review Gate |
+| --- | --- | --- |
+| **CLEAR** | No architectural conflicts | May proceed to gate |
+| **NEEDS_DOC_UPDATE** | Docs inconsistent; intended architecture is clear | Gate must be **REVISE** |
+| **NEEDS_DECISION** | Conflicting sources of truth | Gate must be **REVISE** or **BLOCKED** |
+| **BLOCKED** | Would violate `docs/rules.md` | Gate must be **BLOCKED** |
+
+If status is not **CLEAR**, the Plan Review Gate must not be **APPROVED**.
+
+### Required format
+
+```markdown
+# Architecture Consistency Review
+
+| Field | Value |
+| --- | --- |
+| Existing source files checked | … |
+| Possible conflicts found | … |
+| Conflicting source of truth | … |
+| Proposed resolution | … |
+| User impact | … |
+| Risk if ignored | … |
+| Required doc/rule/test updates | … |
+| Status | CLEAR / NEEDS_DOC_UPDATE / NEEDS_DECISION / BLOCKED |
+```
+
+### Compliance checklist (answer in every plan)
+
+1. Does this plan introduce hardcoded workflow fields, branch IDs, paragraph IDs, or frontend engineering logic?
+2. Does this plan ask for lookup-derived outputs instead of lookup keys?
+3. Does this plan bypass `PARAM-*` metadata for gatherable parameters?
+4. Does this plan put prompt copy in the planner, graph engine, execution layer, CLI, API serializers, or frontend?
+5. Does this plan put traversal narration outside the Flow Guidance Layer?
+6. Does this plan add fixed required input lists where graph expansion should decide active inputs?
+7. Does this plan use old node layout instructions as if they are current?
+8. Does this plan confuse `RuleEngine` with `ValidationEngine`?
+9. Does this plan use legacy planner/goal maps as canonical output?
+10. Does this plan require doc/rule/test updates before implementation?
+
+If any answer indicates a violation, the Plan Review Gate must not be **APPROVED**.
+
+---
+
+## Plan Review Gate status values
+
+| Status | Meaning | Implementation |
+| --- | --- | --- |
+| **APPROVED** | Safe, aligned, testable, ready | Allowed |
+| **REVISE** | Plan must be corrected first | **Not allowed** |
+| **BLOCKED** | Too unclear, too broad, or violates architecture | **Not allowed** |
+
+---
+
+## Required format
+
+Copy this structure into every plan. Fill every section.
+
+```markdown
+# Plan Review Gate
+
+## Status
+
+APPROVED / REVISE / BLOCKED
+
+## Plain-English Summary
+
+- … (3–6 bullets: what the plan tries to achieve and whether it is safe to proceed)
+
+## Business/User Impact
+
+… (what the user will notice after this feature is done)
+
+## Architecture Alignment
+
+Answer in plain English:
+
+- Does this plan keep engineering truth out of the wrong layers?
+- Does it respect the Planner, Graph Engine, Execution, Validation, Report, Guidance, and CLI boundaries?
+- Does it avoid hardcoding workflow-specific behavior into general components?
+- Does it avoid using UI/output fixes to change engineering logic?
+
+## Main Risks
+
+- … (top risks in non-technical language)
+
+## Missing Decisions
+
+- … (product/architecture decisions still unclear)
+
+If none: "No major missing decisions."
+
+## Test Coverage Required
+
+1. **General behavior tests** — …
+2. **Workflow-specific tests** — …
+3. **Regression tests** — …
+4. **User-visible output tests** — …
+
+## Documentation / Rules Updates Required
+
+- …
+
+## Out of Scope
+
+- …
+
+## Implementation Permission
+
+Exactly one of:
+
+- "Implementation allowed."
+- "Implementation not allowed until the plan is revised."
+- "Implementation blocked until the missing decision is resolved."
+```
+
+---
+
+## Decision rules (status assignment)
+
+Use these rules when choosing status:
+
+1. **Always generate** the Architecture Consistency Review and Plan Review Gate inside the plan itself.
+2. **Architecture Consistency Review first** — if not **CLEAR**, gate must be **REVISE** or **BLOCKED**.
+3. **Do not hide** the review in a separate file unless the user explicitly asks.
+4. **Write for project managers** — explain risks, missing pieces, and corrections in business/product/architecture language.
+5. **Do not implement** until consistency review is **CLEAR** and gate status is **APPROVED**.
+6. **Broad features** → split into smaller implementation steps; if unsplit, status is **REVISE** or **BLOCKED**.
+7. **Tests missing** from the plan → status **REVISE**.
+8. **Architecture boundaries unclear** → status **REVISE**.
+9. **Plan modifies unrelated layers** → status **REVISE** or **BLOCKED**.
+10. **UI/output problem solved by changing Planner, Graph, Execution, or engineering nodes** → status **REVISE** unless clearly justified in Architecture Alignment.
+11. **General feature tested only with one real workflow** → status **REVISE**. Require generic/synthetic behavior tests **plus** one real workflow integration test.
+12. **Plan risks hardcoding to `pipe_wall_thickness_design`** → status **REVISE**.
+13. **User-facing explanations, guidance, prompts, or screen output** — verify Flow Guidance Layer rules ([`docs/rules.md` §21](docs/rules.md#21-flow-guidance-layer-traversal-narration)):
+    - Traversal narration → Flow Guidance Layer (`presentation/guidance/workflows/`, `GuidanceResolver`)
+    - Deterministic parameter prompts → `engine/messaging/`
+    - CLI displays structured blocks only
+    - `presentation_blocks` and `transcript_blocks` stay separate; transcript is append-only
+14. **Calculations, validation, graph traversal, or engineering nodes** — engineering truth must remain deterministic and traceable.
+15. **Plan must state** which files are allowed to change and which must not change.
+16. **Plan must state** acceptance criteria in plain English.
+
+---
+
+## Architecture boundaries (review checklist)
+
+When filling **Architecture Alignment**, check against existing docs — do not invent new layers:
+
+| Layer | Owns | Must not own |
+| --- | --- | --- |
+| **Planner** | What to ask next, phase order, goal tree | Prompt copy, display history, calculations |
+| **Graph Engine** | Expansion, dependencies, required inputs from active graph | Execution, UI copy, workflow-specific Python branches |
+| **Execution** | Deterministic formula/lookup runs | Workflow selection, validation rules authoring |
+| **Validation** | Compliance checks before/during execution | Calculations, report formatting |
+| **Report** | Format structured results | Modify engineering values |
+| **Flow Guidance** | Traversal narration, composed presentation blocks | Engineering truth, planner navigation |
+| **Messaging** | Deterministic prompt text | Which parameter is active |
+| **CLI / Desktop** | Display structured blocks, collect input | Engineering logic, graph traversal |
+| **Frontend** | Visualization, stores, API calls | Calculations, standards logic, workflow branching |
+
+Graph-driven paths: [`docs/rules.md` §13](docs/rules.md#13-graph-driven-workflow-paths), [`.cursor/rules/graph-expansion.mdc`](.cursor/rules/graph-expansion.mdc).
+
+---
+
+## Example Plan Review Gate
+
+```markdown
+# Plan Review Gate
+
+## Status
+
+REVISE
+
+## Plain-English Summary
+
+- The plan correctly identifies that previous explanation text should remain visible.
+- However, it tries to solve the issue inside the Planner.
+- This is risky because the Planner should decide what is needed next, not control display history.
+- The fix should be moved to the presentation/output layer.
+
+## Business/User Impact
+
+Users will trust the workflow more because equations, explanations, and previous guidance will not disappear as the workflow advances.
+
+## Architecture Alignment
+
+The plan is not aligned yet. It mixes workflow navigation with screen presentation. The correct design is to keep Planner decisions separate from displayed transcript history.
+
+## Main Risks
+
+- Previous equations may still disappear after the next input.
+- The Planner may become responsible for UI behavior.
+- Future Desktop/API output may not reuse the same structured response.
+
+## Missing Decisions
+
+- Where transcript history is persisted.
+- Whether the current screen should render from transcript blocks or only latest response.
+
+## Test Coverage Required
+
+1. General behavior tests:
+   - Previous displayed blocks remain after the next user input.
+2. Workflow-specific tests:
+   - Pipe wall thickness equation remains visible after moving to the next input phase.
+3. Regression tests:
+   - Explanation blocks are not overwritten by later prompts.
+4. User-visible output tests:
+   - The rendered conversation shows both old guidance and new prompt.
+
+## Documentation / Rules Updates Required
+
+- Update Flow Guidance Layer rules.
+- Update CLI output rules for append-only transcript behavior.
+
+## Out of Scope
+
+- Planner logic changes
+- Graph traversal changes
+- Calculation changes
+- Engineering node content changes
+
+## Implementation Permission
+
+Implementation not allowed until the plan is revised.
+```

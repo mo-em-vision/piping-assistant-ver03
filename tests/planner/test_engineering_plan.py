@@ -10,6 +10,7 @@ from engine.planner.goal_builder import build_goal_tree
 from engine.planner.plan_inspector import build_engineering_plan_view, build_planner_inspector_summary
 from engine.planner.plan_validation import validate_engineering_plan
 from engine.planner.tools import GraphTools
+from engine.reference.parameter_keys import param_node_id_for_input
 from engine.reference.standards_reader import StandardsReader
 from engine.state.fact_migration import fact_from_engineering_input
 from engine.state.state_manager import TaskStateManager
@@ -55,6 +56,39 @@ def _phase_statuses(plan) -> dict[str, str]:
     return {phase.id: phase.status for phase in plan.phases}
 
 
+def _active_phases(plan) -> list:
+    return [phase for phase in plan.phases if phase.status == "active"]
+
+
+def test_fresh_pipe_wall_no_facts_input_strategy_and_phase_contract() -> None:
+    """Fresh plan with no facts: input strategy and phase progression contract."""
+    _, task = _fresh_pipe_wall_task()
+    plan = build_pipe_wall_engineering_plan(task)
+    validation = validate_engineering_plan(plan)
+    assert validation.valid, validation.errors
+
+    strategy = plan.input_strategy
+    assert strategy is not None
+    assert strategy.mode == "single_next_question"
+    assert strategy.current_phase == "expansion_assumptions"
+    assert strategy.next_fields == ["straight_pipe_section"]
+    assert "pressure_loading" not in strategy.next_fields
+    assert "pressure_loading" in strategy.blocked_fields
+
+    active_phases = _active_phases(plan)
+    assert len(active_phases) == 1
+    assert active_phases[0].id == "expansion_assumptions"
+
+    assert _phase_statuses(plan) == {
+        "expansion_assumptions": "active",
+        "path_decisions": "pending",
+        "parameter_gathering": "pending",
+        "coefficient_resolution": "blocked",
+        "equation_execution": "blocked",
+        "reporting": "blocked",
+    }
+
+
 def test_fresh_pipe_wall_phase_statuses_single_active_phase() -> None:
     _, task = _fresh_pipe_wall_task()
     plan = build_pipe_wall_engineering_plan(task)
@@ -70,6 +104,9 @@ def test_fresh_pipe_wall_phase_statuses_single_active_phase() -> None:
     assert statuses["reporting"] == "blocked"
     assert "validation" not in statuses
     assert sum(1 for status in statuses.values() if status == "active") == 1
+    active_phases = _active_phases(plan)
+    assert len(active_phases) == 1
+    assert active_phases[0].id == "expansion_assumptions"
 
 
 def test_straight_pipe_resolved_only_path_decisions_active() -> None:
@@ -117,6 +154,7 @@ def test_fresh_pipe_wall_internal_pressure_requirements_are_conditional() -> Non
     assert internal_pressure.activation_status == "conditional"
     assert internal_pressure.activation_condition is not None
     assert internal_pressure.activation_condition.field == "pressure_loading"
+    assert internal_pressure.activation_condition.operator == "equals"
     assert internal_pressure.activation_condition.value == "internal_pressure"
 
     lookup = plan.requirements["REQ-allowable_stress_lookup"]
@@ -176,6 +214,9 @@ def test_external_pressure_branch_marks_internal_requirements_not_applicable() -
     assert internal_pressure.activation_status == "not_applicable"
     assert internal_pressure.status == "not_applicable"
     assert plan.requirements["REQ-required_wall_thickness"].activation_status == "not_applicable"
+    assert plan.requirements["REQ-minimum_required_thickness_eq"].activation_status == "not_applicable"
+    assert plan.input_strategy is not None
+    assert "internal_design_gage_pressure" not in plan.input_strategy.next_fields
     assert "REQ-internal_design_gage_pressure" not in plan.root_goal.blocked_by
     assert "REQ-internal_design_gage_pressure" not in plan.root_goal.provisional_blocked_by
 
@@ -216,11 +257,21 @@ def test_fresh_pipe_wall_planner_inspector_summary_single_next_input() -> None:
     plan = build_pipe_wall_engineering_plan(task)
     summary = build_planner_inspector_summary(plan)
 
+    assert plan.input_strategy is not None
+    assert plan.input_strategy.mode == "single_next_question"
     assert summary["current_phase"] == "expansion_assumptions"
     assert summary["next_input"] is not None
     assert summary["next_input"]["field"] == "straight_pipe_section"
     assert summary["next_input"]["phase"] == "expansion_assumptions"
     assert "next_required_inputs" not in summary
+
+    traversal_summary = summary["traversal_summary"]
+    assert traversal_summary is not None
+    assert traversal_summary["current_active_node_id"] == param_node_id_for_input("straight_pipe_section")
+    assert traversal_summary["pending_expansion_count"] > 0
+
+    graph_summary = summary["planner_graph_summary"]
+    assert graph_summary["dependency_edge_count"] > 0
 
     outstanding = summary["outstanding_required_inputs"]
     outstanding_fields = [item["field"] for item in outstanding]
@@ -254,15 +305,24 @@ def test_planner_inspector_summary_rebuilt_from_engineering_plan_dict() -> None:
     plan = build_pipe_wall_engineering_plan(task)
     store_engineering_plan_on_task(task, plan)
     task.outputs.pop("planner_inspector_summary", None)
+    task.outputs["legacy_goal_map"] = {
+        "GOAL-calculate-minimum-required-thickness": {
+            "next_input": {"field": "internal_design_gage_pressure"},
+        }
+    }
 
     summary = planner_inspector_summary_for_task(task)
     assert summary is not None
     assert summary["next_input"]["field"] == "straight_pipe_section"
-    assert summary["traversal_summary"]["current_active_node_id"] is not None
+    straight_param = param_node_id_for_input("straight_pipe_section")
+    assert summary["traversal_summary"]["current_active_node_id"] == straight_param
+    assert summary["traversal_summary"]["pending_expansion_count"] > 0
 
     rebuilt = build_planner_inspector_summary_from_dict(task.outputs["engineering_plan"])
     assert rebuilt is not None
     assert rebuilt["current_phase"] == summary["current_phase"]
+    assert rebuilt["next_input"] == summary["next_input"]
+    assert rebuilt["traversal_summary"] == summary["traversal_summary"]
 
 
 def test_fresh_pipe_wall_input_strategy_asks_expansion_assumption_first() -> None:
@@ -272,9 +332,11 @@ def test_fresh_pipe_wall_input_strategy_asks_expansion_assumption_first() -> Non
 
     assert validation.valid, validation.errors
     assert plan.input_strategy is not None
+    assert plan.input_strategy.mode == "single_next_question"
     assert plan.input_strategy.current_phase == "expansion_assumptions"
     assert plan.input_strategy.next_fields == ["straight_pipe_section"]
     assert "pressure_loading" not in plan.input_strategy.next_fields
+    assert "pressure_loading" in plan.input_strategy.blocked_fields
 
 
 def test_straight_pipe_resolved_advances_to_path_decisions() -> None:
@@ -340,7 +402,7 @@ def test_pipe_wall_initial_engineering_plan() -> None:
     assert "REQ-design_temperature" in blocked
     assert "REQ-pipe_construction_type" in blocked
     assert "REQ-corrosion_allowance" in blocked
-    assert "REQ-outside_diameter" not in blocked
+    assert "REQ-outside_diameter_lookup" not in blocked
     assert "REQ-nominal_pipe_size" not in blocked
 
     diameter = plan.requirements["REQ-diameter_resolution"]
@@ -361,7 +423,7 @@ def test_pipe_wall_initial_engineering_plan() -> None:
             assert "To continue the calculation" not in req.question_spec.label
 
     summary = build_planner_inspector_summary(plan)
-    assert summary["root_goal"]["title"] == "Calculate minimum required pipe wall thickness"
+    assert summary["root_goal"]["title"] == "Pipe Wall Thickness Design"
     assert summary["root_goal"]["target_field"] == "minimum_required_thickness"
     assert summary["next_input"] is not None
     assert summary["next_input"]["field"] == "internal_design_gage_pressure"
@@ -372,7 +434,7 @@ def test_pipe_wall_initial_engineering_plan() -> None:
     assert summary["planner_graph_summary"]["dependency_edge_count"] > 0
 
     view = build_engineering_plan_view(plan)
-    assert view["overview"]["goal"] == "Calculate minimum required pipe wall thickness"
+    assert view["overview"]["goal"] == "Pipe Wall Thickness Design"
     assert view["phases"]
     first_phase = view["phases"][0]
     assert "requirements" in first_phase

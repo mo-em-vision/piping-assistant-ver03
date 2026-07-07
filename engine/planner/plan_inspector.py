@@ -195,6 +195,283 @@ def _build_planner_graph_summary(plan: EngineeringPlan) -> dict[str, int]:
     }
 
 
+_PIPE_WALL_TRAVERSAL_SLUGS = frozenset({"pipe_wall_thickness_design", "pipe_wall_thickness"})
+
+
+def _traversal_support(plan: EngineeringPlan) -> dict[str, str | None]:
+    slug = plan.workflow_id.replace("-", "_")
+    if slug not in _PIPE_WALL_TRAVERSAL_SLUGS:
+        return {
+            "level": "none",
+            "note": (
+                "Traversal timeline is only built for pipe wall thickness workflows today. "
+                "Use the phase and requirements panels for other workflows."
+            ),
+        }
+    if plan.traversal is None:
+        return {
+            "level": "limited",
+            "note": "Traversal state is unavailable for this engineering plan snapshot.",
+        }
+    return {"level": "full", "note": None}
+
+
+def _resolution_label(*, resolution_kind: str, awaiting_user_input: bool) -> str:
+    if awaiting_user_input:
+        return "User input required"
+    if resolution_kind == "table_lookup":
+        return "Lookup-derived"
+    if resolution_kind == "equation_result":
+        return "Calculation output"
+    if resolution_kind == "conditional":
+        return "Conditional — not user input"
+    return "System-resolved"
+
+
+def _split_phase_inputs(
+    outstanding_required_inputs: list[dict[str, Any]],
+    current_phase: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    current_phase_inputs: list[dict[str, Any]] = []
+    future_phase_inputs: list[dict[str, Any]] = []
+    current_index = _phase_order_index(current_phase)
+    for entry in outstanding_required_inputs:
+        entry_index = _phase_order_index(str(entry.get("phase") or ""))
+        if entry_index <= current_index:
+            current_phase_inputs.append(entry)
+        else:
+            future_phase_inputs.append(entry)
+    return current_phase_inputs, future_phase_inputs
+
+
+def _derive_status_badge(plan: EngineeringPlan, *, has_validation_errors: bool) -> str:
+    if has_validation_errors:
+        return "invalidated"
+    root_status = plan.root_goal.status
+    if root_status == "complete":
+        return "completed"
+    strategy = plan.input_strategy
+    current_phase = _resolve_current_phase(plan)
+    if current_phase in {"equation_execution", "validation", "reporting"}:
+        if root_status == "ready":
+            return "executing"
+    if root_status == "ready":
+        return "ready"
+    if root_status == "blocked":
+        if strategy and strategy.next_fields:
+            return "waiting_for_input"
+        return "blocked"
+    if strategy and strategy.next_fields:
+        return "waiting_for_input"
+    return "blocked"
+
+
+def _build_why_here(plan: EngineeringPlan) -> str | None:
+    if plan.traversal and plan.traversal.current_active_node:
+        return plan.traversal.current_active_node.reason or None
+    strategy = plan.input_strategy
+    if strategy and strategy.next_fields:
+        field = strategy.next_fields[0]
+        for req in plan.requirements.values():
+            if not _requirement_matches_field(req, field):
+                continue
+            if req.question_spec and req.question_spec.reason_code:
+                return str(req.question_spec.reason_code)
+        return f"Next required field: {field.replace('_', ' ')}"
+    return None
+
+
+def _build_planner_header(
+    plan: EngineeringPlan,
+    *,
+    current_phase: str,
+    next_input: dict[str, Any] | None,
+    has_validation_errors: bool,
+) -> dict[str, Any]:
+    traversal_summary = None
+    active_node_id: str | None = None
+    active_node_title: str | None = None
+    if plan.traversal is not None:
+        from engine.planner.planner_traversal import build_traversal_summary
+
+        traversal_summary = build_traversal_summary(plan.traversal)
+        active_node_id = traversal_summary.get("current_active_node_id")
+        active_node_title = traversal_summary.get("current_active_node_title")
+
+    next_action: dict[str, Any] | None = None
+    if next_input:
+        next_action = {
+            "field": next_input.get("field"),
+            "label": next_input.get("label"),
+        }
+
+    traversal_support = _traversal_support(plan)
+
+    return {
+        "workflow_id": plan.workflow_id,
+        "workflow_name": plan.workflow_id.replace("_", " ").replace("-", " ").title(),
+        "current_phase": current_phase,
+        "current_phase_label": _PHASE_TITLES.get(current_phase, current_phase.replace("_", " ").title()),
+        "current_active_node_id": active_node_id,
+        "current_active_node_title": active_node_title,
+        "next_action": next_action,
+        "status_badge": _derive_status_badge(plan, has_validation_errors=has_validation_errors),
+        "why_here": _build_why_here(plan),
+        "traversal_support_level": traversal_support["level"],
+        "traversal_support_note": traversal_support["note"],
+    }
+
+
+def _build_phase_panel(
+    plan: EngineeringPlan,
+    *,
+    current_phase: str,
+    next_input: dict[str, Any] | None,
+    outstanding_required_inputs: list[dict[str, Any]],
+) -> dict[str, Any]:
+    strategy = plan.input_strategy
+    resolved_fields = list(strategy.resolved_fields) if strategy else []
+    active_field = next_input.get("field") if next_input else None
+
+    missing_in_phase: list[dict[str, Any]] = []
+    future_fields: list[dict[str, Any]] = []
+    current_index = _phase_order_index(current_phase)
+
+    for entry in outstanding_required_inputs:
+        entry_phase = str(entry.get("phase") or "")
+        if entry_phase == current_phase:
+            if entry.get("field") != active_field:
+                missing_in_phase.append(entry)
+        elif _phase_order_index(entry_phase) > current_index:
+            future_fields.append(entry)
+
+    completed_fields: list[dict[str, Any]] = []
+    for field in resolved_fields:
+        for req in plan.requirements.values():
+            if req.field != field:
+                continue
+            if req.phase != current_phase:
+                continue
+            label = field.replace("_", " ").title()
+            if req.question_spec:
+                label = req.question_spec.label
+            completed_fields.append({"field": field, "label": label})
+            break
+
+    return {
+        "current_phase": current_phase,
+        "current_phase_label": _PHASE_TITLES.get(current_phase, current_phase.replace("_", " ").title()),
+        "active_field": active_field,
+        "completed_fields": completed_fields,
+        "missing_in_phase": missing_in_phase,
+        "future_fields": future_fields,
+    }
+
+
+def _requirement_display_status(req_status: str, activation_status: str) -> str:
+    if activation_status == "not_applicable":
+        return "not_applicable"
+    if req_status == "resolved":
+        return "satisfied"
+    if req_status == "blocked":
+        return "blocked"
+    if req_status in {"missing", "ready"}:
+        return "pending"
+    return req_status
+
+
+def _build_requirements_panel(
+    plan: EngineeringPlan,
+    *,
+    conditional_requirements: list[dict[str, Any]],
+    derived_or_lookup_values: list[dict[str, Any]],
+    calculations: list[dict[str, Any]],
+    system_resolved_requirements: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+
+    for item in conditional_requirements:
+        rows.append(
+            {
+                "id": f"conditional-{item['field']}",
+                "field": item["field"],
+                "label": item["title"],
+                "category": "conditional",
+                "resolution_kind": "conditional",
+                "display_status": "pending",
+                "awaiting_user_input": False,
+                "depends_on": [],
+                "source_node_id": None,
+                "phase": item.get("phase"),
+            }
+        )
+
+    for item in derived_or_lookup_values:
+        rows.append(
+            {
+                "id": item.get("id"),
+                "field": item["field"],
+                "label": item.get("title") or item["field"],
+                "category": "lookup_derived",
+                "resolution_kind": "table_lookup",
+                "display_status": _requirement_display_status(
+                    str(item.get("status") or "missing"),
+                    str(item.get("activation_status") or "active"),
+                ),
+                "awaiting_user_input": False,
+                "depends_on": list(item.get("depends_on") or []),
+                "source_node_id": item.get("source_node_id"),
+                "phase": None,
+            }
+        )
+
+    for item in calculations:
+        rows.append(
+            {
+                "id": f"calc-{item['field']}",
+                "field": item["field"],
+                "label": item["title"],
+                "category": "calculation",
+                "resolution_kind": "equation_result",
+                "display_status": _requirement_display_status(str(item.get("status") or "missing"), "active"),
+                "awaiting_user_input": False,
+                "depends_on": list(item.get("depends_on") or []),
+                "source_node_id": None,
+                "phase": None,
+            }
+        )
+
+    for item in system_resolved_requirements:
+        req_class = str(item.get("requirement_class") or "")
+        if req_class == "table_lookup":
+            continue
+        rows.append(
+            {
+                "id": item.get("id"),
+                "field": item["field"],
+                "label": item.get("title") or item["field"],
+                "category": "system_resolved",
+                "resolution_kind": req_class,
+                "display_status": _requirement_display_status(
+                    str(item.get("status") or "missing"),
+                    str(item.get("activation_status") or "active"),
+                ),
+                "awaiting_user_input": False,
+                "depends_on": list(item.get("depends_on") or []),
+                "source_node_id": item.get("source_node_id"),
+                "phase": item.get("phase"),
+            }
+        )
+
+    for row in rows:
+        row["resolution_label"] = _resolution_label(
+            resolution_kind=str(row["resolution_kind"]),
+            awaiting_user_input=bool(row["awaiting_user_input"]),
+        )
+
+    return rows
+
+
 def build_planner_inspector_summary(plan: EngineeringPlan) -> dict[str, Any]:
     root = plan.root_goal
     requirements = plan.requirements
@@ -251,17 +528,26 @@ def build_planner_inspector_summary(plan: EngineeringPlan) -> dict[str, Any]:
     warnings = list((plan.debug or {}).get("validation_warnings") or [])
     errors = list((plan.debug or {}).get("validation_errors") or [])
     warnings.extend(errors)
+    has_validation_errors = bool(errors)
 
     traversal_summary = None
     planner_traversal_view = None
+    traversal_path: list[dict[str, Any]] = []
     if plan.traversal is not None:
         from engine.planner.planner_traversal import (
             build_planner_traversal_inspector_view,
+            build_traversal_path_view,
             build_traversal_summary,
         )
 
         traversal_summary = build_traversal_summary(plan.traversal)
         planner_traversal_view = build_planner_traversal_inspector_view(plan.traversal)
+        traversal_path = build_traversal_path_view(plan.traversal)
+
+    current_phase_inputs, future_phase_inputs = _split_phase_inputs(
+        outstanding_required_inputs,
+        current_phase,
+    )
 
     return {
         "root_goal": {
@@ -272,6 +558,8 @@ def build_planner_inspector_summary(plan: EngineeringPlan) -> dict[str, Any]:
         "current_phase": current_phase,
         "next_input": next_input,
         "outstanding_required_inputs": outstanding_required_inputs,
+        "current_phase_inputs": current_phase_inputs,
+        "future_phase_inputs": future_phase_inputs,
         "conditional_requirements": conditional_requirements,
         "alternatives": alternatives,
         "derived_or_lookup_values": derived_or_lookup_values,
@@ -280,6 +568,26 @@ def build_planner_inspector_summary(plan: EngineeringPlan) -> dict[str, Any]:
         "planner_graph_summary": _build_planner_graph_summary(plan),
         "traversal_summary": traversal_summary,
         "planner_traversal_view": planner_traversal_view,
+        "traversal_path": traversal_path,
+        "header": _build_planner_header(
+            plan,
+            current_phase=current_phase,
+            next_input=next_input,
+            has_validation_errors=has_validation_errors,
+        ),
+        "phase_panel": _build_phase_panel(
+            plan,
+            current_phase=current_phase,
+            next_input=next_input,
+            outstanding_required_inputs=outstanding_required_inputs,
+        ),
+        "requirements_panel": _build_requirements_panel(
+            plan,
+            conditional_requirements=conditional_requirements,
+            derived_or_lookup_values=derived_or_lookup_values,
+            calculations=calculations,
+            system_resolved_requirements=system_resolved_requirements,
+        ),
         "warnings": warnings,
     }
 

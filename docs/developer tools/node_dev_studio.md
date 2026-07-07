@@ -262,7 +262,6 @@ npm run test:run -- tests/dev-studio
 
 | Tool | Role |
 |------|------|
-| [Developer Graph Explorer](developer_graph_explorer.md) | **Read-only** visualization of the active task subgraph |
 | **Node Dev Studio** (this doc) | **Read/write** authoring of YAML node sources |
 | `scripts/build_graph_db.py` | Full pack recompile (batch) |
 | `docs/node-templates/` | YAML templates for each node type |

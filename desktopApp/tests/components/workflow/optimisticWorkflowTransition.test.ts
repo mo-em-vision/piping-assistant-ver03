@@ -259,4 +259,24 @@ describe('applyOptimisticParameterSubmit', () => {
         'Please provide the design temperature because allowable stress depends on metal temperature.',
     })
   })
+
+  it('does not clear display_outputs during optimistic submit', () => {
+    const equationBlock = {
+      id: 'preview-equation',
+      type: 'equation' as const,
+      content: 't = PD / 2(SEW + PY)',
+      display: 't = PD / 2(SEW + PY)',
+    }
+
+    const next = applyOptimisticParameterSubmit(
+      {
+        ...pipeWallState(),
+        display_outputs: [equationBlock],
+      },
+      'pressure_loading',
+      'internal_pressure',
+    )
+
+    expect(next.display_outputs).toEqual([equationBlock])
+  })
 })

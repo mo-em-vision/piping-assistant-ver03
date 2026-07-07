@@ -4,7 +4,6 @@ globs:
   - engine/graph/**
   - engine/planner/**
   - api/**
-  - dev/graph_explorer/**
   - workflows/**
   - knowledge/**/nodes/**
   - desktopApp/src/**
@@ -36,7 +35,7 @@ Workflow **paths**, **branches**, and **parameter asks** are resolved by node ex
 
 ## Do not
 
-- Hardcode paragraph ids, branch ids, or field names in planner, `workflow_timeline`, `workflow_bootstrap`, serializers, or graph explorer to pick paths.
+- Hardcode paragraph ids, branch ids, or field names in planner, `workflow_timeline`, `workflow_bootstrap`, or serializers to pick paths.
 - Put all branch parameters in `navigation.phases.parameter_gathering` unconditionally.
 - Merge full navigation phase lists over graph `required_user_inputs` (gate phases only).
 - Branch in frontend or `if workflow == "…"` in backend.

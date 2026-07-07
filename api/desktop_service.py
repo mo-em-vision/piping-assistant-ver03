@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from cli.session_store import new_task_id, _task_from_dict
+from storage.session_store import new_task_id, _task_from_dict
 from config.loader import CLIConfig
 from engine.graph.graph_engine import GraphEngine
 from engine.reference.standards_reader import StandardsReader

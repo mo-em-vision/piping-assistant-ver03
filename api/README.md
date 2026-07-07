@@ -211,6 +211,7 @@ task_state(task, manager, standards_root, reader)
   → step_provenance (node_provenance)
   → workflow timeline fields (workflow_timeline)
   → equation display helpers (equation_inputs_display)
+  → build_flow_guidance_payload (flow_guidance) — Flow Guidance Layer §21
 ```
 
 ### Session model
@@ -296,6 +297,17 @@ inspectionApi.get → get_inspection (inspection.py)
   → engine.inspection.builder.build_inspection_payload
 ```
 
+### Flow Guidance: task state field
+
+```text
+GET /api/v1/tasks/{id} → serializers.task_state
+  → build_flow_guidance_payload (flow_guidance.py)
+  → GuidanceResolver + ResponseComposer
+  → JSON: flow_guidance.presentation_blocks, transcript_blocks, active_prompt
+```
+
+Evidence: `tests/api/test_guidance_blocks.py`.
+
 ---
 
 ## Duplicate Implementations
@@ -360,6 +372,8 @@ Do not delete without explicit approval.
 | `material_catalog.py` | Thin search/warm wrappers |
 | `material_detail.py` | Material grade detail for reference tab |
 | `chat_service.py` | Chat list/send/clear with AI agents |
+| `chat_orchestrator.py` | Flow Guidance on `waiting_input` turns; `presentation` + `new_transcript_blocks` in chat data |
+| `flow_guidance.py` | `build_flow_guidance_payload` → `task_state["flow_guidance"]` |
 | `chat_context.py` | Task context brief, conversation trimming |
 | `report_service.py` | Report generate/preview/download/status |
 | `task_continuation_service.py` | Post-completion AI suggestions |
