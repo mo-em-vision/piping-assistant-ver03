@@ -199,6 +199,8 @@ def _option_label(value: str) -> str:
         return "Nominal pipe size (NPS) — look up outside diameter per ASME B36.10"
     if value == "direct_od":
         return "Outside diameter — enter D directly (mm or in)"
+    if value == "direct_id":
+        return "Inside diameter — enter d directly (mm or in)"
     if value == "seamless":
         return "Seamless pipe (default)"
     if value == "erw":

@@ -1,4 +1,6 @@
-import type { EngineeringPlanViewDto } from '@/types/backend/inspection'
+import type { EngineeringPlanDto, EngineeringPlanViewDto, PlannerTraversalStateDto } from '@/types/backend/inspection'
+
+import { PlannerTraversalPanel } from './PlannerTraversalPanel'
 
 import './InspectorPanels.css'
 
@@ -145,5 +147,68 @@ export function isEngineeringPlanView(value: unknown): value is EngineeringPlanV
     'overview' in value &&
     'phases' in value &&
     typeof (value as EngineeringPlanViewDto).overview?.goal === 'string'
+  )
+}
+
+export function isCanonicalEngineeringPlan(value: unknown): value is EngineeringPlanDto {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const candidate = value as Record<string, unknown>
+  return (
+    typeof candidate.plan_id === 'string' &&
+    typeof candidate.requirements === 'object' &&
+    candidate.requirements !== null &&
+    !Array.isArray(candidate.requirements) &&
+    typeof candidate.root_goal === 'object' &&
+    candidate.root_goal !== null
+  )
+}
+
+type CanonicalEngineeringPlanPanelProps = {
+  plan: EngineeringPlanDto
+}
+
+export function CanonicalEngineeringPlanPanel({ plan }: CanonicalEngineeringPlanPanelProps) {
+  const requirementCount = Object.keys(plan.requirements ?? {}).length
+  const traversal = plan.traversal as PlannerTraversalStateDto | undefined
+
+  return (
+    <div className="inspector-engineering-plan">
+      <section className="inspector-workflow-status__section">
+        <h3 className="inspector-workflow-status__title">Engineering plan (canonical)</h3>
+        <dl className="inspector-status-grid">
+          <div>
+            <dt>Plan id</dt>
+            <dd>{plan.plan_id}</dd>
+          </div>
+          <div>
+            <dt>Workflow</dt>
+            <dd>{plan.workflow_id}</dd>
+          </div>
+          <div>
+            <dt>Requirements</dt>
+            <dd>{requirementCount}</dd>
+          </div>
+          <div>
+            <dt>Phases</dt>
+            <dd>{plan.phases?.length ?? 0}</dd>
+          </div>
+          {plan.input_strategy?.current_phase ? (
+            <div>
+              <dt>Current phase</dt>
+              <dd>{plan.input_strategy.current_phase}</dd>
+            </div>
+          ) : null}
+        </dl>
+      </section>
+
+      {traversal ? <PlannerTraversalPanel traversal={traversal} /> : null}
+
+      <details className="inspector-rationale-details">
+        <summary>Full canonical plan JSON</summary>
+        <pre className="inspector-code">{JSON.stringify(plan, null, 2)}</pre>
+      </details>
+    </div>
   )
 }

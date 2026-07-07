@@ -19,7 +19,7 @@ from models.fact import (
 def _sample_numeric_fact(**overrides) -> object:
     fact = build_numeric_fact(
         key="design_pressure",
-        parameter="PARAM-design-pressure",
+        parameter="PARAM-internal-design-gage-pressure",
         amount=8,
         unit="UNIT-bar",
         fact_class=FactClass.USER_SUPPLIED,

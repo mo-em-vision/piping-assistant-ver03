@@ -18,24 +18,24 @@ from tests.acceptance.helpers import run_completed_workflow
 
 def _submit_initial_pipe_inputs(service: DesktopApiService, task_id: str, session_id: str) -> dict:
     submissions = [
-        ("pressure_loading", "internal_pressure", None),
         ("straight_pipe_section", True, None),
+        ("pressure_loading", "internal_pressure", None),
         ("weld_joint_efficiency", 1.0, None),
         ("weld_joint_strength_reduction_factor_W", 1.0, None),
         ("temperature_coefficient_Y", 0.4, None),
-        ("material", "SA-106B", None),
+        ("material_grade", "SA-106B", None),
         ("design_pressure", 8.0, "bar"),
         ("design_temperature", 38.0, "degC"),
     ]
 
     state: dict = service.get_task(task_id, session_id)
     for parameter, value, unit in submissions:
-        pending = {
+        submittable = {
             item["name"]
             for item in state.get("parameters", [])
-            if item.get("status") in {"pending", "confirmation_required"}
+            if item.get("submittable")
         }
-        if parameter not in pending:
+        if parameter not in submittable:
             continue
         state = service.submit_input(
             task_id,
@@ -57,13 +57,13 @@ def test_mvp_project_task_and_input_collection(mvp_service: DesktopApiService) -
     assert task_state["workflow_id"] == "pipe_wall_thickness_design"
     param_names = [item["name"] for item in task_state["parameters"]]
     assert param_names
-    assert "pressure_loading" in param_names or "weld_joint_efficiency" in param_names
+    assert "straight_pipe_section" in param_names
 
     updated = _submit_initial_pipe_inputs(mvp_service, task_id, session_id)
     facts = updated.get("facts") or updated.get("inputs") or {}
     assert facts
-    if "material" in facts:
-        assert facts["material"]["value"] == "astm_a106_gr_b"
+    if "material_grade" in facts:
+        assert facts["material_grade"]["value"] == "astm_a106_gr_b"
 
     tasks = mvp_service.list_tasks(session_id)
     assert len(tasks["tasks"]) == 1

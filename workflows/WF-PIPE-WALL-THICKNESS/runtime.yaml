@@ -1,22 +1,20 @@
 navigation:
   assumption_gate_fields:
+  - straight_pipe_section
   - pressure_loading
   phases:
-    expansion_assumptions: []
+    expansion_assumptions:
+    - straight_pipe_section
     path_decisions:
     - pressure_loading
     parameter_gathering:
-    - design_pressure
+    - internal_design_gage_pressure
     - nominal_pipe_size
     - outside_diameter
-    - material
+    - material_grade
     - design_temperature
-    - external_design_pressure
     coefficient_resolution:
-    - joint_category
-    - weld_joint_efficiency
-    - weld_joint_strength_reduction_factor_W
-    - temperature_coefficient_Y
+    - pipe_construction_type
     execution_assumptions: []
     definition_equation_completion:
     - corrosion_allowance

@@ -123,8 +123,8 @@ describe('getCurrentEditableParameter', () => {
               unit: null,
             },
             {
-              id: 'material',
-              title: 'Material',
+              id: 'material_grade',
+              title: 'Material Grade',
               status: 'pending',
               value: null,
               unit: null,
@@ -134,7 +134,7 @@ describe('getCurrentEditableParameter', () => {
           completed_count: 0,
           total_count: 2,
           current_step_id: 'outside_diameter',
-          missing_inputs: ['outside_diameter', 'material'],
+          missing_inputs: ['outside_diameter', 'material_grade'],
           missing_assumptions: [],
           submittable_parameters: ['outside_diameter'],
           step_progress: [],
@@ -158,8 +158,8 @@ describe('getCurrentEditableParameter', () => {
             requires_confirmation: false,
           },
           {
-            name: 'material',
-            label: 'Material',
+            name: 'material_grade',
+            label: 'Material Grade',
             type: 'material',
             required: true,
             units: [],
@@ -184,7 +184,7 @@ describe('getCurrentEditableParameter', () => {
 
     const parameter = getCurrentEditableParameter(state)
 
-    expect(parameter?.name).toBe('material')
+    expect(parameter?.name).toBe('material_grade')
     expect(parameter?.type).toBe('material')
     expect(parameter?.status).toBe('pending')
   })

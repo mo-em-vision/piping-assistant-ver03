@@ -55,6 +55,24 @@ describe('MaterialSearchInput', () => {
 
     expect(container.querySelector('.material-search-input__anchor')).toBeTruthy()
     expect(container.querySelector('.composer-suggestions')).toBeTruthy()
+    expect(screen.getByText('Select a material from the list.')).toBeInTheDocument()
+  })
+
+  it('does not submit free text without choosing a suggestion', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+
+    render(<MaterialSearchHarness onSubmit={onSubmit} />)
+
+    await user.type(screen.getByPlaceholderText('Search materials'), '106')
+    await vi.advanceTimersByTimeAsync(200)
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: 'ASTM A106 Grade B' })).toBeInTheDocument()
+    })
+
+    await user.keyboard('{Enter}')
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 
   it('submits selected suggestion', async () => {

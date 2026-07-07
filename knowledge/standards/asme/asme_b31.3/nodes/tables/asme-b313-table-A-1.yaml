@@ -8,30 +8,35 @@ source:
   table_id: asme_b31.3_A-1
 type: lookup
 title: Basic Allowable Stresses in Tension for Metals
+table_number: A-1
+paragraph_number: 302.3.5-d
 status: draft
 revision_year: 2024
 inputs:
-- id: material
+- id: material_grade
   required: true
   description: Material grade (PARAM-material-grade)
 - id: temperature
   display_name: Metal Temperature
   task_input_id: design_temperature
   required: true
-lookups:
-- id: appendix_a1_stress
-  source: table
-  table_id: asme_b31.3_A-1
+  description: Design temperature (PARAM-design-temperature)
+returns:
+- parameter: PARAM-allowable-stress
+  symbol: S
+lookup:
+  table: asme-b313-table-A-1
+  keys:
+  - PARAM-material-grade
+  - PARAM-design-temperature
 edges:
-- type: introduces_parameter
-  target: allowable_stress
-- type: introduces_parameter
-  target: MAT-catalog
-- type: introduces_parameter
-  target: DIM-temperature
+- type: returns_parameter
+  target: PARAM-allowable-stress
 - type: requires_parameter
   target: PARAM-material-grade
+- type: requires_parameter
+  target: PARAM-design-temperature
 metadata:
-  last_revision: 2026-07-04
+  last_revision: 2026-07-06
   edited_by: admin
 ---

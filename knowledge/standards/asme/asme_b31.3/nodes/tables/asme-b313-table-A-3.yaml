@@ -7,37 +7,45 @@ source:
   tables_db: tables.db
   table_id: asme_b31.3_A-3
 type: lookup
-title: Table A-3 — Basic Quality Factors for Longitudinal Weld Joints in Pipes and
+title: Basic Quality Factors for Longitudinal Weld Joints in Pipes and
   Tubes, E_j
+table_number: A-3
+paragraph_number: 304.1.1-b
 status: draft
 paragraph: Appendix A, Table A-3
 section: Appendix A
 topic: quality_factor
 revision_year: 2024
 inputs:
-- id: material
-  name: material
-  description: Pipe material specification
+- id: material_grade
+  name: material_grade
+  description: Pipe material grade (PARAM-material-grade)
   required: true
   source: user_input
   unit: dimensionless
-- id: joint_category
-  name: joint_category
+- id: pipe_construction_type
+  name: pipe_construction_type
   description: Pipe construction type (PARAM-pipe-construction-type)
   required: true
   source: user_input
   unit: dimensionless
-lookups:
-- id: appendix_a3_longitudinal_weld_quality
-  source: table
-  table_id: asme_b31.3_A-3
+returns:
+- parameter: PARAM-weld-joint-efficiency
+  symbol: E
+lookup:
+  table: asme-b313-table-A-3
+  keys:
+  - PARAM-material-grade
+  - PARAM-pipe-construction-type
   lookup_rule: material_and_joint_category
 edges:
-- type: introduces_parameter
-  target: quality_factor
+- type: returns_parameter
+  target: PARAM-weld-joint-efficiency
+- type: requires_parameter
+  target: PARAM-material-grade
 - type: requires_parameter
   target: PARAM-pipe-construction-type
 metadata:
-  last_revision: 2026-07-04
+  last_revision: 2026-07-06
   edited_by: admin
 ---

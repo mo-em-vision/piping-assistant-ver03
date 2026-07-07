@@ -20,6 +20,8 @@ edges:
     target: PARAM-required-wall-thickness
   - type: has_parameter
     target: PARAM-minimum-required-thickness
+  - type: has_parameter
+    target: PARAM-actual-wall-thickness
 metadata:
   status: active
   version: 1

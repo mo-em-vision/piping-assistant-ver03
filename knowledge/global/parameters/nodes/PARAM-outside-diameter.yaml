@@ -14,9 +14,7 @@ dimension: DIM-length
 
 description: >
 
-  Outside diameter of pipe as listed in tables of standards or specifications or
-
-  as measured.
+  outside diameter of pipe
 
 canonical_symbol: D
 
@@ -48,8 +46,9 @@ metadata:
   status: active
 
   version: 1
-  last_revision: 2026-07-04
+  last_revision: 2026-07-06
   edited_by: admin
+  canonical_unit: UNIT-mm
 
 ---
 

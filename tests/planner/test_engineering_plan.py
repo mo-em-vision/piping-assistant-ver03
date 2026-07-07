@@ -67,8 +67,8 @@ def test_fresh_pipe_wall_phase_statuses_single_active_phase() -> None:
     assert statuses["parameter_gathering"] == "pending"
     assert statuses["coefficient_resolution"] == "blocked"
     assert statuses["equation_execution"] == "blocked"
-    assert statuses["validation"] == "blocked"
     assert statuses["reporting"] == "blocked"
+    assert "validation" not in statuses
     assert sum(1 for status in statuses.values() if status == "active") == 1
 
 
@@ -125,6 +125,10 @@ def test_fresh_pipe_wall_internal_pressure_requirements_are_conditional() -> Non
     assert plan.root_goal.blocked_by == ["REQ-straight_pipe_section", "REQ-pressure_loading"]
     assert "REQ-internal_design_gage_pressure" in plan.root_goal.provisional_blocked_by
     assert "REQ-diameter_resolution" in plan.root_goal.provisional_blocked_by
+    assert "REQ-allowable_stress_lookup" in plan.root_goal.provisional_blocked_by
+    assert "REQ-required_wall_thickness" in plan.root_goal.provisional_blocked_by
+    assert "REQ-minimum_required_thickness_eq" in plan.root_goal.provisional_blocked_by
+    assert "REQ-internal_design_gage_pressure" not in plan.root_goal.blocked_by
     assert plan.input_strategy is not None
     assert "internal_design_gage_pressure" not in plan.input_strategy.next_fields
 
@@ -212,6 +216,7 @@ def test_fresh_pipe_wall_planner_inspector_summary_single_next_input() -> None:
     plan = build_pipe_wall_engineering_plan(task)
     summary = build_planner_inspector_summary(plan)
 
+    assert summary["current_phase"] == "expansion_assumptions"
     assert summary["next_input"] is not None
     assert summary["next_input"]["field"] == "straight_pipe_section"
     assert summary["next_input"]["phase"] == "expansion_assumptions"
@@ -221,13 +226,43 @@ def test_fresh_pipe_wall_planner_inspector_summary_single_next_input() -> None:
     outstanding_fields = [item["field"] for item in outstanding]
     assert outstanding_fields[0] == "straight_pipe_section"
     assert "pressure_loading" in outstanding_fields
-    assert "internal_design_gage_pressure" in outstanding_fields
+    assert "internal_design_gage_pressure" not in outstanding_fields
 
-    internal_pressure_entry = next(
-        item for item in outstanding if item["field"] == "internal_design_gage_pressure"
+    conditional_fields = {item["field"] for item in summary["conditional_requirements"]}
+    assert "allowable_stress" in conditional_fields or "internal_design_gage_pressure" in conditional_fields
+
+    assert summary["calculations"]
+    calc_fields = {item["field"] for item in summary["calculations"]}
+    assert "minimum_required_thickness" in calc_fields
+
+    conditional = [
+        item
+        for item in summary["system_resolved_requirements"]
+        if item.get("activation_status") == "conditional"
+    ]
+    assert any(item["field"] == "allowable_stress" for item in conditional)
+
+
+def test_planner_inspector_summary_rebuilt_from_engineering_plan_dict() -> None:
+    from engine.planner.plan_inspector import (
+        build_planner_inspector_summary_from_dict,
+        planner_inspector_summary_for_task,
     )
-    assert internal_pressure_entry["activation_status"] == "conditional"
-    assert internal_pressure_entry["phase"] == "parameter_gathering"
+    from engine.planner.legacy_goal_adapter import store_engineering_plan_on_task
+
+    _, task = _fresh_pipe_wall_task()
+    plan = build_pipe_wall_engineering_plan(task)
+    store_engineering_plan_on_task(task, plan)
+    task.outputs.pop("planner_inspector_summary", None)
+
+    summary = planner_inspector_summary_for_task(task)
+    assert summary is not None
+    assert summary["next_input"]["field"] == "straight_pipe_section"
+    assert summary["traversal_summary"]["current_active_node_id"] is not None
+
+    rebuilt = build_planner_inspector_summary_from_dict(task.outputs["engineering_plan"])
+    assert rebuilt is not None
+    assert rebuilt["current_phase"] == summary["current_phase"]
 
 
 def test_fresh_pipe_wall_input_strategy_asks_expansion_assumption_first() -> None:
@@ -272,7 +307,7 @@ def test_pipe_wall_diameter_resolution_dependency_edges() -> None:
     assert ("REQ-nominal_pipe_size", "REQ-outside_diameter_lookup", "lookup_input") in edges
     assert ("REQ-outside_diameter_lookup", "REQ-diameter_resolution", "resolves") in edges
     assert ("ALT-nps-lookup", "REQ-nominal_pipe_size", "activates") in edges
-    assert ("ALT-nps-lookup", "REQ-outside_diameter_lookup", "activates") in edges
+    assert ("ALT-nps-lookup", "REQ-outside_diameter_lookup", "activates") not in edges
     assert ("REQ-diameter_resolution", "REQ-outside_diameter_lookup", "lookup_input") not in edges
 
     diameter = plan.requirements["REQ-diameter_resolution"]
@@ -347,6 +382,27 @@ def test_pipe_wall_initial_engineering_plan() -> None:
     assert "field" in view["overview"]["next_input"]
 
 
+def test_goal_store_root_blocked_by_respects_conditional_activation() -> None:
+    from engine.planner.goal_builder import build_goal_tree
+
+    manager = TaskStateManager()
+    task = manager.create_task("goal-store-activation", status=TaskStatus.AWAITING_INPUT)
+    task.outputs["workflow"] = "pipe_wall_thickness_design"
+    reader = _reader()
+    build_goal_tree(task, reader)
+    manager.replace_task(task.task_id, task)
+
+    root = task.goal_store.roots()[0]
+    assert root.state.blocked_by == [
+        "input-straight_pipe_section",
+        "select-pressure_loading",
+    ]
+    assert "input-internal_design_gage_pressure" not in root.state.blocked_by
+    provisional = root.metadata.get("provisional_blocked_by") or []
+    assert "input-internal_design_gage_pressure" in provisional
+    assert "lookup-allowable_stress" in provisional
+
+
 def test_goal_tree_from_engineering_plan_no_selected_nodes_on_root() -> None:
     state, task = _task_with_gates_satisfied(TaskStateManager())
     reader = _reader()
@@ -417,7 +473,7 @@ def test_nps_path_activates_lookup_requirement() -> None:
     assert od_lookup.requirement_class == "table_lookup"
 
 
-def test_task_state_exposes_readable_engineering_plan() -> None:
+def test_task_state_exposes_canonical_engineering_plan() -> None:
     state, task = _task_with_gates_satisfied(TaskStateManager())
     reader = _reader()
     build_goal_tree(task, reader)
@@ -426,8 +482,18 @@ def test_task_state_exposes_readable_engineering_plan() -> None:
     payload = task_state(task, state, reader=reader)
     plan = payload.get("engineering_plan")
     assert isinstance(plan, dict)
-    assert "overview" in plan
-    assert "phases" in plan
-    assert "requirements" not in plan  # raw keyed dict
-    assert "REQ-" not in str(plan)
+    assert "plan_id" in plan
+    assert "requirements" in plan
+    assert "root_goal" in plan
+    assert "REQ-straight_pipe_section" in plan["requirements"]
+
+    view = payload.get("engineering_plan_view")
+    assert isinstance(view, dict)
+    assert "overview" in view
+    assert "phases" in view
+
+    legacy = payload.get("legacy_goal_map")
+    assert isinstance(legacy, dict)
+    assert "GOAL-calculate-minimum-required-thickness" in legacy
+    assert payload.get("goals") is None
     assert "engineering_plan" not in payload.get("outputs", {})

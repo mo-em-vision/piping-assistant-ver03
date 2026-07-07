@@ -37,6 +37,11 @@ def test_fresh_pipe_wall_traversal_state() -> None:
     pending_ids = {item.node_id for item in traversal.pending_expansion_nodes}
     assert param_node_id_for_input("pressure_loading") in pending_ids
     assert "304.1.2-a" in pending_ids
+    assert "304.1.3" not in pending_ids
+    assert len(traversal.pending_expansion_nodes) == 2
+
+    assert traversal.current_active_node is not None
+    assert traversal.current_active_node.title == "Straight Pipe Section"
 
     pressure_pending = next(
         item
@@ -46,11 +51,16 @@ def test_fresh_pipe_wall_traversal_state() -> None:
     assert param_node_id_for_input("straight_pipe_section") in pressure_pending.waiting_on
 
     branch_pending = next(item for item in traversal.pending_expansion_nodes if item.node_id == "304.1.2-a")
+    assert branch_pending.title == "Straight Pipe Under Internal Pressure"
     assert param_node_id_for_input("pressure_loading") in branch_pending.waiting_on
 
     expanded_ids = {item.node_id for item in traversal.expanded_nodes}
     assert "WF-PIPE-WALL-THICKNESS" in expanded_ids
     assert expanded_ids.isdisjoint(pending_ids)
+    workflow_expanded = next(
+        item for item in traversal.expanded_nodes if item.node_id == "WF-PIPE-WALL-THICKNESS"
+    )
+    assert workflow_expanded.title == "Pipe Wall Thickness Workflow"
 
     pressure_decision = next(item for item in traversal.branch_decisions if item.field == "pressure_loading")
     assert pressure_decision.status == "unresolved"

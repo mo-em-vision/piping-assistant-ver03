@@ -7,7 +7,7 @@ from typing import Any
 
 from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
 from engine.graph.assumption_checker import field_value
-from engine.graph.node_interaction import find_interaction, load_node_interactions
+from engine.graph.node_interaction import find_interaction, load_node_interactions, question_for_interaction
 from engine.messaging.prompt_format import format_parameter_block, format_reply_hint
 from engine.reference.formula_display import load_equation_context
 from engine.reference.nomenclature_resolver import (
@@ -32,7 +32,7 @@ _CALCULATION_PHASES = frozenset(
 )
 
 _FALLBACK_SYMBOL_MAP: dict[str, str] = {
-    "P": "design_pressure",
+    "P": "internal_design_gage_pressure",
     "D": "outside_diameter",
     "NPS": "nominal_pipe_size",
     "S": "allowable_stress",
@@ -306,22 +306,26 @@ def summarize_path_context(
         fragments.append("external pressure loading")
 
     for input_id, label in (
-        ("design_pressure", None),
+        ("internal_design_gage_pressure", None),
         ("material", None),
         ("design_temperature", None),
         ("nominal_pipe_size", "NPS"),
         ("outside_diameter", None),
     ):
-        inp = task_inputs.get(input_id)
+        from engine.reference.parameter_keys import read_parameter_value
+
+        inp = read_parameter_value(task_inputs, input_id)
         if inp is None or not _input_has_value(inp):
             continue
         if inp.requires_confirmation and not fact_is_expansion_ready(inp):
             continue
         if label:
             fragments.append(f"{label} {fact_scalar_value(inp)}")
-        elif input_id == "design_pressure":
+        elif input_id == "internal_design_gage_pressure":
             unit = inp.original_unit or fact_unit(inp)
-            fragments.append(f"design pressure {_format_scalar(fact_scalar_value(inp))} {unit}")
+            fragments.append(
+                f"internal design gage pressure {_format_scalar(fact_scalar_value(inp))} {unit}"
+            )
         elif input_id == "design_temperature":
             unit = inp.original_unit or fact_unit(inp)
             fragments.append(f"design temperature {fact_scalar_value(inp)} {unit}")
@@ -572,14 +576,13 @@ def _missing_guidance(
 
     if symbol == "E":
         return (
-            "looked up from Tables A-2 and A-3. "
-            "Input pipe/joint category for lookup, or enter E directly. "
-            "Default E = 1.0 for seamless pipe."
+            "quality factor from Tables A-2 and A-3. "
+            "Provide pipe construction type and material grade for table lookup."
         )
     if symbol == "W":
         return (
-            "weld strength reduction factor per §302.3.5-e; "
-            "default W = 1.0 — confirm or enter a value directly."
+            "weld strength reduction factor from Table 302.3.5-1 per §302.3.5-e; "
+            "resolved from material, design temperature, and pipe construction type."
         )
     if symbol == "Y":
         return (
@@ -659,3 +662,70 @@ def _reference_hint(entry: NomenclatureEntry | None) -> str:
     if refs:
         return "from " + ", ".join(refs)
     return entry.description.strip().rstrip(".")
+
+
+def guidance_for_parameter_input(
+    reader: StandardsReader,
+    task: Task,
+    parameter_id: str,
+) -> str | None:
+    """Return equation/lookup guidance for a missing calculation parameter."""
+    facts = dict(task.fact_store.active_facts())
+    node_id = _focus_node_for_parameter(reader, task, facts)
+    if node_id is None:
+        return None
+
+    record = reader.load(node_id)
+    nomenclature = load_nomenclature_for_node(reader, record.metadata)
+    interaction_specs = load_node_interactions(record, reader)
+    eq_ctx = load_equation_context(reader, node_id)
+    variable_order = list(eq_ctx.get("variables") or [])
+
+    for symbol in variable_order:
+        input_spec = _input_spec_for_symbol(record.metadata, symbol)
+        if symbol not in {"D", "S"} and input_spec and not input_applies(input_spec, facts):
+            continue
+        entry = entry_for_symbol(nomenclature, symbol=symbol)
+        input_id = _input_id_for(symbol, input_spec, entry)
+        if input_id != parameter_id:
+            continue
+        return _missing_guidance(
+            reader,
+            symbol=symbol,
+            input_id=input_id,
+            input_spec=input_spec,
+            entry=entry,
+            task_inputs=facts,
+            record_metadata=record.metadata,
+        )
+
+    spec = find_interaction(interaction_specs, parameter_id)
+    if spec is not None:
+        return question_for_interaction(spec, facts)
+    return None
+
+
+def _focus_node_for_parameter(
+    reader: StandardsReader,
+    task: Task,
+    facts: dict[str, Fact],
+) -> str | None:
+    active_definition = task.outputs.get("active_definition_node")
+    if active_definition:
+        return str(active_definition)
+
+    selected = task.outputs.get("selected_nodes")
+    if isinstance(selected, list):
+        for node_id in selected:
+            try:
+                if str(reader.load(str(node_id)).metadata.get("type", "")) == "calculation":
+                    return str(node_id)
+            except FileNotFoundError:
+                continue
+
+    loading = field_value("pressure_loading", facts)
+    if loading == "internal_pressure":
+        return "304.1.2-a"
+    if loading == "external_pressure":
+        return "B313-304.1.3"
+    return None

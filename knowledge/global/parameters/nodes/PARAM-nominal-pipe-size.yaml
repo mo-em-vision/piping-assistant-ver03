@@ -1,0 +1,27 @@
+---
+id: PARAM-nominal-pipe-size
+type: parameter
+key: nominal_pipe_size
+name: Nominal Pipe Size
+parameter_class: selection
+description: >
+  Standard nominal pipe size (NPS) used to look up outside diameter and wall
+  thickness from ASME B36.10 tables.
+canonical_symbol: NPS
+aliases:
+  - nominal pipe size
+  - NPS
+  - pipe size
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: used_by
+    target: B3610-table-2-1
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-06
+  edited_by: admin
+  composer_input: dropdown
+  canonical_unit: NPS
+---

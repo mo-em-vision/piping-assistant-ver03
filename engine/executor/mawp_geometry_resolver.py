@@ -6,7 +6,7 @@ from pathlib import Path
 
 from engine.executor.nps_input_resolver import (
     B36_10_TABLE_REF,
-    _normalize_entry_unit,
+    _nps_entry_unit,
     _to_nps_lookup_key,
 )
 from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
@@ -14,7 +14,6 @@ from engine.graph.assumption_checker import field_value
 from engine.state.task_facts import (
     active_facts,
     fact_scalar_value,
-    fact_unit,
     store_lookup_categorical_fact,
     store_lookup_numeric_fact,
     store_system_categorical_fact,
@@ -55,7 +54,7 @@ def apply_nominal_pipe_size_for_mawp(task: Task, standards_root: Path) -> None:
     if not raw_nps:
         raise ValueError("Nominal pipe size is required.")
 
-    entry_unit = _normalize_entry_unit(fact_unit(nps_input))
+    entry_unit = _nps_entry_unit(nps_input)
     lookup_nps = _to_nps_lookup_key(raw_nps, entry_unit)
 
     lookup = PipeDimensionLookup(standards_root)
@@ -103,7 +102,7 @@ def apply_pipe_schedule_lookup(task: Task, standards_root: Path) -> None:
     if not raw_schedule:
         raise ValueError("Pipe schedule is required.")
 
-    entry_unit = _normalize_entry_unit(fact_unit(nps_input))
+    entry_unit = _nps_entry_unit(nps_input)
     lookup_nps = _to_nps_lookup_key(raw_nps, entry_unit)
 
     lookup = PipeDimensionLookup(standards_root)

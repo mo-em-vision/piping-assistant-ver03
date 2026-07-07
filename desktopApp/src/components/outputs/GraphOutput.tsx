@@ -1,5 +1,3 @@
-import { DevNodeHoverSurface } from '@dev-ui/DevNodeHoverSurface'
-
 import type { GraphOutputBlock } from '@/types/backend/outputs'
 
 interface GraphOutputProps {
@@ -46,8 +44,7 @@ export function GraphOutput({ block }: GraphOutputProps) {
   return (
     <article className="output-block">
       {block.title ? <h4 className="output-block__title">{block.title}</h4> : null}
-      <DevNodeHoverSurface provenance={block.provenance}>
-        <svg className="output-graph" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={block.title}>
+      <svg className="output-graph" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label={block.title}>
         <line x1={PADDING} y1={HEIGHT - PADDING} x2={WIDTH - PADDING} y2={HEIGHT - PADDING} stroke="#cbd5e1" />
         <line x1={PADDING} y1={PADDING} x2={PADDING} y2={HEIGHT - PADDING} stroke="#cbd5e1" />
         {bars.map((bar) => (
@@ -63,8 +60,7 @@ export function GraphOutput({ block }: GraphOutputProps) {
             {block.y_label}
           </text>
         ) : null}
-        </svg>
-      </DevNodeHoverSurface>
+      </svg>
     </article>
   )
 }

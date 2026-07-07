@@ -89,7 +89,7 @@ def test_unit_manager_delegates_to_resolver() -> None:
 def test_parameter_metadata_sets_canonical_unit() -> None:
     from engine.reference.parameter_metadata import prepare_parameter_metadata
 
-    meta = prepare_parameter_metadata({"unit": "Pa", "input_id": "design_pressure"})
+    meta = prepare_parameter_metadata({"unit": "Pa", "input_id": "internal_design_gage_pressure"})
     assert meta["canonical_unit"] == "UNIT-Pa"
     assert meta["unit"] == "Pa"
 
@@ -161,17 +161,17 @@ def test_parameter_pack_compiles() -> None:
 
     pack_root = Path(__file__).resolve().parents[2] / "knowledge" / "global" / "parameters"
     graph = GraphBuilder(pack_root).build()
-    assert "PARAM-design-pressure" in graph.nodes
+    assert "PARAM-internal-design-gage-pressure" in graph.nodes
     assert "PARAM-corrosion-allowance" in graph.nodes
     assert "PARAM-material-grade" in graph.nodes
     assert "PARAM-metallurgical-group" in graph.nodes
-    param = graph.nodes["PARAM-design-pressure"]
+    param = graph.nodes["PARAM-internal-design-gage-pressure"]
     assert param.metadata.get("dimension") == "DIM-pressure"
     assert param.metadata.get("parameter_class") == "physical_quantity"
     has_dim = [
         edge
         for edge in graph.edges
-        if edge.from_id == "PARAM-design-pressure" and edge.edge_type == "has_dimension"
+        if edge.from_id == "PARAM-internal-design-gage-pressure" and edge.edge_type == "has_dimension"
     ]
     assert len(has_dim) == 0  # DIM nodes live in a separate pack
     write_graph_cache(pack_root, graph)

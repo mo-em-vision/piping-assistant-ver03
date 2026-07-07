@@ -38,6 +38,7 @@ def test_normalize_require_ids_accepts_dict_entries() -> None:
 def test_require_target_id_aliases() -> None:
     assert require_target_id({"to": "B313-param-D"}) == "B313-param-D"
     assert require_target_id({"id": "B313-param-Y"}) == "B313-param-Y"
+    assert require_target_id({"parameter": "PARAM-corrosion-allowance"}) == "PARAM-corrosion-allowance"
 
 
 @pytest.fixture

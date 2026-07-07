@@ -7,24 +7,22 @@ from pathlib import Path
 from typing import Any
 
 from engine.state.goal_projection import planning_projection
+from api.equation_evaluation_display import (
+    build_equation_evaluation_block,
+    resolve_focus_node_for_equation_display,
+)
 from api.equation_inputs_display import (
-    build_formula_inputs_input_table,
     build_mawp_formula_inputs_input_table,
     build_mawp_pressure_design_input_table,
     build_mawp_substituted_equation,
     build_wall_thickness_substituted_equation,
-    definitions_from_equation_variables,
     format_thickness_result_display,
-    primary_formula_inputs_complete,
 )
 from api.node_display import build_activated_node_blocks
 from api.node_provenance import definition_node_id_for_task, enrich_display_blocks_provenance
 from api.workflow_bootstrap import resolve_activated_definition_node
 from api.workflow_timeline import is_mawp_task, is_pipe_wall_thickness_task
-from engine.reference.formula_display import (
-    load_equation_context,
-    resolve_equation_display_variables,
-)
+from engine.reference.formula_display import load_equation_context
 from engine.reference.standards_reader import StandardsReader
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from models.fact import FactClass, ValidationStatus, fact_scalar_value
@@ -184,6 +182,8 @@ def _path_calculation_preview_blocks(
     """After path expansion, preview the selected calculation node's governing equation."""
     selected_node = _resolve_calculation_node_id(task, planning, trace)
     if not selected_node:
+        selected_node = resolve_focus_node_for_equation_display(task, planning, reader)
+    if not selected_node:
         return []
 
     reference = _NODE_REFERENCES.get(str(selected_node))
@@ -191,26 +191,12 @@ def _path_calculation_preview_blocks(
     if reference:
         blocks.append(_path_preview_intro_block(str(selected_node), reference))
 
-    context = load_equation_context(reader, str(selected_node))
-    display = context.get("display")
-    if display:
-        resolved = resolve_equation_display_variables(reader, str(selected_node))
-        definition_overrides = definitions_from_equation_variables(resolved.get("variables"))
-        equation_block: dict[str, Any] = {
-            "id": f"path-preview-equation-{selected_node}",
-            "type": "equation",
-            "title": None,
-            "content": _display_to_latex(str(display)),
-            "display": str(display),
-            "input_table": build_formula_inputs_input_table(
-                task,
-                definition_overrides=definition_overrides,
-            ),
-        }
-        nomenclature_reference = resolved.get("nomenclature_reference")
-        if nomenclature_reference:
-            equation_block["nomenclature_reference"] = nomenclature_reference
-
+    equation_block = build_equation_evaluation_block(
+        task,
+        reader,
+        str(selected_node),
+    )
+    if equation_block:
         blocks.append(equation_block)
 
     return blocks
@@ -292,7 +278,7 @@ def _mawp_equation_preview_blocks(task: Task, reader: StandardsReader) -> list[d
             "title": None,
             "content": _display_to_latex(_MAWP_PRESSURE_DESIGN_FORMULA),
             "display": _MAWP_PRESSURE_DESIGN_FORMULA,
-            "input_table": build_mawp_pressure_design_input_table(task),
+            "input_table": build_mawp_pressure_design_input_table(task, reader=reader),
         }
     )
     blocks.append(
@@ -302,7 +288,7 @@ def _mawp_equation_preview_blocks(task: Task, reader: StandardsReader) -> list[d
             "title": None,
             "content": _display_to_latex(_MAWP_FORMULA),
             "display": _MAWP_FORMULA,
-            "input_table": build_mawp_formula_inputs_input_table(task),
+            "input_table": build_mawp_formula_inputs_input_table(task, reader=reader),
             "nomenclature_reference": {
                 "standard": "ASME B31.3",
                 "paragraph": "304.1.2",

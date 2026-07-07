@@ -17,7 +17,9 @@ edges:
   - type: has_dimension
     target: DIM-pressure
   - type: has_parameter
-    target: PARAM-design-pressure
+    target: PARAM-internal-design-gage-pressure
+  - type: has_parameter
+    target: PARAM-pressure-loading
 metadata:
   status: active
   version: 1

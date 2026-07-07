@@ -11,7 +11,7 @@ variables:
     unit: mm
   P:
     symbol: P
-    parameter: PARAM-design-pressure
+    parameter: PARAM-internal-design-gage-pressure
     description: Internal design gage pressure
     unit: Pa
   S:

@@ -1,5 +1,7 @@
 import type { ChildProcess } from 'node:child_process'
 
+import { randomUUID } from 'node:crypto'
+import { execSync } from 'node:child_process'
 import { spawn } from 'node:child_process'
 
 
@@ -40,7 +42,7 @@ function delay(ms: number): Promise<void> {
 
 
 
-async function checkHealth(baseUrl: string): Promise<boolean> {
+async function checkHealth(baseUrl: string, expectedInstanceId?: string): Promise<boolean> {
 
   try {
 
@@ -50,11 +52,107 @@ async function checkHealth(baseUrl: string): Promise<boolean> {
 
     })
 
-    return response.ok
+    if (!response.ok) {
+
+      return false
+
+    }
+
+    if (!expectedInstanceId) {
+
+      return true
+
+    }
+
+    const payload = (await response.json()) as { instance_id?: string }
+
+  const matched = payload.instance_id === expectedInstanceId
+
+  // #region agent log
+
+  if (!matched) {
+
+    fetch('http://127.0.0.1:7445/ingest/50b71ef1-acb8-48e4-9a72-8a7cf07970d2', {
+
+      method: 'POST',
+
+      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '12f291' },
+
+      body: JSON.stringify({
+
+        sessionId: '12f291',
+
+        hypothesisId: 'G',
+
+        location: 'backendProcess.ts:checkHealth',
+
+        message: 'instance_id handshake mismatch',
+
+        data: { expected: expectedInstanceId, received: payload.instance_id ?? null },
+
+        timestamp: Date.now(),
+
+      }),
+
+    }).catch(() => {})
+
+  }
+
+  // #endregion
+
+  return matched
 
   } catch {
 
     return false
+
+  }
+
+}
+
+
+
+function freePortListeners(port: number): void {
+
+  if (process.platform !== 'win32') {
+
+    return
+
+  }
+
+  try {
+
+    const output = execSync(`netstat -ano | findstr :${port}`, { encoding: 'utf8' })
+
+    const pids = new Set<string>()
+
+    for (const line of output.split('\n')) {
+
+      if (!line.includes('LISTENING')) {
+
+        continue
+
+      }
+
+      const pid = line.trim().split(/\s+/).pop()
+
+      if (pid && pid !== '0') {
+
+        pids.add(pid)
+
+      }
+
+    }
+
+    for (const pid of pids) {
+
+      execSync(`taskkill /F /PID ${pid}`, { stdio: 'ignore' })
+
+    }
+
+  } catch {
+
+    // No listeners or already free.
 
   }
 
@@ -70,6 +168,8 @@ export class BackendProcessService {
 
   private detail: string | undefined
 
+  private readonly instanceId = randomUUID()
+
   private readonly listeners = new Set<StatusListener>()
 
 
@@ -78,7 +178,8 @@ export class BackendProcessService {
     private readonly repoRoot: string,
     private readonly backendUrl: string,
     private readonly userDataPath?: string,
-    private readonly devFlags: BackendDevFlags = { enableDevInspection: false, enableDevStudio: false },
+    private readonly devFlags: BackendDevFlags = { enableDevInspection: false },
+    private readonly freePortOnStart = false,
   ) {}
 
 
@@ -131,6 +232,12 @@ export class BackendProcessService {
 
     const python = resolvePythonExecutable(this.repoRoot)
 
+    if (this.freePortOnStart) {
+
+      freePortListeners(port)
+
+    }
+
 
 
     this.process = spawn(python, ['-m', 'api.server'], {
@@ -145,10 +252,11 @@ export class BackendProcessService {
 
         BACKEND_PORT: String(port),
 
+        BACKEND_INSTANCE_ID: this.instanceId,
+
         PROJECT_ROOT: this.repoRoot,
 
         ...(this.userDataPath ? { DESKTOP_USER_DATA: this.userDataPath } : {}),
-        ...(this.devFlags.enableDevStudio ? { DEV_STUDIO_ENABLED: '1' } : {}),
         ...(this.devFlags.enableDevInspection ? { DEV_INSPECTION_ENABLED: '1' } : {}),
 
       },
@@ -169,7 +277,17 @@ export class BackendProcessService {
 
     this.process.on('exit', (code, signal) => {
 
-      if (this.status === 'connected') {
+      if (this.status === 'starting') {
+
+        this.setStatus(
+
+          'error',
+
+          `Backend failed to start (code ${code ?? 'null'}, signal ${signal ?? 'null'}). Another process may be using port ${port}.`,
+
+        )
+
+      } else if (this.status === 'connected') {
 
         this.setStatus('error', `Backend exited unexpectedly (code ${code ?? 'null'}, signal ${signal ?? 'null'})`)
 
@@ -200,7 +318,7 @@ export class BackendProcessService {
 
     while (Date.now() < deadline) {
 
-      if (await checkHealth(this.backendUrl)) {
+      if (await checkHealth(this.backendUrl, this.instanceId)) {
 
         this.setStatus('connected')
 

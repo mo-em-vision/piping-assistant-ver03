@@ -6,8 +6,7 @@ name: Corrosion Allowance
 parameter_class: geometric_quantity
 dimension: DIM-length
 description: >
-  Additional wall thickness allowance provided to account for expected
-  corrosion, erosion, or mechanical allowance over the service life.
+  sum of the mechanical allowances.
 canonical_symbol: c
 aliases:
   - corrosion allowance
@@ -25,6 +24,10 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-04
+  last_revision: 2026-07-06
   edited_by: admin
+  canonical_unit: UNIT-mm
+  allowed_units:
+    - UNIT-mm
+    - UNIT-in
 ---

@@ -55,13 +55,13 @@ class InputAgent(BaseAgent):
         "external_design_pressure": (
             "Required for external pressure wall thickness design per ASME B31.3 §304.1.3."
         ),
-        "weld_joint_efficiency": (
-            "Please confirm the weld joint quality factor E = 1.0 "
-            "(default for seamless pipe), or provide a different value."
+        "pipe_construction_type": (
+            "Select the pipe construction or longitudinal joint type to resolve quality "
+            "factor E from Tables A-2 and A-3."
         ),
-        "weld_joint_strength_reduction_factor_W": (
-            "Please confirm the weld strength reduction factor W = 1.0, "
-            "or provide a different value."
+        "joint_category": (
+            "Select the pipe construction or longitudinal joint type to resolve quality "
+            "factor E from Tables A-2 and A-3."
         ),
         "temperature_coefficient_Y": (
             "Please confirm the temperature coefficient Y = 0.4, "

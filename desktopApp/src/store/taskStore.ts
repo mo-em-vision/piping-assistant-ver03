@@ -27,6 +27,7 @@ const useMockData = import.meta.env.VITE_MOCK_DATA === 'true'
 interface TaskStoreState {
   sessionId: string | null
   loading: boolean
+  submittingParameter: string | null
   userError: UserFacingError | null
   activeTask: TaskSummary | null
   activeTaskState: TaskStateDto | null
@@ -79,9 +80,34 @@ function collapseRightPanelForNoTask() {
   useUiStore.setState({ rightCollapsed: true })
 }
 
+function syncUiForActiveTask(hasTask: boolean) {
+  useRightPanelStore.getState().syncForActiveTask(hasTask)
+  if (hasTask) {
+    useUiStore.setState({ leftCollapsed: true, rightCollapsed: false })
+  }
+}
+
+function withPreservedDisplayOutputs(
+  previous: TaskStateDto | null,
+  incoming: TaskStateDto,
+): TaskStateDto {
+  if (!previous || previous.task_id !== incoming.task_id) {
+    return incoming
+  }
+
+  return {
+    ...incoming,
+    display_outputs: mergeDisplayOutputs(
+      previous.display_outputs ?? [],
+      incoming.display_outputs ?? [],
+    ),
+  }
+}
+
 export const useTaskStore = create<TaskStoreState>((set, get) => ({
   sessionId: null,
   loading: false,
+  submittingParameter: null,
   userError: null,
   activeTask: null,
   activeTaskState: null,
@@ -126,7 +152,8 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       let activeTaskState: TaskStateDto | null = null
 
       if (taskList.active_task_id) {
-        activeTaskState = await taskApi.get(taskList.active_task_id, taskList.session_id)
+        const fetchedState = await taskApi.get(taskList.active_task_id, taskList.session_id)
+        activeTaskState = withPreservedDisplayOutputs(get().activeTaskState, fetchedState)
         activeTask = stateToSummary(activeTaskState)
       }
 
@@ -142,7 +169,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         loading: false,
         userError: null,
       }))
-      useRightPanelStore.getState().syncForActiveTask(Boolean(activeTask))
+      syncUiForActiveTask(Boolean(activeTask))
     } catch (error) {
       set({
         loading: false,
@@ -210,7 +237,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
           },
           activeTaskState: mockTaskState,
         })
-        useRightPanelStore.getState().syncForActiveTask(true)
+        syncUiForActiveTask(true)
       }
       return
     }
@@ -255,7 +282,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
           activeTask: stateToSummary(mockTaskState),
           activeTaskState: mockTaskState,
         })
-        useRightPanelStore.getState().syncForActiveTask(true)
+        syncUiForActiveTask(true)
       }
       return
     }
@@ -294,7 +321,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
 
   clearActiveTask: () => {
     collapseRightPanelForNoTask()
-    set({ activeTask: null, activeTaskState: null })
+    set({ activeTask: null, activeTaskState: null, submittingParameter: null })
   },
 
   removeProjectTasks: (projectId: string) => {
@@ -425,7 +452,8 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     }
     try {
       const state = await taskApi.get(activeTask.id, get().sessionId ?? getActiveSessionId())
-      set({ activeTask: stateToSummary(state), activeTaskState: state })
+      const mergedState = withPreservedDisplayOutputs(get().activeTaskState, state)
+      set({ activeTask: stateToSummary(mergedState), activeTaskState: mergedState })
     } catch (error) {
       set({ userError: toUserFacingError(error) })
     }
@@ -442,6 +470,8 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
       if (!state) {
         return
       }
+
+      set({ submittingParameter: parameter })
 
       const nextParameters = state.parameters.map((item) =>
         item.name === parameter
@@ -469,12 +499,13 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
             missing_inputs: state.progress.missing_inputs.filter((item) => item !== parameter),
           },
         },
+        submittingParameter: null,
       })
       return
     }
 
     const snapshot = get().activeTaskState
-    set({ userError: null })
+    set({ userError: null, submittingParameter: parameter })
 
     if (snapshot) {
       set({
@@ -489,25 +520,18 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         get().sessionId ?? getActiveSessionId(),
       )
 
-      const previousDisplayOutputs = get().activeTaskState?.display_outputs ?? []
-      const mergedDisplayOutputs = mergeDisplayOutputs(previousDisplayOutputs, state.display_outputs)
+      const mergedState = withPreservedDisplayOutputs(get().activeTaskState, state)
 
       set({
-        activeTask: stateToSummary(state),
-        activeTaskState: {
-          ...state,
-          display_outputs: mergedDisplayOutputs,
-        },
+        activeTask: stateToSummary(mergedState),
+        activeTaskState: mergedState,
         userError: null,
       })
 
       startTransition(() => {
         set({
-          activeTask: stateToSummary(state),
-          activeTaskState: {
-            ...state,
-            display_outputs: mergedDisplayOutputs,
-          },
+          activeTask: stateToSummary(mergedState),
+          activeTaskState: mergedState,
         })
       })
     } catch (error) {
@@ -515,13 +539,16 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         set({ activeTaskState: snapshot })
       }
       set({ userError: toUserFacingError(error) })
+    } finally {
+      set({ submittingParameter: null })
     }
   },
 
   applyTaskState: (state) => {
+    const mergedState = withPreservedDisplayOutputs(get().activeTaskState, state)
     set({
-      activeTask: stateToSummary(state),
-      activeTaskState: state,
+      activeTask: stateToSummary(mergedState),
+      activeTaskState: mergedState,
       userError: null,
     })
   },

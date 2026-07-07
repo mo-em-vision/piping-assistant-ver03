@@ -1,8 +1,11 @@
-import { DevNodeHoverSurface } from '@dev-ui/DevNodeHoverSurface'
 import { DisplayMath, EngineeringMathText, InlineMath, isEngineeringSymbol } from '@/components/math/engineeringMath'
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 
-import type { EquationOutputBlock } from '@/types/backend/outputs'
+import type {
+  EquationInputTableRowDto,
+  EquationOutputBlock,
+  ReferenceLinkDto,
+} from '@/types/backend/outputs'
 
 import '@/components/math/engineeringMath.css'
 import '@/components/outputs/OutputRenderer.css'
@@ -30,15 +33,55 @@ function renderInputTableCell(columnKey: string, value: string) {
   )
 }
 
+function renderReferenceLink(reference: ReferenceLinkDto) {
+  const referenceKind = reference.reference_kind === 'table' ? 'table' : 'node'
+  return (
+    <StandardReferenceLink
+      referenceKind={referenceKind}
+      referenceId={reference.node_id}
+      nodeId={reference.node_id}
+      label={reference.label}
+    />
+  )
+}
+
+function renderValueCell(row: EquationInputTableRowDto) {
+  const value = String(row.value ?? '')
+  if (value && value !== AWAITING_USER_INPUT) {
+    return renderInputTableCell('value', value)
+  }
+  const reference = row.value_reference
+  if (reference) {
+    return (
+      <span className="output-equation__value-cell">
+        derived from {renderReferenceLink(reference)}
+      </span>
+    )
+  }
+  return renderInputTableCell('value', value || AWAITING_USER_INPUT)
+}
+
+function renderDefinitionCell(row: EquationInputTableRowDto) {
+  const definition = String(row.definition ?? '')
+  const reference = row.definition_reference
+  if (!reference) {
+    return <EngineeringMathText text={definition} />
+  }
+
+  return (
+    <span className="output-equation__definition-cell">
+      <EngineeringMathText text={definition} /> (as defined in {renderReferenceLink(reference)})
+    </span>
+  )
+}
+
 export function EquationOutput({ block }: EquationOutputProps) {
   return (
     <article className="output-block output-equation">
       {block.title ? <h4 className="output-block__title">{block.title}</h4> : null}
-      <DevNodeHoverSurface provenance={block.provenance}>
-        <div className="output-equation__math-row">
-          <DisplayMath expression={block.content} className="output-equation__math" />
-        </div>
-      </DevNodeHoverSurface>
+      <div className="output-equation__math-row">
+        <DisplayMath expression={block.content} className="output-equation__math" />
+      </div>
       {block.input_table ? (
         <div className="output-equation__input-table">
           <table className="output-table">
@@ -54,7 +97,11 @@ export function EquationOutput({ block }: EquationOutputProps) {
                 <tr key={`${block.id}-input-row-${index}`}>
                   {block.input_table!.columns.map((column) => (
                     <td key={column.key}>
-                      {renderInputTableCell(column.key, String(row[column.key] ?? ''))}
+                      {column.key === 'definition'
+                        ? renderDefinitionCell(row)
+                        : column.key === 'value'
+                          ? renderValueCell(row)
+                          : renderInputTableCell(column.key, String(row[column.key as keyof EquationInputTableRowDto] ?? ''))}
                     </td>
                   ))}
                 </tr>
@@ -81,7 +128,8 @@ export function EquationOutput({ block }: EquationOutputProps) {
           ))}
         </dl>
       ) : null}
-      {block.nomenclature_reference ? (
+      {block.nomenclature_reference &&
+      !block.input_table?.rows.some((row) => row.definition_reference) ? (
         <p className="output-equation__nomenclature-ref">
           Symbols defined in{' '}
           <StandardReferenceLink

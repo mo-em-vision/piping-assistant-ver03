@@ -14,7 +14,9 @@ from ai.user_response_extractor import (
 )
 from engine.executor.unit_manager import normalize_unit
 from models.fact import Fact, FactClass, ValidationStatus, fact_from_user_submission, fact_scalar_value, fact_unit
+from engine.reference.parameter_keys import MATERIAL_GRADE_KEY
 from engine.reference.material_ids import ASTM_A106_GR_B
+from engine.reference.parameter_keys import MATERIAL_GRADE_KEY
 from engine.graph.node_interaction import NodeInteractionSpec
 
 _DEFAULT_SYMBOL_MAP: dict[str, str] = {
@@ -230,9 +232,10 @@ def _parse_symbol_assignment(
         return fact_from_user_submission(
             key=input_id,
             value=raw_value.strip().strip('"'),
-            unit="dimensionless",
+            unit="NPS",
             task_id=task_id,
             original_value=raw_value,
+            original_unit="NPS",
         )
     if input_id in {
         "weld_joint_efficiency",
@@ -367,16 +370,22 @@ def _extract_material(
     task_id: str = "",
     allowed_fields: frozenset[str] | None = None,
 ) -> None:
-    if "material" in result.extracted:
+    if MATERIAL_GRADE_KEY in result.extracted:
         return
-    if not _field_allowed("material", allowed_fields):
+    if not _field_allowed(MATERIAL_GRADE_KEY, allowed_fields):
         return
     match = _MATERIAL_LABEL.search(message) or _MATERIAL_BARE.search(message)
     if not match:
         return
     raw = match.group(1).strip()
     normalized = _normalize_material(raw)
-    result.extracted["material"] = fact_from_user_submission(key="material", value=normalized, unit="dimensionless", task_id=task_id, original_value=raw)
+    result.extracted[MATERIAL_GRADE_KEY] = fact_from_user_submission(
+        key=MATERIAL_GRADE_KEY,
+        value=normalized,
+        unit="dimensionless",
+        task_id=task_id,
+        original_value=raw,
+    )
 
 
 def _normalize_material(raw: str) -> str:
@@ -477,9 +486,10 @@ def _extract_nps(
         result.extracted["nominal_pipe_size"] = fact_from_user_submission(
             key="nominal_pipe_size",
             value=match.group(1).strip(),
-            unit="dimensionless",
+            unit="NPS",
             task_id=task_id,
             original_value=match.group(1).strip(),
+            original_unit="NPS",
         )
         if "d_input_mode" not in result.extracted:
             result.extracted["d_input_mode"] = fact_from_user_submission(
@@ -492,9 +502,10 @@ def _extract_nps(
         result.extracted["nominal_pipe_size"] = fact_from_user_submission(
             key="nominal_pipe_size",
             value=bare.group(1),
-            unit="dimensionless",
+            unit="NPS",
             task_id=task_id,
             original_value=bare.group(1),
+            original_unit="NPS",
         )
         if "d_input_mode" not in result.extracted:
             result.extracted["d_input_mode"] = fact_from_user_submission(key="d_input_mode", value="nps_lookup", unit="dimensionless", task_id=task_id, original_value="nps_lookup")

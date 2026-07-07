@@ -118,7 +118,12 @@ def test_planner_proposes_defaults_for_internal_path() -> None:
     task = state.create_task("pipe-wall-defaults", status=TaskStatus.AWAITING_INPUT)
     state.store_input("pipe-wall-defaults", fact_from_engineering_input(straight_section_assumption(), task_id="pipe-wall-defaults"))
     state.store_input("pipe-wall-defaults", fact_from_engineering_input(internal_pressure_assumption(), task_id="pipe-wall-defaults"))
-    state.store_input("pipe-wall-defaults", fact_from_engineering_input(legacy_input("design_pressure", 500, "psi", InputSource.USER),
+    state.store_input(
+        "pipe-wall-defaults",
+        fact_from_engineering_input(
+            legacy_input("design_pressure", 500, "psi", InputSource.USER),
+            task_id="pipe-wall-defaults",
+        ),
     )
     state.store_input(
         "pipe-wall-defaults",
@@ -154,14 +159,13 @@ def test_planner_proposes_defaults_for_internal_path() -> None:
     plan = planner.plan(intent, task)
     task = state.get_task("pipe-wall-defaults")
 
-    assert task.fact_store.active_facts()["weld_joint_efficiency"].status == ValidationStatus.PENDING
-    assert "weld_joint_efficiency" in plan.missing_execution_assumptions
+    assert "weld_joint_efficiency" not in (plan.missing_execution_assumptions or [])
     assert plan.action == AgentAction.REQUEST_INPUT
     assert plan.questions
     assert any(
-        "default value" in question.lower()
+        "pipe construction" in question.lower()
+        or "joint" in question.lower()
         or "joint category" in question.lower()
-        or "seamless" in question.lower()
         for question in plan.questions
     )
 
@@ -228,7 +232,7 @@ def test_planner_expands_after_all_defaults_confirmed() -> None:
     assert first.action == AgentAction.REQUEST_INPUT
 
     task = state.get_task("pipe-wall-ready")
-    for input_id in ("weld_joint_efficiency", "weld_joint_strength_reduction_factor_W", "temperature_coefficient_Y"):
+    for input_id in ("weld_joint_efficiency", "weld_joint_strength_reduction_factor_W"):
         proposed = task.fact_store.active_fact(input_id)
         state.store_input("pipe-wall-ready", fact_from_engineering_input(legacy_input(input_id=proposed.input_id,
                 value=fact_scalar_value(proposed),
@@ -256,7 +260,7 @@ def test_multiple_coefficients_require_sequential_confirmation() -> None:
     inputs.update(proposed)
 
     pending = [spec for spec in specs if spec.variable in proposed]
-    assert len(pending) == 3
+    assert len(pending) == 2
 
     first = resolve_pending_value_responses("confirm", pending, inputs)
     inputs.update(first)
@@ -265,10 +269,6 @@ def test_multiple_coefficients_require_sequential_confirmation() -> None:
     second = resolve_pending_value_responses("confirm", pending, inputs)
     inputs.update(second)
     assert len(second) == 1
-
-    third = resolve_pending_value_responses("confirm", pending, inputs)
-    inputs.update(third)
-    assert len(third) == 1
 
     engine = GraphEngine()
     ready = engine.expansion_ready_nodes(

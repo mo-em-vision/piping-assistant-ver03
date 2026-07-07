@@ -8,7 +8,7 @@ const repoRoot = path.resolve(desktopAppRoot, '..')
 const targetRoot = path.join(desktopAppRoot, 'resources', 'backend')
 
 const BACKEND_PACKAGES = ['api', 'engine', 'models', 'storage', 'cli', 'config', 'ai']
-const BACKEND_DIRS = ['standards', 'dev']
+const BACKEND_DIRS = ['knowledge', 'workflows', 'dev']
 const BACKEND_FILES = ['requirements.txt']
 
 function shouldCopy(sourcePath) {

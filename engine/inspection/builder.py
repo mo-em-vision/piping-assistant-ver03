@@ -18,12 +18,16 @@ from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from engine.state.authority_context_projection import authority_context_full
 from engine.state.execution_context_projection import execution_context_full
-from engine.state.goal_projection import goals_to_api_dict, planning_projection
+from engine.state.goal_projection import legacy_goal_map_for_task, planning_projection
 from engine.state.task_state_canonical import (
     build_canonical_task_state,
     build_task_inspector_summary,
 )
-from engine.planner.plan_inspector import engineering_plan_view_for_task
+from engine.planner.plan_inspector import (
+    canonical_engineering_plan_for_task,
+    engineering_plan_view_for_task,
+    planner_inspector_summary_for_task,
+)
 from engine.state.workflow_state import build_workflow_state
 from models.task import Task
 
@@ -99,12 +103,13 @@ def _build_inspection_payload_impl(
             "planner_decisions": {
                 node_id: decision.to_dict() for node_id, decision in planner_decisions.items()
             },
-            "goals": goals_to_api_dict(task),
+            "legacy_goal_map": legacy_goal_map_for_task(task),
             "execution_context": execution_context_full(task),
             "authority_context": authority_context_full(task),
             "planning_summary": planning_projection(task),
-            "engineering_plan": engineering_plan_view_for_task(task),
-            "planner_inspector_summary": task.outputs.get("planner_inspector_summary"),
+            "engineering_plan": canonical_engineering_plan_for_task(task),
+            "engineering_plan_view": engineering_plan_view_for_task(task),
+            "planner_inspector_summary": planner_inspector_summary_for_task(task),
             "provenance_index": [record.to_dict() for record in provenance_index],
             "provenance_warnings": provenance_warnings or list(outputs.get("_provenance_warnings") or []),
             "workflow_state": _workflow_state_dict(workflow_state),

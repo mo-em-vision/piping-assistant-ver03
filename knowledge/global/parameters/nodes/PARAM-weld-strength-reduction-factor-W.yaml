@@ -14,9 +14,7 @@ dimension: DIM-dimensionless
 
 description: >
 
-  Weld joint strength reduction factor W per para. 302.3.5(e), from Table 302.3.5-1
-
-  at elevated temperatures.
+ weld joint strength reduction factor in accordance with para. 302.3.5(e)
 
 canonical_symbol: W
 

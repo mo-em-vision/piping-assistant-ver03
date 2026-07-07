@@ -116,7 +116,7 @@ edges:
 
   - type: introduces_parameter
 
-    target: PARAM-design-pressure
+    target: PARAM-internal-design-gage-pressure
 
   - type: introduces_parameter
 
@@ -140,7 +140,19 @@ edges:
 
   - type: introduces_parameter
 
-    target: PARAM-measured-wall-thickness
+    target: PARAM-actual-wall-thickness
+
+parameter_defaults:
+
+  corrosion_allowance:
+
+    - value: 0.5
+
+      unit: mm
+
+      condition: machined surfaces or grooves where tolerance is not specified
+
+      requires_confirmation: true
 
 metadata:
 

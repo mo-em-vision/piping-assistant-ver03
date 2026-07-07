@@ -57,7 +57,7 @@ def test_enrich_display_blocks_provenance_from_source_node(standards_reader: Sta
 
     assert blocks[0]["provenance"]["node_id"] == "304.1.2-a"
     assert blocks[0]["provenance"]["hover_excerpt"]
-    assert blocks[0]["provenance"]["source_field"] == "purpose"
+    assert blocks[0]["provenance"]["source_field"] == "title"
 
 
 def test_display_outputs_include_provenance(standards_reader: StandardsReader) -> None:
@@ -129,4 +129,4 @@ def test_step_provenance_for_calculation_step(standards_reader: StandardsReader)
 
     assert provenance is not None
     assert provenance["node_id"] == "B313-304.1.1"
-    assert provenance["source_field"] == "purpose"
+    assert provenance["source_field"] == "title"

@@ -117,3 +117,46 @@ export function executionStateStyle(state?: string | null): { bg: string; border
   }
   return EXECUTION_STATE_COLORS[state] ?? null
 }
+
+export const EXPANSION_STATUS_COLORS: Record<string, { bg: string; border: string; dashed?: boolean }> = {
+  awaiting_expansion_assumption: { bg: '#3d2f14', border: '#facc15' },
+  awaiting_decision: { bg: '#3d2f14', border: '#facc15' },
+  pending_condition: { bg: '#2a2a2a', border: '#a3a3a3' },
+  preview: { bg: '#2a2a2a', border: '#a3a3a3' },
+  expanded: { bg: '#1e293b', border: '#3b82f6' },
+  active: { bg: '#1e3a5f', border: '#3b82f6' },
+  awaiting_input: { bg: '#3d2f14', border: '#fb923c' },
+  blocked: { bg: '#4a2c14', border: '#f97316' },
+  ready: { bg: '#312e81', border: '#818cf8' },
+  executed: { bg: '#1a3d2e', border: '#22c55e' },
+  skipped: { bg: '#2a2a2a', border: '#737373', dashed: true },
+  failed: { bg: '#4a1f1f', border: '#ef4444' },
+  invalidated: { bg: '#4a1f1f', border: '#ef4444' },
+  unknown: { bg: '#1f1f1f', border: '#525252' },
+}
+
+export function expansionStatusStyle(status?: string | null): { bg: string; border: string; dashed?: boolean } | null {
+  if (!status) return null
+  return EXPANSION_STATUS_COLORS[status] ?? EXPANSION_STATUS_COLORS.unknown
+}
+
+export function expansionNodeShapeClass(nodeType: string): string {
+  switch (nodeType) {
+    case 'workflow':
+      return 'shape-workflow'
+    case 'interaction':
+      return 'shape-interaction'
+    case 'parameter':
+      return 'shape-parameter'
+    case 'lookup':
+      return 'shape-lookup'
+    case 'equation':
+      return 'shape-equation'
+    case 'calculation':
+      return 'shape-calculation'
+    case 'text':
+      return 'shape-text'
+    default:
+      return 'shape-definition'
+  }
+}

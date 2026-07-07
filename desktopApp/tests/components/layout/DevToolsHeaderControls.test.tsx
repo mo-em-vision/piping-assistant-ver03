@@ -13,15 +13,14 @@ describe('DevToolsHeaderControls', () => {
     useDevToolsStore.setState({ devModeActive: false })
   })
 
-  it('shows inspector controls only when dev mode is active', () => {
+  it('shows dev badge only when dev mode is active', () => {
     render(<DevToolsHeaderControls />)
 
     expect(screen.getByRole('checkbox')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /inspector/i })).not.toBeInTheDocument()
+    expect(screen.queryByText('Dev')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('checkbox'))
 
-    expect(screen.getByRole('button', { name: /inspector/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /node dev studio/i })).toBeInTheDocument()
+    expect(screen.getByText('Dev')).toBeInTheDocument()
   })
 })

@@ -146,8 +146,8 @@ def _record_metadata(record: NodeRecord) -> dict[str, Any]:
     )
 
 
-def expansion_assumption_specs(record: NodeRecord) -> list[NodeAssumptionSpec]:
-    metadata = _record_metadata(record)
+def expansion_assumption_specs_from_metadata(metadata: dict[str, Any]) -> list[NodeAssumptionSpec]:
+    """Return expansion assumption specs from compiled or merged node metadata."""
     specs = [s for s in parse_assumptions(metadata) if s.required_for_expansion]
     for item in metadata.get("interactions", []) or []:
         if not isinstance(item, dict):
@@ -168,35 +168,126 @@ def expansion_assumption_specs(record: NodeRecord) -> list[NodeAssumptionSpec]:
     return specs
 
 
-_COEFFICIENT_CONFIRMATION_FIELDS = frozenset(
-    {
-        "weld_joint_efficiency",
-        "weld_joint_strength_reduction_factor_W",
-        "temperature_coefficient_Y",
-    }
-)
+def expansion_assumption_fields_from_metadata(metadata: dict[str, Any]) -> list[str]:
+    """Return task input fields required before a node may expand."""
+    fields: list[str] = []
+    for spec in expansion_assumption_specs_from_metadata(metadata):
+        if spec.field and spec.field not in fields:
+            fields.append(spec.field)
+    return fields
+
+
+def expansion_assumption_specs(record: NodeRecord) -> list[NodeAssumptionSpec]:
+    return expansion_assumption_specs_from_metadata(_record_metadata(record))
+
+
+class _MetadataAssumptionRecord:
+    """Minimal record adapter for metadata-only assumption evaluation."""
+
+    def __init__(self, node_id: str, metadata: dict[str, Any]) -> None:
+        self.node_id = node_id
+        self.metadata = metadata
+        self.path = None
+
+
+def evaluate_metadata_expansion_assumptions(
+    metadata: dict[str, Any],
+    *,
+    node_id: str,
+    existing_inputs: dict[str, Fact | Any] | None = None,
+) -> AssumptionEvaluation:
+    """Check expansion assumptions declared on node metadata."""
+    return _evaluate_specs(
+        _MetadataAssumptionRecord(node_id, metadata),
+        expansion_assumption_specs_from_metadata(metadata),
+        existing_inputs or {},
+        check_blocks=True,
+    )
+
+
+def _field_from_param_ref(param_id: str) -> str:
+    pid = str(param_id or "").strip()
+    if pid.startswith("PARAM-"):
+        slug = pid.replace("PARAM-", "").replace("-", "_")
+        aliases = {
+            "weld_strength_reduction_factor_w": "weld_joint_strength_reduction_factor_W",
+            "temperature_coefficient_y": "temperature_coefficient_Y",
+            "material_specification": "material_grade",
+            "material": "material_grade",
+        }
+        return aliases.get(slug, slug)
+    return pid
+
+
+def applicability_expansion_status(
+    metadata: dict[str, Any],
+    inputs: dict[str, Fact | Any],
+) -> Literal["satisfied", "pending", "failed"]:
+    """Classify whether node applicability matches, is undecided, or is ruled out."""
+    applicability = metadata.get("applicability") or {}
+    if not isinstance(applicability, dict):
+        return "satisfied"
+    clauses = applicability.get("applies_when") or []
+    if not clauses:
+        return "satisfied"
+    saw_pending = False
+    for item in clauses:
+        if not isinstance(item, dict):
+            continue
+        field_name = _field_from_param_ref(str(item.get("parameter") or ""))
+        if not field_name:
+            continue
+        operator = str(item.get("operator") or "equals")
+        expected = item.get("value")
+        actual = field_value(field_name, inputs)
+        if operator == "present":
+            if actual is None:
+                return "failed"
+            continue
+        if operator == "absent":
+            if actual is not None:
+                return "failed"
+            continue
+        if operator == "equals":
+            if actual is None:
+                saw_pending = True
+                continue
+            if normalize_assumption_value(expected) != actual:
+                return "failed"
+    if saw_pending:
+        return "pending"
+    return "satisfied"
+
+
+def applicability_expansion_satisfied(
+    metadata: dict[str, Any],
+    inputs: dict[str, Fact | Any],
+) -> bool:
+    """Return True when all ``applicability.applies_when`` clauses match task inputs."""
+    return applicability_expansion_status(metadata, inputs) == "satisfied"
+
+
+def metadata_expansion_ready(
+    metadata: dict[str, Any],
+    inputs: dict[str, Fact | Any],
+    *,
+    node_id: str = "",
+) -> bool:
+    """Return True when metadata expansion assumptions are satisfied."""
+    if applicability_expansion_status(metadata, inputs) == "failed":
+        return False
+    evaluation = evaluate_metadata_expansion_assumptions(
+        metadata,
+        node_id=node_id,
+        existing_inputs=inputs,
+    )
+    return not evaluation.is_blocked and not evaluation.has_missing
 
 
 def execution_assumption_specs(record: NodeRecord) -> list[NodeAssumptionSpec]:
     metadata = _record_metadata(record)
     explicit = [s for s in parse_assumptions(metadata) if s.required_for_execution]
     derived = derive_execution_assumptions(record)
-    if str(record.metadata.get("type", "")) == "parameter":
-        input_id = str(record.metadata.get("input_id", "")).strip()
-        if input_id in _COEFFICIENT_CONFIRMATION_FIELDS:
-            derived.append(
-                NodeAssumptionSpec(
-                    id=f"confirmed_{input_id}",
-                    description=str(
-                        record.metadata.get("question")
-                        or record.metadata.get("description")
-                        or f"Confirm value for {input_id}"
-                    ),
-                    field=input_id,
-                    required_for_execution=True,
-                    requires_confirmation=True,
-                )
-            )
     seen: set[str] = set()
     merged: list[NodeAssumptionSpec] = []
     for spec in explicit + derived:
@@ -433,21 +524,6 @@ def question_for(spec: NodeAssumptionSpec) -> str:
             "Is the pipe subjected to internal or external pressure? "
             "Internal pressure design uses §304.1.2; external pressure design uses §304.1.3. "
             "Coefficients E, S, W, and Y are defined in §304.1.1-b."
-        )
-    if spec.id == "confirmed_weld_joint_efficiency":
-        return (
-            "Please confirm the weld joint quality factor E = 1.0 "
-            "(default for seamless pipe), or provide a different value."
-        )
-    if spec.id == "confirmed_weld_joint_strength_reduction_factor_W":
-        return (
-            "Please confirm the weld strength reduction factor W = 1.0, "
-            "or provide a different value."
-        )
-    if spec.id == "confirmed_temperature_coefficient_Y":
-        return (
-            "Please confirm the temperature coefficient Y = 0.4, "
-            "or provide a different value."
         )
     if spec.description:
         return f"Please confirm: {spec.description}"

@@ -1,0 +1,51 @@
+---
+description: Workflow paths and parameters must come from graph expansion — never hardcoded steps, branches, or field lists in engine/API/UI.
+globs:
+  - engine/graph/**
+  - engine/planner/**
+  - api/**
+  - dev/graph_explorer/**
+  - workflows/**
+  - knowledge/**/nodes/**
+  - desktopApp/src/**
+alwaysApply: true
+---
+
+# Graph-driven workflow paths
+
+Workflow **paths**, **branches**, and **parameter asks** are resolved by node expansion and authored graph structure. Every connection that controls eligibility belongs on nodes or edges in `knowledge/` / `workflows/` — not in Python/TypeScript conditionals.
+
+**Source of truth:** `docs/rules.md` §13.
+
+## What the graph owns
+
+| Concern | Author on nodes/edges |
+| --- | --- |
+| Expand or block a node | `assumptions`, `applicability.applies_when`, `interactions` |
+| Conditional branch | Edge `when`, `depends_on` with `when` |
+| Branch-only parameters | `introduces_parameter`, parameter node + `applies_when` |
+| Pre-expansion gates | Workflow `runtime.yaml` `interactions`, `assumption_gate_fields` |
+| User-input vs lookup | Parameter `resolution.method` |
+
+## Engine flow
+
+1. `expand_workflow()` / `expansion_policy` → active subgraph from edges + gates.
+2. `required_user_inputs()` → missing fields from **active** parameter nodes only.
+3. Planner / `workflow_bootstrap` → goal tree and `phase_missing` from graph eval + phase **ordering** (not static field injection).
+4. **Replan after each confirmed input** — ruled-out branches drop from goals and timeline.
+
+## Do not
+
+- Hardcode paragraph ids, branch ids, or field names in planner, `workflow_timeline`, `workflow_bootstrap`, serializers, or graph explorer to pick paths.
+- Put all branch parameters in `navigation.phases.parameter_gathering` unconditionally.
+- Merge full navigation phase lists over graph `required_user_inputs` (gate phases only).
+- Branch in frontend or `if workflow == "…"` in backend.
+
+## Navigation config role
+
+`workflows/*/runtime.yaml` `navigation` is for **phase order** and **gate fields** only. Fields in `parameter_gathering` must also appear on the expanded graph path; graph expansion is authoritative for *whether* to ask.
+
+## Tests
+
+- `tests/graph/test_expansion_policy.py` — expansion gates and branch pruning.
+- Assert behavior via metadata/outcomes, not engine literals for node ids.

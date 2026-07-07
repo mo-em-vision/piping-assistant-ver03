@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 
-import { DevNodeHoverSurface } from '@dev-ui/DevNodeHoverSurface'
 import { useTaskStore } from '@/store/taskStore'
 
-import type { NodeProvenanceDto } from '@/types/backend/api'
 import type { ParameterDefinitionDto } from '@/types/backend/parameters'
 import { DEFAULT_WORKFLOW_ASK_PROMPT } from './workflowAsk'
 import type { WorkflowAsk } from './workflowAsk'
 import { ComposerInlineInput } from './ComposerInlineInput'
 import { MaterialSearchInput } from './MaterialSearchInput'
+import { DiameterScrollComposer } from './DiameterScrollComposer'
+import { ScrollSelectPicker } from './ScrollSelectPicker'
 
 import './ComposerInlineInput.css'
 import './ComposerInput.css'
@@ -17,7 +17,6 @@ import './WorkflowPanel.css'
 interface WorkflowComposerProps {
   ask: WorkflowAsk
   disabled?: boolean
-  fallbackProvenance?: NodeProvenanceDto | null
 }
 
 function initialValue(parameter: ParameterDefinitionDto): unknown {
@@ -40,8 +39,12 @@ function initialUnit(parameter: ParameterDefinitionDto): string {
   return parameter.default_unit || parameter.units[0] || 'dimensionless'
 }
 
+function isMaterialParameter(parameter: ParameterDefinitionDto): boolean {
+  return parameter.type === 'material' || parameter.name === 'material_grade'
+}
+
 function composerPlaceholder(parameter: ParameterDefinitionDto): string {
-  if (parameter.type === 'material') {
+  if (isMaterialParameter(parameter)) {
     return 'Start typing to search materials…'
   }
 
@@ -56,6 +59,18 @@ function usesComposerUnitPills(parameter: ParameterDefinitionDto): boolean {
   return parameter.units.length > 0
 }
 
+function isDiameterParameter(parameter: ParameterDefinitionDto | null): boolean {
+  return (
+    parameter?.name === 'nominal_pipe_size' ||
+    parameter?.name === 'outside_diameter' ||
+    parameter?.name === 'inside_diameter'
+  )
+}
+
+function isPipeConstructionParameter(parameter: ParameterDefinitionDto | null): boolean {
+  return parameter?.name === 'pipe_construction_type' || parameter?.name === 'joint_category'
+}
+
 function usesInlineComposerRow(parameter: ParameterDefinitionDto | null): boolean {
   if (!parameter) {
     return false
@@ -65,7 +80,22 @@ function usesInlineComposerRow(parameter: ParameterDefinitionDto | null): boolea
     parameter.type === 'text' ||
     parameter.type === 'number' ||
     parameter.type === 'unit' ||
-    parameter.type === 'material'
+    isMaterialParameter(parameter)
+  )
+}
+
+function usesSelectionComposerRow(parameter: ParameterDefinitionDto | null): boolean {
+  if (!parameter || isDiameterParameter(parameter) || isPipeConstructionParameter(parameter)) {
+    return false
+  }
+
+  if (parameter.type === 'checkbox') {
+    return true
+  }
+
+  return (
+    (parameter.type === 'dropdown' || parameter.type === 'multi_select') &&
+    (parameter.options?.length ?? 0) > 0
   )
 }
 
@@ -76,7 +106,7 @@ function askHeading(ask: WorkflowAsk): string | null {
 
   switch (ask.kind) {
     case 'input':
-      return 'Ask:'
+      return 'Next Step:'
     case 'clarify':
       return 'Blocked:'
     case 'waiting':
@@ -107,7 +137,7 @@ function renderInlineComposerInput({
   canSubmit: boolean
   submitCurrentValue: (nextValue?: unknown, displayValue?: string) => Promise<void>
 }) {
-  if (parameter.type === 'material') {
+  if (isMaterialParameter(parameter)) {
     return (
       <MaterialSearchInput
         inline
@@ -147,9 +177,9 @@ function renderInlineComposerInput({
 export function WorkflowComposer({
   ask,
   disabled,
-  fallbackProvenance,
 }: WorkflowComposerProps) {
   const submitParameter = useTaskStore((state) => state.submitParameter)
+  const submittingParameter = useTaskStore((state) => state.submittingParameter)
   const parameter = ask.parameter
 
   const [value, setValue] = useState<unknown>(() => (parameter ? initialValue(parameter) : ''))
@@ -167,7 +197,9 @@ export function WorkflowComposer({
     setUnit(initialUnit(parameter))
   }, [parameter])
 
-  const busy = Boolean(disabled || submitting)
+  const busy = Boolean(disabled || submitting || submittingParameter !== null)
+  const processing = submittingParameter !== null || ask.kind === 'waiting'
+  const lockedClassName = processing ? ' workflow-panel__next-step-inline--locked' : ''
   const options = useMemo(() => parameter?.options ?? [], [parameter])
   const askPrompt = ask.prompt
   const heading = askHeading(ask)
@@ -208,61 +240,58 @@ export function WorkflowComposer({
 
   const textValue = value == null ? '' : String(value)
   const inlineComposerRow = usesInlineComposerRow(parameter)
-  const composerProvenance = parameter?.provenance ?? fallbackProvenance ?? null
-  const showAskBlock = Boolean(askPrompt || inlineComposerRow)
+  const selectionComposerRow = usesSelectionComposerRow(parameter)
+  const diameterComposerRow = isDiameterParameter(parameter) && ask.kind === 'input'
+  const pipeConstructionComposerRow =
+    isPipeConstructionParameter(parameter) &&
+    ask.kind === 'input' &&
+    (parameter?.options?.length ?? 0) > 0
+  const showAskBlock = Boolean(
+    askPrompt ||
+      inlineComposerRow ||
+      selectionComposerRow ||
+      diameterComposerRow ||
+      pipeConstructionComposerRow,
+  )
 
-  return (
-    <div className="workflow-panel__composer">
-      {parameter?.editing ? (
-        <p className="workflow-panel__edit-notice">
-          Editing this input. Downstream values were cleared; submit to continue the workflow.
-        </p>
-      ) : null}
-      {showAskBlock ? (
-        <div className="workflow-panel__next-step">
-          {heading ? (
-            <p className="workflow-panel__next-step-heading">
-              <strong>{heading}</strong>
-            </p>
-          ) : null}
-          {inlineComposerRow && parameter && ask.kind === 'input' ? (
-            <div className="workflow-panel__next-step-inline">
-              {askPrompt ? (
-                <DevNodeHoverSurface provenance={composerProvenance} fallbackProvenance={fallbackProvenance}>
-                  <span className="workflow-panel__next-step-text">{askPrompt}</span>
-                </DevNodeHoverSurface>
-              ) : null}
-              {renderInlineComposerInput({
-                parameter,
-                textValue,
-                unit,
-                setValue,
-                setUnit,
-                busy,
-                submitting,
-                canSubmit,
-                submitCurrentValue,
-              })}
-            </div>
-          ) : askPrompt ? (
-            <DevNodeHoverSurface provenance={composerProvenance} fallbackProvenance={fallbackProvenance}>
-              <span
-                className={`workflow-panel__next-step-text${
-                  ask.kind === 'clarify' ? ' workflow-panel__next-step-text--blocked' : ''
-                }`}
-              >
-                {askPrompt}
-              </span>
-            </DevNodeHoverSurface>
-          ) : null}
+  const renderSelectionOptions = () => {
+    if (!parameter || ask.kind !== 'input') {
+      return null
+    }
+
+    if (parameter.type === 'checkbox') {
+      return (
+        <div className="workflow-panel__selection-actions">
+          <button
+            type="button"
+            className={`workflow-panel__option${value === true ? ' workflow-panel__option--selected' : ''}`}
+            disabled={busy}
+            onClick={() => void submitCurrentValue(true)}
+          >
+            Yes
+          </button>
+          <button
+            type="button"
+            className={`workflow-panel__option${value === false ? ' workflow-panel__option--selected' : ''}`}
+            disabled={busy}
+            onClick={() => void submitCurrentValue(false)}
+          >
+            No
+          </button>
         </div>
-      ) : null}
+      )
+    }
 
-      {parameter &&
-      ask.kind === 'input' &&
+    if (
       (parameter.type === 'dropdown' || parameter.type === 'multi_select') &&
-      options.length > 0 ? (
-        <div className="workflow-panel__options" role="listbox" aria-label={`${parameter.label} options`}>
+      options.length > 0
+    ) {
+      return (
+        <div
+          className="workflow-panel__selection-actions"
+          role="listbox"
+          aria-label={`${parameter.label} options`}
+        >
           {options.map((option) => {
             const selected =
               parameter.type === 'multi_select'
@@ -296,26 +325,89 @@ export function WorkflowComposer({
             )
           })}
         </div>
-      ) : null}
+      )
+    }
 
-      {parameter?.type === 'checkbox' && ask.kind === 'input' ? (
-        <div className="workflow-panel__checkbox-row">
-          <button
-            type="button"
-            className={`workflow-panel__option${value === true ? ' workflow-panel__option--selected' : ''}`}
-            disabled={busy}
-            onClick={() => void submitCurrentValue(true)}
-          >
-            Yes
-          </button>
-          <button
-            type="button"
-            className={`workflow-panel__option${value === false ? ' workflow-panel__option--selected' : ''}`}
-            disabled={busy}
-            onClick={() => void submitCurrentValue(false)}
-          >
-            No
-          </button>
+    return null
+  }
+
+  return (
+    <div className={`workflow-panel__composer${processing ? ' workflow-panel__composer--processing' : ''}`}>
+      {parameter?.editing ? (
+        <p className="workflow-panel__edit-notice">
+          Editing this input. Downstream values were cleared; submit to continue the workflow.
+        </p>
+      ) : null}
+      {showAskBlock ? (
+        <div className="workflow-panel__next-step">
+          {heading ? (
+            <p className="workflow-panel__next-step-heading">
+              <strong>{heading}</strong>
+            </p>
+          ) : null}
+          {inlineComposerRow && parameter && ask.kind === 'input' ? (
+            <div className={`workflow-panel__next-step-inline${lockedClassName}`}>
+              {askPrompt ? (
+                <span className="workflow-panel__next-step-text">{askPrompt}</span>
+              ) : null}
+              {renderInlineComposerInput({
+                parameter,
+                textValue,
+                unit,
+                setValue,
+                setUnit,
+                busy,
+                submitting,
+                canSubmit,
+                submitCurrentValue,
+              })}
+            </div>
+          ) : selectionComposerRow && parameter && ask.kind === 'input' ? (
+            <div className={`workflow-panel__next-step-inline${lockedClassName}`}>
+              {askPrompt ? (
+                <span className="workflow-panel__next-step-text">{askPrompt}</span>
+              ) : null}
+              {renderSelectionOptions()}
+            </div>
+          ) : pipeConstructionComposerRow && parameter && ask.kind === 'input' ? (
+            <div className={`workflow-panel__next-step-inline${lockedClassName}`}>
+              {askPrompt ? (
+                <span className="workflow-panel__next-step-text">{askPrompt}</span>
+              ) : null}
+              <ScrollSelectPicker
+                options={parameter.options ?? []}
+                value={value === '' || value == null ? null : String(value)}
+                placeholder="Select pipe construction type"
+                ariaLabel={`${parameter.label} options`}
+                disabled={busy}
+                onSelect={(nextValue) => {
+                  setValue(nextValue)
+                  void submitCurrentValue(nextValue)
+                }}
+              />
+            </div>
+          ) : diameterComposerRow && parameter && ask.kind === 'input' ? (
+            <div className={`workflow-panel__next-step-inline${lockedClassName}`}>
+              {askPrompt ? (
+                <span className="workflow-panel__next-step-text">{askPrompt}</span>
+              ) : null}
+              <DiameterScrollComposer
+                parameter={parameter}
+                disabled={busy}
+                onSubmit={async (name, payload, payloadUnit) => {
+                  await submitParameter(name, payload, payloadUnit)
+                }}
+              />
+            </div>
+          ) : askPrompt ? (
+            <span
+              className={`workflow-panel__next-step-text${
+                ask.kind === 'clarify' ? ' workflow-panel__next-step-text--blocked' : ''
+              }`}
+            >
+              {askPrompt}
+            </span>
+          ) : null}
         </div>
       ) : null}
 

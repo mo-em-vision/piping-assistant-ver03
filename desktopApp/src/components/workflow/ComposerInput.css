@@ -142,6 +142,7 @@
   position: relative;
   width: fit-content;
   max-width: 100%;
+  z-index: 2;
 }
 
 .material-search-input--inline .material-search-input__anchor {
@@ -157,7 +158,7 @@
   left: 0;
   right: 0;
   bottom: calc(100% + 0.35rem);
-  z-index: 30;
+  z-index: 50;
   display: flex;
   flex-direction: column;
   gap: 0.15rem;

@@ -18,7 +18,6 @@ import { useChatStore } from '@/store/chatStore'
 import { isTaskCompleted } from '@/store/taskStateManager'
 import { useTaskStore } from '@/store/taskStore'
 import { getSelectedText, isSelectionAskAiEligible } from '@/utils/centerPanelSelection'
-import { activeContextToProvenance } from '@/utils/nodeProvenance'
 
 import './CenterPanel.css'
 
@@ -55,10 +54,6 @@ export function CenterPanel() {
   }, [viewModel, activeTaskState?.display_outputs])
 
   const showCompletionNextSteps = isTaskCompleted(activeTaskState) && workflowAsk.kind === 'none'
-  const fallbackProvenance = useMemo(
-    () => activeContextToProvenance(activeTaskState?.active_node_context),
-    [activeTaskState?.active_node_context],
-  )
 
   const handleContextMenu = (event: MouseEvent<HTMLElement>) => {
     const container = panelRef.current
@@ -120,7 +115,6 @@ export function CenterPanel() {
 
       <WorkflowHeader
         taskName={activeTask.name}
-        context={activeTaskState?.active_node_context}
         deleteDisabled={loading}
         onDelete={() => {
           void deleteTask(activeTask.id)
@@ -141,7 +135,6 @@ export function CenterPanel() {
           <WorkflowComposer
             ask={workflowAsk}
             disabled={!viewModel || (loading && !activeTaskState)}
-            fallbackProvenance={fallbackProvenance}
           />
         )}
       </div>

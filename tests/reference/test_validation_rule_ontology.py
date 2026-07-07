@@ -11,6 +11,7 @@ from engine.validation.validation_rule_node_validator import validate_validation
 _EXPECTED_VALRULE_IDS = frozenset(
     {
         "asme-b313-304-1-1-valrule-a",
+        "asme-b313-304-1-2-valrule-a",
         "asme-b313-304-1-2-valrule-b",
         "asme-b313-304-3-3-valrule-6a",
     }
@@ -61,6 +62,20 @@ def test_paragraph_304_1_1_a_references_wall_thickness_valrule() -> None:
         if isinstance(e, dict) and e.get("type") == "references_validation_rule"
     ]
     assert edge_targets == ["asme-b313-304-1-1-valrule-a"]
+
+
+def test_paragraph_304_1_2_a_references_thin_wall_valrule() -> None:
+    from engine.reference.standards_reader import StandardsReader
+
+    pack_root = _project_root() / "knowledge" / "standards"
+    reader = StandardsReader(pack_root, standard="asme_b31.3")
+    record = reader.load("304.1.2-a")
+    edge_targets = [
+        e.get("target")
+        for e in record.metadata.get("edges") or []
+        if isinstance(e, dict) and e.get("type") == "references_validation_rule"
+    ]
+    assert edge_targets == ["asme-b313-304-1-2-valrule-a"]
 
 
 def test_paragraph_304_1_2_b_references_thick_wall_valrule() -> None:

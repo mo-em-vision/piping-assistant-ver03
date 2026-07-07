@@ -8,6 +8,7 @@ from engine.graph.assumption_checker import field_value
 from engine.graph.doc_templates import build_doc_context
 from engine.graph.graph_store import GraphStore
 from engine.graph.lazy_expander import ExpansionState
+from engine.graph.relationship_resolver import resolve_require_binding
 from engine.graph.node_behaviors import (
     is_reference_designation,
     is_reference_quantity,
@@ -178,7 +179,27 @@ def emit_equation_blocks(
                 )
 
     rows: list[dict[str, Any]] = []
-    for item in eq_meta.get("requires") or []:
+    requires = eq_meta.get("requires") or []
+    # #region agent log
+    import json as _json
+    import time as _time
+
+    with open("debug-12f291.log", "a", encoding="utf-8") as _f:
+        _f.write(
+            _json.dumps(
+                {
+                    "sessionId": "12f291",
+                    "hypothesisId": "A",
+                    "location": "display_emitter.py:emit_equation_blocks",
+                    "message": "resolving equation requires",
+                    "data": {"equation_id": equation_id, "requires_count": len(requires)},
+                    "timestamp": int(_time.time() * 1000),
+                }
+            )
+            + "\n"
+        )
+    # #endregion
+    for item in requires:
         binding = resolve_require_binding(store, item)
         if binding is None:
             continue

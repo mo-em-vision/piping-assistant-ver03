@@ -46,7 +46,7 @@ def merge_equation_sidecar_metadata(
     record_path: Path | None = None,
     node_id: str | None = None,
 ) -> dict[str, Any]:
-    """Merge execution sidecar into equation metadata for runtime adapters."""
+    """Merge execution metadata from sidecars or inline flat equation YAML."""
     merged = dict(metadata)
     if record_path is None or not node_id:
         return merged
@@ -63,5 +63,12 @@ def merge_equation_sidecar_metadata(
                 if key in data and data[key]:
                     merged[key] = data[key]
             break
+
+    if record_path.is_file():
+        file_meta, _body = split_frontmatter(record_path.read_text(encoding="utf-8"))
+        if isinstance(file_meta, dict):
+            for key in (*_EXECUTION_KEYS, "equation_number", "paragraph_number"):
+                if key in file_meta and file_meta[key]:
+                    merged[key] = file_meta[key]
 
     return merged

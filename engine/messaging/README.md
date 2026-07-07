@@ -4,13 +4,14 @@ Deterministic user-facing prompts for workflow steps and formula parameters (no 
 
 ## Purpose
 
-Format questions, numbered choices, and formula+parameter blocks for CLI chat and API equation display. AI agents call these builders via `ai/response/response_handler.py`.
+Format questions, numbered choices, and formula+parameter blocks for CLI chat and API equation display. **Owns deterministic user-facing prompt copy** for workflow parameter asks (planner owns navigation only — see `docs/rules.md` §12).
 
 ## Entry Points
 
 | Symbol | File |
 |--------|------|
-| `build_step_prompt` | `step_prompt.py` |
+| `build_parameter_input_prompt` | `parameter_input_prompt.py` |
+| `default_workflow_parameter_prompt` | `workflow_parameter_prompts.py` |
 | `build_formula_parameter_prompt` | `formula_parameter_prompt.py` |
 | `format_parameter_block` | `prompt_format.py` |
 

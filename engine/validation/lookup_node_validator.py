@@ -6,6 +6,7 @@ from typing import Any
 
 from engine.reference.graph_compile import validate_edge_item, validate_no_links_metadata
 from engine.validation.node_revision_metadata import validate_revision_metadata
+from engine.reference.table_metadata import table_reference
 
 _FORBIDDEN_FIELDS = frozenset(
     {
@@ -31,6 +32,14 @@ def validate_lookup_node(meta: dict[str, Any]) -> list[str]:
         issues.append("missing name or title")
     if not meta.get("description") and not meta.get("title"):
         issues.append("missing description or title")
+
+    if not str(meta.get("table_number") or "").strip():
+        source = meta.get("source")
+        nested = ""
+        if isinstance(source, dict):
+            nested = str(source.get("table_number") or "").strip()
+        if not nested and not table_reference(meta):
+            issues.append("missing table_number")
 
     lookup_block = meta.get("lookup") or {}
     has_table = bool(

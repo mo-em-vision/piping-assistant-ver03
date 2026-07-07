@@ -32,7 +32,7 @@ def require_target_id(item: Any) -> str | None:
         target = item.strip()
         return target or None
     if isinstance(item, dict):
-        for key in ("node_id", "id", "to", "target"):
+        for key in ("node_id", "id", "to", "target", "parameter"):
             value = item.get(key)
             if value is not None:
                 target = str(value).strip()

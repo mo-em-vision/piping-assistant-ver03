@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.graph.path_decision import active_path_branch_nodes
 from engine.reference.standards_reader import StandardsReader
 from engine.state.task_facts import pending_parameter_fact_from_descriptor
 from models.fact import Fact
@@ -15,7 +16,26 @@ from models.input import (
 
 
 _DEFINITION_NODE = "B313-304.1.1"
-_THICKNESS_NODES = frozenset({"304.1.2-a", "B313-304.1.3"})
+
+
+def _active_branch_nodes(
+    reader: StandardsReader,
+    execution_order: tuple[str, ...] | list[str],
+    existing_inputs: dict[str, Fact | Any] | None = None,
+) -> set[str]:
+    from engine.graph.graph_engine import GraphEngine
+
+    engine = GraphEngine()
+    micro = engine._micro_engine(reader)
+    if micro is None:
+        return set()
+    return set(
+        active_path_branch_nodes(
+            micro.store,
+            execution_order,
+            existing_inputs or {},
+        )
+    )
 
 
 def _parse_resolution_method(raw: str | None) -> ResolutionMethod | None:
@@ -64,8 +84,9 @@ def _resolution_ref_from_item(item: dict[str, Any]) -> ResolutionRef | None:
 def _active_thickness_nodes(
     reader: StandardsReader,
     execution_order: tuple[str, ...] | list[str],
+    existing_inputs: dict[str, Fact | Any] | None = None,
 ) -> set[str]:
-    return {node_id for node_id in execution_order if node_id in _THICKNESS_NODES}
+    return _active_branch_nodes(reader, execution_order, existing_inputs)
 
 
 def seed_parameter_registry(
@@ -90,7 +111,7 @@ def seed_parameter_registry(
     if _DEFINITION_NODE not in execution_order:
         return {}
 
-    active_thickness = _active_thickness_nodes(reader, execution_order)
+    active_thickness = _active_thickness_nodes(reader, execution_order, existing_inputs)
     if not active_thickness:
         return {}
 

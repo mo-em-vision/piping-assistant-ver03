@@ -5,7 +5,12 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from engine.graph.assumption_checker import AssumptionEvaluation, field_value
+from engine.graph.assumption_checker import (
+    AssumptionEvaluation,
+    _merge_evaluations,
+    evaluate_metadata_expansion_assumptions,
+    field_value,
+)
 from engine.graph.conditions import when_clause_matches
 from engine.graph.display_emitter import emit_initiation_blocks
 from engine.graph.graph_store import GraphStore
@@ -14,6 +19,10 @@ from engine.graph.lazy_expander import (
     expand_workflow,
     expansion_gate_ready,
     next_pending_parameter,
+)
+from engine.graph.lookup_parameter_resolution import (
+    parameter_resolution_for_parameter,
+    prerequisite_input_keys,
 )
 from engine.graph.param_priority import parameter_collection_priority, parameter_concept_id, parameter_defined_in
 from engine.graph.prefetch import prefetch_async
@@ -28,7 +37,100 @@ from models.input import ParameterDescriptor
 from models.planning import WorkflowCandidate
 
 
+def _append_missing_input_keys(
+    store: GraphStore,
+    *,
+    keys: list[str],
+    required: list[str],
+    seen: set[str],
+    inputs: dict[str, Fact],
+) -> None:
+    for key in keys:
+        for key_name in prerequisite_input_keys(store, str(key)):
+            if not key_name or key_name in seen:
+                continue
+            if field_value(key_name, inputs) is not None:
+                continue
+            seen.add(key_name)
+            required.append(key_name)
+
+
+def _sort_required_inputs(
+    store: GraphStore,
+    required: list[str],
+    active_nodes: set[str],
+) -> list[str]:
+    from engine.reference.parameter_keys import param_node_id_for_input
+
+    def sort_key(fact_key: str) -> tuple[int, str]:
+        param_id = param_node_id_for_input(fact_key)
+        if param_id and store.get_node(param_id) is not None:
+            priority = parameter_collection_priority(store, param_id, active_nodes)
+        else:
+            priority = 100
+        return (priority, fact_key)
+
+    return sorted(required, key=sort_key)
+
+
 _DEFINITION_PHASE_INPUTS = frozenset({"corrosion_allowance"})
+
+
+def _edges_from_plan(plan: ExecutionPlan) -> list[GraphEdgeRecord]:
+    edges: list[GraphEdgeRecord] = []
+    for edge in plan.dependencies:
+        edge_type = edge.type.value if hasattr(edge.type, "value") else str(edge.type)
+        edges.append(
+            GraphEdgeRecord(
+                from_id=edge.from_node,
+                to_id=edge.to_node,
+                edge_type=edge_type,
+                metadata={},
+            )
+        )
+    return edges
+
+
+def _assumption_scan_ids(store: GraphStore, root_id: str, seed_nodes: list[str]) -> list[str]:
+    scan_ids = list(seed_nodes)
+    wf = store.get_node(root_id)
+    if wf is None:
+        return scan_ids
+    for edge in store.outgoing(
+        root_id,
+        edge_types={"requires", "requires_parameter", "contains", "contains_paragraph"},
+    ):
+        if edge.to_id not in scan_ids:
+            scan_ids.append(edge.to_id)
+    anchors = workflow_anchor_target(wf.metadata)
+    if isinstance(anchors, str):
+        for edge in store.outgoing(anchors, edge_types={"contains", "contains_paragraph"}):
+            if edge.to_id not in scan_ids:
+                scan_ids.append(edge.to_id)
+    return scan_ids
+
+
+def _collect_pending_assumptions(
+    store: GraphStore,
+    node_ids: list[str],
+    inputs: dict[str, Fact],
+) -> list[dict[str, Any]]:
+    pending: list[dict[str, Any]] = []
+    for node_id in node_ids:
+        node = store.get_node(node_id)
+        if node is None:
+            continue
+        if is_ui_parameter(node.metadata, node.node_type):
+            field_name = parameter_input_id(node.metadata)
+            if field_name and field_value(field_name, inputs) is None:
+                pending.append(
+                    {
+                        "field": field_name,
+                        "node_id": node_id,
+                        "question": node.metadata.get("question", ""),
+                    }
+                )
+    return pending
 
 
 def _resolution_method(resolution: Any) -> str:
@@ -67,6 +169,30 @@ def _nomenclature_applies(
     if when_nodes and not any(str(node_id) in active_nodes for node_id in when_nodes):
         return False
     return True
+
+
+def _parameter_required_on_active_path(
+    store: GraphStore,
+    param_node_id: str,
+    active_nodes: set[str],
+    inputs: dict[str, Fact],
+) -> bool:
+    """Return True when an active equation/lookup/validation producer requires this parameter."""
+    from engine.graph.lazy_expander import _node_active_on_path
+    from engine.reference.relationship_taxonomy import REQUIRES_TRAVERSAL_TYPES
+
+    producer_types = frozenset({"equation", "lookup", "validation_rule", "calculation"})
+    has_producer_requirement = False
+    for edge in store.incoming(param_node_id, edge_types=REQUIRES_TRAVERSAL_TYPES):
+        producer_id = edge.from_id
+        if store.node_type(producer_id) not in producer_types:
+            continue
+        has_producer_requirement = True
+        if producer_id not in active_nodes:
+            continue
+        if _node_active_on_path(store, producer_id, inputs):
+            return True
+    return not has_producer_requirement
 
 
 def _append_nomenclature_user_inputs(
@@ -244,34 +370,8 @@ class MicroGraphEngine:
         inputs: dict[str, Fact],
     ) -> dict[str, Any]:
         expansion = expand_workflow(self._store, root_id, inputs, lazy=True)
-        pending_assumptions: list[dict[str, Any]] = []
-
-        wf = self._store.get_node(root_id)
-        scan_ids = list(expansion.active_nodes)
-        if wf is not None:
-            for edge in self._store.outgoing(root_id, edge_types={"requires", "requires_parameter", "contains", "contains_paragraph"}):
-                if edge.to_id not in scan_ids:
-                    scan_ids.append(edge.to_id)
-            anchors = workflow_anchor_target(wf.metadata)
-            if isinstance(anchors, str):
-                for edge in self._store.outgoing(anchors, edge_types={"contains", "contains_paragraph"}):
-                    if edge.to_id not in scan_ids:
-                        scan_ids.append(edge.to_id)
-
-        for node_id in scan_ids:
-            node = self._store.get_node(node_id)
-            if node is None:
-                continue
-            if is_ui_parameter(node.metadata, node.node_type):
-                field_name = parameter_input_id(node.metadata)
-                if field_name and field_value(field_name, inputs) is None:
-                    pending_assumptions.append(
-                        {
-                            "field": field_name,
-                            "node_id": node_id,
-                            "question": node.metadata.get("question", ""),
-                        }
-                    )
+        scan_ids = _assumption_scan_ids(self._store, root_id, list(expansion.active_nodes))
+        pending_assumptions = _collect_pending_assumptions(self._store, scan_ids, inputs)
 
         next_param = next_pending_parameter(self._store, expansion, inputs)
         return {
@@ -285,14 +385,43 @@ class MicroGraphEngine:
         self,
         root_id: str,
         inputs: dict[str, Fact],
+        *,
+        plan: ExecutionPlan | None = None,
     ) -> AssumptionEvaluation:
         evaluation = AssumptionEvaluation()
-        step = self.resolve_next_step(root_id, inputs)
-        for item in step["pending_assumptions"]:
+        if plan is not None:
+            scan_ids = _assumption_scan_ids(self._store, root_id, list(plan.nodes))
+            pending_assumptions = _collect_pending_assumptions(self._store, scan_ids, inputs)
+        else:
+            pending_assumptions = self.resolve_next_step(root_id, inputs)["pending_assumptions"]
+        for item in pending_assumptions:
             field_name = str(item["field"])
             evaluation.missing_fields.append(field_name)
             evaluation.field_nodes[field_name] = str(item["node_id"])
             evaluation.field_questions[field_name] = str(item.get("question", ""))
+
+        wf = self._store.get_node(root_id)
+        if wf is not None:
+            evaluation = _merge_evaluations(
+                evaluation,
+                evaluate_metadata_expansion_assumptions(
+                    wf.metadata,
+                    node_id=root_id,
+                    existing_inputs=inputs,
+                ),
+            )
+            anchors = workflow_anchor_target(wf.metadata)
+            if isinstance(anchors, str):
+                anchor_node = self._store.get_node(anchors)
+                if anchor_node is not None:
+                    evaluation = _merge_evaluations(
+                        evaluation,
+                        evaluate_metadata_expansion_assumptions(
+                            anchor_node.metadata,
+                            node_id=anchors,
+                            existing_inputs=inputs,
+                        ),
+                    )
         return evaluation
 
     def expansion_gate_ready(
@@ -317,7 +446,7 @@ class MicroGraphEngine:
                 continue
             if is_ui_parameter(node.metadata, node.node_type):
                 continue
-            input_id = str(node.metadata.get("input_id", ""))
+            input_id = str(node.metadata.get("input_id") or node.metadata.get("key") or "").strip()
             if not input_id or input_id in registry:
                 continue
             defined_in = parameter_defined_in(node.metadata)
@@ -336,41 +465,65 @@ class MicroGraphEngine:
         self,
         root_id: str,
         inputs: dict[str, Fact],
+        *,
+        plan: ExecutionPlan | None = None,
     ) -> list[str]:
         if not expansion_gate_ready(self._store, root_id, inputs):
             return []
-        expansion = expand_workflow(self._store, root_id, inputs, lazy=False)
+        if plan is not None:
+            active_nodes = set(plan.nodes)
+            node_iter = list(plan.nodes)
+        else:
+            expansion = expand_workflow(self._store, root_id, inputs, lazy=False)
+            active_nodes = set(expansion.active_nodes)
+            node_iter = expansion.active_nodes
         required: list[str] = []
         seen: set[str] = set()
-        for node_id in expansion.active_nodes:
+        for node_id in node_iter:
             node = self._store.get_node(node_id)
             if node is None or node.node_type != "parameter":
                 continue
             if is_ui_parameter(node.metadata, node.node_type):
                 continue
-            input_id = str(node.metadata.get("input_id", ""))
+            if str(node.metadata.get("parameter_class", "")) == "calculated_quantity":
+                continue
+            if self._store.incoming(node_id, edge_types={"calculates_parameter"}):
+                continue
+            if not _parameter_required_on_active_path(self._store, node_id, active_nodes, inputs):
+                continue
+            input_id = str(node.metadata.get("input_id") or node.metadata.get("key") or "").strip()
             if not input_id or input_id in seen or input_id in _DEFINITION_PHASE_INPUTS:
                 continue
-            resolution = node.metadata.get("resolution") or {}
+            resolution = parameter_resolution_for_parameter(self._store, node_id) or {}
             method = str(resolution.get("method", "user_input")) if isinstance(resolution, dict) else "user_input"
             if method == "user_input" and field_value(input_id, inputs) is None:
                 seen.add(input_id)
                 required.append(input_id)
             elif method == "table_lookup" and field_value(input_id, inputs) is None:
                 # Require lookup key parameters, not the looked-up symbol itself.
-                for key in resolution.get("keys", []) if isinstance(resolution, dict) else []:
-                    key_name = str(key)
-                    if key_name not in seen and field_value(key_name, inputs) is None:
-                        seen.add(key_name)
-                        required.append(key_name)
+                _append_missing_input_keys(
+                    self._store,
+                    keys=[str(key) for key in (resolution.get("keys") or [])],
+                    required=required,
+                    seen=seen,
+                    inputs=inputs,
+                )
+            elif method == "material_catalog":
+                _append_missing_input_keys(
+                    self._store,
+                    keys=[input_id],
+                    required=required,
+                    seen=seen,
+                    inputs=inputs,
+                )
         _append_nomenclature_user_inputs(
             self._store,
-            active_nodes=expansion.active_nodes,
+            active_nodes=node_iter,
             inputs=inputs,
             required=required,
             seen=seen,
         )
-        return required
+        return _sort_required_inputs(self._store, required, active_nodes)
 
     def prefetch(self, *, task_id: str, root_id: str, inputs: dict[str, Fact], horizon: int = 1) -> None:
         prefetch_async(self._store, task_id=task_id, root_id=root_id, inputs=inputs, horizon=horizon)

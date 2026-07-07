@@ -1,3 +1,4 @@
+import { findParameterForStepId } from '@/components/workflow/workflowAsk'
 import type { TaskStateDto } from '@/types/backend/api'
 import { formatEngineeringDisplayValue } from '@/utils/engineeringDisplay'
 
@@ -101,8 +102,25 @@ export function applyOptimisticParameterSubmit(
     unit,
   )
 
+  const nextParameter = nextStepId ? findParameterForStepId(parameters, nextStepId) : undefined
+  const currentAsk =
+    nextParameter != null
+      ? {
+          kind: 'input' as const,
+          parameter_id: nextParameter.name,
+          prompt: nextParameter.guidance?.trim() ?? null,
+        }
+      : nextStepId != null
+        ? {
+            kind: 'waiting' as const,
+            parameter_id: null,
+            prompt: null,
+          }
+        : state.current_ask
+
   return {
     ...state,
+    current_ask: currentAsk,
     parameters,
     facts: {
       ...state.facts,

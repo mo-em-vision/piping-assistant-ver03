@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from api.workflow_timeline import (
-    PIPE_WALL_INPUT_STEP_ORDER,
     _HIDDEN_TIMELINE_INPUTS,
+    collection_step_order,
 )
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.task_facts import deactivate_fact
@@ -16,9 +16,9 @@ _PATH_SENSITIVE_INPUTS = frozenset({"pressure_loading"})
 _DESIGN_SENSITIVE_INPUTS = frozenset(
     {
         "pressure_loading",
-        "material",
+        "material_grade",
         "design_temperature",
-        "joint_category",
+        "pipe_construction_type",
         "nominal_pipe_size",
         "outside_diameter",
     }
@@ -38,17 +38,19 @@ _EXECUTION_OUTPUT_KEYS = (
 )
 
 
-def downstream_input_ids(parameter_id: str) -> list[str]:
-    if parameter_id not in PIPE_WALL_INPUT_STEP_ORDER:
+def downstream_input_ids(task: Task, parameter_id: str) -> list[str]:
+    step_order = collection_step_order(task)
+    if parameter_id not in step_order:
         return []
-    index = PIPE_WALL_INPUT_STEP_ORDER.index(parameter_id)
-    return list(PIPE_WALL_INPUT_STEP_ORDER[index + 1 :])
+    index = step_order.index(parameter_id)
+    return list(step_order[index + 1 :])
 
 
 def is_timeline_parameter_editable(task: Task, parameter_id: str) -> bool:
     if str(task.outputs.get("workflow") or "") != PIPE_WALL_THICKNESS_DESIGN:
         return False
-    if parameter_id in _HIDDEN_TIMELINE_INPUTS or parameter_id not in PIPE_WALL_INPUT_STEP_ORDER:
+    step_order = collection_step_order(task)
+    if parameter_id in _HIDDEN_TIMELINE_INPUTS or parameter_id not in step_order:
         return False
     if parameter_id == "allowable_stress":
         return (
@@ -63,7 +65,7 @@ def assess_parameter_edit(task: Task, parameter_id: str) -> dict[str, Any]:
     if not is_timeline_parameter_editable(task, parameter_id):
         raise ValueError(f"Parameter is not editable: {parameter_id}")
 
-    downstream = downstream_input_ids(parameter_id)
+    downstream = downstream_input_ids(task, parameter_id)
     downstream_present = [
         item for item in downstream if task.fact_store.active_fact(item) is not None
     ]
@@ -108,7 +110,7 @@ def assess_parameter_edit(task: Task, parameter_id: str) -> dict[str, Any]:
 def begin_parameter_edit(task: Task, parameter_id: str) -> dict[str, Any]:
     assessment = assess_parameter_edit(task, parameter_id)
 
-    for downstream_id in downstream_input_ids(parameter_id):
+    for downstream_id in downstream_input_ids(task, parameter_id):
         deactivate_fact(task, downstream_id)
 
     for output_key in _EXECUTION_OUTPUT_KEYS:

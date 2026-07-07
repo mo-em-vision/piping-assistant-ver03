@@ -14,6 +14,7 @@ from engine.state.task_facts import (
     store_lookup_numeric_fact,
     store_system_categorical_fact,
 )
+from models.fact import Fact
 from models.task import Task
 
 B36_10_TABLE_REF = "asme_b36.10/table-2-1"
@@ -48,7 +49,15 @@ def _normalize_entry_unit(unit: str | None) -> str:
         return text
     if text in {"IN", "INCH", "INCHES"}:
         return "NPS"
+    if text in {"DIMENSIONLESS", "1", ""}:
+        return "NPS"
     raise ValueError(f"Unsupported nominal pipe size unit: {unit}")
+
+
+def _nps_entry_unit(fact: Fact) -> str:
+    if fact.original_unit:
+        return _normalize_entry_unit(fact.original_unit)
+    return _normalize_entry_unit(fact_unit(fact))
 
 
 def _to_nps_lookup_key(value: str, unit: str) -> str:
@@ -79,7 +88,7 @@ def apply_nominal_pipe_size_lookup(task: Task, standards_root: Path) -> None:
     if not raw_nps:
         raise ValueError("Nominal pipe size is required.")
 
-    entry_unit = _normalize_entry_unit(fact_unit(nps_input))
+    entry_unit = _nps_entry_unit(nps_input)
     lookup_nps = _to_nps_lookup_key(raw_nps, entry_unit)
 
     lookup = PipeDimensionLookup(standards_root)

@@ -454,21 +454,16 @@ def _match_schedule_row(
     return None
 
 
-def _nps_sort_key(nps: str) -> tuple[int, float]:
-    if "/" in nps:
-        parts = nps.split("-")
-        total = 0.0
-        for part in parts:
-            if "/" in part:
-                num, den = part.split("/", 1)
-                total += float(num) / float(den)
-            else:
-                total += float(part)
-        return (0, total)
-    try:
-        return (1, float(nps))
-    except ValueError:
-        return (2, 0.0)
+def _nps_sort_key(nps: str) -> float:
+    """Numeric NPS sort key (inches) for increasing pipe size order."""
+    total = 0.0
+    for part in str(nps).strip().split("-"):
+        if "/" in part:
+            num, den = part.split("/", 1)
+            total += float(num) / float(den)
+        else:
+            total += float(part)
+    return total
 
 
 def import_pipe_dimensions_yaml(

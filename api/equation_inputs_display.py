@@ -7,48 +7,57 @@ from pathlib import Path
 from typing import Any
 
 from engine.messaging.formula_parameter_prompt import classify_formula_parameters
+from engine.reference.parameter_keys import (
+    MATERIAL_GRADE_KEY,
+    active_fact_for_key,
+    active_material_grade_fact,
+    is_material_grade_parameter,
+    parameter_node_description,
+)
+from engine.reference.parameter_value_source import resolve_input_value_reference
 from engine.reference.material_catalog_db import material_display_name
 from engine.reference.material_resolver import canonical_material_id
 from engine.reference.standards_reader import StandardsReader
+from engine.reference.table_metadata import format_table_citation, table_citation_labels
 from engine.state.task_facts import active_facts
 from models.fact import Fact, FactClass, SourceType, ValidationStatus, fact_scalar_value, fact_unit
 from models.task import Task
 
 _HIDDEN_UNITS = frozenset({"dimensionless", ""})
-_DEFAULT_STANDARDS_ROOT = Path(__file__).resolve().parent.parent / "standards"
+_DEFAULT_STANDARDS_ROOT = Path(__file__).resolve().parent.parent / "knowledge" / "standards"
 
-FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str, str], ...] = (
-    ("material", "", "Design material"),
-    ("design_pressure", "P", "Design pressure"),
-    ("design_temperature", "T", "Design temperature"),
-    ("nominal_pipe_size", "NPS", "Nominal pipe size"),
-    ("outside_diameter", "D", "Outside diameter"),
-    ("allowable_stress", "S", "Allowable stress"),
-    ("weld_joint_efficiency", "E", "Joint efficiency"),
-    ("weld_joint_strength_reduction_factor_W", "W", "Weld strength reduction"),
-    ("temperature_coefficient_Y", "Y", "Temperature coefficient"),
+FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str], ...] = (
+    (MATERIAL_GRADE_KEY, ""),
+    ("internal_design_gage_pressure", "P"),
+    ("design_temperature", "T"),
+    ("nominal_pipe_size", "NPS"),
+    ("outside_diameter", "D"),
+    ("allowable_stress", "S"),
+    ("weld_joint_efficiency", "E"),
+    ("weld_joint_strength_reduction_factor_W", "W"),
+    ("temperature_coefficient_Y", "Y"),
 )
 
 FORMULA_INPUT_STEP_IDS = frozenset(row[0] for row in FORMULA_INPUT_DISPLAY_ROWS)
 
-MAWP_PRESSURE_DESIGN_ROWS: tuple[tuple[str, str, str], ...] = (
-    ("actual_wall_thickness", "t_actual", "Actual/ordered wall thickness"),
-    ("corrosion_allowance", "c", "Corrosion allowance"),
-    ("pressure_design_thickness", "t", "Pressure design thickness"),
+MAWP_PRESSURE_DESIGN_ROWS: tuple[tuple[str, str], ...] = (
+    ("actual_wall_thickness", "t_actual"),
+    ("corrosion_allowance", "c"),
+    ("pressure_design_thickness", "t"),
 )
 
-MAWP_FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str, str], ...] = (
-    ("actual_wall_thickness", "t_actual", "Actual/ordered wall thickness"),
-    ("corrosion_allowance", "c", "Corrosion allowance"),
-    ("outside_diameter", "D", "Outside diameter"),
-    ("allowable_stress", "S", "Allowable stress"),
-    ("weld_joint_efficiency", "E", "Joint quality factor"),
-    ("weld_joint_strength_reduction_factor_W", "W", "Weld strength reduction factor"),
-    ("temperature_coefficient_Y", "Y", "Coefficient Y"),
+MAWP_FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str], ...] = (
+    ("actual_wall_thickness", "t_actual"),
+    ("corrosion_allowance", "c"),
+    ("outside_diameter", "D"),
+    ("allowable_stress", "S"),
+    ("weld_joint_efficiency", "E"),
+    ("weld_joint_strength_reduction_factor_W", "W"),
+    ("temperature_coefficient_Y", "Y"),
 )
 
 _SYMBOL_TO_INPUT_ID: dict[str, str] = {
-    "P": "design_pressure",
+    "P": "internal_design_gage_pressure",
     "D": "outside_diameter",
     "NPS": "nominal_pipe_size",
     "S": "allowable_stress",
@@ -62,7 +71,7 @@ _SYMBOL_TO_INPUT_ID: dict[str, str] = {
 AWAITING_USER_INPUT = "Awaiting user input"
 
 PRIMARY_FORMULA_INPUT_IDS = frozenset(
-    {"material", "design_pressure", "design_temperature"},
+    {MATERIAL_GRADE_KEY, "internal_design_gage_pressure", "design_temperature"},
 )
 
 _ASME_B31_3 = "ASME B31.3"
@@ -72,6 +81,25 @@ _STANDARD_LABELS: dict[str, str] = {
     "asme_b31.3": _ASME_B31_3,
     "asme_b36.10": _ASME_B36_10,
 }
+
+
+def _standards_reader(*, standards_root: Path | None = None) -> StandardsReader:
+    root = standards_root or _DEFAULT_STANDARDS_ROOT
+    return StandardsReader(root, standard="asme_b31.3")
+
+
+def _table_citation_label(
+    table_ref: str,
+    *,
+    standards_root: Path | None = None,
+) -> str:
+    reader = _standards_reader(standards_root=standards_root)
+    table_number, paragraph_number = table_citation_labels(reader, table_ref)
+    return format_table_citation(
+        standard_label=_ASME_B31_3,
+        table_number=table_number,
+        paragraph_number=paragraph_number,
+    )
 
 
 def _format_scalar(value: object) -> str:
@@ -123,7 +151,7 @@ def _standard_display_label(standard_slug: object) -> str | None:
 
 
 def _input_display_value_from_input(task: Task, input_id: str) -> str | None:
-    fact = task.fact_store.active_fact(input_id)
+    fact = active_fact_for_key(task, input_id)
     if fact is not None and _fact_has_displayable_value(fact):
         value = fact_scalar_value(fact)
         unit = fact_unit(fact)
@@ -135,7 +163,7 @@ def _input_display_value_from_input(task: Task, input_id: str) -> str | None:
 
 
 def _joint_category_label(task: Task) -> str | None:
-    fact = task.fact_store.active_fact("joint_category")
+    fact = active_fact_for_key(task, "pipe_construction_type")
     if not _fact_has_displayable_value(fact):
         return None
     raw = str(fact_scalar_value(fact)).strip()
@@ -155,7 +183,7 @@ def _resolve_material_display(raw: str, *, standards_root: Path | None = None) -
 
 
 def _material_label(task: Task, *, standards_root: Path | None = None) -> str | None:
-    fact = task.fact_store.active_fact("material")
+    fact = active_material_grade_fact(task)
     if not _fact_has_displayable_value(fact):
         return None
     raw = str(fact_scalar_value(fact)).strip()
@@ -203,7 +231,7 @@ def _nps_display_label(task: Task) -> str | None:
 
 
 def _is_table_sourced(task: Task, input_id: str) -> bool:
-    fact = task.fact_store.active_fact(input_id)
+    fact = active_fact_for_key(task, input_id)
     return (
         fact is not None
         and fact.source.source_type == SourceType.TABLE_LOOKUP
@@ -214,15 +242,6 @@ def _is_table_sourced(task: Task, input_id: str) -> bool:
 def _skip_formula_input_row(task: Task, input_id: str) -> bool:
     """NPS is collected in the workflow composer and folded into the D row when used."""
     return input_id == "nominal_pipe_size"
-
-
-def _row_definition(
-    task: Task,
-    input_id: str,
-    default_definition: str,
-    overrides: dict[str, str],
-) -> str:
-    return overrides.get(input_id, default_definition)
 
 
 def _outside_diameter_display_value(task: Task) -> str | None:
@@ -248,7 +267,7 @@ def _outside_diameter_display_value(task: Task) -> str | None:
     return _input_display_value_from_input(task, "outside_diameter")
 
 
-def _allowable_stress_display_value(task: Task) -> str | None:
+def _allowable_stress_display_value(task: Task, *, standards_root: Path | None = None) -> str | None:
     stress = task.outputs.get("allowable_stress") or task.outputs.get("S")
     if stress is None:
         return None
@@ -264,7 +283,7 @@ def _allowable_stress_display_value(task: Task) -> str | None:
     if not isinstance(lookup, dict) or not lookup.get("table_id"):
         return display
 
-    material_input = task.fact_store.active_fact("material")
+    material_input = active_material_grade_fact(task)
     temp_input = task.fact_store.active_fact("design_temperature")
     if not (
         _fact_has_displayable_value(material_input)
@@ -277,25 +296,29 @@ def _allowable_stress_display_value(task: Task) -> str | None:
     if mat is not None and temp_f is not None:
         mat_label = _resolve_material_display(str(mat))
         interp = " (interpolated)" if lookup.get("interpolated") else ""
-        display += f" ({_ASME_B31_3} Table A-1, {mat_label} @ {temp_f:g} \u00b0F{interp})"
+        display += f" ({_table_citation_label('A-1', standards_root=standards_root)}, {mat_label} @ {temp_f:g} \u00b0F{interp})"
     return display
 
 
-def _weld_joint_efficiency_display_value(task: Task) -> str | None:
+def _weld_joint_efficiency_display_value(task: Task, *, standards_root: Path | None = None) -> str | None:
     display = _input_display_value_from_input(task, "weld_joint_efficiency")
     if not display:
         return None
     if not _is_table_sourced(task, "weld_joint_efficiency"):
         return display
-    if not _fact_has_displayable_value(task.fact_store.active_fact("joint_category")):
+    if not _fact_has_displayable_value(active_fact_for_key(task, "pipe_construction_type")):
         return None
     joint_category = _joint_category_label(task)
     if not joint_category:
         return None
-    return f"{display} ({_ASME_B31_3} Tables A-2/A-3, {joint_category})"
+    return f"{display} ({_table_citation_label('A-2', standards_root=standards_root)} / {_table_citation_label('A-3', standards_root=standards_root)}, {joint_category})"
 
 
-def _weld_joint_strength_reduction_factor_W_display_value(task: Task) -> str | None:
+def _weld_joint_strength_reduction_factor_W_display_value(
+    task: Task,
+    *,
+    standards_root: Path | None = None,
+) -> str | None:
     display = _input_display_value_from_input(task, "weld_joint_strength_reduction_factor_W")
     if not display:
         return None
@@ -304,10 +327,14 @@ def _weld_joint_strength_reduction_factor_W_display_value(task: Task) -> str | N
     material = _material_label(task)
     if not material:
         return None
-    return f"{display} ({_ASME_B31_3} Table 302.3.5, {material})"
+    return f"{display} ({_table_citation_label('302.3.5-1', standards_root=standards_root)}, {material})"
 
 
-def _temperature_coefficient_Y_display_value(task: Task) -> str | None:
+def _temperature_coefficient_Y_display_value(
+    task: Task,
+    *,
+    standards_root: Path | None = None,
+) -> str | None:
     display = _input_display_value_from_input(task, "temperature_coefficient_Y")
     if not display:
         return None
@@ -317,22 +344,22 @@ def _temperature_coefficient_Y_display_value(task: Task) -> str | None:
     temp_display = _design_temperature_display(task)
     if not material or not temp_display:
         return None
-    return f"{display} ({_ASME_B31_3} Table 304.1.1, {material} @ {temp_display})"
+    return f"{display} ({_table_citation_label('table_304_1_1', standards_root=standards_root)}, {material} @ {temp_display})"
 
 
 def _input_display_value(task: Task, input_id: str, *, standards_root: Path | None = None) -> str | None:
-    if input_id == "material":
+    if is_material_grade_parameter(input_id):
         return _material_label(task, standards_root=standards_root)
     if input_id == "outside_diameter":
         return _outside_diameter_display_value(task)
     if input_id == "allowable_stress":
-        return _allowable_stress_display_value(task)
+        return _allowable_stress_display_value(task, standards_root=standards_root)
     if input_id == "weld_joint_efficiency":
-        return _weld_joint_efficiency_display_value(task)
+        return _weld_joint_efficiency_display_value(task, standards_root=standards_root)
     if input_id == "weld_joint_strength_reduction_factor_W":
-        return _weld_joint_strength_reduction_factor_W_display_value(task)
+        return _weld_joint_strength_reduction_factor_W_display_value(task, standards_root=standards_root)
     if input_id == "temperature_coefficient_Y":
-        return _temperature_coefficient_Y_display_value(task)
+        return _temperature_coefficient_Y_display_value(task, standards_root=standards_root)
     if input_id == "actual_wall_thickness":
         return _actual_wall_thickness_display_value(task)
     if input_id == "pressure_design_thickness":
@@ -361,46 +388,38 @@ def _actual_wall_thickness_display_value(task: Task) -> str | None:
     return display
 
 
-def definitions_from_equation_variables(
-    variables: list[dict[str, Any]] | None,
-) -> dict[str, str]:
-    """Map input ids to nomenclature descriptions from equation variable rows."""
-    overrides: dict[str, str] = {}
-    for variable in variables or []:
-        symbol = str(variable.get("symbol", "")).strip()
-        name = str(variable.get("name", "")).strip()
-        input_id = _SYMBOL_TO_INPUT_ID.get(symbol)
-        if input_id and name:
-            overrides[input_id] = name
-    return overrides
-
-
 def _build_formula_table_rows(
     task: Task,
-    rows_spec: tuple[tuple[str, str, str], ...],
+    rows_spec: tuple[tuple[str, str], ...],
     *,
-    definition_overrides: dict[str, str] | None = None,
+    reader: StandardsReader | None = None,
 ) -> list[dict[str, str]]:
-    rows: list[dict[str, str]] = []
-    overrides = definition_overrides or {}
-    for input_id, symbol, default_definition in rows_spec:
+    rows: list[dict[str, Any]] = []
+    for input_id, symbol in rows_spec:
         if _skip_formula_input_row(task, input_id):
             continue
         display = _input_display_value(task, input_id)
-        rows.append(
-            {
-                "symbol": symbol,
-                "definition": _row_definition(task, input_id, default_definition, overrides),
-                "value": display if display else AWAITING_USER_INPUT,
-            }
-        )
+        row: dict[str, str] = {
+            "symbol": symbol,
+            "definition": parameter_node_description(reader=reader, input_id=input_id),
+            "value": display or "",
+        }
+        if not display and reader is not None:
+            value_reference = resolve_input_value_reference(reader, input_id, task)
+            if value_reference is not None:
+                row["value_reference"] = value_reference
+            else:
+                row["value"] = AWAITING_USER_INPUT
+        elif not display:
+            row["value"] = AWAITING_USER_INPUT
+        rows.append(row)
     return rows
 
 
 def build_mawp_pressure_design_input_table(
     task: Task,
     *,
-    definition_overrides: dict[str, str] | None = None,
+    reader: StandardsReader | None = None,
 ) -> dict[str, Any]:
     return {
         "columns": [
@@ -411,7 +430,7 @@ def build_mawp_pressure_design_input_table(
         "rows": _build_formula_table_rows(
             task,
             MAWP_PRESSURE_DESIGN_ROWS,
-            definition_overrides=definition_overrides,
+            reader=reader,
         ),
     }
 
@@ -419,7 +438,7 @@ def build_mawp_pressure_design_input_table(
 def build_mawp_formula_inputs_input_table(
     task: Task,
     *,
-    definition_overrides: dict[str, str] | None = None,
+    reader: StandardsReader | None = None,
 ) -> dict[str, Any]:
     return {
         "columns": [
@@ -430,7 +449,7 @@ def build_mawp_formula_inputs_input_table(
         "rows": _build_formula_table_rows(
             task,
             MAWP_FORMULA_INPUT_DISPLAY_ROWS,
-            definition_overrides=definition_overrides,
+            reader=reader,
         ),
     }
 
@@ -438,15 +457,15 @@ def build_mawp_formula_inputs_input_table(
 def build_formula_inputs_table_rows(
     task: Task,
     *,
-    definition_overrides: dict[str, str] | None = None,
+    reader: StandardsReader | None = None,
 ) -> list[dict[str, str]]:
-    return _build_formula_table_rows(task, FORMULA_INPUT_DISPLAY_ROWS, definition_overrides=definition_overrides)
+    return _build_formula_table_rows(task, FORMULA_INPUT_DISPLAY_ROWS, reader=reader)
 
 
 def build_formula_inputs_input_table(
     task: Task,
     *,
-    definition_overrides: dict[str, str] | None = None,
+    reader: StandardsReader | None = None,
 ) -> dict[str, Any]:
     return {
         "columns": [
@@ -456,7 +475,7 @@ def build_formula_inputs_input_table(
         ],
         "rows": build_formula_inputs_table_rows(
             task,
-            definition_overrides=definition_overrides,
+            reader=reader,
         ),
     }
 
@@ -464,9 +483,10 @@ def build_formula_inputs_input_table(
 def primary_formula_inputs_complete(task: Task, planning: dict[str, Any]) -> bool:
     missing = set(planning.get("missing_inputs") or [])
     missing.update(planning.get("missing_assumptions") or [])
-    active = task.fact_store.active_facts()
     return all(
-        input_id in active and input_id not in missing
+        active_fact_for_key(task, input_id) is not None
+        and _fact_has_displayable_value(active_fact_for_key(task, input_id))
+        and input_id not in missing
         for input_id in PRIMARY_FORMULA_INPUT_IDS
     )
 

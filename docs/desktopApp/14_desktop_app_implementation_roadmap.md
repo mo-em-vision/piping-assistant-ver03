@@ -38,6 +38,8 @@ The frontend is responsible for:
 - collecting user inputs
 - managing UI state
 
+**Graph-driven workflow paths:** the backend resolves which parameters and branches are active via graph expansion (`docs/rules.md` §13). The frontend must not hardcode workflow steps or branch-specific field lists — it renders `task_state` from the API (`graph_input_order`, `phase_missing`, goals).
+
 ---
 
 # 3. MVP Target

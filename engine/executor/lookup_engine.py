@@ -6,10 +6,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from engine.executor.unit_manager import convert_to_si
 from engine.reference.asme_b31_3_table_ids import TABLE_304_1_1
 from engine.reference.material_catalog_db import standards_root_from_pack_root
 from engine.reference.material_resolver import canonical_material_id, resolve_material_table_key
+from engine.reference.parameter_keys import MATERIAL_GRADE_KEY, read_parameter_value
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_tables import StandardsTablesDatabase
 from models.calculation import CalculationResult, CalculationStatus, CalculationStep, QuantityResult
@@ -75,16 +75,25 @@ class LookupEngine:
         table_data = self._tables_db.get_table(table_ref)
         if table_data is None:
             raise FileNotFoundError(f"Lookup table not found: {table_ref}")
-        material = str(inputs.get("material", "")).strip()
+        material = str(read_parameter_value(inputs, MATERIAL_GRADE_KEY) or "").strip()
         if not material:
-            raise ValueError("material is required for stress lookup")
+            raise ValueError(f"{MATERIAL_GRADE_KEY} is required for stress lookup")
 
         standards_root = standards_root_from_pack_root(self._pack_root)
         material_id = canonical_material_id(material, standards_root=standards_root) or material
 
         temp_value = float(inputs["design_temperature"])
         temp_unit = str(inputs.get("design_temperature_unit", "F"))
-        temp_f, _ = convert_to_si(temp_value, temp_unit, target_unit="f")
+        table_unit = str(table_data.get("temperature_unit") or "F")
+        from engine.graph.lookup_conditionals import resolve_lookup_input_value
+
+        temp_f = resolve_lookup_input_value(
+            temp_value,
+            input_key="design_temperature",
+            input_unit=temp_unit,
+            output_param_node_id="PARAM-allowable-stress",
+            table_unit=table_unit,
+        )
 
         interpolation = bool(lookup_config.get("interpolation", table_data.get("interpolation", False)))
         stress_pa, row, interpolated = self._lookup_stress(
@@ -107,14 +116,14 @@ class LookupEngine:
         calculation = CalculationResult(
             calculation_id=f"{node_id}:lookup",
             inputs={
-                "material": material_id,
+                MATERIAL_GRADE_KEY: material_id,
                 "design_temperature": temp_f,
                 "design_temperature_unit": "F",
             },
             steps=[
                 CalculationStep(
                     name="table_lookup",
-                    inputs={"material": material_id, "design_temperature_F": temp_f},
+                    inputs={MATERIAL_GRADE_KEY: material_id, "design_temperature_F": temp_f},
                     result=stress_pa,
                 )
             ],

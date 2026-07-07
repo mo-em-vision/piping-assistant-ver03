@@ -7,16 +7,23 @@ from typing import Any
 
 from engine.graph.assumption_checker import field_value
 from engine.graph.conditions import when_clause_matches
+from engine.graph.expansion_policy import (
+    collect_workflow_expansion_fields,
+    dfs_collect_respecting_node_gates,
+    node_allows_child_traversal,
+    workflow_expansion_gate_ready,
+)
+from engine.graph.assumption_checker import applicability_expansion_status
 from engine.graph.graph_store import GraphStore
 from engine.graph.node_behaviors import (
     is_data_parameter,
     is_reference_designation,
     is_reference_quantity,
 )
+from engine.graph.lookup_parameter_resolution import parameter_resolution_for_parameter
 from engine.graph.param_priority import parameter_collection_priority
 from engine.graph.traversal import dfs_collect, topological_order
 from engine.reference.graph_db import GraphEdgeRecord
-from engine.reference.graph_compile import parse_dependency_node_ref
 from engine.reference.graph_edge_schema import workflow_anchor_target
 from engine.reference.relationship_taxonomy import DEPENDENCY_TRAVERSAL_TYPES
 from engine.reference.node_types import (
@@ -51,63 +58,12 @@ def _priority_key(store: GraphStore, node_id: str, active_nodes: set[str]) -> tu
     return (type_order, priority_num, node_id)
 
 
-def _workflow_metadata(store: GraphStore, root_id: str) -> dict[str, Any]:
-    for candidate in (root_id, store.resolve_node_id(root_id) or ""):
-        if not candidate:
-            continue
-        node = store.get_node(candidate)
-        if node is not None and node.node_type == "workflow":
-            return node.metadata
-    return store.metadata(root_id)
-
-
 def _collect_expansion_assumptions(
     store: GraphStore,
     root_id: str,
 ) -> list[str]:
-    """Assumption and interaction nodes directly linked from workflow root."""
-    fields: list[str] = []
-    resolved_ids: list[str] = []
-    for candidate in (root_id, store.resolve_node_id(root_id) or ""):
-        if candidate and candidate not in resolved_ids:
-            resolved_ids.append(candidate)
-
-    for wf_id in resolved_ids:
-        for edge in store.outgoing(wf_id):
-            if edge.edge_type not in {
-                "contains",
-                "contains_paragraph",
-                "references",
-                "starts_from_paragraph",
-                "related_to",
-            }:
-                continue
-            node = store.get_node(edge.to_id)
-            if node is None:
-                continue
-            if is_ui_parameter(node.metadata, node.node_type):
-                field_name = parameter_input_id(node.metadata)
-                if field_name and field_name not in fields:
-                    fields.append(field_name)
-
-    for wf_id in resolved_ids:
-        anchored = workflow_anchor_target(_workflow_metadata(store, wf_id))
-        if not isinstance(anchored, str):
-            continue
-        for edge in store.outgoing(anchored, edge_types={"contains", "contains_paragraph"}):
-            node = store.get_node(edge.to_id)
-            if node and is_ui_parameter(node.metadata, node.node_type):
-                field_name = parameter_input_id(node.metadata)
-                if field_name and field_name not in fields:
-                    fields.append(field_name)
-
-    navigation = _workflow_metadata(store, root_id).get("navigation") or {}
-    for field_name in navigation.get("assumption_gate_fields") or []:
-        name = str(field_name).strip()
-        if name and name not in fields:
-            fields.append(name)
-
-    return fields
+    """Backward-compatible alias for workflow expansion gate fields."""
+    return collect_workflow_expansion_fields(store, root_id)
 
 
 def expansion_gate_ready(
@@ -115,10 +71,7 @@ def expansion_gate_ready(
     root_id: str,
     inputs: dict[str, Fact],
 ) -> bool:
-    for field_name in _collect_expansion_assumptions(store, root_id):
-        if field_value(field_name, inputs) is None:
-            return False
-    return True
+    return workflow_expansion_gate_ready(store, root_id, inputs)
 
 
 def _expand_metadata_dependencies(
@@ -133,6 +86,8 @@ def _expand_metadata_dependencies(
     queue = list(order)
     while queue:
         node_id = queue.pop(0)
+        if not node_allows_child_traversal(store, node_id, inputs):
+            continue
         for edge in store.outgoing(
             node_id,
             edge_types=DEPENDENCY_TRAVERSAL_TYPES,
@@ -160,7 +115,12 @@ def _expand_metadata_dependencies(
 
             if dep_id in node_set:
                 continue
-            dep_order, dep_edges = dfs_collect(store, dep_id, inputs=inputs)
+            dep_order, dep_edges = dfs_collect_respecting_node_gates(
+                store,
+                dep_id,
+                inputs=inputs,
+                skipped_nodes=skipped_nodes,
+            )
             for dep_node_id in dep_order:
                 if dep_node_id not in node_set:
                     node_set.add(dep_node_id)
@@ -178,6 +138,18 @@ def _expand_metadata_dependencies(
             queue.append(dep_id)
 
 
+def _node_active_on_path(
+    store: GraphStore,
+    node_id: str,
+    inputs: dict[str, Fact],
+) -> bool:
+    """Return False when authored applicability rules rule this node out."""
+    node = store.get_node(node_id)
+    if node is None:
+        return True
+    return applicability_expansion_status(node.metadata, inputs) != "failed"
+
+
 def _expand_output_producers(
     store: GraphStore,
     node_set: set[str],
@@ -193,8 +165,18 @@ def _expand_output_producers(
             producer_id = edge.from_id
             if producer_id in node_set:
                 continue
-            producer_order, producer_edges = dfs_collect(store, producer_id, inputs=inputs)
+            if not node_allows_child_traversal(store, producer_id, inputs):
+                continue
+            if not _node_active_on_path(store, producer_id, inputs):
+                continue
+            producer_order, producer_edges = dfs_collect_respecting_node_gates(
+                store,
+                producer_id,
+                inputs=inputs,
+            )
             for producer_node_id in producer_order:
+                if not _node_active_on_path(store, producer_node_id, inputs):
+                    continue
                 if producer_node_id not in node_set:
                     node_set.add(producer_node_id)
                     order.append(producer_node_id)
@@ -232,8 +214,56 @@ def _ordering_edges(
                 )
             )
             continue
+        if edge.edge_type == "constrains_equation":
+            # Validation rules depend on equation outputs — run equations first.
+            ordered.append(
+                GraphEdgeRecord(
+                    from_id=edge.to_id,
+                    to_id=edge.from_id,
+                    edge_type="requires",
+                    metadata=edge.metadata,
+                )
+            )
+            continue
         ordered.append(edge)
     return ordered
+
+
+def _expand_equation_producer_ordering(
+    store: GraphStore,
+    node_set: set[str],
+    edges: list[GraphEdgeRecord],
+) -> None:
+    """Ensure equations that consume calculated parameters run after their producers."""
+    for node_id in list(node_set):
+        if store.node_type(node_id) != "equation":
+            continue
+        for req_edge in store.outgoing(node_id, edge_types={"requires_parameter", "requires"}):
+            param_id = req_edge.to_id
+            if store.node_type(param_id) != "parameter":
+                continue
+            for prod_edge in store.incoming(
+                param_id,
+                edge_types={"calculates_parameter", "implements", "calculates"},
+            ):
+                producer_id = prod_edge.from_id
+                if producer_id not in node_set or producer_id == node_id:
+                    continue
+                if store.node_type(producer_id) != "equation":
+                    continue
+                edges.append(
+                    GraphEdgeRecord(
+                        from_id=producer_id,
+                        to_id=node_id,
+                        edge_type="requires",
+                        metadata={
+                            "reason": (
+                                f"{node_id} requires output from {producer_id} "
+                                f"via {param_id}"
+                            )
+                        },
+                    )
+                )
 
 
 def expand_workflow(
@@ -254,13 +284,26 @@ def expand_workflow(
         state.active_nodes = [resolved_root]
         anchors = workflow_anchor_target(root.metadata)
         if isinstance(anchors, str):
-            state.active_nodes.append(anchors)
+            anchor_order, _ = dfs_collect_respecting_node_gates(
+                store,
+                anchors,
+                inputs=inputs,
+                skipped_nodes=state.skipped_nodes,
+            )
+            for node_id in anchor_order:
+                if node_id not in state.active_nodes:
+                    state.active_nodes.append(node_id)
         for field_name in _collect_expansion_assumptions(store, resolved_root):
             if field_value(field_name, inputs) is None:
                 state.pending_fields.append(field_name)
         return state
 
-    order, edges = dfs_collect(store, resolved_root, inputs=inputs)
+    order, edges = dfs_collect_respecting_node_gates(
+        store,
+        resolved_root,
+        inputs=inputs,
+        skipped_nodes=state.skipped_nodes,
+    )
     node_set = set(order)
     for edge in edges:
         if edge.to_id not in node_set:
@@ -269,7 +312,12 @@ def expand_workflow(
 
     anchors = workflow_anchor_target(root.metadata)
     if isinstance(anchors, str) and anchors not in node_set:
-        anchor_order, anchor_edges = dfs_collect(store, anchors, inputs=inputs)
+        anchor_order, anchor_edges = dfs_collect_respecting_node_gates(
+            store,
+            anchors,
+            inputs=inputs,
+            skipped_nodes=state.skipped_nodes,
+        )
         for node_id in anchor_order:
             if node_id not in node_set:
                 node_set.add(node_id)
@@ -278,6 +326,7 @@ def expand_workflow(
 
     _expand_metadata_dependencies(store, node_set, order, edges, inputs, state.skipped_nodes)
     _expand_output_producers(store, node_set, order, edges, inputs)
+    _expand_equation_producer_ordering(store, node_set, edges)
 
     for calc_id in list(node_set):
         if store.node_type(calc_id) != "calculation":
@@ -304,7 +353,9 @@ def expand_workflow(
             priority_key=lambda node_id: _priority_key(store, node_id, node_set),
         )
     )
-    state.active_nodes = sorted_order
+    state.active_nodes = [
+        node_id for node_id in sorted_order if _node_active_on_path(store, node_id, inputs)
+    ]
     state.edges = edges
     return state
 
@@ -331,10 +382,10 @@ def next_pending_parameter(
         if not input_id:
             continue
         if field_value(input_id, inputs) is None:
-            resolution = node.metadata.get("resolution") or {}
+            resolution = parameter_resolution_for_parameter(store, node_id) or {}
             if isinstance(resolution, dict):
                 method = str(resolution.get("method", "user_input"))
-                if method == "node_output":
+                if method in {"node_output", "table_lookup", "material_catalog"}:
                     continue
             return input_id
     return None

@@ -24,7 +24,9 @@ def graph_input_step_order(
             continue
         if is_ui_parameter(node.metadata, node.node_type):
             continue
-        input_id = parameter_input_id(node.metadata)
+        input_id = str(
+            node.metadata.get("input_id") or node.metadata.get("key") or ""
+        ).strip()
         if not input_id:
             continue
         priority = parameter_collection_priority(store, node_id, active_nodes)
@@ -47,11 +49,14 @@ def graph_step_titles(
         if node is None:
             continue
         if node.node_type == "parameter":
-            input_id = parameter_input_id(node.metadata)
-            if input_id and is_ui_parameter(node.metadata, node.node_type):
-                titles[input_id] = str(node.metadata.get("title") or input_id)
-            elif input_id:
-                titles[input_id] = str(node.metadata.get("title") or input_id)
+            input_id = str(
+                node.metadata.get("input_id") or node.metadata.get("key") or ""
+            ).strip()
+            if not input_id:
+                continue
+            titles[input_id] = str(
+                node.metadata.get("title") or node.metadata.get("name") or input_id
+            )
     return titles
 
 
@@ -67,5 +72,7 @@ def graph_question_for_field(
             continue
         field = parameter_input_id(node.metadata)
         if field == field_name:
-            return str(node.metadata.get("question") or node.metadata.get("description") or "")
+            question = node.metadata.get("question")
+            if isinstance(question, str) and question.strip():
+                return question.strip()
     return None

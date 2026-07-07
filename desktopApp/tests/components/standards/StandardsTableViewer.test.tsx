@@ -61,20 +61,27 @@ const TABLE_304: TableSourceDto = {
 }
 
 describe('StandardsTableViewer', () => {
-  it('renders revision year under the table title', () => {
+  it('renders table number and title on one line', () => {
     render(
       <StandardsTableViewer
         payload={{
           ...SAMPLE_TABLE,
+          table_number: 'A-1',
+          title: 'Table A-1 — Allowable Stress (sample)',
           revision_year: 2024,
         }}
       />,
     )
 
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(
+      'Table A-1 - Allowable Stress (sample)',
+    )
     expect(screen.getByText('Based on ASME B31.3, 2024 edition')).toBeInTheDocument()
+    expect(screen.queryByText(/Paragraph/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/asme_b313_tables\.db/i)).not.toBeInTheDocument()
   })
 
-  it('renders table description with standards reference links', () => {
+  it('does not render table description in the header', () => {
     render(
       <StandardsTableViewer
         payload={{
@@ -85,8 +92,8 @@ describe('StandardsTableViewer', () => {
       />,
     )
 
-    expect(screen.getByRole('button', { name: 'para. 302.3.3(b)' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Table 302.3.3C' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'para. 302.3.3(b)' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Table 302.3.3C' })).not.toBeInTheDocument()
   })
 
   it('renders supplementary_examination cells with clickable note links', () => {

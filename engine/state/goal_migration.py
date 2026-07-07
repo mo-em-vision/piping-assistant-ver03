@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from engine.reference.param_resolver import resolve_parameter_id
+from engine.messaging.workflow_parameter_prompts import resolve_workflow_parameter_prompt
 from models.goal import (
     Goal,
     calculation_goal,
@@ -51,14 +52,14 @@ def _prompt_for_field(
     if isinstance(questions, dict):
         prompt = questions.get(field_id)
         if isinstance(prompt, str) and prompt.strip():
-            return prompt.strip()
+            return resolve_workflow_parameter_prompt(field_id, field_question=prompt)
     elif isinstance(questions, list) and field_id in fields:
         index = fields.index(field_id)
         if index < len(questions):
             prompt = questions[index]
             if isinstance(prompt, str) and prompt.strip():
-                return prompt.strip()
-    return f"Provide {field_id.replace('_', ' ')}"
+                return resolve_workflow_parameter_prompt(field_id, field_question=prompt)
+    return resolve_workflow_parameter_prompt(field_id)
 
 
 def goals_from_planning_summary(
@@ -150,7 +151,7 @@ def goals_from_planning_summary(
         for field_id in summary.get("missing_inputs") or []:
             if str(field_id) in seen:
                 continue
-            prompt = f"Provide {str(field_id).replace('_', ' ')}"
+            prompt = resolve_workflow_parameter_prompt(str(field_id))
             order += 1
             child = _goal_for_field(
                 field_id=str(field_id),
@@ -204,7 +205,7 @@ def _goal_for_field(
             name=prompt,
             target_parameter=field_id,
             task_id=task_id,
-            required_facts=["material", "design_temperature"],
+            required_facts=["material_grade", "design_temperature"],
             workflow_id=workflow_id,
             parent_goal=parent_goal,
             phase=phase,

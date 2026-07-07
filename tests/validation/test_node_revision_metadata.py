@@ -52,7 +52,7 @@ def test_stamp_revision_metadata_preserves_existing_metadata() -> None:
 @pytest.mark.parametrize(
     "relative",
     [
-        "knowledge/global/parameters/nodes/PARAM-design-pressure.yaml",
+        "knowledge/global/parameters/nodes/PARAM-internal-design-gage-pressure.yaml",
         "knowledge/global/concepts/nodes/CONCEPT-pressure.yaml",
         "knowledge/global/units/nodes/UNIT-K.yaml",
         "knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.1-a.yaml",

@@ -9,6 +9,7 @@ interface MaterialCatalogState {
   warming: boolean
   error: string | null
   warmCatalog: () => Promise<void>
+  markCatalogReady: () => void
 }
 
 export const useMaterialCatalogStore = create<MaterialCatalogState>((set, get) => ({
@@ -34,13 +35,13 @@ export const useMaterialCatalogStore = create<MaterialCatalogState>((set, get) =
         return
       }
 
-      const message =
-        response.reason === 'catalog_missing'
-          ? 'Material catalog is not built. Run scripts/build_material_catalog_db.py.'
-          : 'Material catalog is not available.'
-      set({ ready: false, warming: false, error: message })
+      set({ ready: false, warming: false, error: null })
     } catch {
-      set({ ready: true, warming: false, error: null })
+      set({ ready: false, warming: false, error: null })
     }
+  },
+
+  markCatalogReady: () => {
+    set({ ready: true, warming: false, error: null })
   },
 }))

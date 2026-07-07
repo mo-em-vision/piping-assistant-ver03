@@ -11,6 +11,41 @@ def new_plan_id() -> str:
     return f"PLAN-{uuid4().hex[:12]}"
 
 
+_REQUIREMENT_CLASS_KEY_PREFIX: dict[str, str] = {
+    "user_input": "input",
+    "branch_decision": "select",
+    "table_lookup": "lookup",
+    "equation_result": "equation",
+    "derived_value": "derive",
+    "validation_check": "validate",
+    "report_output": "report",
+}
+
+LEGACY_REQUIREMENT_FIELD_NAMES = frozenset(
+    {
+        "goal_class",
+        "satisfaction",
+        "state",
+        "metadata",
+        "edges",
+        "name",
+        "target_parameter",
+        "question",
+        "provenance",
+        "authority",
+        "workflow_id",
+        "task_id",
+        "parent_goal",
+    }
+)
+
+
+def requirement_key_for_class(requirement_class: str, field: str) -> str:
+    """Legacy-compatible requirement key (e.g. input-internal_design_gage_pressure)."""
+    prefix = _REQUIREMENT_CLASS_KEY_PREFIX.get(requirement_class, "input")
+    return f"{prefix}-{field}"
+
+
 @dataclass
 class CalculationGoal:
     id: str
@@ -69,10 +104,12 @@ class QuestionSpec:
 class PlanRequirement:
     id: str
     field: str
-    parameter_node_id: str
+    parameter_node_id: str | None
     requirement_class: str
     status: str
     phase: str
+    key: str = ""
+    title: str = ""
     required_by: list[str] = field(default_factory=list)
     depends_on: list[str] = field(default_factory=list)
     alternatives: list[RequirementAlternative] | None = None
@@ -81,10 +118,24 @@ class PlanRequirement:
     activation_condition: ActivationCondition | None = None
     activation_status: str = "active"
 
+    def resolved_key(self) -> str:
+        if self.key and self.key != self.field:
+            return self.key
+        return requirement_key_for_class(self.requirement_class, self.field)
+
+    def resolved_title(self) -> str:
+        if self.title:
+            return self.title
+        if self.question_spec and self.question_spec.label:
+            return self.question_spec.label
+        return self.field.replace("_", " ").title()
+
     def to_dict(self) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "id": self.id,
+            "key": self.resolved_key(),
             "field": self.field,
+            "title": self.resolved_title(),
             "parameter_node_id": self.parameter_node_id,
             "requirement_class": self.requirement_class,
             "status": self.status,
@@ -273,6 +324,7 @@ class EngineeringPlan:
     graph: PlanGraph = field(default_factory=PlanGraph)
     phases: list[PlanPhase] = field(default_factory=list)
     traversal: PlannerTraversalState | None = None
+    legacy_goal_map: dict[str, Any] | None = None
     debug: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -290,6 +342,8 @@ class EngineeringPlan:
             payload["input_strategy"] = self.input_strategy.to_dict()
         if self.traversal:
             payload["traversal"] = self.traversal.to_dict()
+        if self.legacy_goal_map is not None:
+            payload["legacy_goal_map"] = dict(self.legacy_goal_map)
         if self.debug:
             payload["debug"] = dict(self.debug)
         return payload

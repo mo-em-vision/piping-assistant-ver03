@@ -193,7 +193,7 @@ def expansion_priority_order(node_type: str, metadata: dict[str, Any]) -> int:
     if ctype == "equation":
         return 7
     if ctype == "validation_rule":
-        return 7
+        return 9
     if ctype == "paragraph":
         return 8
     if ctype == "text":

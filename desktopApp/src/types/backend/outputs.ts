@@ -11,10 +11,14 @@ export interface OutputBlockBase {
   provenance?: NodeProvenanceDto
 }
 
+export type ReferenceLinkKind = 'node' | 'table'
+
 export interface ReferenceLinkDto {
   node_id: string
   label: string
   paragraph?: string | null
+  symbol?: string
+  reference_kind?: ReferenceLinkKind | null
 }
 
 export interface TextOutputBlock extends OutputBlockBase {
@@ -39,9 +43,17 @@ export interface EquationResultDto {
   unit?: string
 }
 
+export interface EquationInputTableRowDto {
+  symbol?: string
+  definition?: string
+  value?: string
+  definition_reference?: ReferenceLinkDto | null
+  value_reference?: ReferenceLinkDto | null
+}
+
 export interface EquationInputTableDto {
   columns: TableColumnDto[]
-  rows: Array<Record<string, string>>
+  rows: EquationInputTableRowDto[]
 }
 
 export interface EquationOutputBlock extends OutputBlockBase {

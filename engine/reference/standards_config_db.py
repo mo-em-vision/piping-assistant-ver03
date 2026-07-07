@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS material_supplemental (
     standard_slug TEXT NOT NULL,
     grade_key TEXT NOT NULL,
     display_name TEXT NOT NULL,
-    aliases_json TEXT NOT NULL DEFAULT '[]'
+    aliases_json TEXT NOT NULL DEFAULT '[]',
+    metallurgical_group TEXT
 );
 
 CREATE TABLE IF NOT EXISTS pipe_dimension_sources (
@@ -63,6 +64,18 @@ class StandardsConfigDatabase:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.db_path) as connection:
             connection.executescript(_SCHEMA)
+            self._migrate(connection)
+
+    def _migrate(self, connection: sqlite3.Connection) -> None:
+        columns = {
+            str(row[1])
+            for row in connection.execute("PRAGMA table_info(material_supplemental)").fetchall()
+        }
+        if "metallurgical_group" not in columns:
+            connection.execute(
+                "ALTER TABLE material_supplemental ADD COLUMN metallurgical_group TEXT"
+            )
+            connection.commit()
 
     def clear_all(self) -> None:
         self.initialize_schema()
@@ -107,13 +120,15 @@ class StandardsConfigDatabase:
             connection.execute(
                 """
                 INSERT INTO material_supplemental (
-                    material_id, standard_slug, grade_key, display_name, aliases_json
-                ) VALUES (?, ?, ?, ?, ?)
+                    material_id, standard_slug, grade_key, display_name, aliases_json,
+                    metallurgical_group
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(material_id) DO UPDATE SET
                     standard_slug = excluded.standard_slug,
                     grade_key = excluded.grade_key,
                     display_name = excluded.display_name,
-                    aliases_json = excluded.aliases_json
+                    aliases_json = excluded.aliases_json,
+                    metallurgical_group = excluded.metallurgical_group
                 """,
                 (
                     material_id,
@@ -121,6 +136,7 @@ class StandardsConfigDatabase:
                     str(item.get("grade_key", "")),
                     str(item.get("display_name", "")),
                     json.dumps(aliases),
+                    str(item.get("metallurgical_group", "")).strip() or None,
                 ),
             )
             connection.commit()
@@ -195,7 +211,8 @@ class StandardsConfigDatabase:
             connection.row_factory = sqlite3.Row
             rows = connection.execute(
                 """
-                SELECT material_id, standard_slug, grade_key, display_name, aliases_json
+                SELECT material_id, standard_slug, grade_key, display_name, aliases_json,
+                       metallurgical_group
                 FROM material_supplemental ORDER BY material_id
                 """
             ).fetchall()
@@ -209,6 +226,7 @@ class StandardsConfigDatabase:
                     "grade_key": str(row["grade_key"]),
                     "display_name": str(row["display_name"]),
                     "aliases": aliases if isinstance(aliases, list) else [],
+                    "metallurgical_group": str(row["metallurgical_group"] or ""),
                 }
             )
         return items

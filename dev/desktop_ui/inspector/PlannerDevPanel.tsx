@@ -1,12 +1,14 @@
-import type {
-  InspectionPayloadDto,
-  PlannerDecisionDto,
-  PlannerInspectorSummaryDto,
-} from '@/types/backend/inspection'
+import type { InspectionPayloadDto, PlannerDecisionDto } from '@/types/backend/inspection'
 
-import { EngineeringPlanPanel, isEngineeringPlanView } from './EngineeringPlanPanel'
+import { CanonicalEngineeringPlanPanel, EngineeringPlanPanel, isCanonicalEngineeringPlan, isEngineeringPlanView } from './EngineeringPlanPanel'
+import { PlannerTraversalPanel } from './PlannerTraversalPanel'
+import {
+  resolvePlannerInspectorSummary,
+  resolvePlannerTraversalView,
+} from './plannerInspectorSummary'
+import { validateEngineeringPlan } from './validateEngineeringPlan'
 import { asString } from './inspectorUtils'
-import { formatNavigationPhase, formatPlannerAction } from './workflowInspectorLabels'
+import { formatNavigationPhase } from './workflowInspectorLabels'
 
 import './InspectorPanels.css'
 
@@ -16,35 +18,47 @@ type PlannerDevPanelProps = {
   plannerDecision: PlannerDecisionDto | null
 }
 
-function plannerSummary(payload: InspectionPayloadDto): PlannerInspectorSummaryDto | null {
-  const summary = payload.planner_inspector_summary
-  if (summary && typeof summary === 'object') {
-    return summary
+function formatRootGoalStatus(status: string): string {
+  switch (status) {
+    case 'blocked':
+      return 'Blocked on inputs'
+    case 'ready':
+      return 'Ready to execute'
+    case 'complete':
+      return 'Complete'
+    case 'active':
+      return 'In progress'
+    default:
+      return status.replace(/_/g, ' ')
   }
-  const nested = payload.planning_summary?.planner_inspector_summary
-  if (nested && typeof nested === 'object') {
-    return nested as PlannerInspectorSummaryDto
-  }
-  return null
 }
 
 export function PlannerDevPanel({ payload, selectedNodeId, plannerDecision }: PlannerDevPanelProps) {
-  const planningSummary = payload.planning_summary
-  const compact = plannerSummary(payload)
-  const currentPhase = asString(planningSummary.current_phase)
+  const compact = resolvePlannerInspectorSummary(payload)
+  const traversalView = resolvePlannerTraversalView(payload, compact)
+  const currentPhase = compact?.current_phase ?? null
+  const planValidation = isCanonicalEngineeringPlan(payload.engineering_plan)
+    ? validateEngineeringPlan(payload.engineering_plan)
+    : null
+  const planDebugWarnings = payload.engineering_plan?.debug?.warnings ?? []
+  const validationMessages = [
+    ...(compact?.warnings ?? []),
+    ...planDebugWarnings,
+    ...(planValidation?.warnings ?? []),
+    ...(planValidation?.errors ?? []),
+  ]
 
   return (
     <div className="inspector-workflow-status">
       <section className="inspector-workflow-status__section">
         <h3 className="inspector-workflow-status__title">Planner</h3>
+        <p className="inspector-rationale-meta">
+          Source: <code>engineering_plan</code>
+        </p>
         <dl className="inspector-status-grid">
           <div>
             <dt>Phase</dt>
             <dd>{formatNavigationPhase(currentPhase)}</dd>
-          </div>
-          <div>
-            <dt>Status</dt>
-            <dd>{formatPlannerAction(asString(planningSummary.action))}</dd>
           </div>
           {compact?.root_goal ? (
             <>
@@ -56,15 +70,35 @@ export function PlannerDevPanel({ payload, selectedNodeId, plannerDecision }: Pl
                 <dt>Target</dt>
                 <dd>{compact.root_goal.target_field}</dd>
               </div>
+              <div>
+                <dt>Goal status</dt>
+                <dd>{formatRootGoalStatus(compact.root_goal.status)}</dd>
+              </div>
             </>
-          ) : planningSummary.goal ? (
+          ) : (
             <div>
-              <dt>Goal</dt>
-              <dd>{String(planningSummary.goal)}</dd>
+              <dt>Plan</dt>
+              <dd className="inspector-rationale-meta">No engineering plan on task.</dd>
             </div>
-          ) : null}
+          )}
         </dl>
       </section>
+
+      {planValidation ? (
+        <section className="inspector-workflow-status__section">
+          <h3 className="inspector-workflow-status__title">Plan validation</h3>
+          <p className="inspector-rationale-meta">
+            {planValidation.valid ? 'Valid normalized engineering plan.' : 'Validation failed.'}
+          </p>
+          {validationMessages.length ? (
+            <ul className="inspector-missing-list inspector-warnings">
+              {validationMessages.map((message) => (
+                <li key={message}>{message}</li>
+              ))}
+            </ul>
+          ) : null}
+        </section>
+      ) : null}
 
       {compact?.next_input ? (
         <section className="inspector-workflow-status__section">
@@ -103,6 +137,23 @@ export function PlannerDevPanel({ payload, selectedNodeId, plannerDecision }: Pl
         </section>
       ) : null}
 
+      {compact?.conditional_requirements?.length ? (
+        <section className="inspector-workflow-status__section">
+          <h3 className="inspector-workflow-status__title">Conditional future requirements</h3>
+          <ul className="inspector-missing-list">
+            {compact.conditional_requirements.map((item) => (
+              <li key={item.field}>
+                <strong>{item.title}</strong>
+                <span className="inspector-rationale-meta">
+                  {' '}
+                  ({item.field}, {item.phase})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
       {compact?.alternatives?.length ? (
         <section className="inspector-workflow-status__section">
           <h3 className="inspector-workflow-status__title">Alternatives</h3>
@@ -123,12 +174,61 @@ export function PlannerDevPanel({ payload, selectedNodeId, plannerDecision }: Pl
 
       {compact?.derived_or_lookup_values?.length ? (
         <section className="inspector-workflow-status__section">
-          <h3 className="inspector-workflow-status__title">Derived / lookup</h3>
+          <h3 className="inspector-workflow-status__title">Derived / lookup requirements</h3>
           <ul className="inspector-missing-list">
             {compact.derived_or_lookup_values.map((item) => (
               <li key={item.field}>
-                {item.field} via {item.method}
-                {item.depends_on.length ? ` ← ${item.depends_on.join(', ')}` : ''}
+                <strong>{item.title ?? item.field}</strong>
+                <span className="inspector-rationale-meta">
+                  {' '}
+                  via {item.method}
+                  {item.source_node_id ? ` (${item.source_node_id})` : ''}
+                  {item.depends_on.length ? ` ← ${item.depends_on.join(', ')}` : ''}
+                  {item.activation_status && item.activation_status !== 'active'
+                    ? `, ${item.activation_status}`
+                    : ''}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {compact?.calculations?.length ? (
+        <section className="inspector-workflow-status__section">
+          <h3 className="inspector-workflow-status__title">Calculations</h3>
+          <ul className="inspector-missing-list">
+            {compact.calculations.map((item) => (
+              <li key={item.field}>
+                <strong>{item.title}</strong>
+                <span className="inspector-rationale-meta">
+                  {' '}
+                  ({item.field}, {item.status}
+                  {item.depends_on.length ? ` ← ${item.depends_on.join(', ')}` : ''})
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {compact?.system_resolved_requirements?.length ? (
+        <section className="inspector-workflow-status__section">
+          <h3 className="inspector-workflow-status__title">System-resolved requirements</h3>
+          <ul className="inspector-missing-list">
+            {compact.system_resolved_requirements.map((item) => (
+              <li key={item.id}>
+                <strong>{item.title}</strong>
+                <span className="inspector-rationale-meta">
+                  {' '}
+                  ({item.requirement_class.replace('_', ' ')}, {item.method}
+                  {item.source_node_id ? `, ${item.source_node_id}` : ''}
+                  {item.depends_on.length ? ` ← ${item.depends_on.join(', ')}` : ''}
+                  {item.activation_status && item.activation_status !== 'active'
+                    ? `, ${item.activation_status}`
+                    : ''}
+                  )
+                </span>
               </li>
             ))}
           </ul>
@@ -137,7 +237,7 @@ export function PlannerDevPanel({ payload, selectedNodeId, plannerDecision }: Pl
 
       {compact?.planner_graph_summary ? (
         <section className="inspector-workflow-status__section">
-          <h3 className="inspector-workflow-status__title">Planner graph</h3>
+          <h3 className="inspector-workflow-status__title">Dependency graph summary</h3>
           <dl className="inspector-status-grid">
             <div>
               <dt>Selected subgraph</dt>
@@ -189,128 +289,11 @@ export function PlannerDevPanel({ payload, selectedNodeId, plannerDecision }: Pl
         </section>
       ) : null}
 
-      {compact?.planner_traversal_view ? (
-        <details className="inspector-rationale-details" open>
-          <summary>Planner traversal</summary>
-          <section className="inspector-workflow-status__section">
-            <h4 className="inspector-workflow-status__title">Current active node</h4>
-            {compact.planner_traversal_view.current_active_node ? (
-              <dl className="inspector-status-grid">
-                <div>
-                  <dt>Node</dt>
-                  <dd>
-                    {compact.planner_traversal_view.current_active_node.title ??
-                      compact.planner_traversal_view.current_active_node.node_id}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Phase</dt>
-                  <dd>
-                    {formatNavigationPhase(
-                      compact.planner_traversal_view.current_active_node.phase ?? '',
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Reason</dt>
-                  <dd>{compact.planner_traversal_view.current_active_node.reason}</dd>
-                </div>
-              </dl>
-            ) : (
-              <p className="inspector-rationale-meta">No active traversal node.</p>
-            )}
-          </section>
-
-          {compact.planner_traversal_view.pending_expansion_nodes.length ? (
-            <section className="inspector-workflow-status__section">
-              <h4 className="inspector-workflow-status__title">Pending expansion</h4>
-              <ul className="inspector-missing-list">
-                {compact.planner_traversal_view.pending_expansion_nodes.map((item) => (
-                  <li key={item.node_id}>
-                    <strong>{item.title ?? item.node_id}</strong>
-                    <span className="inspector-rationale-meta">
-                      {' '}
-                      ({item.node_type}
-                      {item.phase ? `, ${formatNavigationPhase(item.phase)}` : ''})
-                    </span>
-                    <p className="inspector-rationale-meta">{item.reason}</p>
-                    {item.waiting_on.length ? (
-                      <p className="inspector-rationale-meta">
-                        Waiting on: {item.waiting_on.join(', ')}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {compact.planner_traversal_view.expanded_nodes.length ? (
-            <section className="inspector-workflow-status__section">
-              <h4 className="inspector-workflow-status__title">Expanded nodes</h4>
-              <ul className="inspector-missing-list">
-                {compact.planner_traversal_view.expanded_nodes.map((item) => (
-                  <li key={`${item.node_id}-${item.expanded_at_order}`}>
-                    <strong>{item.title ?? item.node_id}</strong>
-                    <span className="inspector-rationale-meta">
-                      {' '}
-                      (order {item.expanded_at_order})
-                    </span>
-                    {item.produced_requirements.length ? (
-                      <p className="inspector-rationale-meta">
-                        Requirements: {item.produced_requirements.join(', ')}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {compact.planner_traversal_view.branch_decisions.length ? (
-            <section className="inspector-workflow-status__section">
-              <h4 className="inspector-workflow-status__title">Branch decisions</h4>
-              <ul className="inspector-missing-list">
-                {compact.planner_traversal_view.branch_decisions.map((decision) => (
-                  <li key={decision.field}>
-                    <strong>{decision.field.replaceAll('_', ' ')}</strong>
-                    <span className="inspector-rationale-meta"> ({decision.status})</span>
-                    {decision.candidate_nodes.length ? (
-                      <p className="inspector-rationale-meta">
-                        Candidates: {decision.candidate_nodes.join(', ')}
-                      </p>
-                    ) : null}
-                    {decision.selected_node ? (
-                      <p className="inspector-rationale-meta">
-                        Selected: {decision.selected_node}
-                        {decision.value ? ` (${decision.value})` : ''}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {compact.planner_traversal_view.recent_events.length ? (
-            <section className="inspector-workflow-status__section">
-              <h4 className="inspector-workflow-status__title">Recent traversal events</h4>
-              <ul className="inspector-missing-list">
-                {compact.planner_traversal_view.recent_events.map((event) => (
-                  <li key={`${event.order}-${event.event_type}`}>
-                    <span className="inspector-rationale-meta">
-                      #{event.order} {event.event_type}
-                    </span>
-                    {event.node_id ? (
-                      <span className="inspector-rationale-meta"> · {event.node_id}</span>
-                    ) : null}
-                    <p className="inspector-rationale-meta">{event.message}</p>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-        </details>
+      {traversalView || payload.engineering_plan?.traversal ? (
+        <PlannerTraversalPanel
+          traversal={payload.engineering_plan?.traversal}
+          view={traversalView ?? undefined}
+        />
       ) : null}
 
       {plannerDecision && selectedNodeId ? (
@@ -326,33 +309,30 @@ export function PlannerDevPanel({ payload, selectedNodeId, plannerDecision }: Pl
         </section>
       ) : null}
 
-      {isEngineeringPlanView(payload.engineering_plan) ? (
-        <EngineeringPlanPanel plan={payload.engineering_plan} />
+      {isCanonicalEngineeringPlan(payload.engineering_plan) ? (
+        <details className="inspector-rationale-details">
+          <summary>Canonical engineering plan (debug)</summary>
+          <CanonicalEngineeringPlanPanel plan={payload.engineering_plan} />
+        </details>
       ) : null}
 
-      {payload.engineering_plan || payload.goals ? (
+      {isEngineeringPlanView(payload.engineering_plan_view) ? (
         <details className="inspector-rationale-details">
-          <summary>Debug: raw planner output</summary>
-          {payload.engineering_plan && !isEngineeringPlanView(payload.engineering_plan) ? (
-            <>
-              <h4 className="inspector-workflow-status__title">Engineering plan</h4>
-              <pre className="inspector-code">{JSON.stringify(payload.engineering_plan, null, 2)}</pre>
-            </>
-          ) : null}
-          {payload.goals ? (
-            <>
-              <h4 className="inspector-workflow-status__title">Legacy goals</h4>
-              <pre className="inspector-code">{JSON.stringify(payload.goals, null, 2)}</pre>
-            </>
-          ) : null}
-          {isEngineeringPlanView(payload.engineering_plan) ? (
-            <>
-              <h4 className="inspector-workflow-status__title">Raw engineering plan</h4>
-              <p className="inspector-rationale-meta">
-                Stored on task outputs as <code>engineering_plan</code> (internal).
-              </p>
-            </>
-          ) : null}
+          <summary>Engineering plan view (debug)</summary>
+          <EngineeringPlanPanel plan={payload.engineering_plan_view} />
+        </details>
+      ) : null}
+
+      {payload.legacy_goal_map || payload.goals ? (
+        <details className="inspector-rationale-details">
+          <summary>Legacy goal map (deprecated)</summary>
+          <p className="inspector-rationale-meta">
+            Backward-compatible projection from <code>goal_store</code>. Prefer{' '}
+            <code>engineering_plan</code> as the source of truth.
+          </p>
+          <pre className="inspector-code">
+            {JSON.stringify(payload.legacy_goal_map ?? payload.goals, null, 2)}
+          </pre>
         </details>
       ) : null}
     </div>

@@ -12,9 +12,23 @@ from engine.reference.nomenclature_resolver import (
     spec_symbol,
     task_input_key,
 )
-from engine.reference.standards_reader import StandardsReader
+from engine.reference.parameter_keys import canonical_parameter_key, fact_for_task_input
 from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready, fact_scalar_value
 from models.validation import ComplianceStatus, LayerValidationResult, ValidationFinding, ValidationSeverity
+
+_CATEGORICAL_INPUT_IDS = frozenset(
+    {
+        "material",
+        "material_grade",
+        "material_specification",
+        "pipe_material",
+        "joint_category",
+        "pipe_construction_type",
+        "metallurgical_group",
+        "pressure_loading",
+        "straight_pipe_section",
+    }
+)
 
 
 class InputValidator:
@@ -71,8 +85,8 @@ class InputValidator:
 
             lookup_key = task_input_key(spec)
 
-            if lookup_key in task_inputs:
-                stored = task_inputs[lookup_key]
+            stored = fact_for_task_input(task_inputs, lookup_key)
+            if stored is not None:
                 if bool(spec.get("requires_confirmation", False)) and not fact_is_expansion_ready(
                     stored
                 ):
@@ -144,7 +158,14 @@ class InputValidator:
                             node_id=node_id,
                         )
                     )
-            elif isinstance(value, str) and not _is_numeric_string(value) and validation not in ("non_empty",):
+            elif (
+                isinstance(value, str)
+                and not _is_numeric_string(value)
+                and validation not in ("non_empty",)
+                and input_id not in _CATEGORICAL_INPUT_IDS
+                and lookup_key not in _CATEGORICAL_INPUT_IDS
+                and canonical_parameter_key(lookup_key) not in _CATEGORICAL_INPUT_IDS
+            ):
                 errors.append(
                     ValidationFinding(
                         rule="invalid_type",

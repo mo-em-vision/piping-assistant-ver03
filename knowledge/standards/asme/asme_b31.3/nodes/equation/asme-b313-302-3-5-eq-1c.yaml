@@ -13,8 +13,7 @@ authority:
 requires:
 - symbol: N
   required: true
-  description: Equivalent number of full displacement cycles during expected service
-    life
+  description: Equivalent number of full displacement cycles during expected service life
 - symbol: f_m
   required: true
   description: Maximum value of stress range factor
@@ -32,4 +31,23 @@ metadata:
   edited_by: admin
 display:
   text: f = min(6.0*N^(-0.2), f_m)
+equation_number: 1c
+paragraph_number: 302.3.5-d
+variables:
+  N:
+    symbol: N
+    description: Equivalent number of full displacement cycles during expected service life
+    unit: dimensionless
+  f_m:
+    symbol: f_m
+    description: Maximum value of stress range factor
+    unit: dimensionless
+executor: calculate_stress_range_factor
+calculation_module: eq_1c_stress_range_factor.py
+outputs:
+- symbol: f
+  name: stress_range_factor
+  unit: dimensionless
+  type: quantity
+equation_id: eq-1c
 ---

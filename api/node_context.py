@@ -7,6 +7,7 @@ from typing import Any
 
 from api.workflow_bootstrap import resolve_activated_definition_node
 from engine.state.goal_projection import planning_projection
+from engine.reference.equation_metadata import equation_paragraph_reference, equation_reference
 from engine.reference.paragraph_hierarchy import (
     hierarchy_entries,
     paragraph_reference,
@@ -127,6 +128,23 @@ def revision_year_from_metadata(metadata: dict[str, Any]) -> int | None:
     return int(raw)
 
 
+def _citation_fields(metadata: dict[str, Any]) -> dict[str, Any]:
+    node_type = str(metadata.get("type") or "")
+    if node_type == "equation":
+        paragraph = equation_paragraph_reference(metadata) or None
+        return {
+            "paragraph": paragraph,
+            "paragraph_number": paragraph,
+            "equation_number": equation_reference(metadata) or None,
+        }
+    paragraph = paragraph_reference(metadata) or None
+    return {
+        "paragraph": paragraph,
+        "paragraph_number": paragraph,
+        "equation_number": None,
+    }
+
+
 def node_source_payload(reader: StandardsReader, node_id: str) -> dict[str, Any]:
     record = reader.load(node_id)
     metadata = record.metadata
@@ -135,7 +153,7 @@ def node_source_payload(reader: StandardsReader, node_id: str) -> dict[str, Any]
         "node_id": record.node_id,
         "title": str(metadata.get("title", "")).strip(),
         "standard": _DEFAULT_STANDARD_LABEL,
-        "paragraph": paragraph_reference(metadata) or None,
+        **_citation_fields(metadata),
         "section": section_label({**metadata, "hierarchy_chain": hierarchy}),
         "hierarchy": hierarchy,
         "revision_year": revision_year_from_metadata(metadata),
@@ -178,11 +196,22 @@ def subsection_source_payload(
     }
 
 
-def active_context_source_field(metadata: dict[str, Any]) -> str:
+def display_heading_source_field(metadata: dict[str, Any]) -> str:
+    """Return the metadata key that supplies ``display_heading_for_node``."""
     explicit = str(metadata.get("display_heading", "")).strip()
     if explicit:
         return "display_heading"
-    return "purpose"
+    purpose = str(metadata.get("purpose", "")).strip()
+    if purpose:
+        return "purpose"
+    title = str(metadata.get("title", "")).strip()
+    if title:
+        return "title"
+    return "id"
+
+
+def active_context_source_field(metadata: dict[str, Any]) -> str:
+    return display_heading_source_field(metadata)
 
 
 def active_node_context_for_task(
@@ -215,12 +244,14 @@ def active_node_context_for_task(
         return None
 
     metadata = record.metadata
-    paragraph = paragraph_reference(metadata) or None
+    citations = _citation_fields(metadata)
     hierarchy = resolve_hierarchy_chain(reader, record.node_id)
     return {
         "node_id": record.node_id,
         "standard": _DEFAULT_STANDARD_LABEL,
-        "paragraph": paragraph,
+        "paragraph": citations["paragraph"],
+        "paragraph_number": citations["paragraph_number"],
+        "equation_number": citations["equation_number"],
         "hierarchy": hierarchy,
         "display_heading": display_heading_for_node(metadata),
         "hover_excerpt": hover_excerpt_for_node(record),

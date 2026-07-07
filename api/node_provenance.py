@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from api.node_context import hover_excerpt_for_node
+from api.node_context import display_heading_source_field, hover_excerpt_for_node
+from engine.reference.paragraph_hierarchy import paragraph_reference
 from api.workflow_bootstrap import resolve_activated_definition_node
+from engine.messaging.parameter_input_prompt import build_parameter_input_prompt, interaction_for_parameter
 from engine.reference.standards_reader import StandardsReader
 from engine.state.workflow_parameters import _param_nodes_by_input_id, _resolve_active_nodes
 from models.task import Task
@@ -28,7 +30,7 @@ def provenance_for_node(
         return None
 
     metadata = record.metadata
-    paragraph = str(metadata.get("paragraph", "")).strip() or None
+    paragraph = paragraph_reference(metadata) or None
     title = str(metadata.get("title", "")).strip() or None
     excerpt = hover_excerpt_for_node(record)
     if not excerpt:
@@ -40,6 +42,7 @@ def provenance_for_node(
         "title": title,
         "standard": _DEFAULT_STANDARD_LABEL,
         "paragraph": paragraph,
+        "paragraph_number": paragraph,
         "hover_excerpt": excerpt,
     }
     if source_field:
@@ -73,6 +76,11 @@ def attach_provenance(
     if not node_id or block.get("provenance"):
         return block
     resolved_field = source_field or _source_field_for_block(block)
+    if resolved_field in {None, "purpose"}:
+        try:
+            resolved_field = display_heading_source_field(reader.load(str(node_id)).metadata)
+        except FileNotFoundError:
+            resolved_field = resolved_field or "title"
     provenance = provenance_for_node(reader, node_id, source_field=resolved_field)
     if provenance:
         block["provenance"] = provenance
@@ -166,6 +174,40 @@ def param_node_index(reader: StandardsReader, task: Task) -> dict[str, str]:
     return _param_nodes_by_input_id(store, active)
 
 
+def parameter_input_provenance(
+    reader: StandardsReader,
+    task: Task,
+    parameter_id: str,
+) -> dict[str, Any] | None:
+    """Provenance for a workflow parameter prompt (interaction, param node, or equation)."""
+    spec = interaction_for_parameter(reader, task, parameter_id)
+    if spec is not None:
+        provenance = provenance_for_node(reader, spec.node_id, source_field="question")
+        if provenance:
+            return provenance
+
+    param_index = param_node_index(reader, task)
+    param_node_id = param_index.get(parameter_id)
+    if param_node_id:
+        prompt = build_parameter_input_prompt(reader, task, parameter_id)
+        source_field = "question" if prompt else "title"
+        provenance = provenance_for_node(reader, param_node_id, source_field=source_field)
+        if provenance:
+            return provenance
+
+    definition_id = definition_node_id_for_task(task, reader, None)
+    if definition_id:
+        try:
+            source_field = display_heading_source_field(reader.load(definition_id).metadata)
+        except FileNotFoundError:
+            source_field = "title"
+        provenance = provenance_for_node(reader, definition_id, source_field=source_field)
+        if provenance:
+            return provenance
+
+    return None
+
+
 def definition_node_id_for_task(
     task: Task,
     reader: StandardsReader,
@@ -204,7 +246,11 @@ def step_provenance(
     if step_id in _CALCULATION_STEP_IDS:
         definition_id = definition_node_id_for_task(task, reader, planning)
         if definition_id:
-            return provenance_for_node(reader, definition_id, source_field="purpose")
+            try:
+                source_field = display_heading_source_field(reader.load(definition_id).metadata)
+            except FileNotFoundError:
+                source_field = "title"
+            return provenance_for_node(reader, definition_id, source_field=source_field)
         return None
 
     param_index = param_node_index(reader, task)

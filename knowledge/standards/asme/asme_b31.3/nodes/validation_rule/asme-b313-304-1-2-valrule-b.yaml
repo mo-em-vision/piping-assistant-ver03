@@ -28,7 +28,7 @@ requires:
 - symbol: P
   required: true
   description: Internal design gage pressure
-  parameter: PARAM-design-pressure
+  parameter: PARAM-internal-design-gage-pressure
 - symbol: S
   required: true
   description: Stress value from Table A-1
@@ -54,7 +54,7 @@ edges:
   target: PARAM-outside-diameter
   alias: D
 - type: requires_parameter
-  target: PARAM-design-pressure
+  target: PARAM-internal-design-gage-pressure
   alias: P
 - type: requires_parameter
   target: PARAM-allowable-stress

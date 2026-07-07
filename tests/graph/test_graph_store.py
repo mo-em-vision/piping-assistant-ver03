@@ -85,7 +85,7 @@ def test_graph_store_loads_global_parameter_nodes() -> None:
     assert store.available
 
     for param_id in (
-        "PARAM-design-pressure",
+        "PARAM-internal-design-gage-pressure",
         "PARAM-outside-diameter",
         "PARAM-allowable-stress",
         "PARAM-corrosion-allowance",
@@ -107,8 +107,8 @@ def test_wall_thickness_equation_requires_relationship_metadata() -> None:
         edge.to_id: edge.metadata
         for edge in store.outgoing("asme-b313-304-1-2-eq-3a", edge_types={"requires_parameter", "requires"})
     }
-    assert "PARAM-design-pressure" in requires
-    assert requires["PARAM-design-pressure"]["alias"] == "P"
+    assert "PARAM-internal-design-gage-pressure" in requires
+    assert requires["PARAM-internal-design-gage-pressure"]["alias"] == "P"
     assert requires["PARAM-outside-diameter"]["alias"] == "D"
 
 

@@ -29,7 +29,7 @@ from models.task import Task, TaskStatus
 ROOT_SLUG = "pipe_wall_thickness_design"
 WALL_THICKNESS_NODE = "304.1.2-a"
 
-REQUIRED_INPUTS = ("design_pressure", "outside_diameter", "material", "design_temperature")
+REQUIRED_INPUTS = ("internal_design_gage_pressure", "outside_diameter", "material", "design_temperature")
 
 
 def build_report_from_task(

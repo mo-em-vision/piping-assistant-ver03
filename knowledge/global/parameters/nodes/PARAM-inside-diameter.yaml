@@ -15,6 +15,7 @@ aliases:
   - ID
 introduced_by:
   - asme-b313-304-1-1-b
+  - 304.1.2-a
 edges:
   - type: has_dimension
     target: DIM-length

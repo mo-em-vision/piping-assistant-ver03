@@ -32,6 +32,7 @@ from engine.reference.nomenclature_resolver import (
     load_nomenclature_for_node,
     spec_symbol,
 )
+from engine.reference.parameter_keys import fact_for_task_input, read_fact_value
 from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.embedded_nodes import find_embedded_body
 from engine.reference.standards_reader import NodeRecord, StandardsReader
@@ -88,6 +89,14 @@ class NodeRunner:
             if metadata.get("output_param"):
                 return self._run_micro_lookup(record, task_inputs=task_inputs)
             return self._run_lookup(record, task_inputs=task_inputs)
+        if node_type == "equation" and (
+            metadata.get("executor") or metadata.get("execution_function")
+        ):
+            return self._run_executor_equation(
+                record,
+                task_inputs=task_inputs,
+                dependency_outputs=dependency_outputs,
+            )
         if node_type == "equation":
             return self._run_equation_node(
                 record,
@@ -111,6 +120,12 @@ class NodeRunner:
             return self._run_micro_lookup(record, task_inputs=task_inputs)
         if node_type == "lookup":
             return self._run_lookup(record, task_inputs=task_inputs)
+        if node_type == "validation_rule":
+            return NodeExecutionResult(
+                node_id=record.node_id,
+                status=NodeExecutionStatus.SKIPPED,
+                trace={"reason": "validation_rule deferred until parent equations complete"},
+            )
         if node_type == "calculation":
             return self._run_calculation(
                 record,
@@ -136,12 +151,54 @@ class NodeRunner:
             errors=[f"Unsupported node type: {node_type}"],
         )
 
+    @staticmethod
+    def _param_fact_key(param_meta: dict[str, Any]) -> str:
+        return str(param_meta.get("input_id") or param_meta.get("key") or "").strip()
+
+    def _lookup_returns_fact_key(self, record: NodeRecord) -> str | None:
+        for item in record.metadata.get("returns") or []:
+            if not isinstance(item, dict):
+                continue
+            param_id = str(item.get("parameter") or "").strip()
+            if not param_id:
+                continue
+            try:
+                param = self._reader.load(param_id)
+            except FileNotFoundError:
+                continue
+            fact_key = self._param_fact_key(param.metadata)
+            if fact_key:
+                return fact_key
+        return None
+
+    def _lookup_output_already_satisfied(
+        self,
+        record: NodeRecord,
+        task_inputs: dict[str, Fact],
+    ) -> bool:
+        fact_key = self._lookup_returns_fact_key(record)
+        if not fact_key or fact_key not in task_inputs:
+            return False
+        stored = task_inputs[fact_key]
+        if fact_scalar_value(stored) is None:
+            return False
+        if stored.requires_confirmation and not fact_is_expansion_ready(stored):
+            return False
+        return True
+
     def _run_lookup(
         self,
         record: NodeRecord,
         *,
         task_inputs: dict[str, Fact],
     ) -> NodeExecutionResult:
+        if self._lookup_output_already_satisfied(record, task_inputs):
+            return NodeExecutionResult(
+                node_id=record.node_id,
+                status=NodeExecutionStatus.SKIPPED,
+                trace={"reason": "lookup output already confirmed in task facts"},
+            )
+
         missing = self._missing_inputs(record, task_inputs)
         if missing:
             return NodeExecutionResult(
@@ -156,64 +213,127 @@ class NodeRunner:
             if not isinstance(spec, dict):
                 continue
             input_id = str(spec.get("id", ""))
-            if input_id in task_inputs:
+            fact_key = str(spec.get("task_input_id") or input_id).strip()
+            source_fact = None
+            if fact_key in task_inputs:
+                source_fact = task_inputs[fact_key]
+            elif input_id in task_inputs:
+                source_fact = task_inputs[input_id]
+            elif fact_key == "material_grade" and "material" in task_inputs:
+                source_fact = task_inputs["material"]
+            elif fact_key == "material" and "material_grade" in task_inputs:
+                source_fact = task_inputs["material_grade"]
+            if source_fact is not None:
                 target_unit = None
-                if input_id == "design_temperature":
+                if fact_key == "design_temperature":
                     target_unit = "f"
                 prepared = prepare_fact(
-                    task_inputs[input_id],
+                    source_fact,
                     target_unit=target_unit,
                 )
-                raw_inputs[input_id] = fact_scalar_value(prepared)
+                raw_inputs[input_id or fact_key] = fact_scalar_value(prepared)
+                if fact_key == "design_temperature":
+                    raw_inputs["design_temperature"] = fact_scalar_value(prepared)
+                    raw_inputs["design_temperature_unit"] = fact_unit(prepared)
                 raw_inputs[f"{input_id}_unit"] = fact_unit(prepared)
 
         lookups = record.metadata.get("lookups", []) or []
-        if not lookups:
+        lookup_block = record.metadata.get("lookup")
+        if isinstance(lookup_block, dict):
+            lookup_config = dict(lookup_block)
+        elif lookups and isinstance(lookups[0], dict):
+            lookup_config = dict(lookups[0])
+        else:
             return NodeExecutionResult(
                 node_id=record.node_id,
                 status=NodeExecutionStatus.ERROR,
                 errors=["No lookup configuration found"],
             )
 
-        lookup_config = lookups[0] if isinstance(lookups[0], dict) else {}
+        engine_inputs = dict(raw_inputs)
+        if "material_grade" in engine_inputs and "material" not in engine_inputs:
+            engine_inputs["material"] = engine_inputs["material_grade"]
+        if "material" in engine_inputs and "material_grade" not in engine_inputs:
+            engine_inputs["material_grade"] = engine_inputs["material"]
+        if "temperature" in engine_inputs and "design_temperature" not in engine_inputs:
+            engine_inputs["design_temperature"] = engine_inputs["temperature"]
+
+        table_ref = str(
+            lookup_config.get("table_id")
+            or lookup_config.get("table")
+            or ""
+        ).strip()
         try:
-            lookup_result = self._lookup_engine.execute_lookup(
-                node_id=record.node_id,
-                lookup_config=lookup_config,
-                inputs=raw_inputs,
-            )
+            if table_ref in {"asme-b313-table-A-1", "A-1", "asme_b31.3_A-1"}:
+                lookup_result = self._lookup_engine.execute_lookup(
+                    node_id=record.node_id,
+                    lookup_config={
+                        "table_id": "A-1",
+                        "interpolation": bool(lookup_config.get("interpolation", True)),
+                    },
+                    inputs=engine_inputs,
+                )
+                stress_value = lookup_result.trace.allowable_stress_pa
+                outputs: dict[str, Any] = {
+                    "allowable_stress": stress_value,
+                    "S": stress_value,
+                }
+                trace_payload = {
+                    "lookup": asdict(lookup_result.trace),
+                    "calculation": asdict(lookup_result.calculation),
+                }
+            else:
+                table_value = self._lookup_engine.lookup(table_ref, engine_inputs)
+                outputs = {"value": table_value.value}
+                for item in record.metadata.get("returns") or []:
+                    if not isinstance(item, dict):
+                        continue
+                    symbol = str(item.get("symbol") or "").strip()
+                    param_id = str(item.get("parameter") or "").strip()
+                    if symbol:
+                        outputs[symbol] = table_value.value
+                    if param_id:
+                        try:
+                            param = self._reader.load(param_id)
+                            fact_key = self._param_fact_key(param.metadata)
+                            if fact_key:
+                                outputs[fact_key] = table_value.value
+                        except FileNotFoundError:
+                            pass
+                trace_payload = {"table_id": table_ref, "value": table_value.value}
         except (ValueError, FileNotFoundError) as exc:
             return NodeExecutionResult(
                 node_id=record.node_id,
                 status=NodeExecutionStatus.ERROR,
                 errors=[str(exc)],
-                inputs=raw_inputs,
+                inputs=engine_inputs,
             )
 
-        output_id = "allowable_stress"
-        for spec in record.metadata.get("outputs", []) or []:
-            if isinstance(spec, dict) and spec.get("id"):
-                output_id = str(spec["id"])
-                break
-
-        outputs = {
-            output_id: lookup_result.calculation.final_result.value
-            if lookup_result.calculation.final_result
-            else None,
-            "S": lookup_result.calculation.final_result.value
-            if lookup_result.calculation.final_result
-            else None,
-        }
+        for item in record.metadata.get("returns") or []:
+            if not isinstance(item, dict):
+                continue
+            symbol = str(item.get("symbol") or "").strip()
+            param_id = str(item.get("parameter") or "").strip()
+            value = outputs.get(symbol) or outputs.get("value")
+            if value is None:
+                continue
+            if symbol and symbol not in outputs:
+                outputs[symbol] = value
+            if param_id:
+                try:
+                    param = self._reader.load(param_id)
+                    fact_key = self._param_fact_key(param.metadata)
+                    if fact_key:
+                        outputs[fact_key] = value
+                except FileNotFoundError:
+                    pass
 
         return self._finalize_result(
             record,
             status=NodeExecutionStatus.COMPLETED,
-            inputs=raw_inputs,
+            inputs=engine_inputs,
             outputs=outputs,
-            trace={
-                "lookup": asdict(lookup_result.trace),
-                "calculation": asdict(lookup_result.calculation),
-            },
+            trace=trace_payload,
         )
 
     def _run_calculation(
@@ -466,6 +586,7 @@ class NodeRunner:
                     binding.param_id,
                     task_inputs=task_inputs,
                     dependency_outputs=dependency_outputs,
+                    sympy_symbol=binding.sympy_symbol,
                 )
                 if value is None:
                     try:
@@ -584,6 +705,9 @@ class NodeRunner:
         record: NodeRecord,
         reader: StandardsReader | None = None,
     ) -> dict[str, Any] | None:
+        metadata = record.metadata
+        if metadata.get("executor") or metadata.get("execution_function"):
+            return metadata
         for child_id in record.metadata.get("contains", []) or []:
             child = str(child_id).strip()
             if "eq" not in child.lower():
@@ -686,13 +810,21 @@ class NodeRunner:
         task_inputs: dict[str, Fact],
     ) -> list[str]:
         missing: list[str] = []
+        node_type = str(record.metadata.get("type", ""))
         for spec in record.metadata.get("inputs", []) or []:
             if not isinstance(spec, dict):
                 continue
             if not input_applies(spec, task_inputs):
                 continue
             input_id = str(spec.get("id", ""))
-            if bool(spec.get("required", True)) and input_id not in task_inputs:
+            fact_key = input_id
+            if node_type == "lookup":
+                fact_key = str(spec.get("task_input_id") or input_id).strip()
+            if bool(spec.get("required", True)) and fact_key not in task_inputs:
+                if fact_key == "material_grade" and "material" in task_inputs:
+                    continue
+                if fact_key == "material" and "material_grade" in task_inputs:
+                    continue
                 if input_id == "outside_diameter" and field_value("d_input_mode", task_inputs) == "nps_lookup":
                     if "nominal_pipe_size" not in task_inputs:
                         missing.append("nominal_pipe_size")
@@ -760,27 +892,42 @@ class NodeRunner:
         *,
         task_inputs: dict[str, Fact],
         dependency_outputs: dict[str, Any],
+        sympy_symbol: str = "",
     ) -> float | None:
         try:
             param = self._reader.load(param_node_id)
         except FileNotFoundError:
             return None
-        symbol = str(param.metadata.get("symbol", ""))
-        input_id = str(param.metadata.get("input_id", ""))
-        for key in self._output_alias_keys(symbol, input_id):
+        symbol = str(
+            sympy_symbol
+            or param.metadata.get("canonical_symbol")
+            or param.metadata.get("symbol")
+            or ""
+        ).strip()
+        fact_key = self._param_fact_key(param.metadata)
+        for key in self._output_alias_keys(symbol, fact_key):
             if key in dependency_outputs:
                 value = dependency_outputs[key]
                 if value is not None:
                     return float(value)
-        if input_id and input_id in task_inputs:
-            prepared = prepare_fact(task_inputs[input_id])
-            if fact_scalar_value(prepared) is not None:
+        stored = fact_for_task_input(task_inputs, fact_key) if fact_key else None
+        if stored is not None:
+            prepared = prepare_fact(stored)
+            scalar = fact_scalar_value(prepared)
+            if scalar is not None:
                 try:
-                    return float(fact_scalar_value(prepared))
+                    return float(scalar)
                 except (TypeError, ValueError):
                     return None
-        if input_id:
-            value = field_value(input_id, task_inputs)
+        if fact_key:
+            value = read_fact_value(task_inputs, fact_key)
+            if value is not None:
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    return None
+        if fact_key:
+            value = field_value(fact_key, task_inputs)
             if value is not None:
                 return float(value)
         resolution = param.metadata.get("resolution") or {}
@@ -788,12 +935,12 @@ class NodeRunner:
             return self._resolve_table_lookup_parameter(param, resolution, task_inputs)
         return None
 
-    def _output_alias_keys(self, symbol: str, input_id: str) -> list[str]:
+    def _output_alias_keys(self, symbol: str, fact_key: str) -> list[str]:
         keys: list[str] = []
         if symbol:
             keys.extend(self._OUTPUT_ALIASES.get(symbol, (symbol,)))
-        if input_id and input_id not in keys:
-            keys.append(input_id)
+        if fact_key and fact_key not in keys:
+            keys.append(fact_key)
         return keys
 
     def _resolve_table_lookup_parameter(
@@ -827,7 +974,16 @@ class NodeRunner:
         task_inputs: dict[str, Fact],
         dependency_outputs: dict[str, Any],
     ) -> NodeExecutionResult:
-        sympy_expr = str(record.metadata.get("sympy", "")).strip()
+        sympy_expr = str(record.metadata.get("sympy") or "").strip()
+        executor_name = str(
+            record.metadata.get("executor") or record.metadata.get("execution_function") or ""
+        ).strip()
+        if not sympy_expr and executor_name:
+            return self._run_executor_equation(
+                record,
+                task_inputs=task_inputs,
+                dependency_outputs=dependency_outputs,
+            )
         if not sympy_expr:
             store = self._reader.graph_store
             for edge in store.incoming(record.node_id, edge_types={"contains"}):
@@ -838,6 +994,11 @@ class NodeRunner:
                         status=NodeExecutionStatus.SKIPPED,
                         trace={"reason": f"executed via parent calculation node {edge.from_id}"},
                     )
+            return NodeExecutionResult(
+                node_id=record.node_id,
+                status=NodeExecutionStatus.ERROR,
+                errors=[f"No equation execution configuration for {record.node_id}"],
+            )
         display = str(record.metadata.get("display_latex") or sympy_expr)
         requires = record.metadata.get("requires")
         calculates = record.metadata.get("calculates") or []
@@ -852,6 +1013,7 @@ class NodeRunner:
                 binding.param_id,
                 task_inputs=task_inputs,
                 dependency_outputs=dependency_outputs,
+                sympy_symbol=binding.sympy_symbol,
             )
             if value is None:
                 missing.append(str(param.metadata.get("input_id") or binding.sympy_symbol))
@@ -963,6 +1125,186 @@ class NodeRunner:
             inputs=lookup_inputs,
             outputs=outputs,
             trace={"table_id": table_id},
+        )
+
+    _CRITICAL_EQUATION_OUTPUT_KEYS = frozenset(
+        {
+            "t",
+            "t_m",
+            "required_thickness",
+            "minimum_required_thickness",
+            "required_wall_thickness",
+            "pressure_design_thickness",
+        }
+    )
+
+    def _equation_produces_critical_output(self, record: NodeRecord) -> bool:
+        for spec in record.metadata.get("outputs", []) or []:
+            if not isinstance(spec, dict):
+                continue
+            for key in ("name", "symbol", "id"):
+                value = str(spec.get(key) or "").strip()
+                if value in self._CRITICAL_EQUATION_OUTPUT_KEYS:
+                    return True
+        for ref in record.metadata.get("calculates") or []:
+            param_id = str(ref.get("parameter") if isinstance(ref, dict) else ref).strip()
+            if not param_id:
+                continue
+            try:
+                param = self._reader.load(param_id)
+            except FileNotFoundError:
+                continue
+            fact_key = self._param_fact_key(param.metadata)
+            symbol = str(param.metadata.get("symbol", "")).strip()
+            if fact_key in self._CRITICAL_EQUATION_OUTPUT_KEYS or symbol in self._CRITICAL_EQUATION_OUTPUT_KEYS:
+                return True
+        return False
+
+    def _run_executor_equation(
+        self,
+        record: NodeRecord,
+        *,
+        task_inputs: dict[str, Fact],
+        dependency_outputs: dict[str, Any],
+    ) -> NodeExecutionResult:
+        requires = record.metadata.get("requires")
+        store = self._reader.graph_store
+        bindings = resolve_require_bindings(store, requires)
+        resolved: dict[str, Any] = {}
+        missing: list[str] = []
+        for binding in bindings:
+            param = self._reader.load(binding.param_id)
+            value = self._resolve_parameter_value(
+                binding.param_id,
+                task_inputs=task_inputs,
+                dependency_outputs=dependency_outputs,
+                sympy_symbol=binding.sympy_symbol,
+            )
+            if value is None:
+                missing.append(
+                    str(param.metadata.get("input_id") or param.metadata.get("key") or binding.sympy_symbol)
+                )
+            else:
+                resolved[binding.sympy_symbol] = value
+
+        if missing:
+            if not self._equation_produces_critical_output(record):
+                return NodeExecutionResult(
+                    node_id=record.node_id,
+                    status=NodeExecutionStatus.SKIPPED,
+                    trace={
+                        "reason": (
+                            "optional branch equation skipped; "
+                            f"missing inputs: {', '.join(missing)}"
+                        ),
+                    },
+                )
+            return NodeExecutionResult(
+                node_id=record.node_id,
+                status=NodeExecutionStatus.AWAITING_INPUT,
+                errors=[f"Missing required inputs: {', '.join(missing)}"],
+                trace={"missing_inputs": missing},
+            )
+
+        unit_map = self._symbol_unit_map(record)
+        variables = prepare_symbol_map(resolved, unit_map)
+        function_name = str(
+            record.metadata.get("executor") or record.metadata.get("execution_function") or ""
+        ).strip()
+        fn = get_execution_function(function_name)
+        if fn is None:
+            if not self._equation_produces_critical_output(record):
+                return NodeExecutionResult(
+                    node_id=record.node_id,
+                    status=NodeExecutionStatus.SKIPPED,
+                    trace={"reason": f"optional branch equation skipped: unknown function {function_name}"},
+                )
+            return NodeExecutionResult(
+                node_id=record.node_id,
+                status=NodeExecutionStatus.ERROR,
+                errors=[f"Unapproved execution function: {function_name}"],
+            )
+
+        equation_meta = dict(record.metadata)
+        try:
+            calculation = fn(
+                node_dir=record.path.parent,
+                variables=variables,
+                reader=self._reader,
+                record=record,
+                equation_meta=equation_meta,
+            )
+        except Exception as exc:  # noqa: BLE001
+            if not self._equation_produces_critical_output(record):
+                return NodeExecutionResult(
+                    node_id=record.node_id,
+                    status=NodeExecutionStatus.SKIPPED,
+                    trace={"reason": f"optional branch equation skipped: {exc}"},
+                )
+            return NodeExecutionResult(
+                node_id=record.node_id,
+                status=NodeExecutionStatus.ERROR,
+                errors=[str(exc)],
+                inputs=resolved,
+            )
+
+        outputs: dict[str, Any] = {}
+        final = calculation.final_result
+        if final and final.value is not None:
+            symbol = str(final.symbol or "").strip()
+            if symbol:
+                outputs[symbol] = final.value
+                for alias in self._OUTPUT_ALIASES.get(symbol, ()):
+                    outputs[alias] = final.value
+
+        for spec in record.metadata.get("outputs", []) or []:
+            if not isinstance(spec, dict):
+                continue
+            symbol = spec_symbol(spec, fallback=str(spec.get("symbol", "")))
+            name = str(spec.get("name", symbol)).strip()
+            value = outputs.get(symbol)
+            if value is None and final:
+                value = final.value
+            if value is not None:
+                if name:
+                    outputs[name] = value
+                if symbol:
+                    outputs[symbol] = value
+                    for alias in self._OUTPUT_ALIASES.get(symbol, ()):
+                        outputs[alias] = value
+
+        calculates = record.metadata.get("calculates") or []
+        for ref in calculates:
+            if isinstance(ref, dict):
+                param_id = str(ref.get("parameter") or ref.get("target") or "")
+            else:
+                param_id = str(ref)
+            if not param_id:
+                continue
+            try:
+                param = self._reader.load(param_id)
+            except FileNotFoundError:
+                continue
+            fact_key = str(param.metadata.get("input_id") or param.metadata.get("key") or "").strip()
+            symbol = str(param.metadata.get("symbol", "")).strip()
+            value = outputs.get(symbol)
+            if value is None and final:
+                value = final.value
+            if value is None:
+                continue
+            if fact_key:
+                outputs[fact_key] = value
+            if symbol:
+                outputs[symbol] = value
+                for alias in self._OUTPUT_ALIASES.get(symbol, ()):
+                    outputs[alias] = value
+
+        return self._finalize_result(
+            record,
+            status=NodeExecutionStatus.COMPLETED,
+            inputs=resolved,
+            outputs=outputs,
+            trace={"calculation": asdict(calculation)},
         )
 
     @staticmethod

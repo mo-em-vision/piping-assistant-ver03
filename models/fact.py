@@ -388,6 +388,8 @@ def fact_from_user_submission(
     collected_at_phase: str | None = None,
     symbol: str | None = None,
     description: str | None = None,
+    original_value: Any | None = None,
+    original_unit: str | None = None,
     validation_status: ValidationStatus = ValidationStatus.CONFIRMED,
 ) -> Fact:
     from engine.reference.param_resolver import resolve_parameter_id
@@ -406,6 +408,13 @@ def fact_from_user_submission(
         source_id="USER",
         description="Provided by user during parameter collection.",
     )
+    extra: dict[str, Any] = {}
+    if original_value is not None:
+        extra["original_value"] = original_value
+    if original_unit is not None:
+        extra["original_unit"] = original_unit
+    elif unit not in ("dimensionless", "1", "") and not isinstance(value, (int, float, bool)):
+        extra["original_unit"] = unit
     if isinstance(value, bool):
         return build_boolean_fact(
             key=key,
@@ -417,6 +426,7 @@ def fact_from_user_submission(
             validation_status=validation_status,
             symbol=symbol,
             description=description,
+            **extra,
         )
     if isinstance(value, (int, float)):
         return build_numeric_fact(
@@ -430,6 +440,7 @@ def fact_from_user_submission(
             validation_status=validation_status,
             symbol=symbol,
             description=description,
+            **extra,
         )
     return build_categorical_fact(
         key=key,
@@ -442,6 +453,7 @@ def fact_from_user_submission(
         validation_status=validation_status,
         symbol=symbol,
         description=description,
+        **extra,
     )
 
 

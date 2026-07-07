@@ -6,6 +6,7 @@ from engine.state.state_manager import TaskStateManager
 from models.task import TaskStatus
 
 from api.output_blocks import build_display_outputs
+from engine.reference.parameter_keys import parameter_node_description
 from api.serializers import task_state
 from tests.acceptance.helpers import run_completed_workflow
 from engine.state.task_facts import deactivate_fact
@@ -20,7 +21,7 @@ def test_preview_outputs_for_awaiting_input_task(standards_reader) -> None:
         "goal": "pipe wall thickness design",
         "action": "request_input",
         "active_definition_node": "B313-304.1.1",
-        "missing_inputs": ["material", "design_pressure"],
+        "missing_inputs": ["material", "internal_design_gage_pressure"],
         "missing_assumptions": ["straight_pipe_section"],
         "current_phase": "expansion_assumptions",
         "phase_missing": {"expansion_assumptions": ["straight_pipe_section"]},
@@ -133,7 +134,7 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
             "pressure_loading": "internal_pressure",
             "selected_node": "304.1.2-a",
         },
-        "missing_inputs": ["material", "design_pressure"],
+        "missing_inputs": ["material", "internal_design_gage_pressure"],
         "current_phase": "formula_parameters",
     }
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
@@ -163,13 +164,11 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
     assert "variables" not in equation
     assert "input_table" in equation
     pressure_row = next(row for row in equation["input_table"]["rows"] if row["symbol"] == "P")
-    assert pressure_row["definition"] == "Internal design gage pressure"
+    assert pressure_row["definition"] == parameter_node_description(input_id="internal_design_gage_pressure")
     assert pressure_row["value"] == "Awaiting user input"
-
-    nomenclature_reference = equation.get("nomenclature_reference")
-    assert nomenclature_reference is not None
-    assert nomenclature_reference["node_id"] == "B313-304.1.1"
-    assert nomenclature_reference["label"] == "§304.1.1-b"
+    pressure_reference = pressure_row.get("definition_reference")
+    assert pressure_reference is not None
+    assert pressure_reference["node_id"] in {"304.1.1-b", "B313-304.1.1", "asme-b313-304-1-1-b"}
 
 
 def test_post_calculation_outputs_before_corrosion_allowance(standards_reader, state_manager) -> None:

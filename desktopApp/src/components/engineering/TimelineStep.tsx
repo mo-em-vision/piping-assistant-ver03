@@ -1,7 +1,4 @@
 import type { TimelineStepStatus } from '@/types/frontend/taskState'
-import type { NodeProvenanceDto } from '@/types/backend/api'
-
-import { DevNodeHoverSurface } from '@dev-ui/DevNodeHoverSurface'
 
 import './TimelineStep.css'
 
@@ -24,7 +21,6 @@ interface TimelineStepProps {
   isLast?: boolean
   editable?: boolean
   onEdit?: () => void
-  provenance?: NodeProvenanceDto | null
 }
 
 export function TimelineStep({
@@ -35,11 +31,7 @@ export function TimelineStep({
   isLast = false,
   editable = false,
   onEdit,
-  provenance,
 }: TimelineStepProps) {
-  const valueProvenance =
-    provenance && displayValue ? { ...provenance, source_field: 'input_id' } : null
-
   return (
     <div className={`timeline-step timeline-step--${status}${isLast ? ' timeline-step--last' : ''}`}>
       <div className="timeline-step__track">
@@ -50,14 +42,8 @@ export function TimelineStep({
       </div>
       <div className="timeline-step__content">
         <div className="timeline-step__title-row">
-          <DevNodeHoverSurface provenance={provenance}>
-            <span className="timeline-step__title">{title}</span>
-          </DevNodeHoverSurface>
-          {displayValue ? (
-            <DevNodeHoverSurface provenance={valueProvenance}>
-              <span className="timeline-step__value">{displayValue}</span>
-            </DevNodeHoverSurface>
-          ) : null}
+          <span className="timeline-step__title">{title}</span>
+          {displayValue ? <span className="timeline-step__value">{displayValue}</span> : null}
           {editable && onEdit ? (
             <button
               type="button"
@@ -70,11 +56,7 @@ export function TimelineStep({
             </button>
           ) : null}
         </div>
-        {hint ? (
-          <DevNodeHoverSurface provenance={provenance}>
-            <p className="timeline-step__hint">{hint}</p>
-          </DevNodeHoverSurface>
-        ) : null}
+        {hint ? <p className="timeline-step__hint">{hint}</p> : null}
       </div>
     </div>
   )

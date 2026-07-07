@@ -104,6 +104,45 @@ function initialColumnFilters(
   return next
 }
 
+function tableTitleSuffix(title: string, tableNumber?: string | null): string {
+  const cleaned = title.trim()
+  if (!cleaned) {
+    return ''
+  }
+
+  if (tableNumber) {
+    const escaped = tableNumber.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const withoutPrefix = cleaned
+      .replace(new RegExp(`^Table\\s+${escaped}\\s*(?:—|-|–|:)?\\s*`, 'i'), '')
+      .trim()
+    if (withoutPrefix) {
+      return withoutPrefix
+    }
+  }
+
+  const genericMatch = cleaned.match(/^Table\s+[\d.A-Za-z-]+\s*(?:—|-|–|:)\s*(.+)$/i)
+  if (genericMatch?.[1]) {
+    return genericMatch[1].trim()
+  }
+
+  if (!/^Table\s/i.test(cleaned)) {
+    return cleaned
+  }
+
+  return ''
+}
+
+function formatTableHeaderTitle(payload: Pick<TableSourceDto, 'table_number' | 'title'>): string {
+  const tableNumber = payload.table_number?.trim()
+  const suffix = tableTitleSuffix(payload.title, tableNumber)
+
+  if (tableNumber) {
+    return suffix ? `Table ${tableNumber} - ${suffix}` : `Table ${tableNumber}`
+  }
+
+  return payload.title.trim() || 'Standards table'
+}
+
 export function StandardsTableViewer({ payload, viewerContext }: StandardsTableViewerProps) {
   const displayColumns = useMemo(
     () => displayColumnsForTable(payload.columns),
@@ -156,18 +195,8 @@ export function StandardsTableViewer({ payload, viewerContext }: StandardsTableV
   return (
     <div className="standards-table-viewer">
       <header className="standards-table-viewer__header">
-        <h3 className="standards-table-viewer__title">{payload.title}</h3>
+        <h3 className="standards-table-viewer__title">{formatTableHeaderTitle(payload)}</h3>
         <ReferenceEditionLine standard={payload.standard} revisionYear={payload.revision_year} />
-        {payload.source_path ? (
-          <p className="standards-table-viewer__meta">
-            {payload.standard} · {payload.source_path}
-          </p>
-        ) : null}
-        {payload.description ? (
-          <div className="standards-table-viewer__description">
-            <StandardsMarkdownViewer content={payload.description} />
-          </div>
-        ) : null}
       </header>
 
       <p className="standards-table-viewer__count" aria-live="polite">

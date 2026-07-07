@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS materials (
     standard_slug TEXT NOT NULL,
     grade_key TEXT NOT NULL,
     display_name TEXT NOT NULL,
+    metallurgical_group TEXT,
     UNIQUE (standard_slug, grade_key)
 );
 
@@ -169,6 +170,7 @@ def _catalog_material_entries(
 ) -> list[dict[str, str]]:
     grade_aliases = _grade_alias_map(table)
     materials = table.get("materials", {}) or {}
+    default_group = str(table.get("default_metallurgical_group", "")).strip()
     entries: list[dict[str, str]] = []
 
     for material_key, payload in materials.items():
@@ -179,6 +181,9 @@ def _catalog_material_entries(
             payload.get("material_id") or make_material_id(standard_slug, grade_key)
         )
         display_name = str(payload.get("display_name", grade_key))
+        metallurgical_group = str(
+            payload.get("metallurgical_group") or default_group
+        ).strip()
         for alias in _aliases_for_grade(grade_key, payload, grade_aliases):
             entries.append(
                 {
@@ -188,6 +193,7 @@ def _catalog_material_entries(
                     "alias": alias,
                     "display_name": display_name,
                     "search_key": alias.lower(),
+                    "metallurgical_group": metallurgical_group,
                 }
             )
     return entries
@@ -248,15 +254,24 @@ class GlobalMaterialCatalog:
                 standard_slug: str,
                 grade_key: str,
                 display_name: str,
+                metallurgical_group: str = "",
             ) -> None:
                 if material_id in seen_material_ids:
                     return
                 connection.execute(
                     """
-                    INSERT INTO materials (material_id, standard_slug, grade_key, display_name)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO materials (
+                        material_id, standard_slug, grade_key, display_name, metallurgical_group
+                    )
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (material_id, standard_slug, grade_key, display_name),
+                    (
+                        material_id,
+                        standard_slug,
+                        grade_key,
+                        display_name,
+                        metallurgical_group or None,
+                    ),
                 )
                 seen_material_ids.add(material_id)
 
@@ -267,6 +282,7 @@ class GlobalMaterialCatalog:
                     standard_slug=row["standard_slug"],
                     grade_key=row["grade_key"],
                     display_name=row["display_name"],
+                    metallurgical_group=row.get("metallurgical_group", ""),
                 )
                 connection.execute(
                     """
@@ -320,6 +336,7 @@ class GlobalMaterialCatalog:
                 standard_slug = str(item.get("standard_slug", "")).strip()
                 grade_key = str(item.get("grade_key", "")).strip()
                 display_name = str(item.get("display_name", grade_key)).strip()
+                metallurgical_group = str(item.get("metallurgical_group", "")).strip()
                 if not material_id or not standard_slug or not grade_key:
                     continue
                 connection.execute(
@@ -343,6 +360,7 @@ class GlobalMaterialCatalog:
                             "alias": alias,
                             "display_name": display_name,
                             "search_key": alias.lower(),
+                            "metallurgical_group": metallurgical_group,
                         }
                     )
 
@@ -404,7 +422,7 @@ class GlobalMaterialCatalog:
         with self.connect() as connection:
             row = connection.execute(
                 """
-                SELECT material_id, standard_slug, grade_key, display_name
+                SELECT material_id, standard_slug, grade_key, display_name, metallurgical_group
                 FROM materials
                 WHERE material_id = ?
                 """,
@@ -417,6 +435,7 @@ class GlobalMaterialCatalog:
             "standard_slug": str(row["standard_slug"]),
             "grade_key": str(row["grade_key"]),
             "display_name": str(row["display_name"]),
+            "metallurgical_group": str(row["metallurgical_group"] or ""),
         }
 
 
@@ -457,6 +476,16 @@ def material_display_name(standards_root: Path, material_id: str) -> str | None:
     if record is None:
         return None
     return record["display_name"]
+
+
+def lookup_metallurgical_group(standards_root: Path, material_id: str) -> str | None:
+    """Return the metallurgical group token for a catalog material id."""
+    catalog = GlobalMaterialCatalog(standards_root)
+    record = catalog.get_material(material_id.strip())
+    if record is None:
+        return None
+    group = str(record.get("metallurgical_group", "")).strip()
+    return group or None
 
 
 def search_materials(

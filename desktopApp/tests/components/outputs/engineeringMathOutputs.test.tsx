@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import { EquationOutput } from '@/components/outputs/EquationOutput'
 import { TableOutput } from '@/components/outputs/TableOutput'
+import { useRightPanelStore } from '@/store/rightPanelStore'
 
 describe('EquationOutput', () => {
   it('renders governing equations with KaTeX only once', () => {
@@ -77,6 +78,121 @@ describe('EquationOutput', () => {
     expect(container.querySelector('.output-equation__leading-result')).toBeNull()
     expect(container.querySelector('.output-equation__input-table')).toBeNull()
     expect(container.querySelector('.output-equation__math-row')?.children.length).toBe(1)
+  })
+
+  it('opens table references from derived coefficient value links', () => {
+    useRightPanelStore.getState().reset(true)
+
+    const { getByRole } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-coefficients',
+          type: 'equation',
+          content: 't = PD / 2(SEW + PY)',
+          display: 't = PD / 2(SEW + PY)',
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'definition', label: 'Definition', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+            ],
+            rows: [
+              {
+                symbol: 'S',
+                definition: 'Allowable stress',
+                value: '',
+                value_reference: {
+                  node_id: 'asme_b31.3_A-1',
+                  label: 'Table A-1',
+                  reference_kind: 'table',
+                },
+              },
+            ],
+          },
+        }}
+      />,
+    )
+
+    getByRole('button', { name: 'Table A-1' }).click()
+
+    const state = useRightPanelStore.getState()
+    const refTab = state.tabs.find((tab) => tab.kind === 'reference')
+    expect(refTab?.kind).toBe('reference')
+    if (refTab?.kind === 'reference') {
+      expect(refTab.referenceKind).toBe('table')
+      expect(refTab.referenceId).toBe('asme_b31.3_A-1')
+      expect(state.activeTabId).toBe(refTab.id)
+    }
+  })
+
+  it('renders derived parameter value references in the value column', () => {
+    const { getByRole, getByText, queryByText } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-min-thickness',
+          type: 'equation',
+          content: 't_m = t + c',
+          display: 't_m = t + c',
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'definition', label: 'Definition', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+            ],
+            rows: [
+              {
+                symbol: 't',
+                definition: 'pressure design thickness',
+                value: '',
+                value_reference: { node_id: '304.1.2-a', label: '§304.1.2' },
+              },
+              {
+                symbol: 'c',
+                definition: 'corrosion allowance',
+                value: 'Awaiting user input',
+              },
+            ],
+          },
+        }}
+      />,
+    )
+
+    expect(getByRole('button', { name: '§304.1.2' })).toBeTruthy()
+    expect(getByText(/derived from/i)).toBeTruthy()
+    expect(queryByText('Awaiting user input')).toBeTruthy()
+  })
+
+  it('renders inline definition references inside the input table', () => {
+    const { getByText, getByRole, queryByText } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-wall-thickness',
+          type: 'equation',
+          content: 't = PD / 2(SEW + PY)',
+          display: 't = PD / 2(SEW + PY)',
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'definition', label: 'Definition', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+            ],
+            rows: [
+              {
+                symbol: 'D',
+                definition: 'Outside diameter of pipe',
+                value: '8 bar',
+                definition_reference: { node_id: '304.1.1-b', label: '§304.1.1-b' },
+              },
+            ],
+          },
+        }}
+      />,
+    )
+
+    expect(getByText(/Outside diameter of pipe/)).toBeTruthy()
+    expect(getByText(/as defined in/)).toBeTruthy()
+    expect(getByRole('button', { name: '§304.1.1-b' })).toBeTruthy()
+    expect(queryByText('Symbol definitions:')).toBeNull()
   })
 
   it('renders resolved variable descriptions and nomenclature reference link', () => {

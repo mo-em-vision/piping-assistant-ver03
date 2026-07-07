@@ -8,6 +8,8 @@ source:
   table_id: asme_b31.3_table_302_3_3C
 type: lookup
 title: Table 302.3.3C — Increased Casting Quality Factors, E_c
+table_number: 302.3.3C
+paragraph_number: 302.3.3-c
 status: draft
 paragraph: 302.3.3-c, Table 302.3.3C
 section: '302.3'

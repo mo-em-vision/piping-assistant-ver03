@@ -6,7 +6,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from engine.graph.assumption_checker import AssumptionEvaluation, field_value
-from engine.graph.workflow_navigation import WorkflowNavigationConfig, load_workflow_navigation
+from engine.graph.workflow_navigation import (
+    WorkflowNavigationConfig,
+    _empty_navigation_config,
+    load_workflow_navigation,
+)
 from engine.reference.standards_reader import StandardsReader
 from models.fact import Fact, fact_is_expansion_ready
 from models.planning import NavigationPhase
@@ -56,6 +60,27 @@ def missing_fields_from_navigation(
     return result
 
 
+_NAV_CONFIG_GATE_PHASES = frozenset(
+    {
+        NavigationPhase.EXPANSION_ASSUMPTIONS.value,
+        NavigationPhase.PATH_DECISIONS.value,
+    }
+)
+
+
+def _gate_phase_missing_from_navigation(
+    config: WorkflowNavigationConfig,
+    existing_inputs: dict[str, Fact],
+) -> dict[str, list[str]]:
+    """Return only expansion/path gate fields from nav config — not path-specific parameters."""
+    nav_missing = missing_fields_from_navigation(config, existing_inputs)
+    return {
+        phase: list(fields)
+        for phase, fields in nav_missing.items()
+        if phase in _NAV_CONFIG_GATE_PHASES
+    }
+
+
 def _merge_phase_missing(
     base: dict[str, list[str]],
     extra: dict[str, list[str]],
@@ -87,6 +112,8 @@ def build_workflow_phased_navigation(
     execution_eval: AssumptionEvaluation,
     question_map: dict[str, str],
     existing_inputs: dict[str, Fact] | None = None,
+    post_thickness_outputs: dict[str, Any] | None = None,
+    has_execution: bool = False,
 ) -> PhasedNavigation:
     """Partition missing fields into ordered navigation phases from workflow config."""
     result = PhasedNavigation()
@@ -128,10 +155,29 @@ def build_workflow_phased_navigation(
     phase5 = [field_id for field_id in phase5 if field_id not in coefficient_set]
 
     definition_order = config.ordered_fields_for_phase(NavigationPhase.DEFINITION_EQUATION_COMPLETION)
-    phase_definition = _ordered_missing(
-        [field_id for field_id in execution_eval.missing_fields if field_id in definition_order],
-        definition_order,
-    )
+    phase_definition_source = [
+        field_id for field_id in execution_eval.missing_fields if field_id in definition_order
+    ]
+    if (
+        has_execution
+        and post_thickness_outputs is not None
+        and existing_inputs is not None
+    ):
+        thickness_ready = (
+            post_thickness_outputs.get("t") is not None
+            or post_thickness_outputs.get("required_thickness") is not None
+        )
+        minimum_thickness_done = (
+            post_thickness_outputs.get("minimum_required_thickness") is not None
+            or post_thickness_outputs.get("t_m") is not None
+        )
+        if thickness_ready and not minimum_thickness_done:
+            for field_id in definition_order:
+                if field_id in phase_definition_source:
+                    continue
+                if not _field_satisfied(field_id, existing_inputs):
+                    phase_definition_source.append(field_id)
+    phase_definition = _ordered_missing(phase_definition_source, definition_order)
 
     result.phase_missing = {
         NavigationPhase.EXPANSION_ASSUMPTIONS.value: phase1,
@@ -143,8 +189,10 @@ def build_workflow_phased_navigation(
     }
 
     if existing_inputs:
-        nav_missing = missing_fields_from_navigation(config, existing_inputs)
-        result.phase_missing = _merge_phase_missing(result.phase_missing, nav_missing)
+        result.phase_missing = _merge_phase_missing(
+            result.phase_missing,
+            _gate_phase_missing_from_navigation(config, existing_inputs),
+        )
 
     phase_sequence = (
         NavigationPhase.EXPANSION_ASSUMPTIONS,
@@ -190,11 +238,7 @@ def build_phased_navigation(
         if reader is not None and workflow_id:
             config = load_workflow_navigation(reader, workflow_id)
         else:
-            from engine.graph.workflow_navigation import _config_from_defaults
-
-            config = _config_from_defaults("pipe_wall_thickness_design")
-            if config is None:
-                raise ValueError("navigation config unavailable")
+            config = _empty_navigation_config("pipe_wall_thickness_design")
     return build_workflow_phased_navigation(
         config=config,
         assumption_eval=assumption_eval,
@@ -221,11 +265,7 @@ def build_mawp_phased_navigation(
         if reader is not None and workflow_id:
             config = load_workflow_navigation(reader, workflow_id)
         else:
-            from engine.graph.workflow_navigation import _config_from_defaults
-
-            config = _config_from_defaults("mawp_design")
-            if config is None:
-                raise ValueError("navigation config unavailable")
+            config = _empty_navigation_config("mawp_design")
     return build_workflow_phased_navigation(
         config=config,
         assumption_eval=assumption_eval,
@@ -245,15 +285,11 @@ def allowed_fields_for_phase(
 ) -> frozenset[str]:
     """Return input fields that may be extracted/stored during a navigation phase."""
     if config is None:
-        from engine.graph.workflow_navigation import _config_from_defaults
-
         slug = workflow or "pipe_wall_thickness_design"
         if reader is not None:
             config = load_workflow_navigation(reader, slug)
         else:
-            config = _config_from_defaults(slug) or _config_from_defaults("pipe_wall_thickness_design")
-            if config is None:
-                return frozenset()
+            config = _empty_navigation_config(slug)
     if phase == NavigationPhase.READY:
         return frozenset()
     return config.fields_for_phase(phase)

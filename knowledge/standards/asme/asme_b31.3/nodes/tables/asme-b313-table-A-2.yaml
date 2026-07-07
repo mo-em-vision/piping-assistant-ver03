@@ -7,30 +7,37 @@ source:
   tables_db: tables.db
   table_id: asme_b31.3_A-2
 type: lookup
-title: Table A-2 — Basic Casting Quality Factors, E_c
+title: Basic Casting Quality Factors, E_c
+table_number: A-2
+paragraph_number: 302.3.3-b
 status: draft
 paragraph: Appendix A, Table A-2
 section: Appendix A
 topic: quality_factor
 revision_year: 2024
 inputs:
-- id: material
-  name: material
-  description: Casting material specification (ASTM)
+- id: material_grade
+  name: material_grade
+  description: Casting material specification (PARAM-material-grade)
   required: true
   source: user_input
   unit: dimensionless
-lookups:
-- id: appendix_a2_casting_quality
-  source: table
-  table_id: asme_b31.3_A-2
+returns:
+- parameter: PARAM-weld-joint-efficiency
+  symbol: E
+lookup:
+  table: asme-b313-table-A-2
+  keys:
+  - PARAM-material-grade
   lookup_rule: material
 edges:
 - type: depends_on
   target: 302.3.3-b
-- type: introduces_parameter
-  target: quality_factor
+- type: returns_parameter
+  target: PARAM-weld-joint-efficiency
+- type: requires_parameter
+  target: PARAM-material-grade
 metadata:
-  last_revision: 2026-07-04
+  last_revision: 2026-07-06
   edited_by: admin
 ---

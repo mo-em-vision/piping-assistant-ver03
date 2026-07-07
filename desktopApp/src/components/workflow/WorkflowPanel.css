@@ -149,6 +149,9 @@
   padding: 0.85rem 1.25rem 1rem;
   border-top: 1px solid #e2e8f0;
   background: #ffffff;
+  overflow: visible;
+  position: relative;
+  z-index: 4;
 }
 
 .workflow-panel__guidance {
@@ -207,6 +210,16 @@
   flex: 0 0 auto;
   flex-shrink: 0;
   width: auto;
+}
+
+.workflow-panel__selection-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.45rem;
+  margin-left: auto;
 }
 
 .workflow-panel__next-step-text {
@@ -298,4 +311,34 @@
 .workflow-panel__submit:disabled {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+.workflow-panel__composer--processing .workflow-panel__next-step-text {
+  color: #64748b;
+}
+
+.workflow-panel__next-step-inline--locked .composer-inline-row__value,
+.workflow-panel__next-step-inline--locked .scroll-select-picker__trigger,
+.workflow-panel__next-step-inline--locked .diameter-scroll-composer__mode,
+.workflow-panel__next-step-inline--locked .workflow-panel__option {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #a1a1aa;
+  cursor: not-allowed;
+}
+
+.workflow-panel__next-step-inline--locked .composer-inline-row__value:disabled,
+.workflow-panel__next-step-inline--locked .scroll-select-picker__trigger:disabled,
+.workflow-panel__next-step-inline--locked .diameter-scroll-composer__mode:disabled,
+.workflow-panel__next-step-inline--locked .workflow-panel__option:disabled {
+  opacity: 1;
+}
+
+.workflow-panel__next-step-inline--locked .composer-inline-row .unit-pill-group {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.workflow-panel__next-step-inline--locked .composer-inline-row__submit {
+  opacity: 0.35;
 }

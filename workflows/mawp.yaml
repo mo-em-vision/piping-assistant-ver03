@@ -57,11 +57,9 @@ phases:
 - key: coefficient_resolution
   purpose: Resolve coefficients required by the MAWP equation.
   required_parameters:
-  - PARAM-metallurgical-group
   - PARAM-pipe-construction-type
   - PARAM-weld-joint-efficiency
   - PARAM-weld-strength-reduction-factor-W
-  - PARAM-temperature-coefficient-Y
 - key: execution_assumptions
   purpose: Resolve execution assumptions.
   required_parameters: []

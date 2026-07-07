@@ -1,0 +1,384 @@
+"""Graph-driven equation evaluation display for the desktop center panel."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from api.equation_inputs_display import AWAITING_USER_INPUT, _input_display_value
+from engine.graph.assumption_checker import field_value
+from engine.graph.param_priority import require_target_id
+from engine.messaging.formula_parameter_prompt import resolve_focus_calculation_node
+from engine.reference.formula_display import (
+    _resolve_equation_node_id,
+    load_equation_context,
+    resolve_equation_display_variables,
+)
+from engine.reference.parameter_keys import param_node_id_for_input, parameter_node_description
+from engine.reference.parameter_value_source import resolve_parameter_value_reference
+from engine.reference.standards_reader import StandardsReader
+from models.planning import NavigationPhase
+from models.task import Task
+
+
+_INPUT_TABLE_COLUMNS: tuple[dict[str, Any], ...] = (
+    {"key": "symbol", "label": "Symbol", "sortable": False},
+    {"key": "definition", "label": "Definition", "sortable": False},
+    {"key": "value", "label": "Value", "sortable": False},
+)
+
+
+def resolve_focus_node_for_equation_display(
+    task: Task,
+    planning: dict[str, Any],
+    reader: StandardsReader,
+) -> str | None:
+    """Return the calculation or equation node driving the live equation preview."""
+    path = planning.get("path_decision") or {}
+    if isinstance(path, dict) and path.get("selected_node"):
+        return str(path["selected_node"])
+
+    from models.planning import NavigationPlan
+
+    nav_plan = None
+    if planning:
+        try:
+            nav_plan = NavigationPlan(
+                path_decision=path if isinstance(path, dict) else None,
+                selected_nodes=list(planning.get("selected_nodes") or []),
+                current_phase=NavigationPhase(
+                    str(planning.get("current_phase") or NavigationPhase.PARAMETER_GATHERING.value)
+                ),
+            )
+        except ValueError:
+            nav_plan = None
+
+    focus = resolve_focus_calculation_node(
+        nav_plan,
+        reader,
+        task_inputs=task.fact_store.active_facts(),
+    )
+    if focus:
+        return focus
+
+    for node_id in task.active_nodes:
+        try:
+            node_type = str(reader.load(str(node_id)).metadata.get("type", ""))
+        except FileNotFoundError:
+            continue
+        if node_type in {"equation", "calculation", "paragraph"}:
+            return str(node_id)
+    return None
+
+
+def equation_evaluation_in_progress(
+    task: Task,
+    *,
+    focus_node_id: str,
+    reader: StandardsReader,
+) -> bool:
+    """True while the focus equation is active and its inputs are still being collected."""
+    equation_id = resolve_equation_node_for_display(reader, focus_node_id, task)
+    if not equation_id:
+        return False
+
+    try:
+        eq_record = reader.load(equation_id)
+    except FileNotFoundError:
+        return False
+
+    eq_type = str(eq_record.metadata.get("type", ""))
+    if eq_type != "equation":
+        return True
+
+    for item in eq_record.metadata.get("requires") or []:
+        if not isinstance(item, dict):
+            continue
+        param_id = str(item.get("parameter") or require_target_id(item) or "").strip()
+        input_id = _param_input_id(reader, param_id)
+        if not input_id:
+            continue
+        if field_value(input_id, task.fact_store.active_facts()) is None:
+            if _output_display_value(task, input_id) is None:
+                return True
+    return False
+
+
+def build_equation_evaluation_block(
+    task: Task,
+    reader: StandardsReader,
+    focus_node_id: str,
+    *,
+    block_id_prefix: str = "path-preview-equation",
+) -> dict[str, Any] | None:
+    """Build a desktop equation block with live symbol table and definition links."""
+    equation_id = resolve_equation_node_for_display(reader, focus_node_id, task)
+    if not equation_id:
+        return None
+    try:
+        eq_record = reader.load(equation_id)
+    except FileNotFoundError:
+        return None
+
+    display = _equation_display(eq_record.metadata)
+    if not display:
+        context = load_equation_context(reader, equation_id)
+        display = str(context.get("display") or "").strip()
+    if not display:
+        return None
+
+    rows = _equation_input_rows(reader, eq_record.metadata, task)
+    if not rows:
+        resolved = resolve_equation_display_variables(reader, equation_id)
+        rows = _legacy_variable_rows(reader, resolved.get("variables") or [], task)
+
+    block: dict[str, Any] = {
+        "id": f"{block_id_prefix}-{focus_node_id}",
+        "type": "equation",
+        "title": None,
+        "content": _display_to_latex(display),
+        "display": display,
+        "input_table": {
+            "columns": list(_INPUT_TABLE_COLUMNS),
+            "rows": rows,
+        },
+    }
+
+    nomenclature_reference = resolve_equation_display_variables(reader, equation_id).get(
+        "nomenclature_reference"
+    )
+    if nomenclature_reference:
+        block["nomenclature_reference"] = nomenclature_reference
+
+    return block
+
+
+def resolve_equation_node_for_display(
+    reader: StandardsReader,
+    focus_node_id: str,
+    task: Task,
+) -> str | None:
+    """Resolve the executable equation node referenced by a paragraph or section."""
+    resolved_id = _resolve_equation_node_id(reader, focus_node_id)
+    try:
+        record = reader.load(resolved_id)
+    except FileNotFoundError:
+        return None
+
+    node_type = str(record.metadata.get("type", ""))
+    if node_type == "equation" and (
+        record.metadata.get("requires") or _equation_display(record.metadata)
+    ):
+        return resolved_id
+
+    facts = task.fact_store.active_facts()
+    for edge in record.metadata.get("edges") or []:
+        if not isinstance(edge, dict):
+            continue
+        if str(edge.get("type", "")) != "references_equation":
+            continue
+        target = str(edge.get("target", "")).strip()
+        if not target:
+            continue
+        when = edge.get("when")
+        if isinstance(when, dict) and not _edge_when_applies(when, facts):
+            continue
+        try:
+            target_record = reader.load(target)
+        except FileNotFoundError:
+            continue
+        if str(target_record.metadata.get("type", "")) == "equation":
+            return target
+
+    for ref in record.metadata.get("contains", []) or []:
+        ref_id = str(ref).strip()
+        if not ref_id:
+            continue
+        try:
+            child = reader.load(ref_id)
+        except FileNotFoundError:
+            continue
+        if str(child.metadata.get("type", "")) == "equation":
+            return ref_id
+
+    return None
+
+
+def _edge_when_applies(when: dict[str, Any], facts: dict[str, Any]) -> bool:
+    field_name = str(when.get("field", "")).strip()
+    if when.get("absent"):
+        return field_value(field_name, facts) is None
+    if when.get("present"):
+        return field_value(field_name, facts) is not None
+    allowed = when.get("in")
+    if field_name and isinstance(allowed, list):
+        value = field_value(field_name, facts)
+        return value in allowed
+    equals = when.get("equals")
+    if field_name and equals is not None:
+        return field_value(field_name, facts) == equals
+    return True
+
+
+def _equation_input_rows(
+    reader: StandardsReader,
+    equation_metadata: dict[str, Any],
+    task: Task,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for item in equation_metadata.get("requires") or []:
+        if not isinstance(item, dict):
+            continue
+        symbol = str(item.get("symbol") or item.get("alias") or "").strip()
+        param_id = str(item.get("parameter") or require_target_id(item) or "").strip()
+        definition = parameter_node_description(reader=reader, param_id=param_id) or symbol
+        input_id = _param_input_id(reader, param_id)
+        display = None
+        if input_id:
+            display = _input_display_value(task, input_id) or _output_display_value(task, input_id)
+        row: dict[str, Any] = {
+            "symbol": symbol,
+            "definition": definition,
+            "value": display or "",
+        }
+        if not display:
+            value_reference = resolve_parameter_value_reference(reader, param_id, task)
+            if value_reference is not None:
+                row["value_reference"] = value_reference
+            else:
+                row["value"] = AWAITING_USER_INPUT
+        definition_reference = _definition_reference_for_parameter(reader, param_id)
+        if definition_reference is not None:
+            row["definition_reference"] = definition_reference
+        rows.append(row)
+    return rows
+
+
+def _legacy_variable_rows(
+    reader: StandardsReader,
+    variables: list[dict[str, Any]],
+    task: Task,
+) -> list[dict[str, Any]]:
+    from api.equation_inputs_display import _SYMBOL_TO_INPUT_ID
+
+    rows: list[dict[str, Any]] = []
+    for variable in variables:
+        symbol = str(variable.get("symbol", "")).strip()
+        if not symbol:
+            continue
+        input_id = _SYMBOL_TO_INPUT_ID.get(symbol)
+        param_id = param_node_id_for_input(input_id) if input_id else None
+        definition = (
+            parameter_node_description(reader=reader, param_id=param_id)
+            if param_id
+            else symbol
+        )
+        display = None
+        if input_id:
+            display = _input_display_value(task, input_id) or _output_display_value(task, input_id)
+        if display is None and variable.get("value"):
+            display = str(variable["value"])
+        row: dict[str, Any] = {
+            "symbol": symbol,
+            "definition": definition,
+            "value": display or "",
+        }
+        if not display and param_id:
+            value_reference = resolve_parameter_value_reference(reader, param_id, task)
+            if value_reference is not None:
+                row["value_reference"] = value_reference
+            else:
+                row["value"] = AWAITING_USER_INPUT
+        elif not display:
+            row["value"] = AWAITING_USER_INPUT
+        if param_id:
+            definition_reference = _definition_reference_for_parameter(reader, param_id)
+            if definition_reference is not None:
+                row["definition_reference"] = definition_reference
+        rows.append(row)
+    return rows
+
+
+def _definition_reference_for_parameter(
+    reader: StandardsReader,
+    param_id: str,
+) -> dict[str, str] | None:
+    try:
+        param = reader.load(param_id)
+    except FileNotFoundError:
+        return None
+
+    introduced = param.metadata.get("introduced_by") or []
+    if not introduced:
+        return None
+
+    def_node_id = str(introduced[0]).strip()
+    if not def_node_id:
+        return None
+
+    paragraph = ""
+    try:
+        def_record = reader.load(def_node_id)
+        paragraph = str(
+            def_record.metadata.get("paragraph_number")
+            or def_record.metadata.get("paragraph")
+            or ""
+        ).strip()
+        label = f"§{paragraph}" if paragraph else def_node_id
+    except FileNotFoundError:
+        label = def_node_id
+
+    return {
+        "node_id": def_node_id,
+        "label": label,
+        "paragraph": paragraph or None,
+    }
+
+
+def _param_input_id(reader: StandardsReader, param_id: str) -> str | None:
+    if not param_id:
+        return None
+    try:
+        param = reader.load(param_id)
+    except FileNotFoundError:
+        return None
+    key = str(param.metadata.get("key") or param.metadata.get("input_id") or "").strip()
+    return key or None
+
+
+def _output_display_value(task: Task, input_id: str) -> str | None:
+    if input_id == "allowable_stress":
+        value = task.outputs.get("allowable_stress") or task.outputs.get("S")
+        if value is None:
+            return None
+        return _input_display_value(task, input_id)
+    if input_id == "pressure_design_thickness":
+        value = task.outputs.get("pressure_design_thickness") or task.outputs.get("t")
+        if value is None:
+            return None
+        return _input_display_value(task, input_id)
+    return None
+
+
+def _equation_display(metadata: dict[str, Any]) -> str:
+    display = metadata.get("display_latex") or metadata.get("sympy")
+    if display:
+        return str(display).strip()
+    nested = metadata.get("display")
+    if isinstance(nested, dict):
+        text = nested.get("text") or nested.get("latex")
+        if text:
+            return str(text).strip()
+    if isinstance(nested, str):
+        return nested.strip()
+    return ""
+
+
+def _display_to_latex(display: str) -> str:
+    import re
+
+    text = display.strip()
+    if " = " in text and " / " in text:
+        left, right = text.split(" = ", 1)
+        numerator, denominator = right.split(" / ", 1)
+        return f"{left.strip()} = \\frac{{{numerator.strip()}}}{{{denominator.strip()}}}"
+    return re.sub(r"\s+", " ", text)

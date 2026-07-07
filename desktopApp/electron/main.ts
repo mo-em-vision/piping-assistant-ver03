@@ -8,7 +8,6 @@ import type { BackendProcessService } from './services/backendProcess'
 import { normalizeDevServerUrl } from './services/devServer'
 import { GraphExplorerProcessService } from './services/graphExplorerProcess'
 import { runStartup } from './services/startup'
-import { closeStudioWindow, openStudioWindow } from './services/studioWindow'
 
 const isDev = !app.isPackaged
 
@@ -117,13 +116,8 @@ function registerIpcHandlers(): void {
     }
 
     await graphExplorerService.stop()
-    closeStudioWindow()
     sendGraphExplorerStatus()
     return graphExplorerService.getStatus()
-  })
-
-  ipcMain.handle('studio:open', async () => {
-    await openStudioWindow(isDev, process.env.VITE_DEV_SERVER_URL)
   })
 
   ipcMain.handle('window:getDisplayState', () => ({
@@ -197,7 +191,6 @@ void app.whenReady().then(async () => {
 app.on('before-quit', () => {
   void backendService?.stop()
   void graphExplorerService?.stop()
-  closeStudioWindow()
 })
 
 app.on('window-all-closed', () => {

@@ -22,7 +22,7 @@ function pipeWallState(): TaskStateDto {
           unit: null,
         },
         {
-          id: 'design_pressure',
+          id: 'internal_design_gage_pressure',
           title: 'Design Pressure',
           status: 'pending',
           value: null,
@@ -60,7 +60,7 @@ function pipeWallState(): TaskStateDto {
         requires_confirmation: false,
       },
       {
-        name: 'design_pressure',
+        name: 'internal_design_gage_pressure',
         label: 'Design Pressure',
         type: 'number',
         required: true,
@@ -94,8 +94,8 @@ function materialHandoffState(): TaskStateDto {
           unit: null,
         },
         {
-          id: 'material',
-          title: 'Material',
+          id: 'material_grade',
+          title: 'Material Grade',
           status: 'pending',
           value: null,
           unit: null,
@@ -105,7 +105,7 @@ function materialHandoffState(): TaskStateDto {
       completed_count: 0,
       total_count: 2,
       current_step_id: 'outside_diameter',
-      missing_inputs: ['outside_diameter', 'material'],
+      missing_inputs: ['outside_diameter', 'material_grade'],
       missing_assumptions: [],
       submittable_parameters: ['outside_diameter'],
       step_progress: [],
@@ -126,8 +126,8 @@ function materialHandoffState(): TaskStateDto {
         requires_confirmation: false,
       },
       {
-        name: 'material',
-        label: 'Material',
+        name: 'material_grade',
+        label: 'Material Grade',
         type: 'material',
         required: true,
         units: [],
@@ -143,6 +143,77 @@ function materialHandoffState(): TaskStateDto {
   }
 }
 
+function materialToTemperatureHandoffState(): TaskStateDto {
+  return {
+    ...materialHandoffState(),
+    current_ask: {
+      kind: 'input',
+      parameter_id: 'material_grade',
+      prompt: 'Select the pipe material. (start typing to see the available options)',
+    },
+    progress: {
+      timeline: [
+        {
+          id: 'material_grade',
+          title: 'Material Grade',
+          status: 'active',
+          value: null,
+          unit: null,
+        },
+        {
+          id: 'design_temperature',
+          title: 'Design Temperature',
+          status: 'pending',
+          value: null,
+          unit: null,
+        },
+      ],
+      steps: [],
+      completed_count: 0,
+      total_count: 2,
+      current_step_id: 'material_grade',
+      missing_inputs: ['material_grade', 'design_temperature'],
+      missing_assumptions: [],
+      submittable_parameters: ['material_grade'],
+      step_progress: [],
+    },
+    parameters: [
+      {
+        name: 'material_grade',
+        label: 'Material Grade',
+        type: 'material',
+        required: true,
+        units: [],
+        default_unit: 'dimensionless',
+        default_value: null,
+        value: null,
+        options: null,
+        validation: null,
+        status: 'pending',
+        requires_confirmation: false,
+        submittable: true,
+        guidance: 'Select the pipe material. (start typing to see the available options)',
+      },
+      {
+        name: 'design_temperature',
+        label: 'Design Temperature',
+        type: 'number',
+        required: true,
+        units: ['C', 'F'],
+        default_unit: 'C',
+        default_value: null,
+        value: null,
+        options: null,
+        validation: null,
+        status: 'pending',
+        requires_confirmation: false,
+        guidance:
+          'Please provide the design temperature because allowable stress depends on metal temperature.',
+      },
+    ],
+  }
+}
+
 describe('applyOptimisticParameterSubmit', () => {
   it('marks the submitted parameter confirmed and advances to the next phased step', () => {
     const next = applyOptimisticParameterSubmit(
@@ -152,19 +223,40 @@ describe('applyOptimisticParameterSubmit', () => {
     )
 
     expect(next.parameters.find((item) => item.name === 'pressure_loading')?.status).toBe('confirmed')
-    expect(next.parameters.find((item) => item.name === 'design_pressure')?.status).toBe('pending')
-    expect(next.progress.current_step_id).toBe('design_pressure')
-    expect(next.progress.submittable_parameters).toEqual(['design_pressure'])
-    expect(next.progress.timeline.find((step) => step.id === 'design_pressure')?.status).toBe('active')
+    expect(next.parameters.find((item) => item.name === 'internal_design_gage_pressure')?.status).toBe('pending')
+    expect(next.progress.current_step_id).toBe('internal_design_gage_pressure')
+    expect(next.progress.submittable_parameters).toEqual(['internal_design_gage_pressure'])
+    expect(next.progress.timeline.find((step) => step.id === 'internal_design_gage_pressure')?.status).toBe('active')
   })
 
   it('advances from outside diameter to material with submittable parameters updated', () => {
     const next = applyOptimisticParameterSubmit(materialHandoffState(), 'outside_diameter', 4.5, 'in')
 
     expect(next.parameters.find((item) => item.name === 'outside_diameter')?.status).toBe('confirmed')
-    expect(next.parameters.find((item) => item.name === 'material')?.status).toBe('pending')
-    expect(next.progress.current_step_id).toBe('material')
-    expect(next.progress.submittable_parameters).toEqual(['material'])
-    expect(next.progress.timeline.find((step) => step.id === 'material')?.status).toBe('active')
+    expect(next.parameters.find((item) => item.name === 'material_grade')?.status).toBe('pending')
+    expect(next.progress.current_step_id).toBe('material_grade')
+    expect(next.progress.submittable_parameters).toEqual(['material_grade'])
+    expect(next.progress.timeline.find((step) => step.id === 'material_grade')?.status).toBe('active')
+  })
+
+  it('updates current_ask when advancing from material to design temperature', () => {
+    const next = applyOptimisticParameterSubmit(
+      materialToTemperatureHandoffState(),
+      'material_grade',
+      'SA-106 B',
+      undefined,
+      'SA-106 B',
+    )
+
+    expect(next.parameters.find((item) => item.name === 'material_grade')?.status).toBe('confirmed')
+    expect(next.parameters.find((item) => item.name === 'design_temperature')?.status).toBe('pending')
+    expect(next.progress.current_step_id).toBe('design_temperature')
+    expect(next.progress.submittable_parameters).toEqual(['design_temperature'])
+    expect(next.current_ask).toEqual({
+      kind: 'input',
+      parameter_id: 'design_temperature',
+      prompt:
+        'Please provide the design temperature because allowable stress depends on metal temperature.',
+    })
   })
 })

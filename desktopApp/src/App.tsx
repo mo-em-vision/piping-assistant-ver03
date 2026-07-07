@@ -1,7 +1,7 @@
 import { useBackendConnection } from '@/hooks/useBackend'
 import { useWorkspaceBootstrap } from '@/hooks/useWorkspaceBootstrap'
-import { DevNodeHoverProvider } from '@dev-ui/DevNodeHoverProvider'
 import { DevModeElectronSync } from '@/components/layout/DevModeElectronSync'
+import { DevPanelTabsSync } from '@/components/layout/DevPanelTabsSync'
 import { WorkspaceLayout } from '@/components/layout/WorkspaceLayout'
 
 import './App.css'
@@ -11,8 +11,9 @@ function App() {
   const { reload } = useWorkspaceBootstrap(backendStatus)
 
   return (
-    <DevNodeHoverProvider>
+    <>
       <DevModeElectronSync />
+      <DevPanelTabsSync />
       <div className="app">
         <WorkspaceLayout
           backendStatus={backendStatus}
@@ -23,7 +24,7 @@ function App() {
           onReloadWorkspace={reload}
         />
       </div>
-    </DevNodeHoverProvider>
+    </>
   )
 }
 

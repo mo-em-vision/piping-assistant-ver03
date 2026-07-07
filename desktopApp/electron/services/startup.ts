@@ -4,6 +4,7 @@ import path from 'node:path'
 import { constants } from '../../src/config/constants'
 import { BackendProcessService } from './backendProcess'
 import { defaultBackendDevFlags } from './backendDevFlags'
+import { resolveRepoRootFrom } from './repoRoot'
 
 function resolveBackendUrl(): string {
   return process.env.VITE_BACKEND_URL ?? constants.defaultBackendUrl
@@ -14,7 +15,7 @@ export function resolveRepoRoot(): string {
     return path.resolve(process.resourcesPath, 'backend')
   }
 
-  return path.resolve(app.getAppPath(), '..')
+  return resolveRepoRootFrom(app.getAppPath())
 }
 
 export async function runStartup(
@@ -25,6 +26,7 @@ export async function runStartup(
     resolveBackendUrl(),
     app.getPath('userData'),
     defaultBackendDevFlags,
+    !app.isPackaged,
   )
 
   backendService.onStatusChange(onStatusChange)

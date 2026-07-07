@@ -47,6 +47,7 @@ Navigation only. Paragraph content lives in flat `nodes/paragraph/{id}.yaml` fil
 | `asme_b313_thick_wall_y` | 304.1.2-a | Thick-wall temperature coefficient Y |
 | `asme_b313_302_3_5_eq_1a` … `1c` | 302.3.5-d | Displacement stress range equations |
 | `asme_b313_304_3_3_eq_6` | 304.3.3-b | Required reinforcement area (eq. 6) |
+| `asme_b313_304_1_2_valrule_a` | 304.1.2-a | Thin-wall applicability (t < D/6, §304.1.2(a)) |
 | `asme_b313_304_1_2_valrule_b` | 304.1.2-b | Thick-wall special consideration (§304.1.2(b)) |
 | `asme_b313_304_3_3_valrule_6a` | 304.3.3-c | Available reinforcement area check (eq. 6a) |
 | `asme_b313_304_3_3_eq_7` / `eq_8` | 304.3.3-c | Areas A_2 / A_3 |

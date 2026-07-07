@@ -9,7 +9,7 @@ from engine.reports.number_format import format_report_cell, round_numbers_in_te
 from models.report import ReportDisplaySection
 
 _INPUT_LABELS: dict[str, str] = {
-    "design_pressure": "Design pressure",
+    "internal_design_gage_pressure": "Internal design gage pressure",
     "outside_diameter": "Outside diameter",
     "material": "Material",
     "design_temperature": "Design temperature",
@@ -19,7 +19,22 @@ _INPUT_LABELS: dict[str, str] = {
     "temperature_coefficient_Y": "Temperature coefficient (Y)",
     "pressure_loading": "Pressure loading",
     "straight_pipe_section": "Straight pipe section",
+    "nominal_pipe_size": "Nominal pipe size",
+    "material_grade": "Material",
+    "joint_category": "Joint category",
+    "allowable_stress": "Allowable stress (S)",
+    "thickness": "Thickness",
+    "report": "Report",
+    "mawp": "MAWP",
 }
+
+
+def input_label_for_timeline(step_id: str) -> str:
+    return _INPUT_LABELS.get(step_id, step_id.replace("_", " ").title())
+
+
+def has_timeline_input_label(step_id: str) -> bool:
+    return step_id in _INPUT_LABELS
 
 _SECTIONS_NEEDING_EXPLANATION: frozenset[str] = frozenset(
     {

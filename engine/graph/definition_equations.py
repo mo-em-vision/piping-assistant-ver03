@@ -113,7 +113,14 @@ def try_complete_definition_equations(
         if fn is None:
             continue
         try:
-            calculation = fn(node_dir=spec.node_dir, variables=variables)
+            eq_record = reader.load(spec.node_id)
+            calculation = fn(
+                node_dir=spec.node_dir,
+                variables=variables,
+                reader=reader,
+                record=eq_record,
+                equation_meta=dict(eq_record.metadata),
+            )
         except Exception:  # noqa: BLE001
             continue
         final = calculation.final_result
@@ -134,6 +141,82 @@ def try_complete_definition_equations(
     return False
 
 
+def _param_fact_key(param_meta: dict[str, Any]) -> str:
+    return str(param_meta.get("input_id") or param_meta.get("key") or "").strip()
+
+
+def _equation_output_keys(reader: StandardsReader, record) -> tuple[str, ...]:
+    output_keys: list[str] = []
+    calculates_nodes = tuple(str(item) for item in (record.metadata.get("calculates") or []))
+    for param_ref in calculates_nodes:
+        param_id = param_ref
+        if isinstance(param_ref, dict):
+            param_id = str(param_ref.get("parameter") or param_ref.get("target") or "")
+        try:
+            param = reader.load(param_id)
+        except FileNotFoundError:
+            continue
+        fact_key = _param_fact_key(param.metadata)
+        symbol = str(param.metadata.get("symbol", "")).strip()
+        if fact_key:
+            output_keys.append(fact_key)
+        if symbol:
+            output_keys.append(symbol)
+    for spec in record.metadata.get("outputs", []) or []:
+        if not isinstance(spec, dict):
+            continue
+        for key in ("name", "symbol"):
+            value = str(spec.get(key) or "").strip()
+            if value:
+                output_keys.append(value)
+    if not output_keys:
+        output_keys = ["minimum_required_thickness", "t_m"]
+    return tuple(dict.fromkeys(output_keys))
+
+
+def _executor_definition_spec(reader: StandardsReader, record) -> DefinitionEquationSpec | None:
+    if str(record.metadata.get("type", "")) != "equation":
+        return None
+    if str(record.metadata.get("execution_phase", "")).strip() != "definition":
+        return None
+    function_name = str(
+        record.metadata.get("executor") or record.metadata.get("execution_function") or ""
+    ).strip()
+    if not function_name:
+        return None
+
+    store = reader.graph_store
+    bindings = resolve_require_bindings(store, record.metadata.get("requires"))
+    binding_pairs = tuple((b.param_id, b.sympy_symbol) for b in bindings)
+    variables = [symbol for _, symbol in binding_pairs]
+    if not variables:
+        requires_nodes = tuple(normalize_require_ids(record.metadata.get("requires")))
+        for param_id in requires_nodes:
+            try:
+                param = reader.load(param_id)
+            except FileNotFoundError:
+                continue
+            symbol = str(param.metadata.get("symbol", "")).strip()
+            if symbol:
+                variables.append(symbol)
+                binding_pairs = (*binding_pairs, (param_id, symbol))
+
+    return DefinitionEquationSpec(
+        node_id=record.node_id,
+        equation_id=str(record.metadata.get("equation_id") or record.node_id),
+        function_name=function_name,
+        node_dir=record.path.parent,
+        variables=tuple(variables),
+        output_keys=_equation_output_keys(reader, record),
+        requires_param_nodes=tuple(normalize_require_ids(record.metadata.get("requires"))),
+        require_bindings=binding_pairs,
+        calculates_param_nodes=tuple(
+            str(item.get("parameter") if isinstance(item, dict) else item)
+            for item in (record.metadata.get("calculates") or [])
+        ),
+    )
+
+
 def _definition_equation_specs(
     reader: StandardsReader,
     execution_order: tuple[str, ...] | list[str],
@@ -145,6 +228,10 @@ def _definition_equation_specs(
         except FileNotFoundError:
             continue
         if str(record.metadata.get("type", "")) == "equation":
+            executor_spec = _executor_definition_spec(reader, record)
+            if executor_spec is not None:
+                specs.append(executor_spec)
+                continue
             sympy_expr = str(record.metadata.get("sympy", "")).strip()
             if sympy_expr:
                 variables: list[str] = []
@@ -259,7 +346,7 @@ def _missing_user_inputs_for_equation(
                 param = reader.load(param_id)
             except FileNotFoundError:
                 continue
-            input_id = str(param.metadata.get("input_id", "")).strip()
+            input_id = _param_fact_key(param.metadata)
             if input_id and not _input_value_ready(task, input_id):
                 missing.append(input_id)
         return missing
@@ -272,7 +359,7 @@ def _missing_user_inputs_for_equation(
             symbol = str(param.metadata.get("symbol", "")).strip()
             if symbol and _resolve_output_value(task, symbol) is not None:
                 continue
-            input_id = str(param.metadata.get("input_id", "")).strip()
+            input_id = _param_fact_key(param.metadata)
             if input_id and not _input_value_ready(task, input_id):
                 missing.append(input_id)
         return missing
@@ -309,7 +396,7 @@ def _resolve_equation_variables(
             except FileNotFoundError:
                 unresolved.append(param_id)
                 continue
-            input_id = str(param.metadata.get("input_id", "")).strip()
+            input_id = _param_fact_key(param.metadata)
             if not input_id:
                 unresolved.append(symbol)
                 continue
@@ -338,7 +425,7 @@ def _resolve_equation_variables(
             if output_value is not None:
                 resolved[symbol] = float(output_value)
                 continue
-            input_id = str(param.metadata.get("input_id", "")).strip()
+            input_id = _param_fact_key(param.metadata)
             if not input_id:
                 unresolved.append(symbol)
                 continue

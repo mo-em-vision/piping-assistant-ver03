@@ -1,5 +1,4 @@
 import { ChatMarkdownContent } from '@/components/chat/ChatMarkdownContent'
-import { DevNodeHoverSurface } from '@dev-ui/DevNodeHoverSurface'
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 import type { ChatMessageDto, ChatSource } from '@/types/backend/chat'
 
@@ -39,14 +38,12 @@ export function ChatMessage({ message }: ChatMessageProps) {
           <div className="chat-message__sources" data-testid="chat-message-sources">
             <span className="chat-message__sources-label">Sources:</span>
             {sources.map((source) => (
-              <DevNodeHoverSurface key={`${source.kind}:${source.id}`} provenance={source.provenance}>
-                <StandardReferenceLink
-                  referenceKind={sourceReferenceKind(source)}
-                  referenceId={sourceReferenceId(source)}
-                  label={source.label}
-                  provenance={source.provenance}
-                />
-              </DevNodeHoverSurface>
+              <StandardReferenceLink
+                key={`${source.kind}:${source.id}`}
+                referenceKind={sourceReferenceKind(source)}
+                referenceId={sourceReferenceId(source)}
+                label={source.label}
+              />
             ))}
           </div>
         ) : null}

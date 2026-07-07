@@ -20,10 +20,14 @@ def when_clause_matches(
     if not when:
         return True
     field_name = str(when.get("field", ""))
-    allowed = when.get("in") or []
     if not field_name:
         return True
     value = field_value(field_name, inputs)
+    if when.get("present"):
+        return value is not None
+    if when.get("absent"):
+        return value is None
+    allowed = when.get("in") or []
     if value is None:
         return False
     normalized_allowed = {normalize_assumption_value(v) for v in allowed}

@@ -14,7 +14,7 @@ requires:
 - symbol: t_actual
   required: true
   description: Actual or ordered wall thickness
-  parameter: PARAM-measured-wall-thickness
+  parameter: PARAM-actual-wall-thickness
 - symbol: c
   required: true
   description: Corrosion allowance
@@ -24,7 +24,7 @@ calculates:
   parameter: PARAM-required-wall-thickness
 edges:
 - type: requires_parameter
-  target: PARAM-measured-wall-thickness
+  target: PARAM-actual-wall-thickness
   alias: t_actual
 - type: requires_parameter
   target: PARAM-corrosion-allowance
@@ -39,4 +39,28 @@ metadata:
   edited_by: admin
 display:
   text: t = t_actual - c
+paragraph_number: 304.1.2-a
+variables:
+  t_actual:
+    symbol: t_actual
+    description: Actual or ordered wall thickness
+    unit: mm
+  c:
+    symbol: c
+    description: Corrosion allowance
+    unit: mm
+steps:
+- name: compute_pressure_design_thickness
+  description: Subtract corrosion allowance from actual thickness
+  expressions:
+  - expression: t_actual - c
+    assign: t
+executor: calculate_pressure_design_thickness
+outputs:
+- symbol: t
+  name: pressure_design_thickness
+  unit: mm
+  type: quantity
+equation_id: pressure_design_thickness
+nomenclature_ref: WF-MAWP
 ---

@@ -29,7 +29,18 @@ Normalized **`EngineeringPlan`** output (`models/engineering_plan.py`) captures 
 
 **Active** via `PlannerAgent` (CLI chat) and `api/workflow_bootstrap.py` (`GraphTools`, navigation phases, `build_engineering_plan` → `store_engineering_plan_on_task`). User-facing parameter prompts live in `engine/messaging/workflow_parameter_prompts.py` and `parameter_input_prompt.py`.
 
-Inspector payloads include `planner_inspector_summary.traversal_summary` and `planner_traversal_view` when an engineering plan is stored on the task.
+Inspector payloads include `engineering_plan` (canonical), `engineering_plan_view`, `planner_inspector_summary` (rebuilt from `engineering_plan` on inspection fetch), and `legacy_goal_map` (deprecated goal_store projection, debug only).
+
+## Validation
+
+`validate_engineering_plan()` (`plan_validation.py`) enforces normalized plan invariants after `finalize_engineering_plan()`:
+
+- Required sections: `root_goal`, `requirements`, `dependencies`, `input_strategy`, `phases`, `graph`, `traversal`
+- Rejects flat top-level `GOAL-*` / `REQ-*` maps (`validate_engineering_plan_dict`)
+- Pipe wall fresh initiation: gate-only hard blocking, `straight_pipe_section` next, traversal state present
+- Lookup (S, Y, E, W, metallurgical group) and equation requirements present
+
+Failures attach to `plan.debug` and surface in the Planner dev tab. Tests: `tests/planner/test_fresh_pipe_wall_normalized_plan.py`, `tests/planner/test_plan_validation.py`.
 
 ## Possible Dead Code
 
@@ -60,11 +71,18 @@ User message (CLI)
 api/workflow_bootstrap.refresh_planning_state
   → GraphTools + navigation_phases
   → build_engineering_plan / build_pipe_wall_engineering_plan
-  → build_planner_traversal_state (attach plan.traversal)
+  → finalize_engineering_plan (dependencies, legacy_goal_map)
+  → validate_engineering_plan (attach plan.debug on failure)
   → store_engineering_plan_on_task
       → engineering_plan, engineering_plan_view
-      → planner_inspector_summary (traversal_summary, planner_traversal_view)
+      → planner_inspector_summary
       → graph_navigation
+```
+
+```
+GET inspection payload (DEV_INSPECTION_ENABLED)
+  → planner_inspector_summary_for_task (rebuild from engineering_plan)
+  → PlannerDevPanel + validateEngineeringPlan (client)
 ```
 
 ## Per-file inventory
@@ -77,8 +95,11 @@ api/workflow_bootstrap.refresh_planning_state
 | `engineering_plan_builder.py` | Normalized plan assembly | `build_pipe_wall_engineering_plan`, `build_engineering_plan` | goal_builder, workflow_bootstrap, tests |
 | `pipe_wall_plan.py` | Pipe wall requirement templates | `build_pipe_wall_requirements`, `build_pipe_wall_dependencies` | engineering_plan_builder |
 | `planner_traversal.py` | Traversal debug snapshot | `build_planner_traversal_state`, `build_traversal_summary`, `build_planner_traversal_inspector_view` | engineering_plan_builder, plan_inspector |
-| `plan_inspector.py` | Inspector summaries / plan view | `build_planner_inspector_summary`, `build_engineering_plan_view` | legacy_goal_adapter, tests |
-| `plan_validation.py` | Plan invariants | `validate_engineering_plan` | engineering_plan_builder, tests |
+| `plan_inspector.py` | Inspector summaries / plan view | `build_planner_inspector_summary`, `planner_inspector_summary_for_task`, `engineering_plan_from_dict` | legacy_goal_adapter, inspection/builder, tests |
+| `plan_validation.py` | Plan invariants | `validate_engineering_plan`, `validate_engineering_plan_dict` | engineering_plan_builder, tests |
+| `plan_dependencies.py` | Central dependency edges | `build_plan_dependencies` | legacy_goal_adapter |
+| `plan_phases.py` | Phase + input strategy | `build_plan_phases_and_strategy` | engineering_plan_builder |
+| `activation_conditions.py` | Requirement activation | `resolve_activation_status`, `_compute_root_blocking` | engineering_plan_builder, legacy_goal_adapter |
 | `graph_navigation.py` | Categorized missing-field lists | `build_graph_navigation_from_plan` | legacy_goal_adapter |
 | `activation_conditions.py` | Requirement activation eval | `evaluate_activation_condition` | engineering_plan_builder |
 | `legacy_goal_adapter.py` | Goal tree + task outputs | `store_engineering_plan_on_task`, `build_goal_tree` | goal_builder |
@@ -88,7 +109,7 @@ api/workflow_bootstrap.refresh_planning_state
 - **Inputs:** `plan_id`, `workflow_id`, requirements map, `input_strategy`, `PlanGraph`, optional `path_decision`, task facts
 - **Outputs:** `PlannerTraversalState` (`current_active_node`, `pending_expansion_nodes`, `expanded_nodes`, `branch_decisions`, `traversal_events`, …)
 - **Side effects:** None (pure derivation)
-- **Tests:** `tests/planner/test_planner_traversal.py`
+- **Tests:** `tests/planner/test_planner_traversal.py`, `tests/planner/test_fresh_pipe_wall_normalized_plan.py`
 
 ### planner.py — detail
 

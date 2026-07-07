@@ -105,7 +105,7 @@ def test_phases_synthesize_navigation_when_sidecar_missing() -> None:
         "phases": [
             {
                 "key": "parameter_gathering",
-                "required_parameters": ["PARAM-design-pressure"],
+                "required_parameters": ["PARAM-internal-design-gage-pressure"],
             },
         ],
     }

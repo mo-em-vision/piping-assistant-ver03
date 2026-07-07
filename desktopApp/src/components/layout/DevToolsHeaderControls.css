@@ -19,7 +19,6 @@
   margin: 0;
 }
 
-.dev-tools-header__studio,
 .app-header__inspector-toggle {
   padding: 0.2rem 0.5rem;
   border: 1px solid #cbd5e1;
@@ -30,7 +29,6 @@
   cursor: pointer;
 }
 
-.dev-tools-header__studio:hover,
 .app-header__inspector-toggle:hover {
   background: #f8fafc;
 }

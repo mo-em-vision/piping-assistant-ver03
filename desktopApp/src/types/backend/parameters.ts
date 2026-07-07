@@ -16,6 +16,11 @@ export interface ParameterOptionDto {
   label: string
 }
 
+export interface DiameterUiDto {
+  input_modes: ParameterOptionDto[]
+  related_options: Record<string, ParameterOptionDto[]>
+}
+
 export interface ParameterValidationDto {
   min?: number
   max?: number
@@ -38,6 +43,7 @@ export interface ParameterDefinitionDto {
   editing?: boolean
   submittable?: boolean
   provenance?: NodeProvenanceDto
+  diameter_ui?: DiameterUiDto
 }
 
 export interface SubmitInputPayload {

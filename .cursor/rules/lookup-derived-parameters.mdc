@@ -1,0 +1,33 @@
+# Lookup-derived parameters
+
+Table lookup outputs (E, W, Y, S, allowable stress, etc.) are **not** user-input parameters. The graph and engine must treat them as derived values.
+
+**Source of truth:** `docs/rules.md` §16.
+
+## Graph authoring
+
+| Concern | Author on |
+| --- | --- |
+| Which parameter a table returns | Lookup node `returns_parameter` → `PARAM-*` |
+| Prerequisites to resolve the value | Lookup `inputs[].id` / `lookup.keys` (canonical parameter `key`) |
+| Boundary / clamp rules for lookup keys | Output `PARAM-*` node `lookup_conditionals` (see `docs/rules.md` §18) |
+| User-facing description of the symbol | Global `PARAM-*` node `description` only |
+
+## Engine behavior
+
+1. `lookup_resolution_for_parameter()` infers `method: table_lookup` from `returns_parameter` edges.
+2. `required_user_inputs()` asks for unresolved **lookup keys**, not the derived symbol.
+3. `apply_coefficient_lookups` / lookup engine writes the fact after keys are confirmed.
+4. Equation input display uses `value_reference` (§15) until the lookup runs.
+
+## Do not
+
+- Add `weld_joint_efficiency`, `temperature_coefficient_Y`, etc. to workflow phase lists as gatherable inputs.
+- Propose `E = 1.0` / `W = 1.0` defaults in `propose_coefficient_defaults` or execution assumptions.
+- Use `source: default` + `requires_confirmation` on lookup outputs in workflow sidecars.
+- Prompt "confirm E = 1.0 (default for seamless pipe)" — ask for `pipe_construction_type` instead.
+
+## Tests
+
+- `tests/graph/test_lookup_parameter_resolution.py`
+- `tests/api/test_coefficient_lookup.py`

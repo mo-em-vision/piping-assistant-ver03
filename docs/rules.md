@@ -322,21 +322,92 @@ lookup_conditionals:
 | --- | --- |
 | `engine/planner/planner_traversal.py` | Derive traversal from requirements, `input_strategy`, graph preview, path decisions |
 | `EngineeringPlan.traversal` | Persist full state on `task.outputs.engineering_plan` |
-| `planner_inspector_summary` | Compact `traversal_summary` + `planner_traversal_view` for dev UI |
+| `planner_inspector_summary` | Rebuilt from `engineering_plan` on each inspection payload — **not** from `goal_store` |
 | `current_active_node_id` | Must match next planner ask; follows phase order (assumptions → path → gathering → coefficients → equations) |
 | `pending_expansion_nodes` | Include nodes blocked by unresolved gates/branches with `waiting_on` + `reason` |
-| `plan_validation.py` | Invariants: active node in state, no duplicate/overlapping pending vs expanded, branch nodes not active early |
+| `plan_validation.py` | Invariants after `finalize_engineering_plan()`; errors on `plan.debug` |
+
+### API / inspector contract
+
+| Field | Role |
+| --- | --- |
+| `engineering_plan` | Canonical normalized plan (`plan.to_dict()`) — **source of truth** |
+| `engineering_plan_view` | Human-readable inspector summary (phases, overview) |
+| `planner_inspector_summary` | Compact planner debug: root goal, phase, next input, outstanding inputs, conditional/lookup/calculation reqs, graph + traversal summary |
+| `legacy_goal_map` | Optional backward-compatible `goal_store` projection (`GOAL-*` / `REQ-*` keys) — debug panel only |
+
+Do not expose the legacy goal map as `engineering_plan` or as the default planner output.
+
+### Planner inspector summary (`build_planner_inspector_summary`)
+
+Derived from `EngineeringPlan` only (`engine/planner/plan_inspector.py`):
+
+- `root_goal`, `current_phase`, `next_input` (one field in `single_next_question` mode)
+- `outstanding_required_inputs` (future active fields; not a full `next_required_inputs` list)
+- `conditional_requirements`, `derived_or_lookup_values`, `calculations`
+- `planner_graph_summary`, `traversal_summary`, `planner_traversal_view`
+- `warnings` (includes validation errors when present)
+
+Inspection API rebuilds summary via `planner_inspector_summary_for_task()` (`engine/inspection/builder.py`).
+
+Dev UI: **Planner** tab (`PlannerDevPanel`) reads `engineering_plan` / `planner_inspector_summary`; legacy goal map is under an explicit deprecated `<details>` panel.
 
 ### Do not
 
 - Use traversal state to drive workflow paths or parameter asks (graph expansion + `input_strategy` remain authoritative).
 - Point `current_active_node_id` at coefficient lookup `PARAM-*` nodes while expansion/path gates are unresolved.
 - Duplicate graph engine execution order in traversal events without planner context.
+- Default the planner inspector to `planning_summary` or flat `GOAL-*` / `REQ-*` maps.
 
 ### Design references
 
 - `engine/planner/planner_traversal.py` — builder and inspector view helpers
+- `engine/planner/plan_inspector.py` — `build_planner_inspector_summary`, `planner_inspector_summary_for_task`
+- `dev/desktop_ui/inspector/plannerInspectorSummary.ts` — client resolvers + `validateEngineeringPlan`
 - `models/engineering_plan.py` — `PlannerTraversalState` types
-- `docs/developer tools/developer_inspection_framework.md` — Planner traversal panel
-- `tests/planner/test_planner_traversal.py`
+- `docs/developer tools/developer_inspection_framework.md` — Planner tab
+- `tests/planner/test_planner_traversal.py`, `tests/planner/test_fresh_pipe_wall_normalized_plan.py`
+
+---
+
+## 20. Engineering plan validation
+
+**Normalized planner output must pass `validate_engineering_plan()` before consumers treat it as canonical.**
+
+| Check | Rule |
+| --- | --- |
+| Structure | `root_goal`, `requirements`, `dependencies`, `input_strategy`, `phases`, `graph`, `traversal` required |
+| Not a flat map | Top-level `GOAL-*` / `REQ-*` keys without nested `requirements` are invalid |
+| `blocked_by` / `provisional_blocked_by` | Every id must exist in `requirements` |
+| Dependencies | Endpoints: requirement id, root goal id, or alternative id (`activates` source only) |
+| Requirements | No legacy fields (`satisfaction`, `state`, `metadata`, `edges`, …) |
+| `REQ-diameter_resolution` | Two alternatives: direct OD (`ALT-direct-outside-diameter`) and NPS lookup (`ALT-nps-lookup`) |
+| Root blocking | Must not hard-block on both `REQ-outside_diameter` and `REQ-nominal_pipe_size` |
+| Fresh pipe wall | Hard-block only gate reqs; `next_fields == ["straight_pipe_section"]`; phase `expansion_assumptions` |
+| After straight pipe | Hard-block only `REQ-pressure_loading`; next `pressure_loading`; phase `path_decisions` |
+| Conditional branch | Internal-pressure requirements `conditional` until `pressure_loading` resolved |
+| `single_next_question` | `next_fields.length <= 1`; at most one active phase; next field in `current_phase` |
+| Pipe wall lookups | S, Y, E, W, metallurgical group lookup requirements present |
+| Pipe wall equations | `REQ-required_wall_thickness`, `REQ-minimum_required_thickness_eq` present |
+| Traversal | Active node required; pending ∩ expanded = ∅; branch paragraphs not expanded before branch resolves |
+
+Validation runs in `build_pipe_wall_engineering_plan()` **after** `finalize_engineering_plan()` (dependencies populated). Failures are stored on `plan.debug.validation_errors` / `validation_warnings` and surfaced in the Planner dev tab.
+
+| API | Role |
+| --- | --- |
+| `validate_engineering_plan(plan)` | Python — `PlannerValidationResult` |
+| `validate_engineering_plan_dict(raw)` | Python — rejects flat legacy maps |
+| `validateEngineeringPlan(plan)` | TypeScript — `dev/desktop_ui/inspector/validateEngineeringPlan.ts` |
+
+### Tests
+
+- `tests/planner/test_fresh_pipe_wall_normalized_plan.py` — fresh initiation acceptance
+- `tests/planner/test_plan_validation.py` — dependency and diameter invariants
+- `tests/planner/test_planner_output_shape.py` — canonical vs `legacy_goal_map`
+- `dev/desktop_ui/tests/validateEngineeringPlan.test.tsx` — client validator
+
+### Design references
+
+- `engine/planner/plan_validation.py`
+- `.cursor/rules/agent-rules.mdc` — cite §19–§20 for planner inspector work
 

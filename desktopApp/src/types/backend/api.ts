@@ -1,4 +1,5 @@
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
+import type { EngineeringPlanDto, EngineeringPlanViewDto } from '@/types/backend/inspection'
 import type { ParameterDefinitionDto } from '@/types/backend/parameters'
 import type { TaskStatus } from '@/types/frontend/workspace'
 
@@ -104,6 +105,8 @@ export interface ActiveNodeContextDto {
   node_id: string
   standard: string
   paragraph?: string | null
+  paragraph_number?: string | null
+  equation_number?: string | null
   display_heading: string
   hover_excerpt: string
   source_field?: string | null
@@ -114,6 +117,7 @@ export interface NodeProvenanceDto {
   title?: string | null
   standard?: string
   paragraph?: string | null
+  paragraph_number?: string | null
   hover_excerpt: string
   source_field?: string | null
   generated_by?: string | null
@@ -125,6 +129,8 @@ export interface NodeSourceDto {
   title: string
   standard: string
   paragraph?: string | null
+  paragraph_number?: string | null
+  equation_number?: string | null
   section?: string | null
   subsection_id?: string | null
   subsection_title?: string | null
@@ -141,6 +147,8 @@ export interface TableSourceColumnDto {
 
 export interface TableSourceDto {
   table_id: string
+  table_number?: string | null
+  paragraph_number?: string | null
   title: string
   description?: string | null
   standard: string
@@ -197,7 +205,9 @@ export interface TaskStateDto {
     step_progress: Array<{ step_id: string; status: string; result: unknown }>
   }
   facts: Record<string, unknown>
+  /** @deprecated Use legacy_goal_map */
   goals?: Record<string, unknown>
+  legacy_goal_map?: Record<string, unknown>
   execution_context?: Record<string, unknown>
   authority_context?: Record<string, unknown>
   outputs: Record<string, unknown>
@@ -211,6 +221,103 @@ export interface TaskStateDto {
     available_workflows?: WorkflowDto[]
   }
   errors: ApiErrorBody[]
+  /** Layered canonical task state (preferred for new code). */
+  canonical?: CanonicalTaskStateDto
+  /** Compact inspector summary derived from canonical state. */
+  inspector_summary?: TaskInspectorSummaryDto
+  workflow_state?: Record<string, unknown>
+  /** Normalized engineering plan (source of truth). */
+  engineering_plan?: EngineeringPlanDto | null
+  /** Human-readable engineering plan for UI panels. */
+  engineering_plan_view?: EngineeringPlanViewDto | null
+}
+
+export interface EngineeringValueDto {
+  name: string
+  value: number | string | boolean | null
+  unit: string | null
+  canonical_value?: number | string | boolean | null
+  canonical_unit?: string | null
+  dimension?: string | null
+  symbol?: string | null
+  source: string
+  status: string
+  display_value?: string | null
+  parameter_node_id?: string | null
+}
+
+export interface CanonicalTaskStateDto {
+  task: {
+    id: string
+    workflow_id: string
+    name?: string
+    status: string
+  }
+  execution: {
+    phase?: string
+    active_definition_node_id?: string
+    current_execution_node_id?: string | null
+    current_blocker?: {
+      type: string
+      field?: string
+      parameter_node_id?: string
+      message?: string
+    }
+  }
+  values: Record<string, EngineeringValueDto>
+  progress: {
+    current_step_id?: string
+    completed_count: number
+    total_count: number
+    steps: ProgressStepDto[]
+    missing_inputs: string[]
+    missing_assumptions: string[]
+    submittable_parameters: string[]
+  }
+  graph: {
+    selected_branch_decisions: Record<string, { field: string; value: string; selected_node: string }>
+    expanded_node_ids: string[]
+    active_node_ids: string[]
+    resolved_node_ids: string[]
+    pending_node_ids: string[]
+    selected_subgraph_node_ids: string[]
+  }
+  lookup_results: Record<string, unknown>
+  debug?: {
+    warnings?: string[]
+    invariant_violations?: string[]
+  }
+}
+
+export interface TaskInspectorSummaryDto {
+  status?: string
+  phase?: string
+  current_blocker?: {
+    type: string
+    field?: string
+    parameter_node_id?: string
+    message?: string
+  }
+  resolved_inputs: Array<{
+    field: string
+    symbol?: string
+    display_value: string
+    source: string
+  }>
+  missing_inputs: string[]
+  selected_branch_decisions: Array<{
+    field: string
+    value: string
+    selected_node: string
+  }>
+  pending_calculations: string[]
+  execution_graph_summary: {
+    expanded_count: number
+    active_count: number
+    resolved_count: number
+    pending_count: number
+  }
+  warnings: string[]
 }
 
 export interface TaskListResponse {

@@ -17,6 +17,8 @@ introduced_by:
 edges:
   - type: used_by
     target: asme-b313-table-304-1-1-1
+  - type: used_by
+    target: MAT-catalog
 metadata:
   status: active
   version: 1

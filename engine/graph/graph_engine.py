@@ -154,14 +154,6 @@ class GraphEngine:
             reader=reader,
         )
 
-    @staticmethod
-    def _expansion_inputs_ready(inputs: dict[str, Fact] | None) -> bool:
-        data = inputs or {}
-        for field_name in ("straight_pipe_section", "pressure_loading"):
-            if field_value(field_name, data) is None:
-                return False
-        return True
-
     def build_plan(
         self,
         *,
@@ -356,14 +348,7 @@ class GraphEngine:
             return micro.expansion_gate_ready(resolved, existing_inputs or {})
         inputs = existing_inputs or {}
         evaluation = self.evaluate_assumptions(root_id, reader, existing_inputs=inputs)
-        if evaluation.is_blocked:
-            return False
-        for field_name in ("straight_pipe_section", "pressure_loading"):
-            if field_name in evaluation.missing_fields:
-                return False
-            if field_value(field_name, inputs) is None:
-                return False
-        return True
+        return not evaluation.is_blocked and not evaluation.has_missing
 
     def seed_parameter_registry(
         self,
@@ -408,12 +393,12 @@ class GraphEngine:
         micro = self._micro_engine(reader)
         if micro is not None and self.uses_micro_graph(reader, slug):
             resolved = self._resolve_micro_root(slug, reader)
-            return micro.required_user_inputs(resolved, task_inputs or {})
+            return micro.required_user_inputs(resolved, task_inputs or {}, plan=plan)
         inputs = task_inputs or {}
         if plan is None:
             if not self.expansion_gate_ready(slug, reader, existing_inputs=inputs):
                 return []
-        elif not self._expansion_inputs_ready(inputs):
+        elif not self.expansion_gate_ready(slug, reader, existing_inputs=inputs):
             return []
         resolved_plan = self._resolve_plan(
             root_id=slug,
@@ -462,7 +447,7 @@ class GraphEngine:
         if micro is not None and self.uses_micro_graph(reader, slug):
             resolved = self._resolve_micro_root(slug, reader)
             inputs = existing_inputs or {}
-            evaluation = micro.evaluate_assumptions(resolved, inputs)
+            evaluation = micro.evaluate_assumptions(resolved, inputs, plan=plan)
             evaluation = _merge_evaluations(
                 evaluation,
                 evaluate_node_expansion_assumptions(reader.load(resolved), existing_inputs=inputs),

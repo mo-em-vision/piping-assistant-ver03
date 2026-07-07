@@ -123,7 +123,7 @@ _EXPECTED_MSG = "knowledge nodes must not use links"
                 "key": "test_valrule",
                 "name": "Test Rule",
                 "description": "Test validation rule",
-                "validates": ["PARAM-design-pressure"],
+                "validates": ["PARAM-internal-design-gage-pressure"],
                 "authority": {
                     "authorized_by": ["304.1.2-a"],
                     "authority_context_required": True,

@@ -77,3 +77,101 @@ export interface GraphDeltaMessage {
 }
 
 export type WebSocketMessage = GraphSnapshot & { type: 'snapshot' } | GraphDeltaMessage
+
+export type ExpansionNodeStatus =
+  | 'hidden'
+  | 'preview'
+  | 'awaiting_expansion_assumption'
+  | 'awaiting_decision'
+  | 'pending_condition'
+  | 'expanded'
+  | 'active'
+  | 'awaiting_input'
+  | 'blocked'
+  | 'ready'
+  | 'executed'
+  | 'skipped'
+  | 'failed'
+  | 'invalidated'
+  | 'unknown'
+
+export type ExpansionEdgeType =
+  | 'active'
+  | 'inactive'
+  | 'conditional'
+  | 'skipped'
+  | 'blocked'
+  | 'reference'
+  | 'dependency'
+
+export interface ExpansionNode {
+  id: string
+  label: string
+  type: string
+  status: ExpansionNodeStatus
+  visible: boolean
+  active: boolean
+  blocked: boolean
+  skipped: boolean
+  reason: string
+  missing_inputs: string[]
+  provided_outputs: string[]
+  required_inputs: string[]
+  phase: string
+  details: Record<string, unknown>
+}
+
+export interface ExpansionEdge {
+  id: string
+  source: string
+  target: string
+  type: ExpansionEdgeType
+  active: boolean
+  skipped: boolean
+  reason: string
+  condition: string
+}
+
+export interface ExpansionTimelineItem {
+  id: string
+  status: string
+  value?: unknown
+}
+
+export interface ExpansionTimelinePhase {
+  phase: string
+  status: string
+  items: ExpansionTimelineItem[]
+}
+
+export interface WorkflowExpansionView {
+  revision: string
+  task_id: string | null
+  workflow: string
+  task_status: string
+  current_phase: string
+  phase_missing: Record<string, string[]>
+  inputs: Record<string, { value: unknown; status: string; source: string }>
+  expansion_state: Record<string, unknown>
+  nodes: ExpansionNode[]
+  edges: ExpansionEdge[]
+  timeline: ExpansionTimelinePhase[]
+  warnings: string[]
+  debug: Record<string, unknown>
+}
+
+export interface ExpansionViewToggles {
+  showSkipped: boolean
+  showFullGraph: boolean
+  showParameters: boolean
+  showReferenceEdges: boolean
+  autoRefresh: boolean
+}
+
+export const DEFAULT_EXPANSION_TOGGLES: ExpansionViewToggles = {
+  showSkipped: true,
+  showFullGraph: false,
+  showParameters: true,
+  showReferenceEdges: false,
+  autoRefresh: true,
+}

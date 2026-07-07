@@ -24,6 +24,8 @@ from models.fact_store import FactStore
 from models.execution_context import InputConflict
 from models.task import Task
 
+from engine.reference.parameter_keys import active_material_grade_fact
+
 
 def active_facts(task: Task) -> dict[str, Fact]:
     return task.fact_store.active_facts()
@@ -31,6 +33,11 @@ def active_facts(task: Task) -> dict[str, Fact]:
 
 def active_fact(task: Task, key: str) -> Fact | None:
     return task.fact_store.active_fact(key)
+
+
+def active_material_fact(task: Task) -> Fact | None:
+    """Backward-compatible alias for ``active_material_grade_fact``."""
+    return active_material_grade_fact(task)
 
 
 def fact_value(task: Task, key: str, default: Any = None) -> Any:

@@ -1,0 +1,26 @@
+---
+id: PARAM-straight-pipe-section
+type: parameter
+key: straight_pipe_section
+name: Straight Pipe Section
+parameter_class: selection
+description: >
+  Confirms the calculation applies to a straight section of pipe per §304.1.1(a).
+  Non-straight sections are not yet supported.
+canonical_symbol: straight_pipe_section
+aliases:
+  - straight pipe section
+  - straight section of pipe
+introduced_by:
+  - asme-b313-304-1-1-a
+edges:
+  - type: used_by
+    target: asme-b313-304-1-1-a
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-06
+  edited_by: admin
+  composer_input: checkbox
+  default_value: true
+---

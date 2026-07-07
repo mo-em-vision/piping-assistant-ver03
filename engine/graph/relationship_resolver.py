@@ -7,6 +7,7 @@ from typing import Any
 
 from engine.graph.graph_store import GraphStore
 from engine.graph.param_priority import require_target_id
+from engine.reference.graph_edge_schema import relationship_metadata
 from engine.reference.relationship_taxonomy import PARAMETER_CONCEPT_TRAVERSAL_TYPES, REQUIRES_TRAVERSAL_TYPES
 from engine.reference.node_types import (
     is_designation_node,
@@ -26,9 +27,10 @@ class RequireBinding:
 
 def require_sympy_alias(item: Any, *, fallback_symbol: str = "") -> str:
     if isinstance(item, dict):
-        alias = str(item.get("alias") or "").strip()
-        if alias:
-            return alias
+        for key in ("alias", "symbol"):
+            alias = str(item.get(key) or "").strip()
+            if alias:
+                return alias
     return fallback_symbol
 
 

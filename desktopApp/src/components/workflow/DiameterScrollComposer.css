@@ -1,0 +1,29 @@
+.diameter-scroll-composer__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.diameter-scroll-composer__mode {
+  padding: 0.35rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.76rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.diameter-scroll-composer__mode--active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+.diameter-scroll-composer__mode:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

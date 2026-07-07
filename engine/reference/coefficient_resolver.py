@@ -19,9 +19,6 @@ from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_tables import StandardsTablesDatabase
 from models.fact import Fact, NumericValue, fact_scalar_value, fact_unit
 
-Y_TABLE_TEMP_MIN_F = 900.0
-Y_TABLE_TEMP_MAX_F = 1250.0
-
 
 def interpolate_by_temperature(
     rows: list[dict[str, Any]],
@@ -97,11 +94,6 @@ def temperature_to_fahrenheit(value: float, unit: str = "F") -> float:
     return temp_f
 
 
-def clamp_y_lookup_temperature_f(temperature_f: float) -> float:
-    """Clamp design temperature to the tabulated 304.1.1-1 Fahrenheit range."""
-    return max(Y_TABLE_TEMP_MIN_F, min(Y_TABLE_TEMP_MAX_F, temperature_f))
-
-
 def lookup_y_coefficient(
     pack_root: Path,
     *,
@@ -111,11 +103,17 @@ def lookup_y_coefficient(
     metallurgical_group: str | None = None,
 ) -> tuple[float, bool]:
     """Return Y from Table 304.1.1-1 at design temperature."""
+    from engine.graph.lookup_conditionals import resolve_lookup_input_value
     from engine.reference.standards_tables import flatten_lookup_table_rows
 
     table_data = _load_table(pack_root, TABLE_304_1_1)
-    temp_f = temperature_to_fahrenheit(design_temperature, design_temperature_unit)
-    lookup_temp_f = clamp_y_lookup_temperature_f(temp_f)
+    lookup_temp_f = resolve_lookup_input_value(
+        design_temperature,
+        input_key="design_temperature",
+        input_unit=design_temperature_unit,
+        output_param_node_id="PARAM-temperature-coefficient-Y",
+        table_unit=str(table_data.get("temperature_unit") or "F"),
+    )
     rows = flatten_lookup_table_rows(table_data)
     group_token = str(metallurgical_group or "").strip()
     if group_token:
@@ -268,7 +266,16 @@ def lookup_w_factor(
     )
     if material_key is None:
         return 1.0
-    temp_f = temperature_to_fahrenheit(design_temperature, design_temperature_unit)
+    table_unit = str(table_data.get("temperature_unit") or "F")
+    from engine.graph.lookup_conditionals import resolve_lookup_input_value
+
+    temp_f = resolve_lookup_input_value(
+        design_temperature,
+        input_key="design_temperature",
+        input_unit=design_temperature_unit,
+        output_param_node_id="PARAM-weld-strength-reduction-factor-W",
+        table_unit=table_unit,
+    )
     category = weld_joint_category.strip().lower().replace("-", "_")
     for row in rows:
         row_material = _row_material_token(row)

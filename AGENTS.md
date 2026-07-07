@@ -4,7 +4,7 @@ Ver03 is a **Python engineering backend** plus an **Electron + React desktop cli
 
 ## Before coding
 
-1. Read and follow `docs/rules.md` (workflow, verification, debugging, node structure).
+1. Read and follow `docs/rules.md` (workflow, verification, debugging, node structure, **§12 planner vs messaging prompts**, **§13 graph-driven workflow paths**).
 2. Read the relevant doc under `docs/desktopApp/` (start with `14_desktop_app_implementation_roadmap.md`).
 3. Inspect existing code in the target area (stores, `api/`, `desktopApp/src/`).
 4. Propose a short plan for non-trivial changes (files, approach, risks).
@@ -28,7 +28,7 @@ Mutable runtime state (Facts, Goals, decisions, assumptions, validation, trace r
 
 Standards micro-graph nodes follow: **Markdown/YAML → GraphBuilder → PackGraph → SQLite cache**.
 
-- Source of truth: `knowledge/standards/*/nodes/**/node.{yaml,md}` — **paragraph** nodes use flat `nodes/paragraph/{id}.yaml` plus optional sidecars (`{id}/nomenclature.yaml`) for nomenclature; pack defaults (`source_language`, etc.) live in `pack.yaml` at the pack root and inherit to child nodes at compile/load time; one node per lettered subsection with hyphen ids (`304.1.2-a`, `paragraph_number` matches `id`); required `metadata.last_revision` and `metadata.edited_by` — see [`docs/node-templates/Paragraph Node.md`](docs/node-templates/Paragraph%20Node.md) and [`.cursor/rules/paragraph-subsection-naming.mdc`](.cursor/rules/paragraph-subsection-naming.mdc); **equation** nodes use `nodes/equation/asme_b313_*.yaml` plus `equation/{id}/execution.yaml` sidecars (ids prefixed `asme_` per pack); section nodes use `node.yaml` (structure) plus optional `node.md` (paragraph trace and embedded child `source:` blocks)
+- Source of truth: `knowledge/standards/*/nodes/**/node.{yaml,md}` — **paragraph** nodes use flat `nodes/paragraph/{id}.yaml` plus optional sidecars (`{id}/nomenclature.yaml`) for nomenclature; pack defaults (`source_language`, etc.) live in `pack.yaml` at the pack root and inherit to child nodes at compile/load time; one node per lettered subsection with hyphen ids (`304.1.2-a`, `paragraph_number` matches `id`); required `metadata.last_revision` and `metadata.edited_by` — see [`docs/node-templates/Paragraph Node.md`](docs/node-templates/Paragraph%20Node.md) and [`.cursor/rules/paragraph-subsection-naming.mdc`](.cursor/rules/paragraph-subsection-naming.mdc); **equation** nodes use flat `nodes/equation/asme-b313-*.yaml` with inline execution fields and `equation_number` / `paragraph_number` citation metadata (ids prefixed `asme-b313-` per pack); section nodes use `node.yaml` (structure) plus optional `node.md` (paragraph trace and embedded child `source:` blocks)
 - **Graph relationships:** every knowledge node uses typed `edges: [{type, target}]` only (outgoing). Do **not** author a top-level `links` metadata block. See [`docs/node-templates/_relationship_schema.md`](docs/node-templates/_relationship_schema.md). Paragraph **hierarchy traversal** (`parent`, ordered `children`) lives in the `hierarchy` metadata block; cross-paragraph citations use `related_to` edges. See [`Paragraph Node.md`](docs/node-templates/Paragraph%20Node.md#relationship-rule). Nomenclature prose traces use `citations`.
 - Embedded children in metadata containers (`equations`, `assumptions`, `texts`, …) compile as first-class nodes via `engine/reference/embedded_nodes.py`
 - Runtime: `GraphStore` / `build_or_load_graph()` compile sources into a `PackGraph` in memory

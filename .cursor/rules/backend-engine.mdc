@@ -17,6 +17,12 @@ alwaysApply: false
 - Calculations, graph traversal, validation, and reports stay in `engine/` — not in API handlers or the frontend.
 - Task state via `TaskStateManager`; persistence via `storage/` (SQLite + session files).
 
+## User-facing prompts
+
+- **Planner** (`engine/planner/`) — navigation only: phases, missing fields, submittable ids. No prompt copy as source of truth.
+- **Messaging** (`engine/messaging/`) — deterministic user-facing text. Entry point: `parameter_input_prompt.build_parameter_input_prompt()`. Defaults: `workflow_parameter_prompts.py`.
+- See `docs/rules.md` §12 and `docs/core/11. planner_layer_design.md`.
+
 ## User data (packaged desktop)
 
 - Honor `DESKTOP_USER_DATA` for writable paths (`config/loader.py`); keep `standards/` read-only under `PROJECT_ROOT`.

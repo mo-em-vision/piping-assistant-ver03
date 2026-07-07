@@ -31,6 +31,8 @@ export default function GraphCanvas({
   const flowNodes = useGraphStore((s) => s.flowNodes)
   const flowEdges = useGraphStore((s) => s.flowEdges)
   const updatePositions = useGraphStore((s) => s.updatePositions)
+  const setSelectedNodeId = useGraphStore((s) => s.setSelectedNodeId)
+  const setSelectedExpansionNode = useGraphStore((s) => s.setSelectedExpansionNode)
   const context = useGraphStore((s) => s.context)
   const { fitView } = useReactFlow()
 
@@ -46,6 +48,11 @@ export default function GraphCanvas({
     },
     [onSelectNode],
   )
+
+  const onPaneClick = useCallback(() => {
+    setSelectedNodeId(null)
+    setSelectedExpansionNode(null)
+  }, [setSelectedExpansionNode, setSelectedNodeId])
 
   const onNodeDragStop = useCallback<OnNodeDrag>(
     (_event, node) => {
@@ -101,6 +108,7 @@ export default function GraphCanvas({
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onNodeClick={onNodeClick}
+      onPaneClick={onPaneClick}
       onNodeDragStop={onNodeDragStop}
       colorMode={colorMode}
       fitView

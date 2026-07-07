@@ -12,9 +12,9 @@ export const retryableApiError: UserFacingError = {
 export const invalidInputError: UserFacingError = {
   code: 'invalid_input',
   title: 'Invalid engineering input',
-  whatHappened: 'design_pressure must be positive',
+  whatHappened: 'internal_design_gage_pressure must be positive',
   possibleReason: 'The submitted value failed validation or is outside allowed limits.',
-  nextAction: 'Update "design_pressure" and submit again.',
+  nextAction: 'Update "internal_design_gage_pressure" and submit again.',
   retryable: false,
-  affectedParameter: 'design_pressure',
+  affectedParameter: 'internal_design_gage_pressure',
 }

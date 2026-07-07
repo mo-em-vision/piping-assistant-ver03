@@ -66,8 +66,8 @@ def test_bootstrap_new_task_activates_definition_node(
     planning = planning_projection(task)
     assert task.active_nodes[0] in {"304.1.1-a", "B313-304.1.1"}
     assert planning["active_definition_node"] in {"304.1.1-a", "B313-304.1.1"}
-    assert planning["current_phase"] == "path_decisions"
-    assert planning["phase_missing"]["path_decisions"] == ["pressure_loading"]
+    assert planning["current_phase"] == "expansion_assumptions"
+    assert "straight_pipe_section" in (planning["phase_missing"].get("expansion_assumptions") or [])
 
 
 def test_create_task_returns_node_activation_outputs(
@@ -91,7 +91,7 @@ def test_create_task_returns_node_activation_outputs(
     assert state["active_nodes"][0] in {"304.1.1-a", "B313-304.1.1"}
     assert "WF-PIPE-WALL-THICKNESS" in state["active_nodes"]
     param_names = {item["name"] for item in state["parameters"]}
-    assert "pressure_loading" in param_names
+    assert "straight_pipe_section" in param_names
     assert state.get("active_node_context", {}).get("node_id") in {"304.1.1-a", "B313-304.1.1"}
 
 
@@ -116,6 +116,13 @@ def test_submit_input_advances_to_pressure_loading(
 
     state = service.submit_input(
         task_id,
+        parameter="straight_pipe_section",
+        value=True,
+        unit=None,
+        session_id=session_id,
+    )
+    state = service.submit_input(
+        task_id,
         parameter="pressure_loading",
         value="internal_pressure",
         unit=None,
@@ -132,3 +139,46 @@ def test_submit_input_advances_to_pressure_loading(
         step for step in state["progress"]["timeline"] if step.get("id") == "pressure_loading"
     )
     assert pressure_step["status"] == "done"
+
+
+def test_stale_empty_goal_tree_is_not_ready_for_execution(
+    tmp_path: Path,
+    project_root: Path,
+    standards_reader: StandardsReader,
+) -> None:
+    """Corrupt planning (root goal only) must not mark the task ready for thickness."""
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-stale-goals", status=TaskStatus.AWAITING_INPUT)
+    config = CLIConfig(
+        report_format="html",
+        language="english",
+        default_standard="ASME_B31.3",
+        sessions_dir=tmp_path / "sessions",
+        standards_root=project_root / "knowledge" / "standards",
+        openai_api_key=None,
+        openai_model="gpt-4o-mini",
+        openai_base_url=None,
+    )
+    bootstrap_new_task(task, "pipe_wall_thickness_design", config)
+    from engine.state.task_facts import store_user_fact
+
+    store_user_fact(
+        task,
+        "straight_pipe_section",
+        True,
+        workflow_id="pipe_wall_thickness_design",
+    )
+    store_user_fact(
+        task,
+        "pressure_loading",
+        "internal_pressure",
+        workflow_id="pipe_wall_thickness_design",
+    )
+    refresh_task_planning(task, standards_reader, propose_defaults=False)
+    roots = task.goal_store.roots()
+    assert roots
+    for child in list(task.goal_store.children(roots[0].id)):
+        task.goal_store.goals.pop(child.id, None)
+    task.goal_store.get(roots[0].id).state.child_goals = []
+
+    assert task_ready_for_execution(task) is False

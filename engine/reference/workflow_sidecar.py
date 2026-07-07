@@ -33,17 +33,17 @@ _RUNTIME_KEYS = (
 _PARAM_TO_FIELD: dict[str, str] = {
     "PARAM-straight-pipe-section": "straight_pipe_section",
     "PARAM-pressure-loading": "pressure_loading",
-    "PARAM-design-pressure": "design_pressure",
+    "PARAM-internal-design-gage-pressure": "internal_design_gage_pressure",
     "PARAM-outside-diameter": "outside_diameter",
     "PARAM-nominal-pipe-size": "nominal_pipe_size",
-    "PARAM-material-grade": "material",
+    "PARAM-material-grade": "material_grade",
     "PARAM-metallurgical-group": "metallurgical_group",
     "PARAM-design-temperature": "design_temperature",
     "PARAM-external-design-pressure": "external_design_pressure",
     "PARAM-weld-joint-efficiency": "weld_joint_efficiency",
     "PARAM-weld-strength-reduction-factor-W": "weld_joint_strength_reduction_factor_W",
     "PARAM-temperature-coefficient-Y": "temperature_coefficient_Y",
-    "PARAM-pipe-construction-type": "joint_category",
+    "PARAM-pipe-construction-type": "pipe_construction_type",
     "PARAM-corrosion-allowance": "corrosion_allowance",
     "PARAM-actual-wall-thickness": "actual_wall_thickness",
     "PARAM-pipe-schedule": "pipe_schedule",
@@ -51,8 +51,48 @@ _PARAM_TO_FIELD: dict[str, str] = {
     "PARAM-allowable-stress": "allowable_stress",
     "PARAM-required-wall-thickness": "required_wall_thickness",
     "PARAM-minimum-required-thickness": "minimum_required_thickness",
-    "PARAM-mawp": "mawp",
+    "PARAM-maximum-allowable-working-pressure": "mawp",
 }
+
+_PROJECT_RUNTIME_WORKFLOW_IDS: dict[str, tuple[str, ...]] = {
+    "WF-PIPE-WALL-THICKNESS": ("WF-PIPE-WALL-THICKNESS",),
+    "B313-WF-PIPE-WALL-THICKNESS": ("WF-PIPE-WALL-THICKNESS", "B313-WF-PIPE-WALL-THICKNESS"),
+    "pipe_wall_thickness_design": ("WF-PIPE-WALL-THICKNESS",),
+    "WF-MAWP": ("WF-MAWP",),
+    "B313-WF-MAWP": ("WF-MAWP", "B313-WF-MAWP"),
+    "mawp_design": ("WF-MAWP",),
+}
+
+
+def _workflow_runtime_ids(node_id: str) -> tuple[str, ...]:
+    explicit = _PROJECT_RUNTIME_WORKFLOW_IDS.get(node_id)
+    if explicit:
+        return explicit
+    return (node_id,)
+
+
+def _project_runtime_paths(record_path: Path, node_id: str) -> list[Path]:
+    """Locate repo-level ``workflows/<id>/runtime.yaml`` sidecars."""
+    paths: list[Path] = []
+    seen: set[Path] = set()
+    for ancestor in record_path.resolve().parents:
+        workflows_root = ancestor / "workflows"
+        if not workflows_root.is_dir():
+            continue
+        for workflow_id in _workflow_runtime_ids(node_id):
+            candidate = workflows_root / workflow_id / "runtime.yaml"
+            if candidate.is_file() and candidate not in seen:
+                seen.add(candidate)
+                paths.append(candidate)
+        if paths:
+            break
+    return paths
+
+
+def _merge_runtime_data(merged: dict[str, Any], data: dict[str, Any]) -> None:
+    for key in _RUNTIME_KEYS:
+        if key in data and data[key]:
+            merged[key] = data[key]
 
 
 def workflow_sidecar_dir(record_path: Path, node_id: str) -> Path:
@@ -128,6 +168,7 @@ def merge_workflow_sidecar_metadata(
             flat_runtime,
             sidecar_dir / "navigation.yaml",
             flat_navigation,
+            *_project_runtime_paths(record_path, node_id),
         ):
             if not path.is_file():
                 continue
@@ -140,9 +181,7 @@ def merge_workflow_sidecar_metadata(
                 else:
                     merged["navigation"] = data
                 continue
-            for key in _RUNTIME_KEYS:
-                if key in data and data[key]:
-                    merged[key] = data[key]
+            _merge_runtime_data(merged, data)
 
     if not merged.get("navigation"):
         synthesized = _phases_to_navigation(merged.get("phases"))

@@ -7,6 +7,7 @@ interface SearchBarProps {
 
 export default function SearchBar({ onFocusNode }: SearchBarProps) {
   const rawNodes = useGraphStore((s) => s.rawNodes)
+  const expansionView = useGraphStore((s) => s.expansionView)
   const searchQuery = useGraphStore((s) => s.searchQuery)
   const setSearchQuery = useGraphStore((s) => s.setSearchQuery)
   const setSearchMatchIds = useGraphStore((s) => s.setSearchMatchIds)
@@ -19,7 +20,10 @@ export default function SearchBar({ onFocusNode }: SearchBarProps) {
       setActiveIndex(0)
       return
     }
-    const matches = rawNodes
+    const searchable = expansionView
+      ? expansionView.nodes.map((node) => ({ id: node.id, name: node.label }))
+      : rawNodes.map((node) => ({ id: node.id, name: node.name }))
+    const matches = searchable
       .filter(
         (node) =>
           node.id.toLowerCase().includes(needle) ||
@@ -31,7 +35,7 @@ export default function SearchBar({ onFocusNode }: SearchBarProps) {
     if (matches.length > 0) {
       onFocusNode(matches[0])
     }
-  }, [searchQuery, rawNodes, setSearchMatchIds, onFocusNode])
+  }, [searchQuery, rawNodes, expansionView, setSearchMatchIds, onFocusNode])
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
     const matches = useGraphStore.getState().searchMatchIds

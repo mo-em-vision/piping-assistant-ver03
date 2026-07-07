@@ -151,6 +151,9 @@ class Executor:
             node_type = record.metadata.get("type")
             if node_type in {"root", "definition"}:
                 continue
+            if node_type == "validation_rule":
+                prior_completed.add(node_id)
+                continue
             if node_type == "equation" and str(record.metadata.get("execution_phase", "")) == "definition":
                 prior_completed.add(node_id)
                 continue
@@ -253,6 +256,8 @@ class Executor:
             if result.status == NodeExecutionStatus.ERROR:
                 overall_status = ExecutionStatus.ERROR
                 state.update_task_status(plan.task_id, TaskStatus.INVALIDATED)
+                for error_message in result.errors:
+                    state.add_warning(plan.task_id, error_message)
                 self._events.log(
                     EventType.WARNING_CREATED,
                     node=node_id,

@@ -29,7 +29,8 @@ Apply it when planning, coding, debugging, adding dependencies, writing tests, o
 16. **Lookup-derived parameters** — table lookup outputs (E, W, Y, S, …) are resolved from lookup keys via graph `returns_parameter` edges; do not ask users to confirm invented defaults; see `docs/rules.md` §16.
 17. **PARAM-driven composer metadata** — every gatherable parameter needs a `PARAM-*` node; composer label/type/units/options come from node metadata only (no engine fallbacks); see `docs/rules.md` §17 and `.cursor/rules/param-composer-metadata.mdc`.
 18. **Lookup conditionals** — table boundary/clamp rules on output `PARAM-*` nodes via `lookup_conditionals`; generic interpreter in `engine/graph/lookup_conditionals.py` only; see `docs/rules.md` §18 and `.cursor/rules/lookup-conditionals.mdc`.
-19. **Planner traversal debug state** — `PlannerTraversalState` on `EngineeringPlan` for inspector debugging; derived in `planner_traversal.py`; does not drive paths; see `docs/rules.md` §19.
+19. **Planner traversal debug state** — `PlannerTraversalState` on `EngineeringPlan` for inspector debugging; derived in `planner_traversal.py`; does not drive paths; inspector reads `engineering_plan`; see `docs/rules.md` §19.
+20. **Engineering plan validation** — `validate_engineering_plan()` invariants on normalized plan output; rejects flat `GOAL-*`/`REQ-*` maps; see `docs/rules.md` §20.
 
 For node, standards, or workflow work, re-read **§11**, **§13**, **§14**, and **§18** in `docs/rules.md` before editing.
 

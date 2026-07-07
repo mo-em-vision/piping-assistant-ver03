@@ -10,7 +10,6 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.4rem;
 }
 
 .workflow-header__title {
@@ -44,11 +43,4 @@
 .workflow-header__delete:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.workflow-header__heading {
-  margin: 0;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  color: #475569;
 }

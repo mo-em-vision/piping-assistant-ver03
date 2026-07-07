@@ -1,5 +1,3 @@
-import { DevNodeHoverSurface } from '@dev-ui/DevNodeHoverSurface'
-
 import type { ResultOutputBlock } from '@/types/backend/outputs'
 
 interface ResultOutputProps {
@@ -11,13 +9,11 @@ export function ResultOutput({ block }: ResultOutputProps) {
 
   return (
     <article className={`output-block output-result${statusClass}`}>
-      <DevNodeHoverSurface provenance={block.provenance}>
-        <p className="output-result__label">{block.label}</p>
-        <p className="output-result__value">
-          {block.value}
-          {block.unit ? ` ${block.unit}` : ''}
-        </p>
-      </DevNodeHoverSurface>
+      <p className="output-result__label">{block.label}</p>
+      <p className="output-result__value">
+        {block.value}
+        {block.unit ? ` ${block.unit}` : ''}
+      </p>
     </article>
   )
 }

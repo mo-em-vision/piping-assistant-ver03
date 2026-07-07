@@ -4,6 +4,22 @@ import type { TimelineStepViewModel } from '@/types/frontend/taskState'
 
 export const DEFAULT_WORKFLOW_ASK_PROMPT = 'Complete the fields below to continue.'
 
+const MATERIAL_PARAMETER_NAMES = new Set(['material', 'material_grade'])
+
+export function parameterNamesMatch(askId: string, parameterName: string): boolean {
+  if (askId === parameterName) {
+    return true
+  }
+  return MATERIAL_PARAMETER_NAMES.has(askId) && MATERIAL_PARAMETER_NAMES.has(parameterName)
+}
+
+export function findParameterForStepId(
+  parameters: ParameterDefinitionDto[],
+  stepId: string,
+): ParameterDefinitionDto | undefined {
+  return parameters.find((parameter) => parameterNamesMatch(stepId, parameter.name))
+}
+
 export type WorkflowAskKind = 'input' | 'clarify' | 'waiting' | 'none'
 
 export interface WorkflowAsk {
@@ -33,7 +49,7 @@ function parameterIsSubmittable(
   }
   const submittable = state.progress.submittable_parameters
   if (submittable) {
-    return submittable.includes(parameter.name)
+    return submittable.some((id) => parameterNamesMatch(id, parameter.name))
   }
   return true
 }
@@ -43,13 +59,21 @@ function blockedGoalIds(state: TaskStateDto): string[] {
   return ctx?.state?.blocked_goals ?? []
 }
 
+function goalMapFromState(state: TaskStateDto): Record<string, GoalRecord> | null {
+  const map = state.legacy_goal_map ?? state.goals
+  if (!map) {
+    return null
+  }
+  return map as Record<string, GoalRecord>
+}
+
 function goalPromptForParameter(state: TaskStateDto, parameterName: string): string | null {
-  const goals = state.goals
+  const goals = goalMapFromState(state)
   if (!goals) {
     return null
   }
 
-  for (const goal of Object.values(goals) as GoalRecord[]) {
+  for (const goal of Object.values(goals)) {
     const key = goal.key ?? goal.target_parameter
     if (key !== parameterName) {
       continue
@@ -63,13 +87,13 @@ function goalPromptForParameter(state: TaskStateDto, parameterName: string): str
 }
 
 function blockedGoalPrompt(state: TaskStateDto): string | null {
-  const goals = state.goals
+  const goals = goalMapFromState(state)
   if (!goals) {
     return null
   }
 
   for (const goalId of blockedGoalIds(state)) {
-    const goal = goals[goalId] as GoalRecord | undefined
+    const goal = goals[goalId]
     const prompt = goal?.question?.prompt?.trim()
     if (prompt) {
       return prompt
@@ -83,7 +107,7 @@ function firstSubmittableParameter(state: TaskStateDto): ParameterDefinitionDto 
   if (submittableIds.length) {
     const fromSubmittable = state.parameters.find(
       (parameter) =>
-        submittableIds.includes(parameter.name) &&
+        submittableIds.some((id) => parameterNamesMatch(id, parameter.name)) &&
         parameterIsSubmittable(parameter, state) &&
         (parameter.status === 'pending' || parameter.status === 'confirmation_required'),
     )
@@ -132,6 +156,29 @@ export function getCurrentEditableParameter(state: TaskStateDto | null): Paramet
   return firstSubmittableParameter(state)
 }
 
+function resolveInputAskParameter(
+  state: TaskStateDto,
+  backendParameterId?: string | null,
+): ParameterDefinitionDto | null {
+  const editable = getCurrentEditableParameter(state)
+  if (!backendParameterId) {
+    return editable
+  }
+
+  const backendTarget = state.parameters.find((parameter) =>
+    parameterNamesMatch(backendParameterId, parameter.name),
+  )
+  if (
+    backendTarget &&
+    parameterIsSubmittable(backendTarget, state) &&
+    (backendTarget.status === 'pending' || backendTarget.status === 'confirmation_required')
+  ) {
+    return backendTarget
+  }
+
+  return editable
+}
+
 function promptForParameter(
   parameter: ParameterDefinitionDto,
   timeline: TimelineStepViewModel[],
@@ -158,8 +205,31 @@ function promptForParameter(
   return DEFAULT_WORKFLOW_ASK_PROMPT
 }
 
+const NON_INPUT_TIMELINE_STEP_IDS = new Set(['thickness', 'report'])
+
 function activeTimelineStep(timeline: TimelineStepViewModel[]): TimelineStepViewModel | null {
   return timeline.find((step) => step.status === 'active') ?? null
+}
+
+function parameterForActiveTimelineStep(
+  state: TaskStateDto,
+  timeline: TimelineStepViewModel[],
+): ParameterDefinitionDto | null {
+  const activeStep = activeTimelineStep(timeline)
+  if (!activeStep || NON_INPUT_TIMELINE_STEP_IDS.has(activeStep.id)) {
+    return null
+  }
+
+  const parameter = state.parameters.find((item) =>
+    parameterNamesMatch(activeStep.id, item.name),
+  )
+  if (!parameter || parameter.status === 'confirmed') {
+    return null
+  }
+  if (parameter.status === 'pending' || parameter.status === 'confirmation_required') {
+    return parameter
+  }
+  return null
 }
 
 export function getWorkflowAsk(
@@ -171,15 +241,16 @@ export function getWorkflowAsk(
   }
 
   const backendAsk = state.current_ask
-  if (backendAsk?.kind === 'input' && backendAsk.parameter_id) {
-    const parameter =
-      state.parameters.find((item) => item.name === backendAsk.parameter_id) ??
-      getCurrentEditableParameter(state)
+  if (backendAsk?.kind === 'input') {
+    const parameter = resolveInputAskParameter(state, backendAsk.parameter_id)
     if (parameter) {
+      const promptMatchesParameter =
+        backendAsk.parameter_id != null &&
+        parameterNamesMatch(backendAsk.parameter_id, parameter.name)
       return {
         kind: 'input',
         prompt:
-          backendAsk.prompt?.trim() ||
+          (promptMatchesParameter ? backendAsk.prompt?.trim() : null) ||
           parameter.guidance?.trim() ||
           promptForParameter(parameter, timeline, state),
         parameter,
@@ -197,6 +268,14 @@ export function getWorkflowAsk(
 
   if (backendAsk?.kind === 'waiting') {
     const activeStep = activeTimelineStep(timeline)
+    const activeParameter = parameterForActiveTimelineStep(state, timeline)
+    if (activeParameter) {
+      return {
+        kind: 'input',
+        prompt: promptForParameter(activeParameter, timeline, state),
+        parameter: activeParameter,
+      }
+    }
     return {
       kind: 'waiting',
       prompt:
@@ -226,6 +305,14 @@ export function getWorkflowAsk(
   }
 
   const activeStep = activeTimelineStep(timeline)
+  const activeParameter = parameterForActiveTimelineStep(state, timeline)
+  if (activeParameter) {
+    return {
+      kind: 'input',
+      prompt: promptForParameter(activeParameter, timeline, state),
+      parameter: activeParameter,
+    }
+  }
   if (activeStep) {
     const prompt =
       activeStep.hint?.trim() ??

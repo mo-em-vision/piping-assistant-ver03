@@ -1,0 +1,45 @@
+# Lookup conditionals (table boundary rules)
+
+Temperature (and other lookup-key) boundary behavior is **authored on the output `PARAM-*` node**, not hardcoded in `engine/reference/` or table-specific resolvers.
+
+**Source of truth:** `docs/rules.md` §18.
+
+## Author on the output parameter node
+
+```yaml
+lookup_conditionals:
+  design_temperature:
+    unit: UNIT-degF
+    min: 900
+    max: 1250
+    below_min: use_min
+    above_max: use_max
+```
+
+| Field | Purpose |
+| --- | --- |
+| Key | Lookup input / fact key (`design_temperature`, …) — must match `lookup.keys` |
+| `unit` | Unit for `min` / `max` thresholds (`UNIT-degF`, `UNIT-degC`, …) |
+| `min` / `max` | Tabulated range endpoints |
+| `below_min` | `use_min` — use value at `min` when input is lower |
+| `above_max` | `use_max` — use value at `max` when input is higher |
+
+Between `min` and `max`, the lookup node’s `interpolation: true` applies. The table stores tabulated points only.
+
+## Engine behavior
+
+1. `lookup_conditionals_for_parameter()` reads rules from the output `PARAM-*` node (graph or YAML).
+2. `lookup_parameter_resolution.py` exposes `lookup_conditionals` on inferred `table_lookup` resolution.
+3. Lookup execution (`lookup_engine`, coefficient resolvers) calls `bounded_lookup_input_value()` / `apply_lookup_conditionals_to_inputs()` — **generic interpreter only**.
+
+## Do not
+
+- Hardcode table ids, temperature limits, or clamp logic in `coefficient_resolver.py`, `lookup_engine.py`, or workflow code.
+- Put `temperature_bounds` on lookup nodes when the rule applies to the derived parameter — author on the **output** `PARAM-*` node.
+- Add per-table Python functions for boundary behavior.
+
+## Tests
+
+- `tests/graph/test_lookup_conditionals.py`
+- `tests/graph/test_lookup_parameter_resolution.py`
+- Table-specific resolver tests assert behavior via PARAM metadata, not engine literals.

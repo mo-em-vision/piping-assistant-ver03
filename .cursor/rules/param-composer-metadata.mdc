@@ -1,0 +1,44 @@
+---
+description: PARAM nodes own workflow composer UI specs — no engine fallbacks
+globs: knowledge/global/parameters/**,api/parameter_definitions.py,engine/reference/parameter_composer_spec.py,desktopApp/src/components/workflow/**
+alwaysApply: false
+---
+
+# PARAM-driven composer metadata
+
+Every gatherable workflow parameter must have a global `PARAM-*` node. The desktop composer reads UI specs **only** from that node via `build_composer_parameter_spec()` — never from hardcoded maps or interaction fallbacks.
+
+**Source of truth:** `docs/rules.md` §17.
+
+## Before adding a parameter
+
+1. Create `knowledge/global/parameters/nodes/PARAM-*.yaml` with canonical `key` (see `.cursor/rules/parameter-key-consistency.mdc`).
+2. Add composer hints under `metadata` (see below).
+3. Link in `CONCEPT-*` / paragraph `introduces_parameter` / `workflow_sidecar` as needed.
+4. Run `python scripts/build_graph_db.py --pack knowledge/global/parameters`.
+
+## Composer metadata (`metadata` block)
+
+| Field | Purpose | Example |
+| --- | --- | --- |
+| `composer_input` | UI control type | `number`, `dropdown`, `checkbox`, `material` |
+| `composer_options` | Static choices | `[{value: internal_pressure, label: Internal Pressure}]` |
+| `canonical_unit` | Default unit symbol or `UNIT-*` id | `UNIT-mm`, `NPS` |
+| `default_value` | Proposed default before user input | `true` for straight-pipe assumption |
+
+When `composer_input` is omitted, infer from `parameter_class` + `dimension` (`selection` → dropdown, `geometric_quantity` → number, `categorical` + `DIM-material-designation` → material).
+
+## Dynamic options (allowed)
+
+Table/catalog-driven option lists (NPS sizes, OD dropdown, pipe construction types) may be loaded in `api/parameter_definitions.py` from databases — **after** the PARAM node establishes type and default unit. That is not a substitute for a missing PARAM node.
+
+## Do not
+
+- Add per-parameter specs, default units, or type maps in `parameter_composer_spec.py`, `parameter_definitions.py`, or frontend.
+- Fall back to workflow `interactions` when a PARAM node is missing.
+- Reference a runtime field in `runtime.yaml` / `_PARAM_TO_FIELD` without a matching `PARAM-*` YAML file.
+- Invent `composer_input` in Python when the parameter could declare it on the node.
+
+## Verification
+
+- `python -m pytest tests/engine/reference/test_parameter_composer_spec.py tests/api/test_parameter_definitions.py -q`

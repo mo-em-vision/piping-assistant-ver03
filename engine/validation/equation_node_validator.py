@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.reference.equation_metadata import equation_reference
 from engine.reference.graph_compile import validate_edge_item, validate_no_links_metadata
 from engine.validation.authority_authorization import validate_authority_authorization
 from engine.validation.node_revision_metadata import validate_revision_metadata
@@ -37,13 +38,6 @@ _FORBIDDEN_FIELDS = frozenset(
         "calculation_result",
         "selected_for_execution",
         "active_in_context",
-        "variables",
-        "steps",
-        "executor",
-        "execution_function",
-        "calculation_module",
-        "outputs",
-        "equation_id",
     }
 )
 
@@ -138,6 +132,14 @@ def _validate_standards_equation(meta: dict[str, Any]) -> list[str]:
         issues.append(f"unknown calculation_kind: {calc_kind}")
     if not meta.get("description"):
         issues.append("missing description")
+    if "-eq-" in node_id and not equation_reference(meta):
+        issues.append("missing equation_number")
+    calc_kind = str(meta.get("calculation_kind") or "")
+    has_execution = bool(
+        meta.get("executor") or str((meta.get("expression") or {}).get("formula") or "").strip()
+    )
+    if calc_kind == "function" and not has_execution:
+        issues.append("missing executor or expression.formula")
     issues.extend(validate_authority_authorization(meta, node_type="equation"))
     requires = meta.get("requires")
     calculates = meta.get("calculates")

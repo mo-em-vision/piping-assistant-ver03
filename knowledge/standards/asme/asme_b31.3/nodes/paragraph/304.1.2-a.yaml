@@ -1,40 +1,106 @@
 ---
+
 id: 304.1.2-a
+
 type: paragraph
+
 key: b313_304_1_2_a
+
 title: Internal Pressure Design — Thin Wall
+
 authority: AUTH-ASME-B31.3
+
 edition: 2024
+
 paragraph_number: 304.1.2-a
+
 text:
+
   original: >
+
     (a) For t < D/6, the internal pressure design thickness for straight pipe shall
+
     be not less than that calculated in accordance with either equation (3a) or equation
+
     (3b):
+
+
 
     t = PD / 2(SEW + PY)   ... eq. (3a)
 
+
+
     t = P(d+2c) / 2(SEW - P(1-Y))   ... eq. (3b)
+
 hierarchy:
+
   parent: '304.1'
+
   children: []
+
 edges:
+
   - type: belongs_to_authority
+
     target: AUTH-ASME-B31.3
+
   - type: references_table
+
     target: asme-b313-table-A-1
+
   - type: references_equation
+
     target: asme-b313-304-1-2-eq-3a
+
+    when:
+
+      field: inside_diameter
+
+      absent: true
+
   - type: references_equation
+
     target: asme-b313-304-1-2-eq-3b
+
+    when:
+
+      field: inside_diameter
+
+      present: true
+
   - type: references_concept
+
     target: CONCEPT-pressure
+
   - type: references_concept
+
     target: CONCEPT-wall-thickness
+
+  - type: references_validation_rule
+
+    target: asme-b313-304-1-2-valrule-a
+
+applicability:
+
+  applies_when:
+
+    - parameter: PARAM-pressure-loading
+
+      operator: equals
+
+      value: internal_pressure
+
 metadata:
+
   status: active
+
   source_revision_year: 2024
+
   node_version: 1
-  last_revision: 2026-07-04
+
+  last_revision: 2026-07-07
+
   edited_by: admin
+
 ---
+

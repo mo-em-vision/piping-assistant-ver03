@@ -62,6 +62,7 @@ def test_active_node_context_uses_display_heading(standards_reader: StandardsRea
     assert context["node_id"] == "304.1.1-a"
     assert "Required Thickness" in context["display_heading"]
     assert "304.1.1" in context["display_heading"]
+    assert context["source_field"] == "title"
 
     state = task_state(task, manager, standards_root=standards_reader.standards_root)
     assert state["active_node_context"]["display_heading"] == context["display_heading"]

@@ -1,6 +1,0 @@
-parameter_defaults:
-  corrosion_allowance:
-    - value: 0.5
-      unit: mm
-      condition: machined surfaces or grooves where tolerance is not specified
-      requires_confirmation: true

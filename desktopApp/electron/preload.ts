@@ -18,7 +18,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('devMode:sync', active),
   getGraphExplorerStatus: (): Promise<GraphExplorerStatusPayload | null> =>
     ipcRenderer.invoke('graphExplorer:getStatus'),
-  openStudioWindow: (): Promise<void> => ipcRenderer.invoke('studio:open'),
   onBackendStatusChange: (callback: (status: BackendStatusPayload) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, status: BackendStatusPayload) => {
       callback(status)

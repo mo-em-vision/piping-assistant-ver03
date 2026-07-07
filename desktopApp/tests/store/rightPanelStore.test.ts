@@ -21,12 +21,12 @@ describe('rightPanelStore', () => {
     expect(state.activeTabId).toBe('task')
   })
 
-  it('syncForActiveTask(true) prepends Task tab', () => {
+  it('syncForActiveTask(true) prepends Task tab and focuses Task', () => {
     useRightPanelStore.getState().syncForActiveTask(true)
 
     const state = useRightPanelStore.getState()
     expect(state.tabs.map((tab) => tab.id)).toEqual(['task', 'chat', 'standards'])
-    expect(state.activeTabId).toBe('chat')
+    expect(state.activeTabId).toBe('task')
   })
 
   it('syncForActiveTask(false) removes Task tab and moves active tab to Chat', () => {
@@ -47,6 +47,57 @@ describe('rightPanelStore', () => {
 
     const state = useRightPanelStore.getState()
     expect(state.tabs.map((tab) => tab.kind)).toEqual(['task', 'chat', 'standards', 'reference'])
+  })
+
+  it('syncDevTabs(true) adds Planner, Task State, and Operations tabs when a task is active', () => {
+    useRightPanelStore.getState().reset(true)
+    useRightPanelStore.getState().syncDevTabs(true, true)
+
+    const state = useRightPanelStore.getState()
+    expect(state.tabs.map((tab) => tab.id)).toEqual([
+      'task',
+      'planner',
+      'dev-task-state',
+      'dev-operations',
+      'chat',
+      'standards',
+    ])
+  })
+
+  it('syncDevTabs(true) adds Operations tab without a task', () => {
+    useRightPanelStore.getState().reset(false)
+    useRightPanelStore.getState().syncDevTabs(true, false)
+
+    const state = useRightPanelStore.getState()
+    expect(state.tabs.map((tab) => tab.id)).toEqual(['dev-operations', 'chat', 'standards'])
+  })
+
+  it('syncDevTabs(false) removes dev tabs and moves active tab away from planner', () => {
+    useRightPanelStore.getState().reset(true)
+    useRightPanelStore.getState().syncDevTabs(true, true)
+    useRightPanelStore.getState().setActiveTab('planner')
+
+    useRightPanelStore.getState().syncDevTabs(false, true)
+
+    const state = useRightPanelStore.getState()
+    expect(state.tabs.map((tab) => tab.id)).toEqual(['task', 'chat', 'standards'])
+    expect(state.activeTabId).toBe('task')
+  })
+
+  it('does not close dev pinned tabs', () => {
+    useRightPanelStore.getState().reset(true)
+    useRightPanelStore.getState().syncDevTabs(true, true)
+
+    useRightPanelStore.getState().closeTab('planner')
+
+    expect(useRightPanelStore.getState().tabs.map((tab) => tab.id)).toEqual([
+      'task',
+      'planner',
+      'dev-task-state',
+      'dev-operations',
+      'chat',
+      'standards',
+    ])
   })
 
   it('does not close the Standards pinned tab', () => {

@@ -14,7 +14,6 @@ export interface ElectronAPI {
   syncDevMode?: (active: boolean) => Promise<GraphExplorerStatusPayload | null>
   getGraphExplorerStatus?: () => Promise<GraphExplorerStatusPayload | null>
   onGraphExplorerStatusChange?: (callback: (status: GraphExplorerStatusPayload) => void) => () => void
-  openStudioWindow?: () => Promise<void>
 }
 
 declare global {

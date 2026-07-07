@@ -16,6 +16,8 @@ def apply_planning_to_goals(
     workflow_id: str | None = None,
 ) -> Task:
     """Attach a goal tree derived from a legacy planning_summary-shaped dict."""
+    from engine.state.goal_satisfaction import refresh_goal_satisfaction
+
     wf = workflow_id or str(task.outputs.get("workflow") or planning.get("intent") or "")
     task.execution_context.goal_store = goals_from_planning_summary(
         planning,
@@ -30,9 +32,12 @@ def apply_planning_to_goals(
         task.outputs["path_decision"] = planning["path_decision"]
     if planning.get("graph_input_order"):
         task.outputs["graph_input_order"] = planning["graph_input_order"]
+    if planning.get("collection_field_order"):
+        task.outputs["collection_field_order"] = planning["collection_field_order"]
     if planning.get("graph_step_titles"):
         task.outputs["graph_step_titles"] = planning["graph_step_titles"]
     refresh_execution_context_for_task(task, workflow_id=wf or None)
+    refresh_goal_satisfaction(task)
     return task
 
 

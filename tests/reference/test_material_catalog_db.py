@@ -9,6 +9,7 @@ import pytest
 from engine.reference.material_catalog_db import (
     GlobalMaterialCatalog,
     load_material_registry,
+    lookup_metallurgical_group,
     search_materials,
 )
 
@@ -83,3 +84,13 @@ def test_rebuild_global_catalog(tmp_path: Path, project_root: Path) -> None:
     assert count > 0
     assert catalog.exists
     assert search_materials(root, "sa-106")
+
+
+def test_lookup_metallurgical_group_for_a106_and_a312(standards_root: Path) -> None:
+    catalog = GlobalMaterialCatalog(standards_root)
+    if not catalog.exists:
+        catalog.rebuild()
+
+    assert lookup_metallurgical_group(standards_root, "astm_a106_gr_b") == "ferritic_steels"
+    assert lookup_metallurgical_group(standards_root, "astm_a312_tp316") == "austenitic_steels"
+    assert lookup_metallurgical_group(standards_root, "api_5l") == "ferritic_steels"

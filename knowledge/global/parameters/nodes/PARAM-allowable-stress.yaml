@@ -6,8 +6,7 @@ name: Allowable Stress
 parameter_class: physical_quantity
 dimension: DIM-pressure
 description: >
-  Basic allowable stress in tension for metals at the design metal temperature,
-  used in pressure design equations.
+  stress value for material
 canonical_symbol: S
 aliases:
   - allowable stress

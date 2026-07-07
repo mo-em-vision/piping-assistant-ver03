@@ -1,8 +1,5 @@
 import { create } from 'zustand'
 
-import { env } from '@/config/env'
-import { useDevToolsStore } from '@/store/devToolsStore'
-
 export type StandardsReferenceKind = 'node' | 'table'
 
 export interface TableViewerContext {
@@ -19,6 +16,9 @@ export type ReferenceViewerContext = TableViewerContext | NodeViewerContext
 
 export type RightPanelTab =
   | { id: 'task'; kind: 'task'; title: 'Task' }
+  | { id: 'planner'; kind: 'planner'; title: 'Planner' }
+  | { id: 'dev-task-state'; kind: 'dev-task-state'; title: 'Task State' }
+  | { id: 'dev-operations'; kind: 'dev-operations'; title: 'Operations' }
   | { id: 'chat'; kind: 'chat'; title: 'Chat' }
   | { id: 'standards'; kind: 'standards'; title: 'Standards' }
   | {
@@ -35,22 +35,35 @@ export type RightPanelTab =
       title: string
       materialId: string
     }
-  | {
-      id: string
-      kind: 'node-edit'
-      title: string
-      nodeId: string
-      pack: string
-      sourceField?: string | null
-    }
 
 const TASK_TAB: RightPanelTab = { id: 'task', kind: 'task', title: 'Task' }
+const PLANNER_TAB: RightPanelTab = { id: 'planner', kind: 'planner', title: 'Planner' }
+const DEV_TASK_STATE_TAB: RightPanelTab = {
+  id: 'dev-task-state',
+  kind: 'dev-task-state',
+  title: 'Task State',
+}
+const OPERATIONS_TAB: RightPanelTab = {
+  id: 'dev-operations',
+  kind: 'dev-operations',
+  title: 'Operations',
+}
 const CHAT_TAB: RightPanelTab = { id: 'chat', kind: 'chat', title: 'Chat' }
 const STANDARDS_TAB: RightPanelTab = { id: 'standards', kind: 'standards', title: 'Standards' }
 
-function pinnedTabsForActiveTask(hasTask: boolean): RightPanelTab[] {
+const DEV_TASK_TAB_IDS = new Set(['planner', 'dev-task-state'])
+const DEV_TAB_IDS = new Set(['planner', 'dev-task-state', 'dev-operations'])
+
+function pinnedTabsForActiveTask(hasTask: boolean, devModeActive = false): RightPanelTab[] {
   const pinned = [CHAT_TAB, STANDARDS_TAB]
-  return hasTask ? [TASK_TAB, ...pinned] : pinned
+  if (!hasTask) {
+    return devModeActive ? [OPERATIONS_TAB, ...pinned] : pinned
+  }
+  const taskTabs: RightPanelTab[] = [TASK_TAB]
+  if (devModeActive) {
+    taskTabs.push(PLANNER_TAB, DEV_TASK_STATE_TAB, OPERATIONS_TAB)
+  }
+  return [...taskTabs, ...pinned]
 }
 
 function defaultActiveTabId(hasTask: boolean): string {
@@ -64,13 +77,6 @@ export interface OpenReferenceTabOptions {
 
 export type OpenMaterialTabOptions = OpenReferenceTabOptions
 
-export interface OpenNodeEditTabOptions {
-  pack?: string
-  sourceField?: string | null
-  title?: string
-  activate?: boolean
-}
-
 interface RightPanelState {
   tabs: RightPanelTab[]
   activeTabId: string
@@ -82,19 +88,15 @@ interface RightPanelState {
     options?: OpenReferenceTabOptions,
   ) => void
   openMaterialTab: (materialId: string, title: string, options?: OpenMaterialTabOptions) => void
-  openNodeEditTab: (nodeId: string, options?: OpenNodeEditTabOptions) => void
   closeTab: (id: string) => void
   setActiveTab: (id: string) => void
   reset: (hasTask?: boolean) => void
   syncForActiveTask: (hasTask: boolean) => void
+  syncDevTabs: (devModeActive: boolean, hasTask: boolean) => void
 }
 
 function materialTabId(materialId: string): string {
   return `material-${materialId}`
-}
-
-function nodeEditTabId(nodeId: string): string {
-  return `edit-node-${nodeId}`
 }
 
 function referenceTabId(
@@ -227,51 +229,8 @@ export const useRightPanelStore = create<RightPanelState>((set, get) => ({
     }))
   },
 
-  openNodeEditTab: (nodeId, options) => {
-    if (!env.devToolsAvailable || !useDevToolsStore.getState().devModeActive) {
-      return
-    }
-    const pack = options?.pack ?? 'asme_b31.3'
-    const activate = options?.activate ?? true
-    const title = options?.title ? `Edit: ${options.title}` : `Edit: ${nodeId}`
-    const id = nodeEditTabId(nodeId)
-    const existing = get().tabs.find((tab) => tab.kind === 'node-edit' && tab.nodeId === nodeId)
-
-    if (existing) {
-      set((state) => ({
-        activeTabId: activate ? existing.id : state.activeTabId,
-        tabs: state.tabs.map((tab) =>
-          tab.id === existing.id && tab.kind === 'node-edit'
-            ? {
-                ...tab,
-                title,
-                pack,
-                sourceField: options?.sourceField ?? tab.sourceField ?? null,
-              }
-            : tab,
-        ),
-      }))
-      return
-    }
-
-    set((state) => ({
-      tabs: [
-        ...state.tabs,
-        {
-          id,
-          kind: 'node-edit',
-          title,
-          nodeId,
-          pack,
-          sourceField: options?.sourceField ?? null,
-        },
-      ],
-      activeTabId: activate ? id : state.activeTabId,
-    }))
-  },
-
   closeTab: (id) => {
-    if (id === 'task' || id === 'chat' || id === 'standards') {
+    if (id === 'task' || id === 'chat' || id === 'standards' || DEV_TAB_IDS.has(id)) {
       return
     }
 
@@ -292,17 +251,43 @@ export const useRightPanelStore = create<RightPanelState>((set, get) => ({
 
   syncForActiveTask: (hasTask) => {
     set((state) => {
+      const devModeActive = state.tabs.some((tab) => DEV_TAB_IDS.has(tab.id))
       const dynamicTabs = state.tabs.filter(
-        (tab) => tab.kind === 'reference' || tab.kind === 'material' || tab.kind === 'node-edit',
+        (tab) => tab.kind === 'reference' || tab.kind === 'material',
       )
-      const pinnedTabs = pinnedTabsForActiveTask(hasTask)
+      const pinnedTabs = pinnedTabsForActiveTask(hasTask, devModeActive)
       const tabs = [...pinnedTabs, ...dynamicTabs]
 
       let activeTabId = state.activeTabId
+      if (hasTask) {
+        activeTabId = 'task'
+      } else if (!tabs.some((tab) => tab.id === activeTabId)) {
+        activeTabId = defaultActiveTabId(hasTask)
+      } else if (activeTabId === 'task' || DEV_TASK_TAB_IDS.has(activeTabId)) {
+        activeTabId = 'chat'
+      }
+
+      return { tabs, activeTabId }
+    })
+  },
+
+  syncDevTabs: (devModeActive, hasTask) => {
+    set((state) => {
+      const dynamicTabs = state.tabs.filter(
+        (tab) => tab.kind === 'reference' || tab.kind === 'material',
+      )
+      const pinnedTabs = pinnedTabsForActiveTask(hasTask, devModeActive)
+      const tabs = [...pinnedTabs, ...dynamicTabs]
+
+      let activeTabId = state.activeTabId
+      if (!devModeActive && DEV_TAB_IDS.has(activeTabId)) {
+        activeTabId = hasTask ? 'task' : 'chat'
+      }
+      if (!hasTask && (activeTabId === 'task' || DEV_TASK_TAB_IDS.has(activeTabId))) {
+        activeTabId = 'chat'
+      }
       if (!tabs.some((tab) => tab.id === activeTabId)) {
         activeTabId = defaultActiveTabId(hasTask)
-      } else if (!hasTask && activeTabId === 'task') {
-        activeTabId = 'chat'
       }
 
       return { tabs, activeTabId }

@@ -19,7 +19,7 @@ When adding paragraph text, formulas, tables, parameters, or workflows:
    - Shared quantities: `nodes/quantities/<quantity-id>/node.yaml`
    - Shared designations: `nodes/designations/<designation-id>/node.yaml`
    - Do **not** use `graph/nodes/` — that path is retired.
-3. Use semantic `edges:` blocks — do not hardcode workflow logic in Python or TypeScript.
+3. Use semantic `edges:` blocks — do not hardcode workflow logic in Python or TypeScript. Branching, gates, and path-specific parameters belong on nodes (`assumptions`, `applicability`, edge `when`) — see `docs/rules.md` §13.
 4. Equation nodes use sympy only (`sympy` field). No `execution_function` on equation nodes.
 5. Collection `priority` on equation `requires` entries for direct sympy inputs; on parameter nodes for lookup keys only. Questions and resolution live on `parameter`, `assumption`, and `interaction` nodes.
 6. If content does not fit an existing template field, ask the user before adding new template fields.

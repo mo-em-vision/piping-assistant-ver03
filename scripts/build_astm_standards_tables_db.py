@@ -22,6 +22,7 @@ _METADATA_KEYS = (
     "test_method",
     "stress_unit",
     "aliases",
+    "default_metallurgical_group",
 )
 
 ASTM_PACK = _ROOT / "knowledge" / "standards" / "astm"

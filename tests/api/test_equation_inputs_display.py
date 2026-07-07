@@ -8,31 +8,27 @@ from models.task import TaskStatus
 
 from api.equation_inputs_display import (
     AWAITING_USER_INPUT,
+    FORMULA_INPUT_DISPLAY_ROWS,
     build_formula_inputs_input_table,
     build_formula_inputs_table_rows,
     build_substituted_formula_display,
-    definitions_from_equation_variables,
     format_value_with_unit_for_display,
     primary_formula_inputs_complete,
 )
 from api.output_blocks import build_display_outputs
+from engine.reference.parameter_keys import parameter_node_description
 from tests.helpers.facts import fact_get_value, populate_task_facts
 from tests.helpers.goals import task_with_planning
 from models.fact import SourceType, ValidationStatus
 
 _ALL_AWAITING_ROWS = [
-    {"symbol": "", "definition": "Design material", "value": AWAITING_USER_INPUT},
-    {"symbol": "P", "definition": "Design pressure", "value": AWAITING_USER_INPUT},
-    {"symbol": "T", "definition": "Design temperature", "value": AWAITING_USER_INPUT},
     {
-        "symbol": "D",
-        "definition": "Outside diameter",
+        "symbol": symbol,
+        "definition": parameter_node_description(input_id=input_id),
         "value": AWAITING_USER_INPUT,
-    },
-    {"symbol": "S", "definition": "Allowable stress", "value": AWAITING_USER_INPUT},
-    {"symbol": "E", "definition": "Joint efficiency", "value": AWAITING_USER_INPUT},
-    {"symbol": "W", "definition": "Weld strength reduction", "value": AWAITING_USER_INPUT},
-    {"symbol": "Y", "definition": "Temperature coefficient", "value": AWAITING_USER_INPUT},
+    }
+    for input_id, symbol in FORMULA_INPUT_DISPLAY_ROWS
+    if input_id != "nominal_pipe_size"
 ]
 
 
@@ -53,8 +49,8 @@ def test_build_formula_inputs_table_rows_from_task_inputs() -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-        "design_pressure": EngineeringInput(
-            input_id="design_pressure",
+        "internal_design_gage_pressure": EngineeringInput(
+            input_id="internal_design_gage_pressure",
             value=3.0,
             unit="bar",
             source=InputSource.USER,
@@ -65,12 +61,12 @@ def test_build_formula_inputs_table_rows_from_task_inputs() -> None:
     rows = build_formula_inputs_table_rows(task)
     assert rows[0] == {
         "symbol": "",
-        "definition": "Design material",
+        "definition": parameter_node_description(input_id="material"),
         "value": "ASTM A106 Grade A",
     }
     assert rows[1] == {
         "symbol": "P",
-        "definition": "Design pressure",
+        "definition": parameter_node_description(input_id="internal_design_gage_pressure"),
         "value": "3.0 bar",
     }
     assert rows[2]["value"] == AWAITING_USER_INPUT
@@ -90,11 +86,9 @@ def test_design_temperature_value_uses_degree_celsius_symbol() -> None:
     })
 
     rows = build_formula_inputs_table_rows(task)
-    assert rows[2] == {
-        "symbol": "T",
-        "definition": "Design temperature",
-        "value": "38.0 °C",
-    }
+    assert rows[2]["symbol"] == "T"
+    assert rows[2]["definition"] == parameter_node_description(input_id="design_temperature")
+    assert rows[2]["value"] == "38.0 degC"
 
 
 def test_outside_diameter_value_includes_nps_and_hides_nps_row() -> None:
@@ -132,19 +126,14 @@ def test_outside_diameter_value_includes_nps_and_hides_nps_row() -> None:
         },
     }
 
-    rows = build_formula_inputs_table_rows(
-        task,
-        definition_overrides={"outside_diameter": "Outside diameter of pipe as measured"},
-    )
+    rows = build_formula_inputs_table_rows(task)
     symbols = [row["symbol"] for row in rows]
     assert "NPS" not in symbols
 
     diameter_row = next(row for row in rows if row["symbol"] == "D")
-    assert diameter_row == {
-        "symbol": "D",
-        "definition": "Outside diameter of pipe as measured",
-        "value": "114.3 mm (NPS: 4 inch, ASME B36.10)",
-    }
+    assert diameter_row["symbol"] == "D"
+    assert diameter_row["definition"] == parameter_node_description(input_id="outside_diameter")
+    assert diameter_row["value"] == "114.3 mm (NPS: 4, ASME B36.10)"
 
 
 def test_nps_row_hidden_before_nominal_pipe_size_entered() -> None:
@@ -160,15 +149,12 @@ def test_nps_row_hidden_before_nominal_pipe_size_entered() -> None:
         ),
     })
 
-    rows = build_formula_inputs_table_rows(
-        task,
-        definition_overrides={"outside_diameter": "Outside diameter of pipe as measured"},
-    )
+    rows = build_formula_inputs_table_rows(task)
     symbols = [row["symbol"] for row in rows]
     assert "NPS" not in symbols
 
     diameter_row = next(row for row in rows if row["symbol"] == "D")
-    assert diameter_row["definition"] == "Outside diameter of pipe as measured"
+    assert diameter_row["definition"] == parameter_node_description(input_id="outside_diameter")
     assert "(NPS:" not in diameter_row["definition"]
     assert "NPS" not in diameter_row["value"]
     assert "B36" not in diameter_row["value"]
@@ -195,17 +181,14 @@ def test_direct_outside_diameter_keeps_nps_row_hidden_without_nps_suffix() -> No
         ),
     })
 
-    rows = build_formula_inputs_table_rows(
-        task,
-        definition_overrides={"outside_diameter": "Outside diameter of pipe as measured"},
-    )
+    rows = build_formula_inputs_table_rows(task)
     symbols = [row["symbol"] for row in rows]
     assert "NPS" not in symbols
 
     diameter_row = next(row for row in rows if row["symbol"] == "D")
     assert diameter_row == {
         "symbol": "D",
-        "definition": "Outside diameter of pipe as measured",
+        "definition": parameter_node_description(input_id="outside_diameter"),
         "value": "114.3 mm",
     }
 
@@ -231,11 +214,11 @@ def test_weld_joint_efficiency_includes_joint_category_in_table() -> None:
     })
 
     rows = build_formula_inputs_table_rows(task)
-    assert rows[5] == {
-        "symbol": "E",
-        "definition": "Joint efficiency",
-        "value": "1.0 (ASME B31.3 Tables A-2/A-3, seamless)",
-    }
+    assert rows[5]["symbol"] == "E"
+    assert rows[5]["definition"] == parameter_node_description(input_id="weld_joint_efficiency")
+    assert rows[5]["value"].startswith("1.0 (ASME B31.3 Table A-2")
+    assert "Table A-3" in rows[5]["value"]
+    assert rows[5]["value"].endswith("seamless)")
 
 
 
@@ -307,35 +290,26 @@ def test_build_formula_inputs_table_rows_include_coefficients() -> None:
     rows = build_formula_inputs_table_rows(task)
     assert rows[4] == {
         "symbol": "S",
-        "definition": "Allowable stress",
+        "definition": parameter_node_description(input_id="allowable_stress"),
         "value": "193 MPa",
     }
     assert rows[5] == {
         "symbol": "E",
-        "definition": "Joint efficiency",
+        "definition": parameter_node_description(input_id="weld_joint_efficiency"),
         "value": "1.0",
     }
     assert rows[6] == {
         "symbol": "W",
-        "definition": "Weld strength reduction",
+        "definition": parameter_node_description(
+            input_id="weld_joint_strength_reduction_factor_W"
+        ),
         "value": "1.0",
     }
     assert rows[7] == {
         "symbol": "Y",
-        "definition": "Temperature coefficient",
+        "definition": parameter_node_description(input_id="temperature_coefficient_Y"),
         "value": "0.4",
     }
-
-
-def test_definitions_from_equation_variables() -> None:
-    overrides = definitions_from_equation_variables(
-        [
-            {"symbol": "P", "name": "Internal design gage pressure"},
-            {"symbol": "D", "name": "Outside diameter of pipe as measured"},
-        ]
-    )
-    assert overrides["design_pressure"] == "Internal design gage pressure"
-    assert overrides["outside_diameter"] == "Outside diameter of pipe as measured"
 
 
 def test_build_formula_inputs_input_table_has_headers() -> None:
@@ -362,8 +336,8 @@ def test_primary_formula_inputs_complete(standards_reader) -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-        "design_pressure": EngineeringInput(
-            input_id="design_pressure",
+        "internal_design_gage_pressure": EngineeringInput(
+            input_id="internal_design_gage_pressure",
             value=3.0,
             unit="bar",
             source=InputSource.USER,
@@ -403,8 +377,8 @@ def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-        "design_pressure": EngineeringInput(
-            input_id="design_pressure",
+        "internal_design_gage_pressure": EngineeringInput(
+            input_id="internal_design_gage_pressure",
             value=3.0,
             unit="bar",
             source=InputSource.USER,
@@ -421,15 +395,8 @@ def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
     assert equation["input_table"]["columns"][0]["label"] == "Symbol"
     assert equation["input_table"]["columns"][1]["label"] == "Definition"
     assert equation["input_table"]["columns"][2]["label"] == "Value"
-    assert equation["input_table"]["rows"][0] == {
-        "symbol": "",
-        "definition": "Design material",
-        "value": "ASTM A106 Grade A",
-    }
-    pressure_row = equation["input_table"]["rows"][1]
-    assert pressure_row["symbol"] == "P"
-    assert pressure_row["value"] == "3.0 bar"
-    assert "pressure" in pressure_row["definition"].lower()
+    assert equation["input_table"]["rows"][0]["symbol"] == "P"
+    assert equation["input_table"]["rows"][0]["value"] == "3.0 bar"
     assert equation["input_table"]["rows"][2]["value"] == AWAITING_USER_INPUT
 
 
@@ -444,7 +411,7 @@ def test_allowable_stress_not_emitted_as_standalone_result_block(standards_reade
             "pressure_loading": "internal_pressure",
             "selected_node": "304.1.2-a",
         },
-        "missing_inputs": ["design_pressure"],
+        "missing_inputs": ["internal_design_gage_pressure"],
         "current_phase": "formula_parameters",
     }
     task.outputs = {

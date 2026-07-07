@@ -1,0 +1,104 @@
+.scroll-select-picker {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.scroll-select-picker__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 10.5rem;
+  max-width: 14rem;
+  padding: 0.4rem 0.55rem 0.4rem 0.65rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  cursor: pointer;
+  text-align: left;
+}
+
+.scroll-select-picker__trigger:hover:not(:disabled) {
+  border-color: #94a3b8;
+}
+
+.scroll-select-picker__trigger:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.scroll-select-picker__trigger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.scroll-select-picker__trigger-placeholder {
+  color: #94a3b8;
+}
+
+.scroll-select-picker__trigger-value {
+  color: #1e293b;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scroll-select-picker__chevron {
+  margin-left: auto;
+  color: #64748b;
+  font-size: 0.7rem;
+  line-height: 1;
+}
+
+.scroll-select-picker__menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 0.35rem);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  max-height: calc(var(--scroll-select-visible-rows, 5) * 2.35rem + 0.5rem);
+  overflow-y: auto;
+  padding: 0.25rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.12);
+  scroll-behavior: smooth;
+}
+
+.scroll-select-picker__option {
+  width: 100%;
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.scroll-select-picker__option:hover:not(:disabled) {
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+}
+
+.scroll-select-picker__option--selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1e40af;
+  font-weight: 600;
+}
+
+.scroll-select-picker__option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

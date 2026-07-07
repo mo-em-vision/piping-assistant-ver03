@@ -9,6 +9,7 @@ product_form: [seamless_pipe, welded_pipe]
 test_method: longitudinal_tension
 temperature_unit: F
 stress_unit: Pa
+default_metallurgical_group: ferritic_steels
 
 keys:
   - grade

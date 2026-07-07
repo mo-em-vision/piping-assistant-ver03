@@ -1,0 +1,32 @@
+---
+id: PARAM-actual-wall-thickness
+type: parameter
+key: actual_wall_thickness
+name: Actual Wall Thickness
+parameter_class: geometric_quantity
+dimension: DIM-length
+description: >
+  Pipe wall thickness (measured or minimum in accordance with the purchase
+  specification). Used when actual or ordered thickness is known instead of
+  calculating design thickness from pressure.
+canonical_symbol: t_actual
+aliases:
+  - actual wall thickness
+  - measured wall thickness
+  - ordered wall thickness
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: has_dimension
+    target: DIM-length
+  - type: used_by
+    target: asme-b313-304-1-1-a
+  - type: used_by
+    target: asme-b313-pressure-design-thickness
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-06
+  edited_by: admin
+  canonical_unit: UNIT-mm
+---

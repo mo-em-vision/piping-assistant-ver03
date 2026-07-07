@@ -92,8 +92,11 @@ dev/desktop_ui/inspector/
   DeveloperInspector.tsx      Tab shell
   ExecutionTracePanel.tsx
   InspectorGraphPanel.tsx
-  PlannerDevPanel.tsx         Planner summary + engineering plan + traversal view
-  EngineeringPlanPanel.tsx    Readable plan phases / requirements
+  PlannerDevPanel.tsx         Planner summary from engineering_plan + validation + traversal
+  PlannerTraversalPanel.tsx   Active node, pending expansion, branch decisions, events
+  plannerInspectorSummary.ts  resolvePlannerInspectorSummary, buildPlannerTraversalInspectorView
+  validateEngineeringPlan.ts  Client-side plan invariant checks (mirrors plan_validation.py)
+  EngineeringPlanPanel.tsx    Readable plan phases / requirements (debug details)
   TaskStateDevPanel.tsx       Execution traversal (graph engine)
   inspectorStore.ts           Selection, replay index, panel state
   useInspectionPayload.ts     Poll inspection API for active task
@@ -247,6 +250,25 @@ Per-node records are built from `ExecutionPlan` structure (`engine/inspection/pl
 
 Select a trace step in the Inspector, then open the **Planner** tab to see the decision for that node.
 
+### Planner tab (engineering plan)
+
+The **Planner** dev tab is driven by **`engineering_plan`** (canonical), not the legacy `goal_store` projection.
+
+| Section | Source |
+|---------|--------|
+| Root goal, phase, next input | `planner_inspector_summary` (rebuilt from `engineering_plan` on inspection fetch) |
+| Outstanding / conditional / lookup / calculation reqs | `planner_inspector_summary` |
+| Dependency graph summary | `planner_inspector_summary.planner_graph_summary` |
+| Plan validation | `validateEngineeringPlan(engineering_plan)` + `engineering_plan.debug` |
+| Traversal summary + panel | `traversal_summary`, `planner_traversal_view`, `engineering_plan.traversal` |
+| Legacy goal map | `<details>` debug only — `legacy_goal_map` |
+
+`build_planner_inspector_summary()` (`engine/planner/plan_inspector.py`) shape:
+
+- `root_goal`, `current_phase`, `next_input` (at most one in `single_next_question` mode)
+- `outstanding_required_inputs`, `conditional_requirements`, `derived_or_lookup_values`, `calculations`
+- `planner_graph_summary`, `traversal_summary`, `planner_traversal_view`, `warnings`
+
 ### Planner traversal (engineering plan)
 
 Separate from per-trace `PlannerDecision` records: the normalized **`EngineeringPlan.traversal`** field (`PlannerTraversalState`) captures how the planner is walking the workflow graph while building requirements — not the graph engine execution order.
@@ -255,9 +277,11 @@ Built in `engine/planner/planner_traversal.py` when `build_pipe_wall_engineering
 
 | Output | Contents |
 |--------|----------|
-| `engineering_plan.traversal` | Full `PlannerTraversalState` (persisted) |
-| `planner_inspector_summary.traversal_summary` | Compact counts + active node id/title |
-| `planner_inspector_summary.planner_traversal_view` | Inspector panel: active node, pending expansion, expanded nodes, branch decisions, recent events |
+| `engineering_plan` | **Canonical** normalized plan (`plan_id`, `requirements`, `traversal`, …) — source of truth |
+| `engineering_plan_view` | Human-readable phases/overview for inspector panels |
+| `legacy_goal_map` | Deprecated `goal_store` projection (`GOAL-*`, `REQ-*` keys) |
+| `planner_inspector_summary.traversal_summary` | Compact traversal counts |
+| `planner_inspector_summary.planner_traversal_view` | Inspector panel: active node, pending expansion, branch decisions, recent events |
 
 | Field | Meaning |
 |-------|---------|
@@ -267,9 +291,16 @@ Built in `engine/planner/planner_traversal.py` when `build_pipe_wall_engineering
 | `branch_decisions` | Unresolved/resolved path decisions with `candidate_nodes` (e.g. `pressure_loading` → `304.1.2-a`, `304.1.3`) |
 | `traversal_events` | Ordered log: `node_expanded`, `node_selected`, `branch_decision_required`, `node_deferred`, … |
 
-Open the **Planner** dev tab → **Planner traversal** (expandable) after starting a pipe wall thickness task. Invariants are checked in `engine/planner/plan_validation.py` (no duplicate pending, no expanded/pending overlap, branch paragraphs not active before branch resolves).
+Open the **Planner** dev tab after starting a pipe wall thickness task. Expand **Planner traversal** for the full walk state.
 
-Tests: `tests/planner/test_planner_traversal.py`.
+Invariants: `engine/planner/plan_validation.py` (`validate_engineering_plan`, `validate_engineering_plan_dict`). Validation runs after `finalize_engineering_plan()`; failures appear under **Plan validation** in the Planner tab.
+
+Tests:
+
+- `tests/planner/test_planner_traversal.py`
+- `tests/planner/test_fresh_pipe_wall_normalized_plan.py`
+- `tests/planner/test_planner_output_shape.py`
+- `dev/desktop_ui/tests/validateEngineeringPlan.test.tsx`
 
 ---
 

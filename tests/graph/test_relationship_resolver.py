@@ -32,6 +32,20 @@ def test_wall_thickness_requires_quantity_concepts() -> None:
     assert by_symbol["S"].concept_id == "B313-quantity-stress"
 
 
+def test_eq_3a_resolves_parameter_symbol_requires() -> None:
+    reader = _reader()
+    store = GraphStore(reader.pack_root)
+    bindings = resolve_require_bindings(
+        store,
+        store.metadata("asme-b313-304-1-2-eq-3a").get("requires"),
+    )
+    symbols = {binding.sympy_symbol: binding.param_id for binding in bindings}
+    assert symbols["P"] == "PARAM-internal-design-gage-pressure"
+    assert symbols["S"] == "PARAM-allowable-stress"
+    assert "t" not in symbols
+    assert len(symbols) == 6
+
+
 def test_eq_2_resolves_shared_thickness_quantity_by_alias() -> None:
     reader = _reader()
     store = GraphStore(reader.pack_root)

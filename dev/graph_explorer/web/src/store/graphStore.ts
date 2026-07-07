@@ -1,20 +1,29 @@
 import { create } from 'zustand'
 import type { Edge, Node } from '@xyflow/react'
 import type {
+  ExpansionEdge,
+  ExpansionNode,
+  ExpansionViewToggles,
   GraphAnalysis,
   GraphContext,
   GraphEdgeData,
   GraphNodeData,
   NodeDetail,
+  WorkflowExpansionView,
 } from '../types'
+import { applyExpansionFilters } from '../utils/expansionFilters'
 import { ALL_NODE_TYPES } from '../utils/nodeStyles'
-import { layoutGraph } from '../utils/layout'
+import { layoutGraph, phaseRank } from '../utils/layout'
 import { readTaskIdFromUrl } from '../utils/taskQuery'
 
 interface GraphStoreState {
   revision: string
+  expansionRevision: string
   taskId: string | null
   context: GraphContext | null
+  expansionView: WorkflowExpansionView | null
+  selectedExpansionNode: ExpansionNode | null
+  viewToggles: ExpansionViewToggles
   rawNodes: GraphNodeData[]
   rawEdges: GraphEdgeData[]
   flowNodes: Node[]
@@ -27,6 +36,9 @@ interface GraphStoreState {
   visibleTypes: Set<string>
   analysis: GraphAnalysis | null
   connected: boolean
+  setExpansionView: (view: WorkflowExpansionView) => void
+  setViewToggle: (key: keyof ExpansionViewToggles, value: boolean) => void
+  setSelectedExpansionNode: (node: ExpansionNode | null) => void
   setSnapshot: (nodes: GraphNodeData[], edges: GraphEdgeData[], context: GraphContext, revision: string) => void
   applyDelta: (payload: {
     revision: string
@@ -45,6 +57,72 @@ interface GraphStoreState {
   setConnected: (connected: boolean) => void
   updatePositions: (nodes: Node[]) => void
   rebuildFlow: () => void
+}
+
+const defaultToggles: ExpansionViewToggles = {
+  showSkipped: true,
+  showFullGraph: false,
+  showParameters: true,
+  showReferenceEdges: false,
+  autoRefresh: true,
+}
+
+function toExpansionFlowNodes(
+  nodes: ExpansionNode[],
+  positions: Record<string, { x: number; y: number }>,
+  searchMatchIds: string[],
+  selectedNodeId: string | null,
+): Node[] {
+  const matchSet = new Set(searchMatchIds)
+  return nodes.map((node, index) => ({
+    id: node.id,
+    type: 'graphNode',
+    position: positions[node.id] ?? { x: (index % 10) * 220, y: Math.floor(index / 10) * 90 },
+    data: {
+      label: node.label,
+      nodeType: node.type,
+      expansionStatus: node.status,
+      reason: node.reason,
+      phase: node.phase,
+      description: node.reason,
+      skipped: node.skipped,
+      highlighted: matchSet.has(node.id),
+      selected: selectedNodeId === node.id,
+    },
+  }))
+}
+
+function buildExpansionPhaseRanks(nodes: ExpansionNode[]): Record<string, number> {
+  return Object.fromEntries(
+    nodes.map((node) => [
+      node.id,
+      node.type === 'workflow' ? 0 : phaseRank(node.phase) + 1,
+    ]),
+  )
+}
+
+function toExpansionFlowEdges(edges: ExpansionEdge[], selectedNodeId: string | null): Edge[] {
+  return edges.map((edge) => {
+    const connected =
+      selectedNodeId !== null && (edge.source === selectedNodeId || edge.target === selectedNodeId)
+    return {
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      type: 'graphEdge',
+      zIndex: connected ? 1000 : undefined,
+      data: {
+        edgeType: edge.type,
+        condition: edge.condition,
+        traversed: edge.active,
+        skipped: edge.skipped,
+        reason: edge.reason,
+        highlighted: connected,
+        dimmed: selectedNodeId !== null && !connected,
+      },
+      animated: edge.active && !edge.skipped,
+    }
+  })
 }
 
 function toFlowNodes(
@@ -75,24 +153,35 @@ function toFlowNodes(
   }))
 }
 
-function toFlowEdges(edges: GraphEdgeData[]): Edge[] {
-  return edges.map((edge) => ({
-    id: edge.id,
-    source: edge.source,
-    target: edge.target,
-    type: 'graphEdge',
-    data: {
-      edgeType: edge.edge_type,
-      traversed: edge.metadata?.traversed === true,
-    },
-    animated: edge.metadata?.traversed === true || edge.edge_type === 'next_step',
-  }))
+function toFlowEdges(edges: GraphEdgeData[], selectedNodeId: string | null): Edge[] {
+  return edges.map((edge) => {
+    const connected =
+      selectedNodeId !== null && (edge.source === selectedNodeId || edge.target === selectedNodeId)
+    return {
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
+      type: 'graphEdge',
+      zIndex: connected ? 1000 : undefined,
+      data: {
+        edgeType: edge.edge_type,
+        traversed: edge.metadata?.traversed === true,
+        highlighted: connected,
+        dimmed: selectedNodeId !== null && !connected,
+      },
+      animated: edge.metadata?.traversed === true || edge.edge_type === 'next_step',
+    }
+  })
 }
 
 export const useGraphStore = create<GraphStoreState>((set, get) => ({
   revision: '',
+  expansionRevision: '',
   taskId: readTaskIdFromUrl(),
   context: null,
+  expansionView: null,
+  selectedExpansionNode: null,
+  viewToggles: defaultToggles,
   rawNodes: [],
   rawEdges: [],
   flowNodes: [],
@@ -106,14 +195,46 @@ export const useGraphStore = create<GraphStoreState>((set, get) => ({
   analysis: null,
   connected: false,
 
+  setExpansionView: (view) => {
+    const { positions, searchMatchIds, selectedNodeId, viewToggles } = get()
+    const filtered = applyExpansionFilters(view.nodes, view.edges, viewToggles)
+    const flowNodes = toExpansionFlowNodes(filtered.nodes, positions, searchMatchIds, selectedNodeId)
+    const flowEdges = toExpansionFlowEdges(filtered.edges, selectedNodeId)
+    const laidOut = layoutGraph(flowNodes, flowEdges, {
+      rankByNodeId: buildExpansionPhaseRanks(filtered.nodes),
+    })
+    const newPositions = Object.fromEntries(laidOut.map((node) => [node.id, node.position]))
+    set({
+      expansionRevision: view.revision,
+      expansionView: view,
+      context: {
+        task_id: view.task_id,
+        workflow_id: view.workflow,
+        session_id: 'default',
+        node_count: filtered.nodes.length,
+        edge_count: filtered.edges.length,
+        message: view.warnings[0] ?? null,
+      },
+      flowNodes: laidOut,
+      flowEdges,
+      positions: newPositions,
+    })
+  },
+
+  setViewToggle: (key, value) => {
+    set({ viewToggles: { ...get().viewToggles, [key]: value } })
+    const view = get().expansionView
+    if (view) get().setExpansionView(view)
+  },
+
+  setSelectedExpansionNode: (node) => set({ selectedExpansionNode: node }),
+
   setSnapshot: (nodes, edges, context, revision) => {
     const { positions, searchMatchIds, selectedNodeId } = get()
     const flowNodes = toFlowNodes(nodes, positions, searchMatchIds, selectedNodeId)
-    const flowEdges = toFlowEdges(edges)
+    const flowEdges = toFlowEdges(edges, selectedNodeId)
     const laidOut = layoutGraph(flowNodes, flowEdges)
-    const newPositions = Object.fromEntries(
-      laidOut.map((node) => [node.id, node.position]),
-    )
+    const newPositions = Object.fromEntries(laidOut.map((node) => [node.id, node.position]))
     set({
       revision,
       context,
@@ -219,14 +340,21 @@ export const useGraphStore = create<GraphStoreState>((set, get) => ({
   },
 
   rebuildFlow: () => {
-    const { rawNodes, rawEdges, positions, visibleTypes, searchMatchIds, selectedNodeId } = get()
+    const state = get()
+    if (state.expansionView) {
+      state.setExpansionView(state.expansionView)
+      return
+    }
+    const { rawNodes, rawEdges, positions, visibleTypes, searchMatchIds, selectedNodeId } = state
     const filteredNodes = rawNodes.filter((node) => visibleTypes.has(node.node_type))
     const visibleIds = new Set(filteredNodes.map((node) => node.id))
     const filteredEdges = rawEdges.filter(
       (edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target),
     )
     const flowNodes = toFlowNodes(filteredNodes, positions, searchMatchIds, selectedNodeId)
-    const flowEdges = toFlowEdges(filteredEdges)
-    set({ flowNodes, flowEdges })
+    const flowEdges = toFlowEdges(filteredEdges, selectedNodeId)
+    const laidOut = layoutGraph(flowNodes, flowEdges)
+    const newPositions = Object.fromEntries(laidOut.map((node) => [node.id, node.position]))
+    set({ flowNodes: laidOut, flowEdges, positions: newPositions })
   },
 }))

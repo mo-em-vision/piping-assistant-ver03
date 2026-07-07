@@ -80,6 +80,7 @@ def get_material_detail(standards_root: Path, material_id: str) -> dict[str, Any
         "grade_key": record["grade_key"],
         "specification": properties.specification,
         "product_form": properties.product_form,
+        "metallurgical_group": record.get("metallurgical_group", ""),
         "uns_number": str(row.get("uns_number", "") or ""),
         "aliases": properties.aliases,
         "mechanical_properties": _serialize_mechanical_properties(

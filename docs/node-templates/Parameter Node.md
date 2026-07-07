@@ -74,6 +74,62 @@ These `parameter_class` values drive planner prompts, UI input type, and lookup 
 - **`selection`**: discrete workflow choice (dropdown/confirmation); e.g. joint category before E lookup.
 - **`categorical`**: label-based designation stored as a Fact `{label, normalized_key}`; e.g. material specification token.
 
+## Composer metadata (workflow UI)
+
+Gatherable parameters must declare how the desktop composer renders them. Author under the `metadata` block:
+
+| Field | Purpose |
+| --- | --- |
+| `composer_input` | UI control: `number`, `dropdown`, `checkbox`, `material` |
+| `composer_options` | Static choices: `[{value: internal_pressure, label: Internal Pressure}]` |
+| `canonical_unit` | Default unit symbol or `UNIT-*` id (`UNIT-mm`, `NPS`) |
+| `default_value` | Proposed default before user confirms |
+
+`engine/reference/parameter_composer_spec.py` reads these fields only — no engine fallbacks. Omit `composer_input` to infer from `parameter_class` + `dimension`. Dynamic option lists (NPS catalog, material tables) are loaded in `api/parameter_definitions.py` after the PARAM node sets type and default unit.
+
+Full rule: [`docs/rules.md`](../rules.md) §17, [`.cursor/rules/param-composer-metadata.mdc`](../../.cursor/rules/param-composer-metadata.mdc).
+
+Example:
+
+```yaml
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-06
+  edited_by: admin
+  composer_input: dropdown
+  composer_options:
+    - value: internal_pressure
+      label: Internal Pressure
+    - value: external_pressure
+      label: External Pressure
+```
+
+## Lookup conditionals (table-derived outputs)
+
+When a parameter is resolved from a table lookup and needs boundary behavior outside the tabulated range, author `lookup_conditionals` on the **output** `PARAM-*` node. Keys must match lookup input / fact keys (`design_temperature`, …).
+
+```yaml
+lookup_conditionals:
+  design_temperature:
+    unit: UNIT-degF
+    min: 900
+    max: 1250
+    below_min: use_min
+    above_max: use_max
+```
+
+| Field | Purpose |
+| --- | --- |
+| `unit` | Unit for thresholds (`UNIT-degF`, `UNIT-degC`, …) |
+| `min` / `max` | Tabulated range endpoints |
+| `below_min: use_min` | Use the value at `min` when input is lower |
+| `above_max: use_max` | Use the value at `max` when input is higher |
+
+The lookup node keeps tabulated rows and `interpolation: true` only. The engine applies conditionals generically via `engine/graph/lookup_conditionals.py`.
+
+Full rule: [`docs/rules.md`](../rules.md) §18, [`.cursor/rules/lookup-conditionals.mdc`](../../.cursor/rules/lookup-conditionals.mdc).
+
 ## Dimension examples
 
 ```yaml
@@ -112,47 +168,26 @@ Global `PARAM-*` nodes live outside any standards pack. When a parameter is intr
 
 Use pack-qualified ids in the top-level `introduced_by` list only — do **not** duplicate them as `introduced_by` edges. Paragraph nodes inside a pack keep their bare `id` (`304.1.1-b`); the graph compiler resolves qualified references at compile time. Helpers: [`engine/reference/asme_b313_node_ids.py`](../../engine/reference/asme_b313_node_ids.py).
 
-## Example: material parameter
+## Parameter key consistency (lookup tables and databases)
 
-```yaml
+**Runtime parameter keys, lookup-table input ids, and fact keys must match the global `PARAM-*` node `key` field.**
+
+| Layer | Rule | Example |
+| --- | --- | --- |
+| Parameter node | Author `key` on `knowledge/global/parameters/nodes/PARAM-*.yaml` | `material_grade` on `PARAM-material-grade` |
+| Lookup table node | Each `inputs[].id` equals the bound parameter `key` | `asme-b313-table-A-1` input `material_grade` → `PARAM-material-grade` |
+| Workflow runtime | Phase field lists use parameter `key`, not abbreviations | `material_grade`, not `material` |
+| Facts / API | Store and submit under the canonical `key` | Fact key `material_grade` |
+| Material catalog | `material_id` values are catalog ids (e.g. `astm_a106_gr_b`), not parameter keys | Distinct from parameter `key` |
+
+Implementation helper: `engine/reference/parameter_keys.py` (`MATERIAL_GRADE_KEY`, `canonical_parameter_key`, `read_parameter_value`). Legacy aliases (e.g. `material` → `material_grade`) are read-only for old sessions; do not author new YAML or nodes with legacy keys.
+
+When adding a new parameter that drives a lookup table, use the same string for: `PARAM-*` `key`, lookup `inputs[].id`, workflow phase lists, and fact storage. Future material-related parameters (e.g. `metallurgical_group`) follow the same rule with their own unique keys.
+
+Full template: [`docs/node-templates/Parameter Node.md`](node-templates/Parameter%20Node.md#parameter-key-consistency).
+
 ---
-id: PARAM-material-specification
-type: parameter
 
-key: material_specification
-name: Material Specification
-
-parameter_class: material_designation
-dimension: DIM-material-designation
-
-description: >
-  Material specification or designation used to resolve allowable stress,
-  material properties, and applicable standard limits.
-
-canonical_symbol: material
-
-aliases:
-  - pipe material
-  - material
-  - material grade
-
-introduced_by:
-  - asme-b313-304-1-1-b
-
-edges:
-  - type: has_dimension
-    target: DIM-material-designation
-
-  - type: used_by
-    target: asme-b313-table-A-1
-
-metadata:
-  status: active
-  version: 1
----
-```
-
-## Example: corrosion allowance parameter
 
 ```yaml
 ---

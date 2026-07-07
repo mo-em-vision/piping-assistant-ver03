@@ -28,12 +28,6 @@ lookup:
   - PARAM-metallurgical-group
   - PARAM-design-temperature
   interpolation: true
-  temperature_bounds:
-    unit: UNIT-degF
-    min: 900
-    max: 1250
-    below_min: use_min
-    above_max: use_max
 edges:
 - type: reads_table
   target: asme-b313-table-304-1-1-1

@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 
 from engine.reference.coefficient_resolver import (
-    clamp_y_lookup_temperature_f,
     compute_thick_wall_y,
     interpolate_by_temperature,
     list_pipe_construction_type_options,
@@ -106,10 +105,23 @@ def test_lookup_y_interpolates_between_tabulated_points() -> None:
     assert abs(value - 0.6) < 1e-9
 
 
-def test_clamp_y_lookup_temperature_f() -> None:
-    assert clamp_y_lookup_temperature_f(100.0) == 900.0
-    assert clamp_y_lookup_temperature_f(975.0) == 975.0
-    assert clamp_y_lookup_temperature_f(1500.0) == 1250.0
+def test_y_parameter_lookup_conditionals_clamp_temperature() -> None:
+    from engine.graph.lookup_conditionals import (
+        apply_lookup_conditional_bounds,
+        lookup_conditionals_for_parameter,
+        resolve_lookup_input_value,
+    )
+
+    conditionals = lookup_conditionals_for_parameter("PARAM-temperature-coefficient-Y")
+    design_temp = conditionals["design_temperature"]
+    assert apply_lookup_conditional_bounds(100.0, design_temp) == 900.0
+    assert resolve_lookup_input_value(
+        100.0,
+        input_key="design_temperature",
+        input_unit="F",
+        output_param_node_id="PARAM-temperature-coefficient-Y",
+        table_unit="F",
+    ) == 900.0
 
 
 def test_thick_wall_y_formula() -> None:

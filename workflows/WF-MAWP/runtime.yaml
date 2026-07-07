@@ -13,13 +13,10 @@ navigation:
     - outside_diameter
     - actual_wall_thickness
     - corrosion_allowance
-    - material
+    - material_grade
     - design_temperature
     coefficient_resolution:
-    - joint_category
-    - weld_joint_efficiency
-    - weld_joint_strength_reduction_factor_W
-    - temperature_coefficient_Y
+    - pipe_construction_type
     execution_assumptions: []
     definition_equation_completion: []
 provisional_assumptions:
@@ -54,26 +51,20 @@ inputs:
   name: E
   description: Quality factor from Tables A-2 and A-3
   required: true
-  source: default
+  source: node_output
   unit: dimensionless
-  default: 1.0
-  requires_confirmation: true
 - id: weld_joint_strength_reduction_factor_W
   name: W
-  description: Weld strength reduction factor
+  description: Weld strength reduction factor from Table 302.3.5-1
   required: true
-  source: default
+  source: node_output
   unit: dimensionless
-  default: 1.0
-  requires_confirmation: true
 - id: temperature_coefficient_Y
   name: Y
-  description: Coefficient from Table 304.1.1
+  description: Coefficient from Table 304.1.1-1 (resolved from design temperature and metallurgical group)
   required: true
-  source: resolved
+  source: node_output
   unit: dimensionless
-  default: 0.4
-  requires_confirmation: true
 equations:
 - id: asme-b313-pressure-design-thickness
   file: ../equation/asme-b313-pressure-design-thickness.yaml

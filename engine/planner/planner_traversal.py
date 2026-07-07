@@ -30,12 +30,12 @@ _PRESSURE_BRANCH_BY_VALUE = {
 }
 
 _PARAGRAPH_TITLES: dict[str, str] = {
-    "304.1.2-a": "Internal Pressure Design — Thin Wall",
+    "304.1.2-a": "Straight Pipe Under Internal Pressure",
     "304.1.3": "Straight Pipe Under External Pressure",
 }
 
 _WORKFLOW_TITLES: dict[str, str] = {
-    PIPE_WALL_WORKFLOW_NODE: "Pipe Wall Thickness Design",
+    PIPE_WALL_WORKFLOW_NODE: "Pipe Wall Thickness Workflow",
 }
 
 _ACTIVE_REASONS: dict[str, str] = {
@@ -200,15 +200,24 @@ def _build_pending_nodes(
         )
 
     if not pressure_resolved:
-        for paragraph_id in _PRESSURE_BRANCH_CANDIDATES:
-            if paragraph_id == active_node_id:
-                continue
+        internal_branch = _PRESSURE_BRANCH_BY_VALUE["internal_pressure"]
+        if internal_branch != active_node_id:
             _append_pending(
                 pending,
-                node_id=paragraph_id,
+                node_id=internal_branch,
                 waiting_on=[pressure_param],
                 phase="parameter_gathering",
-                reason=_PENDING_REASONS[paragraph_id],
+                reason=_PENDING_REASONS[internal_branch],
+                seen=seen,
+            )
+        external_branch = _PRESSURE_BRANCH_BY_VALUE["external_pressure"]
+        if pressure_value == "external_pressure" and external_branch != active_node_id:
+            _append_pending(
+                pending,
+                node_id=external_branch,
+                waiting_on=[pressure_param],
+                phase="parameter_gathering",
+                reason=_PENDING_REASONS[external_branch],
                 seen=seen,
             )
 
@@ -505,6 +514,20 @@ def build_traversal_summary(traversal: PlannerTraversalState) -> dict[str, Any]:
             if decision.status == "unresolved"
         ],
     }
+
+
+def build_planner_traversal_inspector_view_from_plan(
+    plan: EngineeringPlan,
+    *,
+    recent_event_limit: int = 20,
+) -> dict[str, Any] | None:
+    """Traversal inspector panel from canonical engineering plan."""
+    if plan.traversal is None:
+        return None
+    return build_planner_traversal_inspector_view(
+        plan.traversal,
+        recent_event_limit=recent_event_limit,
+    )
 
 
 def build_planner_traversal_inspector_view(

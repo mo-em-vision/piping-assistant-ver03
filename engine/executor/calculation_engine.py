@@ -61,8 +61,27 @@ class CalculationEngine:
         if outputs:
             output_def = outputs[0]
 
-        symbol = str(output_def.get("symbol", "t")) if output_def else "t"
+        symbol = str(output_def.get("symbol", "")).strip() if output_def else ""
         unit = str(output_def.get("unit", "mm")) if output_def else "mm"
+        if not symbol:
+            calculates = formula_data.get("calculates") or []
+            if calculates:
+                first = calculates[0]
+                if isinstance(first, dict):
+                    symbol = str(first.get("symbol", "")).strip()
+                else:
+                    symbol = str(first).strip()
+        if not symbol:
+            for step_def in reversed(formula_data.get("steps", []) or []):
+                for expr_def in reversed(step_def.get("expressions", []) or []):
+                    assign = str(expr_def.get("assign", "")).strip()
+                    if assign:
+                        symbol = assign
+                        break
+                if symbol:
+                    break
+        if not symbol:
+            symbol = "t"
         final_value = env.get(symbol)
         if final_value is None:
             raise ValueError(f"Formula did not produce output symbol: {symbol}")

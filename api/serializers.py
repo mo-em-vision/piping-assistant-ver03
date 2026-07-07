@@ -28,6 +28,7 @@ from api.workflow_timeline import (
     revealed_input_ids,
     revealed_pipe_wall_input_ids,
     submittable_parameter_ids,
+    timeline_step_id_for_parameter,
     workflow_input_step_done,
     workflow_step_title,
 )
@@ -37,13 +38,23 @@ from engine.graph.definition_equations import (
     has_execution_trace,
     pending_definition_equation_inputs,
 )
+from engine.reference.parameter_keys import MATERIAL_GRADE_KEY
 from engine.reference.standards_reader import StandardsReader
 from engine.graph.graph_engine import GraphEngine
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.state.authority_context_projection import authority_context_summary
 from engine.state.execution_context_projection import execution_context_summary
 from engine.planner.goal_navigation import build_current_ask
-from engine.state.goal_projection import goals_to_api_dict, planning_projection
+from engine.state.goal_projection import (
+    legacy_goal_map_for_task,
+    planning_projection,
+)
+from engine.state.task_state_canonical import (
+    build_canonical_task_state,
+    build_legacy_task_state_view,
+    build_task_inspector_summary,
+    validate_task_state_invariants,
+)
 from engine.state.state_manager import TaskStateManager
 from models.fact import Fact, ValidationStatus, fact_scalar_value, fact_to_dict, fact_unit
 from models.task import Task, TaskStatus
@@ -142,6 +153,37 @@ def _task_workflow_id(task: Task) -> str:
     return ""
 
 
+_OUTPUT_DEBUG_KEYS = frozenset(
+    {
+        "engineering_plan",
+        "planner_inspector_summary",
+        "engineering_plan_view",
+    }
+)
+
+
+def _public_task_outputs(task: Task) -> dict[str, Any]:
+    """Task outputs for API consumers — omits verbose internal planner blobs."""
+    outputs = dict(task.outputs)
+    for key in _OUTPUT_DEBUG_KEYS:
+        outputs.pop(key, None)
+    return json_safe(outputs)
+
+
+def _engineering_plan_view_for_task(task: Task) -> dict[str, Any] | None:
+    from engine.planner.plan_inspector import engineering_plan_view_for_task
+
+    view = engineering_plan_view_for_task(task)
+    return json_safe(view) if view else None
+
+
+def _canonical_engineering_plan_for_task(task: Task) -> dict[str, Any] | None:
+    from engine.planner.plan_inspector import canonical_engineering_plan_for_task
+
+    plan = canonical_engineering_plan_for_task(task)
+    return json_safe(plan) if plan else None
+
+
 def _task_display_name(task: Task) -> str:
     custom = task.outputs.get("display_name")
     if isinstance(custom, str) and custom.strip():
@@ -200,6 +242,47 @@ def _pressure_loading_report_value(value: Any) -> str:
     return str(value).replace("_", " ").capitalize()
 
 
+def _preferred_timeline_active_input_id(
+    task: Task,
+    *,
+    editing_parameter: str | None,
+    ask_parameter_id: str | None,
+    submittable_ids: list[str],
+    revealed_inputs: list[str],
+) -> str | None:
+    if editing_parameter:
+        return timeline_step_id_for_parameter(
+            task, editing_parameter, revealed=revealed_inputs
+        )
+    if ask_parameter_id:
+        return timeline_step_id_for_parameter(
+            task, ask_parameter_id, revealed=revealed_inputs
+        )
+    if submittable_ids:
+        return timeline_step_id_for_parameter(
+            task, submittable_ids[0], revealed=revealed_inputs
+        )
+    return None
+
+
+def _input_timeline_status(
+    *,
+    step_id: str,
+    input_done: bool,
+    preferred_active: str | None,
+    active_assigned: bool,
+) -> tuple[str, bool]:
+    if input_done:
+        return "done", active_assigned
+    if preferred_active is not None:
+        if step_id == preferred_active:
+            return "active", True
+        return "pending", active_assigned
+    if not active_assigned:
+        return "active", True
+    return "pending", active_assigned
+
+
 def _step(
     *,
     step_id: str,
@@ -237,20 +320,22 @@ def _build_mawp_timeline(
     *,
     standards_root: Path | None = None,
     reader: StandardsReader | None = None,
+    ask_parameter_id: str | None = None,
 ) -> list[dict[str, Any]]:
     phase_missing = planning.get("phase_missing") or {}
     phase_questions = planning.get("phase_questions") or {}
     current_phase = str(planning.get("current_phase") or "")
 
     all_missing = collect_all_missing(planning)
-    revealed_inputs = revealed_input_ids(task, planning)
+    revealed_inputs = revealed_input_ids(task, planning, reader=reader)
     ordered_steps: list[tuple[str, str]] = [
-        (step_id, workflow_step_title(task, step_id)) for step_id in revealed_inputs
+        (step_id, workflow_step_title(task, step_id, planning, reader=reader))
+        for step_id in revealed_inputs
     ]
     ordered_steps.extend(
         [
-            ("mawp", mawp_step_title("mawp")),
-            ("report", mawp_step_title("report")),
+            ("mawp", mawp_step_title("mawp", planning, task=task, reader=reader)),
+            ("report", mawp_step_title("report", planning, task=task, reader=reader)),
         ]
     )
 
@@ -261,6 +346,14 @@ def _build_mawp_timeline(
     timeline: list[dict[str, Any]] = []
     active_assigned = False
     editing_parameter = active_edit_parameter(task)
+    submittable_ids = submittable_parameter_ids(task, planning)
+    preferred_active = _preferred_timeline_active_input_id(
+        task,
+        editing_parameter=editing_parameter,
+        ask_parameter_id=ask_parameter_id,
+        submittable_ids=submittable_ids,
+        revealed_inputs=revealed_inputs,
+    )
 
     for step_id, title in ordered_steps:
         if step_id == "mawp":
@@ -299,17 +392,19 @@ def _build_mawp_timeline(
                 active_assigned = True
             else:
                 input_done = workflow_input_step_done(task, step_id, all_missing)
-                if input_done:
-                    status = "done"
+                status, active_assigned = _input_timeline_status(
+                    step_id=step_id,
+                    input_done=input_done,
+                    preferred_active=preferred_active,
+                    active_assigned=active_assigned,
+                )
+                if status == "done":
                     hint = None
                     display_value = _input_display(task, step_id, standards_root=standards_root)
-                elif not active_assigned:
-                    status = "active"
+                elif status == "active":
                     hint = _step_hint(step_id, phase_missing, phase_questions, current_phase)
                     display_value = None
-                    active_assigned = True
                 else:
-                    status = "pending"
                     hint = None
                     display_value = None
 
@@ -338,6 +433,7 @@ def _build_pipe_wall_timeline(
     *,
     standards_root: Path | None = None,
     reader: StandardsReader | None = None,
+    ask_parameter_id: str | None = None,
 ) -> list[dict[str, Any]]:
     phase_missing = planning.get("phase_missing") or {}
     phase_questions = planning.get("phase_questions") or {}
@@ -362,14 +458,18 @@ def _build_pipe_wall_timeline(
                 pending_definition_equation_inputs(task, reader, preview.execution_order)
             )
 
-    revealed_inputs = revealed_pipe_wall_input_ids(task, planning)
+    revealed_inputs = revealed_pipe_wall_input_ids(task, planning, reader=reader)
     ordered_steps: list[tuple[str, str]] = [
-        (step_id, pipe_wall_step_title(step_id, planning)) for step_id in revealed_inputs
+        (
+            step_id,
+            pipe_wall_step_title(step_id, planning, task=task, reader=reader),
+        )
+        for step_id in revealed_inputs
     ]
     ordered_steps.extend(
         [
-            ("thickness", pipe_wall_step_title("thickness", planning)),
-            ("report", pipe_wall_step_title("report", planning)),
+            ("thickness", pipe_wall_step_title("thickness", planning, task=task, reader=reader)),
+            ("report", pipe_wall_step_title("report", planning, task=task, reader=reader)),
         ]
     )
 
@@ -396,6 +496,13 @@ def _build_pipe_wall_timeline(
     timeline: list[dict[str, Any]] = []
     active_assigned = False
     editing_parameter = active_edit_parameter(task)
+    preferred_active = _preferred_timeline_active_input_id(
+        task,
+        editing_parameter=editing_parameter,
+        ask_parameter_id=ask_parameter_id,
+        submittable_ids=submittable_ids,
+        revealed_inputs=revealed_inputs,
+    )
 
     for step_id, title in ordered_steps:
         if step_id == "thickness":
@@ -442,17 +549,19 @@ def _build_pipe_wall_timeline(
                 active_assigned = True
             else:
                 input_done = pipe_wall_input_step_done(task, step_id, all_missing)
-                if input_done:
-                    status = "done"
+                status, active_assigned = _input_timeline_status(
+                    step_id=step_id,
+                    input_done=input_done,
+                    preferred_active=preferred_active,
+                    active_assigned=active_assigned,
+                )
+                if status == "done":
                     hint = None
                     display_value = _input_display(task, step_id, standards_root=standards_root)
-                elif not active_assigned:
-                    status = "active"
+                elif status == "active":
                     hint = _step_hint(step_id, phase_missing, phase_questions, current_phase)
                     display_value = None
-                    active_assigned = True
                 else:
-                    status = "pending"
                     hint = None
                     display_value = None
 
@@ -491,9 +600,9 @@ def _step_hint(
                         return str(questions[index])
     if step_id == "pressure_loading":
         return "Specify whether the pipe is internally or externally pressurized."
-    if step_id == "material":
+    if step_id == MATERIAL_GRADE_KEY:
         return "Waiting for material selection"
-    if step_id == "design_pressure":
+    if step_id == "internal_design_gage_pressure":
         return "Waiting for design pressure"
     if step_id == "pipe_schedule":
         return "Waiting for pipe schedule"
@@ -508,6 +617,7 @@ def _build_progress_steps(
     *,
     standards_root: Path | None = None,
     reader: StandardsReader | None = None,
+    ask_parameter_id: str | None = None,
 ) -> list[dict[str, Any]]:
     if is_mawp_task(task):
         return _build_mawp_timeline(
@@ -515,6 +625,7 @@ def _build_progress_steps(
             planning,
             standards_root=standards_root,
             reader=reader,
+            ask_parameter_id=ask_parameter_id,
         )
     if is_pipe_wall_thickness_task(task):
         return _build_pipe_wall_timeline(
@@ -522,6 +633,7 @@ def _build_progress_steps(
             planning,
             standards_root=standards_root,
             reader=reader,
+            ask_parameter_id=ask_parameter_id,
         )
 
     steps: list[dict[str, Any]] = []
@@ -597,11 +709,19 @@ def task_state(
     resolved_standards_root = standards_root or (Path(__file__).resolve().parent.parent / "knowledge" / "standards")
     resolved_reader = reader or StandardsReader(resolved_standards_root, standard="asme_b31.3")
 
+    current_ask = build_current_ask(task, planning, reader=resolved_reader)
+    ask_parameter_id = None
+    if isinstance(current_ask, dict) and current_ask.get("kind") == "input":
+        raw_id = current_ask.get("parameter_id")
+        if isinstance(raw_id, str) and raw_id.strip():
+            ask_parameter_id = raw_id.strip()
+
     timeline = _build_progress_steps(
         task,
         planning,
         standards_root=resolved_standards_root,
         reader=resolved_reader,
+        ask_parameter_id=ask_parameter_id,
     )
     step_progress = [
         {
@@ -621,32 +741,48 @@ def task_state(
         active = next((step for step in timeline if step["status"] == "active"), None)
 
     active_node_context = active_node_context_for_task(task, resolved_reader)
-    current_ask = build_current_ask(task, planning)
 
-    return {
-        "task_id": task.task_id,
-        "name": _task_display_name(task),
-        "workflow_id": workflow_id,
+    timeline_active_id = None
+    if ask_parameter_id:
+        revealed = revealed_input_ids(task, planning, reader=resolved_reader)
+        timeline_active_id = timeline_step_id_for_parameter(
+            task, ask_parameter_id, revealed=revealed
+        )
+
+    canonical = build_canonical_task_state(
+        task,
+        manager,
+        planning=planning,
+        progress_steps=timeline,
+        reader=resolved_reader,
+    )
+    invariant_violations = validate_task_state_invariants(canonical)
+    if invariant_violations:
+        canonical.setdefault("debug", {})["invariant_violations"] = invariant_violations
+
+    canonical_progress = canonical.get("progress") or {}
+    canonical_graph = canonical.get("graph") or {}
+    canonical_execution = canonical.get("execution") or {}
+    current_step_id = (
+        timeline_active_id
+        or canonical_progress.get("current_step_id")
+        or (active["id"] if active else None)
+    )
+    if current_step_id:
+        canonical_progress = {**canonical_progress, "current_step_id": current_step_id}
+
+    inspector_summary = build_task_inspector_summary({**canonical, "progress": canonical_progress})
+
+    legacy_extras = {
         "discipline": meta["discipline"],
         "description": str(planning.get("goal") or meta["description"]),
-        "status": task.status.value,
-        "active_nodes": list(task.active_nodes),
-        "progress": {
-            "timeline": timeline,
-            "steps": timeline,
-            "completed_count": completed,
-            "total_count": len(timeline),
-            "current_step_id": active["id"] if active else None,
-            "missing_inputs": list(planning.get("missing_inputs") or []),
-            "missing_assumptions": list(planning.get("missing_assumptions") or []),
-            "submittable_parameters": submittable_parameter_ids(task, planning),
-            "step_progress": step_progress,
-        },
         "facts": {key: _fact_to_dict(value) for key, value in task.fact_store.active_facts().items()},
-        "goals": goals_to_api_dict(task),
+        "legacy_goal_map": legacy_goal_map_for_task(task),
         "execution_context": execution_context_summary(task),
         "authority_context": authority_context_summary(task),
-        "outputs": json_safe(dict(task.outputs)),
+        "outputs": _public_task_outputs(task),
+        "engineering_plan": _canonical_engineering_plan_for_task(task),
+        "engineering_plan_view": _engineering_plan_view_for_task(task),
         "warnings": list(task.warnings),
         "parameters": build_parameter_definitions(task, reader=resolved_reader),
         "node_calculations": build_node_calculation_summaries(task, resolved_reader),
@@ -666,7 +802,20 @@ def task_state(
             task.task_id,
             reader=resolved_reader,
         ),
+        "inspector_summary": inspector_summary,
     }
+    legacy_extras["progress"] = {
+        **canonical_progress,
+        "steps": timeline,
+        "timeline": timeline,  # deprecated alias for UI backward compatibility
+        "step_progress": step_progress,
+    }
+
+    payload = build_legacy_task_state_view(canonical, legacy_extras=legacy_extras)
+    payload["status"] = task.status.value
+    payload["canonical"] = json_safe(canonical)
+    payload["inspector_summary"] = json_safe(inspector_summary)
+    return json_safe(payload)
 
 
 def workflow_state_payload(

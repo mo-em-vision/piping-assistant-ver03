@@ -1,9 +1,7 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ConnectionErrorBanner } from '@/components/errors/ConnectionErrorBanner'
 import { useWindowDisplayState } from '@/hooks/useWindowDisplayState'
-import { env } from '@/config/env'
-import { useDevUiActive } from '@/hooks/useDevUiActive'
 import { useUiStore } from '@/store/uiStore'
 import { computeMaxRightPanelWidth } from '@/utils/panelLayout'
 
@@ -16,13 +14,6 @@ import './SidePanel.css'
 import './WorkspaceLayout.css'
 
 import type { BackendStatusPayload } from '@/config/constants'
-
-const DeveloperInspector = env.devToolsAvailable
-  ? lazy(async () => {
-      const module = await import('@dev-ui/inspector/DeveloperInspector')
-      return { default: module.DeveloperInspector }
-    })
-  : null
 
 interface WorkspaceLayoutProps {
   backendStatus: BackendStatusPayload
@@ -37,7 +28,6 @@ export function WorkspaceLayout({
   onRetryBackend,
   onReloadWorkspace,
 }: WorkspaceLayoutProps) {
-  const devUiActive = useDevUiActive()
   const leftWidth = useUiStore((state) => state.leftWidth)
   const rightWidth = useUiStore((state) => state.rightWidth)
   const leftCollapsed = useUiStore((state) => state.leftCollapsed)
@@ -174,13 +164,6 @@ export function WorkspaceLayout({
           </>
         )}
       </div>
-      {DeveloperInspector && devUiActive ? (
-        <div className="workspace__inspector-host">
-          <Suspense fallback={null}>
-            <DeveloperInspector />
-          </Suspense>
-        </div>
-      ) : null}
     </div>
   )
 }

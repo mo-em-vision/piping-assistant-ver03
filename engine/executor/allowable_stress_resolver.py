@@ -7,6 +7,7 @@ from pathlib import Path
 from engine.executor.lookup_engine import LookupEngine
 from engine.reference.asme_b31_3_table_ids import TABLE_A_1
 from engine.reference.standards_paths import resolve_standard_pack
+from engine.reference.parameter_keys import active_material_grade_fact
 from engine.state.task_facts import (
     deactivate_fact,
     fact_scalar_value,
@@ -31,7 +32,7 @@ def _clear_allowable_stress(task: Task) -> None:
 
 
 def _material_and_temperature_ready(task: Task) -> tuple[str, float, str] | None:
-    material_input = task.fact_store.active_fact("material")
+    material_input = active_material_grade_fact(task)
     temp_input = task.fact_store.active_fact("design_temperature")
     if material_input is None or fact_scalar_value(material_input) is None:
         return None

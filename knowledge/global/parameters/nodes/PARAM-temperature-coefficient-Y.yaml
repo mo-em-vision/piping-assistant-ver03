@@ -6,14 +6,20 @@ name: Temperature Coefficient Y
 parameter_class: coefficient
 dimension: DIM-dimensionless
 description: >
-  Coefficient from Table 304.1.1-1 when t < D/6; thick-wall formula
-  otherwise, per §304.1.1 nomenclature.
+  coefficient from Table 304.1.1-1.
 canonical_symbol: Y
 aliases:
   - temperature coefficient Y
   - coefficient Y
 introduced_by:
   - asme-b313-304-1-1-b
+lookup_conditionals:
+  design_temperature:
+    unit: UNIT-degF
+    min: 900
+    max: 1250
+    below_min: use_min
+    above_max: use_max
 edges:
   - type: has_dimension
     target: DIM-dimensionless
@@ -22,6 +28,6 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-04
+  last_revision: 2026-07-06
   edited_by: admin
 ---

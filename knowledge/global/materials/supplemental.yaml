@@ -4,6 +4,7 @@ materials:
     standard_slug: api_5l
     grade_key: API-5L
     display_name: API 5L — Line Pipe
+    metallurgical_group: ferritic_steels
     aliases:
       - API 5L
       - API-5L

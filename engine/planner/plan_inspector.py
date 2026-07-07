@@ -35,8 +35,13 @@ _REQUIREMENT_CLASS_LABELS = {
     "branch_decision": "Path decision",
     "table_lookup": "Table lookup",
     "equation_result": "Calculation",
+    "report_output": "Report",
     "selection_goal": "Selection",
 }
+
+_SYSTEM_RESOLVED_CLASSES = frozenset(
+    {"table_lookup", "equation_result", "report_output", "derived_value"}
+)
 
 _PHASE_ORDER = (
     "expansion_assumptions",
@@ -45,6 +50,9 @@ _PHASE_ORDER = (
     "coefficient_resolution",
     "execution_assumptions",
     "definition_equation_completion",
+    "equation_execution",
+    "validation",
+    "reporting",
 )
 
 
@@ -56,6 +64,8 @@ def _phase_order_index(phase: str) -> int:
 
 
 def _is_outstanding_requirement(req: PlanRequirement) -> bool:
+    if req.activation_status != "active":
+        return False
     if req.status not in {"missing", "ready"}:
         return False
     if req.activation_status == "not_applicable":
@@ -123,6 +133,57 @@ def _build_next_input(plan: EngineeringPlan, requirements: dict[str, PlanRequire
     }
 
 
+def _resolve_current_phase(plan: EngineeringPlan) -> str:
+    if plan.input_strategy and plan.input_strategy.current_phase:
+        return plan.input_strategy.current_phase
+    active_phases = [phase for phase in plan.phases if phase.status == "active"]
+    if active_phases:
+        return active_phases[0].id
+    if plan.phases:
+        return plan.phases[0].id
+    return ""
+
+
+def _conditional_requirements_summary(
+    requirements: dict[str, PlanRequirement],
+) -> list[dict[str, Any]]:
+    items = [
+        req
+        for req in requirements.values()
+        if req.activation_status == "conditional" and req.status != "not_applicable"
+    ]
+    items.sort(key=lambda req: (_phase_order_index(req.phase), req.field))
+    return [
+        {
+            "field": req.field,
+            "title": req.resolved_title(),
+            "phase": req.phase,
+            "activation_condition": (
+                req.activation_condition.to_dict() if req.activation_condition else None
+            ),
+        }
+        for req in items
+    ]
+
+
+def _calculations_summary(requirements: dict[str, PlanRequirement]) -> list[dict[str, Any]]:
+    calculations = [
+        req
+        for req in requirements.values()
+        if req.requirement_class == "equation_result" and req.activation_status != "not_applicable"
+    ]
+    calculations.sort(key=lambda req: (_phase_order_index(req.phase), req.field))
+    return [
+        {
+            "field": req.field,
+            "title": req.resolved_title(),
+            "depends_on": dependency_ids_to_fields(req.depends_on, requirements),
+            "status": req.status,
+        }
+        for req in calculations
+    ]
+
+
 def _build_planner_graph_summary(plan: EngineeringPlan) -> dict[str, int]:
     """Planner-selected graph metrics from engineering plan graph and dependencies."""
     graph = plan.graph
@@ -182,6 +243,10 @@ def build_planner_inspector_summary(plan: EngineeringPlan) -> dict[str, Any]:
         )
 
     derived_or_lookup_values = _derived_or_lookup_summary(requirements)
+    system_resolved_requirements = _system_resolved_requirement_summary(requirements)
+    conditional_requirements = _conditional_requirements_summary(requirements)
+    calculations = _calculations_summary(requirements)
+    current_phase = _resolve_current_phase(plan)
 
     warnings = list((plan.debug or {}).get("validation_warnings") or [])
     errors = list((plan.debug or {}).get("validation_errors") or [])
@@ -204,10 +269,14 @@ def build_planner_inspector_summary(plan: EngineeringPlan) -> dict[str, Any]:
             "target_field": root.target_field,
             "status": root.status,
         },
+        "current_phase": current_phase,
         "next_input": next_input,
         "outstanding_required_inputs": outstanding_required_inputs,
+        "conditional_requirements": conditional_requirements,
         "alternatives": alternatives,
         "derived_or_lookup_values": derived_or_lookup_values,
+        "calculations": calculations,
+        "system_resolved_requirements": system_resolved_requirements,
         "planner_graph_summary": _build_planner_graph_summary(plan),
         "traversal_summary": traversal_summary,
         "planner_traversal_view": planner_traversal_view,
@@ -254,14 +323,55 @@ def _derived_or_lookup_summary(requirements: dict[str, PlanRequirement]) -> list
 
     entries: list[dict[str, Any]] = []
     for req in lookup_reqs:
-        entries.append(
-            {
-                "field": req.field,
-                "method": _lookup_summary_method(req),
-                "depends_on": dependency_ids_to_fields(req.depends_on, requirements),
-                "status": req.status,
-            }
-        )
+        resolution = req.resolution or {}
+        entry: dict[str, Any] = {
+            "id": req.id,
+            "field": req.field,
+            "title": req.resolved_title(),
+            "method": _lookup_summary_method(req),
+            "depends_on": dependency_ids_to_fields(req.depends_on, requirements),
+            "status": req.status,
+        }
+        source_node_id = resolution.get("source_node_id")
+        if source_node_id:
+            entry["source_node_id"] = source_node_id
+        if req.activation_status != "active":
+            entry["activation_status"] = req.activation_status
+        entries.append(entry)
+    return entries
+
+
+def _system_resolved_requirement_summary(
+    requirements: dict[str, PlanRequirement],
+) -> list[dict[str, Any]]:
+    """Lookup, equation, and report requirements for planner inspector."""
+    resolved_reqs = [
+        req
+        for req in requirements.values()
+        if req.requirement_class in _SYSTEM_RESOLVED_CLASSES
+        and req.activation_status != "not_applicable"
+    ]
+    resolved_reqs.sort(key=lambda req: (_phase_order_index(req.phase), req.field))
+
+    entries: list[dict[str, Any]] = []
+    for req in resolved_reqs:
+        resolution = req.resolution or {}
+        entry: dict[str, Any] = {
+            "id": req.id,
+            "field": req.field,
+            "title": req.resolved_title(),
+            "requirement_class": req.requirement_class,
+            "method": str(resolution.get("method") or req.requirement_class),
+            "depends_on": dependency_ids_to_fields(req.depends_on, requirements),
+            "status": req.status,
+            "phase": req.phase,
+        }
+        source_node_id = resolution.get("source_node_id")
+        if source_node_id:
+            entry["source_node_id"] = source_node_id
+        if req.activation_status != "active":
+            entry["activation_status"] = req.activation_status
+        entries.append(entry)
     return entries
 
 
@@ -278,8 +388,8 @@ def build_engineering_plan_view(plan: EngineeringPlan) -> dict[str, Any]:
         ]
 
     def requirement_entry(req: PlanRequirement) -> dict[str, Any]:
-        label = req.field.replace("_", " ").title()
-        if req.question_spec and req.question_spec.label:
+        label = req.resolved_title()
+        if label == req.field.replace("_", " ").title() and req.question_spec and req.question_spec.label:
             label = req.question_spec.label
         entry: dict[str, Any] = {
             "field": req.field,
@@ -369,6 +479,12 @@ def build_engineering_plan_view(plan: EngineeringPlan) -> dict[str, Any]:
         if req.requirement_class == "equation_result" and req.status != "not_applicable"
     ]
 
+    reports = [
+        requirement_entry(req)
+        for req in requirements.values()
+        if req.requirement_class == "report_output" and req.status != "not_applicable"
+    ]
+
     overview: dict[str, Any] = {
         "goal": plan.root_goal.title,
         "target": plan.root_goal.target_field,
@@ -387,6 +503,8 @@ def build_engineering_plan_view(plan: EngineeringPlan) -> dict[str, Any]:
         "phases": phases,
         "calculations": calculations,
     }
+    if reports:
+        payload["reports"] = reports
     if branch_decisions:
         payload["branch_decisions"] = branch_decisions
     if plan.input_strategy:
@@ -403,9 +521,30 @@ def build_engineering_plan_view(plan: EngineeringPlan) -> dict[str, Any]:
     return payload
 
 
-def build_engineering_plan_view_from_dict(raw: dict[str, Any]) -> dict[str, Any] | None:
-    """Rebuild readable plan view from persisted plan dict (e.g. on task reload)."""
-    if not raw:
+def build_planner_inspector_summary_from_dict(raw: dict[str, Any]) -> dict[str, Any] | None:
+    """Rebuild planner inspector summary from canonical engineering_plan dict."""
+    plan = engineering_plan_from_dict(raw)
+    if plan is None:
+        return None
+    return build_planner_inspector_summary(plan)
+
+
+def planner_inspector_summary_for_task(task) -> dict[str, Any] | None:
+    """Inspector summary derived from engineering_plan (canonical source of truth)."""
+    raw = task.outputs.get("engineering_plan")
+    if isinstance(raw, dict) and "requirements" in raw and "root_goal" in raw:
+        summary = build_planner_inspector_summary_from_dict(raw)
+        if summary is not None:
+            return summary
+    cached = task.outputs.get("planner_inspector_summary")
+    if isinstance(cached, dict):
+        return dict(cached)
+    return None
+
+
+def engineering_plan_from_dict(raw: dict[str, Any]) -> EngineeringPlan | None:
+    """Rehydrate EngineeringPlan from persisted task output dict."""
+    if not raw or "plan_id" not in raw or "requirements" not in raw or "root_goal" not in raw:
         return None
     try:
         from models.engineering_plan import (
@@ -413,11 +552,18 @@ def build_engineering_plan_view_from_dict(raw: dict[str, Any]) -> dict[str, Any]
             BranchDecision,
             CalculationGoal,
             InputStrategy,
+            PlanDependency,
             PlanGraph,
             PlanPhase,
             PlanRequirement,
+            PlannerTraversalState,
             QuestionSpec,
             RequirementAlternative,
+            TraversalActiveNode,
+            TraversalBranchDecision,
+            TraversalEvent,
+            TraversalExpandedNode,
+            TraversalPendingNode,
         )
 
         root_raw = raw.get("root_goal") or {}
@@ -473,7 +619,9 @@ def build_engineering_plan_view_from_dict(raw: dict[str, Any]) -> dict[str, Any]
             requirements[str(rid)] = PlanRequirement(
                 id=str(rid),
                 field=str(req_raw.get("field", "")),
-                parameter_node_id=str(req_raw.get("parameter_node_id", "")),
+                key=str(req_raw.get("key", "") or req_raw.get("field", "")),
+                title=str(req_raw.get("title", "") or ""),
+                parameter_node_id=req_raw.get("parameter_node_id"),
                 requirement_class=str(req_raw.get("requirement_class", "")),
                 status=str(req_raw.get("status", "")),
                 phase=str(req_raw.get("phase", "")),
@@ -501,6 +649,16 @@ def build_engineering_plan_view_from_dict(raw: dict[str, Any]) -> dict[str, Any]
             expanded_node_ids=list(graph_raw.get("expanded_node_ids") or []),
         )
 
+        dependencies = [
+            PlanDependency(
+                from_id=str(edge.get("from", "")),
+                to_id=str(edge.get("to", "")),
+                type=str(edge.get("type", "")),
+            )
+            for edge in (raw.get("dependencies") or [])
+            if isinstance(edge, dict)
+        ]
+
         phases = [
             PlanPhase(
                 id=str(phase.get("id", "")),
@@ -524,21 +682,100 @@ def build_engineering_plan_view_from_dict(raw: dict[str, Any]) -> dict[str, Any]
                 resolved_fields=list(strategy_raw.get("resolved_fields") or []),
             )
 
-        plan = EngineeringPlan(
+        traversal_raw = raw.get("traversal")
+        traversal = None
+        if isinstance(traversal_raw, dict):
+            active_raw = traversal_raw.get("current_active_node")
+            current_active_node = None
+            if isinstance(active_raw, dict):
+                current_active_node = TraversalActiveNode(
+                    node_id=str(active_raw.get("node_id", "")),
+                    node_type=str(active_raw.get("node_type", "")),
+                    reason=str(active_raw.get("reason", "")),
+                    title=active_raw.get("title"),
+                    phase=active_raw.get("phase"),
+                )
+            pending_expansion_nodes = [
+                TraversalPendingNode(
+                    node_id=str(item.get("node_id", "")),
+                    node_type=str(item.get("node_type", "")),
+                    waiting_on=list(item.get("waiting_on") or []),
+                    reason=str(item.get("reason", "")),
+                    title=item.get("title"),
+                    phase=item.get("phase"),
+                )
+                for item in (traversal_raw.get("pending_expansion_nodes") or [])
+                if isinstance(item, dict)
+            ]
+            expanded_nodes = [
+                TraversalExpandedNode(
+                    node_id=str(item.get("node_id", "")),
+                    node_type=str(item.get("node_type", "")),
+                    expanded_at_order=int(item.get("expanded_at_order") or 0),
+                    produced_requirements=list(item.get("produced_requirements") or []),
+                    produced_edges=list(item.get("produced_edges") or []),
+                    title=item.get("title"),
+                )
+                for item in (traversal_raw.get("expanded_nodes") or [])
+                if isinstance(item, dict)
+            ]
+            branch_decisions = [
+                TraversalBranchDecision(
+                    field=str(item.get("field", "")),
+                    value=item.get("value"),
+                    selected_node=item.get("selected_node"),
+                    candidate_nodes=list(item.get("candidate_nodes") or []),
+                    status=str(item.get("status", "")),
+                )
+                for item in (traversal_raw.get("branch_decisions") or [])
+                if isinstance(item, dict)
+            ]
+            traversal_events = [
+                TraversalEvent(
+                    order=int(item.get("order") or 0),
+                    event_type=str(item.get("event_type", "")),
+                    message=str(item.get("message", "")),
+                    node_id=item.get("node_id"),
+                    requirement_id=item.get("requirement_id"),
+                    edge_id=item.get("edge_id"),
+                )
+                for item in (traversal_raw.get("traversal_events") or [])
+                if isinstance(item, dict)
+            ]
+            traversal = PlannerTraversalState(
+                traversal_id=str(traversal_raw.get("traversal_id", "")),
+                current_active_node_id=traversal_raw.get("current_active_node_id"),
+                current_active_node=current_active_node,
+                pending_expansion_nodes=pending_expansion_nodes,
+                expanded_nodes=expanded_nodes,
+                branch_decisions=branch_decisions,
+                traversal_events=traversal_events,
+            )
+
+        return EngineeringPlan(
             plan_id=str(raw.get("plan_id", "")),
             task_id=str(raw.get("task_id", "")),
             workflow_id=str(raw.get("workflow_id", "")),
             root_goal=root,
             requirements=requirements,
-            dependencies=[],
+            dependencies=dependencies,
             input_strategy=input_strategy,
             graph=graph,
             phases=phases,
+            traversal=traversal,
+            legacy_goal_map=raw.get("legacy_goal_map"),
             debug=raw.get("debug"),
         )
-        return build_engineering_plan_view(plan)
     except Exception:
         return None
+
+
+def build_engineering_plan_view_from_dict(raw: dict[str, Any]) -> dict[str, Any] | None:
+    """Rebuild readable plan view from persisted plan dict (e.g. on task reload)."""
+    plan = engineering_plan_from_dict(raw)
+    if plan is None:
+        return None
+    return build_engineering_plan_view(plan)
 
 
 def engineering_plan_view_for_task(task) -> dict[str, Any] | None:
@@ -550,3 +787,13 @@ def engineering_plan_view_for_task(task) -> dict[str, Any] | None:
     if isinstance(raw, dict):
         return build_engineering_plan_view_from_dict(raw)
     return None
+
+
+def canonical_engineering_plan_for_task(task) -> dict[str, Any] | None:
+    """Normalized EngineeringPlan dict (source of truth) from task outputs."""
+    raw = task.outputs.get("engineering_plan")
+    if not isinstance(raw, dict):
+        return None
+    if "plan_id" not in raw or "requirements" not in raw or "root_goal" not in raw:
+        return None
+    return dict(raw)

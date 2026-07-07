@@ -21,6 +21,7 @@ from dev.graph_explorer.analysis import analyze_graph
 from dev.graph_explorer.delta import compute_delta
 from dev.graph_explorer.serializer import GraphSnapshotDto
 from dev.graph_explorer.watcher import GraphWatcher, auto_rebuild_enabled
+from dev.graph_explorer.workflow_expansion import build_workflow_expansion_view
 
 
 class GraphExplorerService:
@@ -159,6 +160,23 @@ def create_app(project_root: Path | None = None) -> Starlette:
         )
         return JSONResponse({"results": [node.to_dict() for node in matches]})
 
+    async def workflow_expansion(request: Request) -> JSONResponse:
+        task_id = request.query_params.get("task")
+        session_id = request.query_params.get("session_id")
+        revision = request.query_params.get("revision")
+        resolved_task = service.resolve_task_id(task_id)
+        resolved_session = service.resolve_session_id(session_id)
+        async with service._lock:
+            service.adapter.reload()
+            view = build_workflow_expansion_view(
+                resolved_task,
+                resolved_session,
+                service.adapter,
+            )
+        if revision and view.get("revision") == revision:
+            return JSONResponse({"unchanged": True, "revision": revision})
+        return JSONResponse(view)
+
     async def websocket_graph(websocket: WebSocket) -> None:
         await service.subscribe(websocket)
         try:
@@ -182,6 +200,7 @@ def create_app(project_root: Path | None = None) -> Starlette:
         Route("/api/graph/nodes/{node_id}", graph_node),
         Route("/api/graph/analysis", graph_analysis),
         Route("/api/graph/search", graph_search),
+        Route("/api/workflow-expansion", workflow_expansion),
         WebSocketRoute("/ws/graph", websocket_graph),
     ]
 

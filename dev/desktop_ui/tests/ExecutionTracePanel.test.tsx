@@ -28,7 +28,7 @@ describe('ExecutionTracePanel', () => {
     useInspectorStore.setState({ selectedStepIndex: null, selectedNodeId: null })
     render(<ExecutionTracePanel steps={sampleSteps} />)
     expect(screen.getByText('shell_formula')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: /Step 1/i }))
+    await userEvent.click(screen.getByRole('button', { name: /shell_formula/i }))
     expect(useInspectorStore.getState().selectedStepIndex).toBe(0)
     expect(useInspectorStore.getState().selectedNodeId).toBe('shell_formula')
   })

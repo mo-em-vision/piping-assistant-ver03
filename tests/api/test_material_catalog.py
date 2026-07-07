@@ -71,6 +71,7 @@ def test_get_material_detail_returns_a106_grade_b(standards_root: Path) -> None:
     assert detail["display_name"] == "ASTM A106 Grade B"
     assert detail["standard_slug"] == "astm_a106"
     assert detail["product_form"] == "seamless_pipe"
+    assert detail["metallurgical_group"] == "ferritic_steels"
     assert detail["uns_number"] == "K03006"
     assert detail["mechanical_properties"]["room_temperature"]["tensile_strength_min"]["ksi"] == 60
     assert detail["source_node"] == "A106"

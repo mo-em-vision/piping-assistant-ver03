@@ -1,0 +1,25 @@
+---
+id: PARAM-external-design-pressure
+type: parameter
+key: external_design_pressure
+name: External Design Pressure
+parameter_class: physical_quantity
+dimension: DIM-pressure
+description: >
+  External design gage pressure used for wall thickness design per §304.1.3.
+canonical_symbol: P_ext
+aliases:
+  - external design pressure
+introduced_by:
+  - 304.1.3
+edges:
+  - type: has_dimension
+    target: DIM-pressure
+  - type: used_by
+    target: 304.1.3
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-06
+  edited_by: admin
+---

@@ -25,7 +25,30 @@ _CONTROL_OUTPUT_KEYS = {
     "_execution_trace",
     "_validation_trace",
     "_lifecycle_events",
+    "_execution_events",
+    "_replay_snapshot",
+    "_inspection_breakpoint",
+    "_provenance_warnings",
+    "task_state_errors",
 }
+
+_GRAPH_METADATA_KEYS = frozenset(
+    {
+        "selected_nodes",
+        "graph_input_order",
+        "graph_step_titles",
+        "collection_field_order",
+        "phase_allowed_fields",
+        "path_decision",
+        "timeline_input_order",
+        "active_definition_node",
+        "alternative_paths",
+        "edit_session",
+        "display_name",
+    }
+)
+
+_EQUATION_SYMBOL_ALIASES = frozenset({"S", "P", "D", "E", "W", "Y", "c", "t", "t_m", "MAWP"})
 
 
 def build_workflow_state(
@@ -131,19 +154,39 @@ def build_workflow_state(
 
 
 def _current_node(task: Task, progress: list[StepProgress]) -> str | None:
-    if task.active_nodes:
-        return task.active_nodes[-1]
+    from engine.state.goal_projection import planning_projection
+    from engine.state.task_state_canonical import _build_current_blocker
+    from api.workflow_timeline import submittable_parameter_ids
+
+    planning = planning_projection(task)
+    submittable = submittable_parameter_ids(task, planning)
+    blocker = _build_current_blocker(task, planning, submittable, reader=None)
+    if blocker.get("parameter_node_id"):
+        return str(blocker["parameter_node_id"])
+    if blocker.get("field"):
+        from engine.reference.parameter_keys import param_node_id_for_input
+
+        return param_node_id_for_input(str(blocker["field"]))
     if progress:
         return progress[-1].step_id
     return None
 
 
 def _variable_values(task: Task) -> dict[str, Any]:
+    fact_keys = set(task.fact_store.active_facts().keys())
     values: dict[str, Any] = {}
     for key, engineering_input in task.fact_store.active_facts().items():
         values[key] = _input_value(engineering_input)
     for key, value in task.outputs.items():
-        if key in _CONTROL_OUTPUT_KEYS or key.endswith("_lookup"):
+        if key in _CONTROL_OUTPUT_KEYS or key in _GRAPH_METADATA_KEYS:
+            continue
+        if key.endswith("_lookup") or key.endswith("_unit"):
+            continue
+        if key in _EQUATION_SYMBOL_ALIASES and key not in fact_keys:
+            continue
+        if key in values:
+            continue
+        if isinstance(value, (dict, list)):
             continue
         values[key] = value
     return values

@@ -27,6 +27,10 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-04
+  last_revision: 2026-07-06
   edited_by: admin
+  canonical_unit: UNIT-degC
+  allowed_units:
+    - UNIT-degC
+    - UNIT-degF
 ---

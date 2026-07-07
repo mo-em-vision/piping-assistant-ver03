@@ -83,8 +83,13 @@ def dfs_collect(
     inputs: dict[str, Fact],
     edge_types: set[str] | None = None,
     visit: Callable[[str], bool] | None = None,
+    expansion_gate: Callable[[str], bool] | None = None,
 ) -> tuple[list[str], list[GraphEdgeRecord]]:
-    """Depth-first collect reachable nodes and active edges."""
+    """Depth-first collect reachable nodes and active edges.
+
+    When ``expansion_gate`` returns False for a node, that node is included but its
+    outgoing dependency edges are not traversed (node-authored expansion assumptions).
+    """
     if edge_types is None:
         edge_types = set(_TRAVERSAL_EDGE_TYPES)
     order: list[str] = []
@@ -101,6 +106,9 @@ def dfs_collect(
         visiting.add(node_id)
         visited.add(node_id)
         order.append(node_id)
+        if expansion_gate is not None and not expansion_gate(node_id):
+            visiting.discard(node_id)
+            return
         for edge in store.outgoing(node_id, edge_types=edge_types):
             if edge.to_id == node_id:
                 continue

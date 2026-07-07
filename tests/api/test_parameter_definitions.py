@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
+
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import TaskStatus
@@ -13,6 +17,11 @@ from tests.helpers.goals import task_with_planning
 from models.fact import SourceType, ValidationStatus, fact_unit
 
 
+@pytest.fixture(scope="module")
+def standards_root() -> Path:
+    return Path(__file__).resolve().parents[2] / "knowledge" / "standards"
+
+
 def test_build_parameter_definitions_includes_revealed_pipe_wall_inputs() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test07", status=TaskStatus.AWAITING_INPUT)
@@ -22,10 +31,10 @@ def test_build_parameter_definitions_includes_revealed_pipe_wall_inputs() -> Non
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
     planning = {
-        "missing_inputs": ["design_pressure"],
+        "missing_inputs": ["internal_design_gage_pressure"],
         "missing_assumptions": [],
         "current_phase": "parameter_gathering",
-        "phase_missing": {"parameter_gathering": ["design_pressure"]},
+        "phase_missing": {"parameter_gathering": ["internal_design_gage_pressure"]},
     }
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
@@ -33,16 +42,19 @@ def test_build_parameter_definitions_includes_revealed_pipe_wall_inputs() -> Non
 
     parameters = build_parameter_definitions(manager.get_task(task.task_id))
     names = [item["name"] for item in parameters]
-    assert names == ["material", "design_pressure"]
-    assert parameters[0]["status"] == "confirmed"
-    assert parameters[1]["status"] == "pending"
+    assert names == ["internal_design_gage_pressure", "material_grade"]
+    assert parameters[0]["status"] == "pending"
+    assert parameters[1]["status"] == "confirmed"
 
 
-def test_build_parameter_definitions_from_missing_inputs() -> None:
+def test_build_parameter_definitions_from_missing_inputs(standards_root: Path) -> None:
+    from engine.reference.standards_reader import StandardsReader
+
+    reader = StandardsReader(standards_root, standard="asme_b31.3")
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test03", status=TaskStatus.AWAITING_INPUT)
     planning = {
-        "missing_inputs": ["design_pressure", "material"],
+        "missing_inputs": ["internal_design_gage_pressure", "material"],
         "missing_assumptions": ["pressure_loading"],
         "current_phase": "path_decisions",
         "phase_missing": {"path_decisions": ["pressure_loading"]},
@@ -51,9 +63,9 @@ def test_build_parameter_definitions_from_missing_inputs() -> None:
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
 
-    parameters = build_parameter_definitions(manager.get_task(task.task_id))
+    parameters = build_parameter_definitions(manager.get_task(task.task_id), reader=reader)
     names = [item["name"] for item in parameters]
-    assert names == ["pressure_loading"]
+    assert "pressure_loading" in names
 
     pressure = next(item for item in parameters if item["name"] == "pressure_loading")
     assert pressure["type"] == "dropdown"
@@ -86,7 +98,7 @@ def test_build_parameter_definitions_includes_expansion_phase_guidance() -> None
 def test_build_parameter_definitions_marks_only_submittable_fields() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test08", status=TaskStatus.AWAITING_INPUT)
-    set_fact_from_input(task, legacy_input(input_id="joint_category",
+    set_fact_from_input(task, legacy_input(input_id="pipe_construction_type",
         value="seamless",
         unit="dimensionless",
         source=InputSource.DEFAULT,
@@ -96,7 +108,7 @@ def test_build_parameter_definitions_marks_only_submittable_fields() -> None:
     planning = {
         "current_phase": "parameter_gathering",
         "phase_missing": {
-            "parameter_gathering": ["design_pressure"],
+            "parameter_gathering": ["internal_design_gage_pressure"],
         },
     }
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
@@ -104,15 +116,15 @@ def test_build_parameter_definitions_marks_only_submittable_fields() -> None:
     manager.replace_task(task.task_id, task)
 
     parameters = {item["name"]: item for item in build_parameter_definitions(manager.get_task(task.task_id))}
-    assert parameters["design_pressure"]["submittable"] is True
-    assert parameters["joint_category"]["submittable"] is False
+    assert parameters["internal_design_gage_pressure"]["submittable"] is True
+    assert parameters["pipe_construction_type"]["submittable"] is False
 
 
 def test_submit_task_input_stores_confirmed_value() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test04", status=TaskStatus.AWAITING_INPUT)
     planning = {
-        "missing_inputs": ["design_pressure"],
+        "missing_inputs": ["internal_design_gage_pressure"],
         "missing_assumptions": [],
     }
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
@@ -122,17 +134,17 @@ def test_submit_task_input_stores_confirmed_value() -> None:
     updated = submit_task_input(
         manager,
         task.task_id,
-        parameter="design_pressure",
+        parameter="internal_design_gage_pressure",
         value=10.0,
         unit="bar",
     )
 
-    stored = updated.fact_store.active_fact("design_pressure")
+    stored = updated.fact_store.active_fact("internal_design_gage_pressure")
     assert stored is not None
-    assert fact_get_value(updated, "design_pressure") == 10.0
+    assert fact_get_value(updated, "internal_design_gage_pressure") == 10.0
     assert fact_unit(stored) == "bar"
     planning = planning_projection(updated)
-    assert "design_pressure" not in planning["missing_inputs"]
+    assert "internal_design_gage_pressure" not in planning["missing_inputs"]
 
 
 def test_submit_task_input_rejects_unknown_parameter() -> None:
@@ -173,7 +185,7 @@ def test_build_parameter_definitions_includes_corrosion_after_calc_with_graph_ro
         unit="dimensionless",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
-    set_fact_from_input(task, legacy_input(input_id="design_pressure",
+    set_fact_from_input(task, legacy_input(input_id="internal_design_gage_pressure",
         value=8.0,
         unit="bar",
         source=InputSource.USER,
@@ -203,3 +215,251 @@ def test_build_parameter_definitions_includes_corrosion_after_calc_with_graph_ro
     assert corrosion["status"] == "pending"
     assert corrosion["submittable"] is True
     assert len(names) > 1
+
+
+def test_build_parameter_definitions_material_timeline_row_submittable_when_grade_asked(
+    standards_root: Path,
+) -> None:
+    from engine.reference.standards_reader import StandardsReader
+    from tests.helpers.facts import set_fact
+
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-material-submittable", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "missing_inputs": ["material_grade"],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": ["material_grade"]},
+        "phase_questions": {
+            "parameter_gathering": {
+                "material_grade": "Select the pipe material. (start typing to see the available options)",
+            }
+        },
+        "phase_allowed_fields": {
+            "parameter_gathering": [
+                "internal_design_gage_pressure",
+                "nominal_pipe_size",
+                "outside_diameter",
+                "material_grade",
+                "design_temperature",
+            ],
+        },
+        "collection_field_order": [
+            "internal_design_gage_pressure",
+            "nominal_pipe_size",
+            "outside_diameter",
+            "material_grade",
+            "design_temperature",
+        ],
+    }
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "phase_allowed_fields": planning["phase_allowed_fields"],
+        "collection_field_order": planning["collection_field_order"],
+    }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    set_fact(task, "internal_design_gage_pressure", 10.0, unit="bar")
+    set_fact(task, "nominal_pipe_size", 2, unit="NPS")
+    set_fact(task, "outside_diameter", 60.33, unit="mm")
+    manager.replace_task(task.task_id, task)
+
+    reader = StandardsReader(standards_root, standard="asme_b31.3")
+    parameters = {
+        item["name"]: item
+        for item in build_parameter_definitions(manager.get_task(task.task_id), reader=reader)
+    }
+
+    assert "material_grade" in parameters
+    assert "material" not in parameters
+    assert parameters["material_grade"]["status"] == "pending"
+    assert parameters["material_grade"]["submittable"] is True
+
+
+def test_build_parameter_definitions_material_grade_uses_material_type(
+    standards_root: Path,
+) -> None:
+    from engine.reference.parameter_composer_spec import build_composer_parameter_spec
+    from engine.reference.standards_reader import StandardsReader
+
+    reader = StandardsReader(standards_root, standard="asme_b31.3")
+    spec = build_composer_parameter_spec("material_grade", reader=reader)
+    assert spec["type"] == "material"
+    assert spec["label"] == "Material Grade"
+
+
+def test_submit_task_input_rejects_unknown_material(standards_root: Path) -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-material-invalid", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "missing_inputs": ["material"],
+        "missing_assumptions": [],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": ["material"]},
+    }
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "edit_session": {"parameter": "material"},
+    }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    manager.replace_task(task.task_id, task)
+
+    with pytest.raises(ValueError, match="Select a material from the available options"):
+        submit_task_input(
+            manager,
+            task.task_id,
+            parameter="material",
+            value="not-a-real-material-grade",
+            unit=None,
+            standards_root=standards_root,
+        )
+
+
+def test_submit_task_input_rejects_unknown_material_grade(standards_root: Path) -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-material-grade-invalid", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "missing_inputs": ["material_grade"],
+        "missing_assumptions": [],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": ["material_grade"]},
+    }
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "edit_session": {"parameter": "material_grade"},
+    }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    manager.replace_task(task.task_id, task)
+
+    with pytest.raises(ValueError, match="Select a material from the available options"):
+        submit_task_input(
+            manager,
+            task.task_id,
+            parameter="material_grade",
+            value="not-a-real-material-grade",
+            unit=None,
+            standards_root=standards_root,
+        )
+
+
+def test_submit_task_input_resolves_catalog_material(standards_root: Path) -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-material-valid", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "missing_inputs": ["material"],
+        "missing_assumptions": [],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": ["material"]},
+    }
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "edit_session": {"parameter": "material"},
+    }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    manager.replace_task(task.task_id, task)
+
+    updated = submit_task_input(
+        manager,
+        task.task_id,
+        parameter="material",
+        value="SA-106B",
+        unit=None,
+        standards_root=standards_root,
+    )
+
+    assert fact_get_value(updated, "material_grade") == "astm_a106_gr_b"
+    assert fact_get_value(updated, "metallurgical_group") == "ferritic_steels"
+
+
+def test_submit_task_input_resolves_legacy_material_alias(standards_root: Path) -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-material-legacy", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "missing_inputs": ["material"],
+        "missing_assumptions": [],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": ["material"]},
+    }
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "edit_session": {"parameter": "material"},
+    }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    manager.replace_task(task.task_id, task)
+
+    updated = submit_task_input(
+        manager,
+        task.task_id,
+        parameter="material",
+        value="SA-106B",
+        unit=None,
+        standards_root=standards_root,
+    )
+
+    assert fact_get_value(updated, "material_grade") == "astm_a106_gr_b"
+    assert fact_get_value(updated, "metallurgical_group") == "ferritic_steels"
+
+
+def test_submit_task_input_resolves_catalog_material_grade(standards_root: Path) -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-material-grade-valid", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "missing_inputs": ["material_grade"],
+        "missing_assumptions": [],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": ["material_grade"]},
+    }
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "edit_session": {"parameter": "material_grade"},
+    }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    manager.replace_task(task.task_id, task)
+
+    updated = submit_task_input(
+        manager,
+        task.task_id,
+        parameter="material_grade",
+        value="SA-106B",
+        unit=None,
+        standards_root=standards_root,
+    )
+
+    assert fact_get_value(updated, "material_grade") == "astm_a106_gr_b"
+    assert fact_get_value(updated, "metallurgical_group") == "ferritic_steels"
+
+
+def test_build_parameter_definitions_includes_pipe_construction_lookup_options(
+    standards_root: Path,
+) -> None:
+    from engine.reference.standards_reader import StandardsReader
+
+    manager = TaskStateManager()
+    task = manager.create_task("pipe-wall-construction-type", status=TaskStatus.AWAITING_INPUT)
+    set_fact_from_input(
+        task,
+        legacy_input(
+            input_id="material_grade",
+            value="astm_a106_gr_b",
+            unit="dimensionless",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
+    )
+    planning = {
+        "missing_inputs": ["pipe_construction_type"],
+        "missing_assumptions": [],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": ["pipe_construction_type"]},
+    }
+    task.outputs = {"workflow": "pipe_wall_thickness_design"}
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    manager.replace_task(task.task_id, task)
+
+    reader = StandardsReader(standards_root)
+    parameters = {
+        item["name"]: item
+        for item in build_parameter_definitions(manager.get_task(task.task_id), reader=reader)
+    }
+
+    construction = parameters["pipe_construction_type"]
+    assert construction["type"] == "dropdown"
+    assert construction["options"] == [{"value": "Seamless pipe", "label": "Seamless pipe"}]

@@ -6,31 +6,17 @@ import { WorkflowComposer } from '@/components/workflow/WorkflowComposer'
 import { WorkflowHeader } from '@/components/workflow/WorkflowHeader'
 import { WorkflowHistory } from '@/components/workflow/WorkflowHistory'
 import { useRightPanelStore } from '@/store/rightPanelStore'
+import { useTaskStore } from '@/store/taskStore'
 import { mockTaskState } from '@/mock/taskState.mock'
 
 describe('WorkflowHeader', () => {
-  it('renders task name and display heading', () => {
-    render(
-      <WorkflowHeader
-        taskName="Pipe Thickness Calculation"
-        context={{
-          node_id: 'B313-304.1.1',
-          standard: 'ASME B31.3',
-          paragraph: '304.1.1',
-          display_heading:
-            'Calculation of Minimum Required Thickness of a straight section pipe (according to ASME B 31.3 paragraph 304.1.1)',
-          hover_excerpt: 'The required thickness of straight sections of pipe shall be determined...',
-        }}
-      />,
-    )
+  it('renders task name only', () => {
+    render(<WorkflowHeader taskName="Pipe Thickness Calculation" />)
 
     expect(screen.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeInTheDocument()
     expect(
-      screen.getByText(/Calculation of Minimum Required Thickness of a straight section pipe/i),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: /ASME B 31.3 paragraph 304.1.1/i }),
-    ).toBeInTheDocument()
+      screen.queryByText(/Calculation of Minimum Required Thickness of a straight section pipe/i),
+    ).not.toBeInTheDocument()
   })
 })
 
@@ -86,7 +72,41 @@ describe('WorkflowHistory', () => {
 })
 
 describe('WorkflowComposer', () => {
-  it('renders the next step prompt in bold above the input field', () => {
+  beforeEach(() => {
+    useTaskStore.setState({ submittingParameter: null })
+  })
+
+  it('greys out inputs while the backend is processing a submitted value', () => {
+    useTaskStore.setState({ submittingParameter: 'internal_design_gage_pressure' })
+
+    const { container } = render(
+      <WorkflowComposer
+        ask={{
+          kind: 'input',
+          prompt: 'Enter the design pressure for the pipe.',
+          parameter: {
+            name: 'internal_design_gage_pressure',
+            label: 'Design Pressure',
+            type: 'number',
+            required: true,
+            units: ['bar', 'psi', 'kPa'],
+            default_unit: 'bar',
+            default_value: null,
+            value: null,
+            options: [],
+            status: 'pending',
+            requires_confirmation: false,
+          },
+        }}
+      />,
+    )
+
+    expect(container.querySelector('.workflow-panel__composer--processing')).toBeTruthy()
+    expect(container.querySelector('.workflow-panel__next-step-inline--locked')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Value…')).toBeDisabled()
+  })
+
+  it('renders NPS picker to the right of the prompt', () => {
     const parameter = mockTaskState.parameters.find((item) => item.name === 'nominal_pipe_size')
     expect(parameter).toBeTruthy()
 
@@ -94,20 +114,111 @@ describe('WorkflowComposer', () => {
       <WorkflowComposer
         ask={{
           kind: 'input',
-          prompt: 'Enter the nominal pipe size.',
+          prompt: 'Select the nominal pipe size.',
           parameter: parameter!,
         }}
       />,
     )
 
-    const label = screen.getByText('Ask:')
-    expect(label.tagName).toBe('STRONG')
-    expect(screen.getByText(/Enter the nominal pipe size\./)).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Value…')).toBeInTheDocument()
-    expect(screen.getByRole('group', { name: 'Nominal Pipe Size unit' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'NPS' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'DN' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByPlaceholderText('Value…')).toHaveFocus()
+    expect(screen.getByText('Next Step:')).toBeInTheDocument()
+    const row = screen
+      .getByText('Select the nominal pipe size.')
+      .closest('.workflow-panel__next-step-inline')
+    expect(row).toBeTruthy()
+    expect(row).toContainElement(screen.getByRole('tab', { name: 'NPS' }))
+    expect(screen.getByRole('tab', { name: 'NPS' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Submit selection' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select pipe size' }))
+
+    expect(screen.getByRole('listbox', { name: /Nominal pipe size options/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'NPS 4' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /OD /i })).not.toBeInTheDocument()
+  })
+
+  it('shows outside diameter options in combobox when OD mode is selected', () => {
+    const parameter = mockTaskState.parameters.find((item) => item.name === 'nominal_pipe_size')
+    expect(parameter).toBeTruthy()
+
+    render(
+      <WorkflowComposer
+        ask={{
+          kind: 'input',
+          prompt: 'Select the nominal pipe size.',
+          parameter: parameter!,
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Outside diameter' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Select outside diameter' }))
+
+    expect(screen.getByRole('listbox', { name: /Outside diameter options/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: '4.5 in (114.3 mm)' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'NPS 4' })).not.toBeInTheDocument()
+  })
+
+  it('shows inside diameter input when inside diameter mode is selected', () => {
+    const parameter = mockTaskState.parameters.find((item) => item.name === 'nominal_pipe_size')
+    expect(parameter).toBeTruthy()
+
+    render(
+      <WorkflowComposer
+        ask={{
+          kind: 'input',
+          prompt: 'Select the nominal pipe size.',
+          parameter: parameter!,
+        }}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Inside diameter' }))
+
+    expect(screen.getByPlaceholderText('Enter inside diameter')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'mm' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Select pipe size' })).not.toBeInTheDocument()
+  })
+
+  it('shows pipe construction type options in a dropup picker', () => {
+    render(
+      <WorkflowComposer
+        ask={{
+          kind: 'input',
+          prompt: 'Provide pipe construction type',
+          parameter: {
+            name: 'pipe_construction_type',
+            label: 'Pipe Construction Type',
+            type: 'dropdown',
+            required: true,
+            units: [],
+            default_unit: 'dimensionless',
+            default_value: null,
+            value: null,
+            options: [
+              { value: 'Seamless pipe', label: 'Seamless pipe' },
+              {
+                value: 'Electric resistance welded pipe',
+                label: 'Electric resistance welded pipe',
+              },
+            ],
+            status: 'pending',
+            requires_confirmation: false,
+          },
+        }}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: 'Select pipe construction type' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Seamless pipe' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select pipe construction type' }))
+
+    expect(screen.getByRole('listbox', { name: /Pipe Construction Type options/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Seamless pipe' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('option', { name: 'Electric resistance welded pipe' }),
+    ).toBeInTheDocument()
   })
 
   it('does not show the confirmation hint when no default value is available', () => {
@@ -126,8 +237,8 @@ describe('WorkflowComposer', () => {
             default_value: null,
             value: null,
             options: [
-              { value: 'seamless', label: 'Seamless' },
-              { value: 'welded', label: 'Welded' },
+              { value: 'Seamless pipe', label: 'Seamless pipe' },
+              { value: 'Electric resistance welded pipe', label: 'Electric resistance welded pipe' },
             ],
             status: 'pending',
             requires_confirmation: true,
@@ -138,8 +249,12 @@ describe('WorkflowComposer', () => {
 
     expect(screen.queryByText(/Confirm or change the proposed default value/i)).not.toBeInTheDocument()
     expect(screen.queryByPlaceholderText(/Choose an option above/i)).not.toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Seamless' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Welded' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Select pipe construction type' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Select pipe construction type' }))
+
+    expect(screen.getByRole('option', { name: 'Seamless pipe' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Electric resistance welded pipe' })).toBeInTheDocument()
   })
 
   it('renders inline unit pills beside the next step prompt for numeric inputs', () => {
@@ -149,7 +264,7 @@ describe('WorkflowComposer', () => {
           kind: 'input',
           prompt: 'Enter the design pressure for the pipe.',
           parameter: {
-            name: 'design_pressure',
+            name: 'internal_design_gage_pressure',
             label: 'Design Pressure',
             type: 'number',
             required: true,
@@ -197,6 +312,71 @@ describe('WorkflowComposer', () => {
 
     expect(screen.queryByText(/Confirm or change the proposed default value/i)).not.toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Value…' })).toHaveValue('1')
+  })
+
+  it('renders yes/no choices to the right of the straight pipe prompt', () => {
+    render(
+      <WorkflowComposer
+        ask={{
+          kind: 'input',
+          prompt:
+            'Is the pipe wall thickness you would like to calculate for a straight section of pipe? Non-straight sections (fittings, bends) are not yet supported.',
+          parameter: {
+            name: 'straight_pipe_section',
+            label: 'Straight Pipe Section',
+            type: 'checkbox',
+            required: true,
+            units: [],
+            default_unit: 'dimensionless',
+            default_value: true,
+            value: true,
+            options: [],
+            status: 'confirmation_required',
+            requires_confirmation: true,
+          },
+        }}
+      />,
+    )
+
+    const row = screen.getByText(/straight section of pipe/i).closest('.workflow-panel__next-step-inline')
+    expect(row).toBeTruthy()
+    expect(row).toContainElement(screen.getByRole('button', { name: 'Yes' }))
+    expect(row).toContainElement(screen.getByRole('button', { name: 'No' }))
+    expect(screen.queryByText(/Applied to a straight section of a pipe\./)).not.toBeInTheDocument()
+  })
+
+  it('renders dropdown options to the right of the prompt', () => {
+    render(
+      <WorkflowComposer
+        ask={{
+          kind: 'input',
+          prompt: 'Is the pipe subjected to internal or external pressure?',
+          parameter: {
+            name: 'pressure_loading',
+            label: 'Pressure Loading',
+            type: 'dropdown',
+            required: true,
+            units: [],
+            default_unit: 'dimensionless',
+            default_value: null,
+            value: null,
+            options: [
+              { value: 'internal_pressure', label: 'Internal pressure' },
+              { value: 'external_pressure', label: 'External pressure' },
+            ],
+            status: 'pending',
+            requires_confirmation: false,
+          },
+        }}
+      />,
+    )
+
+    const row = screen
+      .getByText(/internal or external pressure/i)
+      .closest('.workflow-panel__next-step-inline')
+    expect(row).toBeTruthy()
+    expect(row).toContainElement(screen.getByRole('option', { name: 'Internal pressure' }))
+    expect(row).toContainElement(screen.getByRole('option', { name: 'External pressure' }))
   })
 
   it('renders an enabled material search input for the material step', () => {

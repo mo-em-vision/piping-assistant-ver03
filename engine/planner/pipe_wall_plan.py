@@ -44,40 +44,40 @@ _GATE_FIELDS = (
 
 _COEFFICIENT_INPUT_FIELDS = ("pipe_construction_type",)
 
-_LOOKUP_REQUIREMENTS: tuple[tuple[str, str, list[str], str | None], ...] = (
+_LOOKUP_REQUIREMENTS: tuple[tuple[str, str, list[str], str], ...] = (
     (
         "REQ-allowable_stress_lookup",
         "allowable_stress",
         ["REQ-material_grade", "REQ-design_temperature"],
-        None,
+        "asme-b313-table-A-1",
     ),
     (
         "REQ-weld_joint_efficiency_lookup",
         "weld_joint_efficiency",
         ["REQ-pipe_construction_type"],
-        None,
+        "asme-b313-table-A-2",
     ),
     (
         "REQ-temperature_coefficient_Y_lookup",
         "temperature_coefficient_Y",
         ["REQ-metallurgical_group_lookup", "REQ-design_temperature"],
-        None,
+        "asme-b313-table-304-1-1-1",
     ),
     (
         "REQ-weld_strength_reduction_factor_W_lookup",
         "weld_strength_reduction_factor_W",
         ["REQ-material_grade", "REQ-design_temperature"],
-        None,
+        "asme-b313-table-302-3-5-1",
     ),
     (
         "REQ-metallurgical_group_lookup",
         "metallurgical_group",
         ["REQ-material_grade"],
-        None,
+        "MAT-catalog",
     ),
 )
 
-_EQUATION_REQUIREMENTS: tuple[tuple[str, str, list[str]], ...] = (
+_EQUATION_REQUIREMENTS: tuple[tuple[str, str, list[str], str], ...] = (
     (
         "REQ-required_wall_thickness",
         "required_wall_thickness",
@@ -89,11 +89,13 @@ _EQUATION_REQUIREMENTS: tuple[tuple[str, str, list[str]], ...] = (
             "REQ-temperature_coefficient_Y_lookup",
             "REQ-weld_strength_reduction_factor_W_lookup",
         ],
+        "asme-b313-304-1-2-eq-3a",
     ),
     (
         "REQ-minimum_required_thickness_eq",
         "minimum_required_thickness",
         ["REQ-required_wall_thickness", "REQ-corrosion_allowance"],
+        "asme-b313-304-1-1-eq-2",
     ),
 )
 
@@ -241,7 +243,13 @@ def lookup_requirement(
     )
 
 
-def equation_requirement(req_id_value: str, field: str, depends_on: list[str]) -> PlanRequirement:
+def equation_requirement(
+    req_id_value: str,
+    field: str,
+    depends_on: list[str],
+    *,
+    source_node_id: str,
+) -> PlanRequirement:
     return PlanRequirement(
         id=req_id_value,
         field=field,
@@ -251,7 +259,26 @@ def equation_requirement(req_id_value: str, field: str, depends_on: list[str]) -
         phase="equation_execution",
         required_by=[ROOT_GOAL_ID],
         depends_on=depends_on,
-        resolution={"method": "equation", "output_field": field},
+        resolution={
+            "method": "equation",
+            "source_node_id": source_node_id,
+            "output_field": field,
+        },
+    )
+
+
+def report_requirement() -> PlanRequirement:
+    return PlanRequirement(
+        id="REQ-calculation_report",
+        field="calculation_report",
+        parameter_node_id=None,
+        requirement_class="report_output",
+        status="blocked",
+        phase="reporting",
+        required_by=[ROOT_GOAL_ID],
+        depends_on=["REQ-minimum_required_thickness_eq"],
+        resolution={"method": "report", "output_field": "calculation_report"},
+        title="Calculation Report",
     )
 
 
@@ -295,8 +322,10 @@ def build_pipe_wall_requirements() -> dict[str, PlanRequirement]:
     for lookup_id, field, deps, source in _LOOKUP_REQUIREMENTS:
         requirements[lookup_id] = lookup_requirement(lookup_id, field, deps, source_node_id=source)
 
-    for eq_id, field, deps in _EQUATION_REQUIREMENTS:
-        requirements[eq_id] = equation_requirement(eq_id, field, deps)
+    for eq_id, field, deps, source in _EQUATION_REQUIREMENTS:
+        requirements[eq_id] = equation_requirement(eq_id, field, deps, source_node_id=source)
+
+    requirements["REQ-calculation_report"] = report_requirement()
 
     for requirement_id, req in requirements.items():
         if requirement_id in _GATE_REQUIREMENT_IDS:
@@ -307,33 +336,10 @@ def build_pipe_wall_requirements() -> dict[str, PlanRequirement]:
 
 
 def build_pipe_wall_dependencies() -> list[PlanDependency]:
-    edges: list[PlanDependency] = []
+    """Backward-compatible alias; prefer build_plan_dependencies(requirements)."""
+    from engine.planner.plan_dependencies import build_plan_dependencies
 
-    def add(from_id: str, to_id: str, edge_type: str) -> None:
-        edges.append(PlanDependency(from_id=from_id, to_id=to_id, type=edge_type))
-
-    add("REQ-internal_design_gage_pressure", "REQ-required_wall_thickness", "equation_input")
-    add("REQ-diameter_resolution", "REQ-required_wall_thickness", "equation_input")
-    add("REQ-material_grade", "REQ-allowable_stress_lookup", "lookup_input")
-    add("REQ-design_temperature", "REQ-allowable_stress_lookup", "lookup_input")
-    add("REQ-allowable_stress_lookup", "REQ-required_wall_thickness", "equation_input")
-    add("REQ-pipe_construction_type", "REQ-weld_joint_efficiency_lookup", "lookup_input")
-    add("REQ-weld_joint_efficiency_lookup", "REQ-required_wall_thickness", "equation_input")
-    add("REQ-material_grade", "REQ-metallurgical_group_lookup", "lookup_input")
-    add("REQ-metallurgical_group_lookup", "REQ-temperature_coefficient_Y_lookup", "lookup_input")
-    add("REQ-design_temperature", "REQ-temperature_coefficient_Y_lookup", "lookup_input")
-    add("REQ-temperature_coefficient_Y_lookup", "REQ-required_wall_thickness", "equation_input")
-    add("REQ-material_grade", "REQ-weld_strength_reduction_factor_W_lookup", "lookup_input")
-    add("REQ-design_temperature", "REQ-weld_strength_reduction_factor_W_lookup", "lookup_input")
-    add("REQ-weld_strength_reduction_factor_W_lookup", "REQ-required_wall_thickness", "equation_input")
-    add("REQ-corrosion_allowance", "REQ-minimum_required_thickness_eq", "equation_input")
-    add("REQ-required_wall_thickness", "REQ-minimum_required_thickness_eq", "equation_input")
-    add(req_id("nominal_pipe_size"), "REQ-outside_diameter_lookup", "lookup_input")
-    add("REQ-outside_diameter_lookup", "REQ-diameter_resolution", "resolves")
-    add(_ALT_NPS_LOOKUP, req_id("nominal_pipe_size"), "activates")
-    add(_ALT_NPS_LOOKUP, "REQ-outside_diameter_lookup", "activates")
-
-    return edges
+    return build_plan_dependencies(build_pipe_wall_requirements(), workflow_id=PIPE_WALL_WORKFLOW)
 
 
 def root_blocked_by_for_gathering() -> list[str]:

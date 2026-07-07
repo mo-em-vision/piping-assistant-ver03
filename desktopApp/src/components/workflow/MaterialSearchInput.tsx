@@ -39,14 +39,18 @@ export function MaterialSearchInput({
   const [suggestions, setSuggestions] = useState<MaterialOptionDto[]>([])
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(-1)
+  const [selectedOption, setSelectedOption] = useState<MaterialOptionDto | null>(null)
   const catalogReady = useMaterialCatalogStore((state) => state.ready)
   const catalogWarming = useMaterialCatalogStore((state) => state.warming)
   const catalogError = useMaterialCatalogStore((state) => state.error)
   const warmCatalog = useMaterialCatalogStore((state) => state.warmCatalog)
+  const markCatalogReady = useMaterialCatalogStore((state) => state.markCatalogReady)
   const openMaterialTab = useRightPanelStore((state) => state.openMaterialTab)
 
   const query = value.trim()
   const showSuggestions = query.length >= MIN_QUERY_LENGTH && suggestions.length > 0
+  const showNoMatches =
+    query.length >= MIN_QUERY_LENGTH && !loadingSuggestions && suggestions.length === 0
 
   useEffect(() => {
     void warmCatalog()
@@ -54,15 +58,22 @@ export function MaterialSearchInput({
 
   useEffect(() => {
     setHighlightIndex(-1)
+    setSelectedOption(null)
   }, [suggestions])
 
   useEffect(() => {
-    if (query.length < MIN_QUERY_LENGTH) {
-      setSuggestions([])
+    if (selectedOption === null) {
       return
     }
+    const matchesValue =
+      query === selectedOption.value.trim() || query === selectedOption.label.trim()
+    if (!matchesValue) {
+      setSelectedOption(null)
+    }
+  }, [query, selectedOption])
 
-    if (catalogError) {
+  useEffect(() => {
+    if (query.length < MIN_QUERY_LENGTH) {
       setSuggestions([])
       return
     }
@@ -79,11 +90,19 @@ export function MaterialSearchInput({
 
           const response = await materialApi.search(query)
           if (!controller.signal.aborted) {
-            setSuggestions(response.materials)
+            const materials = response.materials ?? []
+            setSuggestions(materials)
+            if (materials.length > 0) {
+              markCatalogReady()
+            }
           }
         } catch {
           if (!controller.signal.aborted) {
-            setSuggestions(searchMockMaterials(query))
+            const mockResults = searchMockMaterials(query)
+            setSuggestions(mockResults)
+            if (mockResults.length > 0) {
+              markCatalogReady()
+            }
           }
         } finally {
           if (!controller.signal.aborted) {
@@ -99,11 +118,23 @@ export function MaterialSearchInput({
       controller.abort()
       window.clearTimeout(timer)
     }
-  }, [catalogError, query])
+  }, [markCatalogReady, query])
 
-  const canSubmit = useMemo(() => value.trim().length > 0, [value])
+  const canSubmit = useMemo(() => selectedOption !== null, [selectedOption])
+
+  const handleValueChange = (nextValue: string) => {
+    if (
+      selectedOption !== null &&
+      nextValue.trim() !== selectedOption.value.trim() &&
+      nextValue.trim() !== selectedOption.label.trim()
+    ) {
+      setSelectedOption(null)
+    }
+    onChange(nextValue)
+  }
 
   const chooseSuggestion = (option: MaterialOptionDto) => {
+    setSelectedOption(option)
     onChange(option.value)
     onSubmit(option.value, option.label)
     setSuggestions([])
@@ -131,6 +162,10 @@ export function MaterialSearchInput({
       event.preventDefault()
       if (highlightIndex >= 0 && suggestions[highlightIndex]) {
         chooseSuggestion(suggestions[highlightIndex])
+        return
+      }
+      if (suggestions.length === 1) {
+        chooseSuggestion(suggestions[0])
       }
     }
   }
@@ -182,10 +217,19 @@ export function MaterialSearchInput({
     </div>
   ) : null
 
+  const inputHint =
+    query.length > 0 && query.length < MIN_QUERY_LENGTH
+      ? 'Type at least 3 characters to search materials.'
+      : showNoMatches
+        ? 'No matching materials. Try a different grade or specification.'
+        : query.length >= MIN_QUERY_LENGTH && suggestions.length > 0 && selectedOption === null
+          ? 'Select a material from the list.'
+          : null
+
   const input = (
     <ComposerInlineInput
       value={value}
-      onChange={onChange}
+      onChange={handleValueChange}
       placeholder={inline ? 'Search…' : placeholder}
       disabled={disabled}
       submitting={submitting || loadingSuggestions}
@@ -205,6 +249,7 @@ export function MaterialSearchInput({
         {suggestionsList}
         {input}
       </div>
+      {inputHint ? <p className="material-search-input__status">{inputHint}</p> : null}
     </div>
   )
 }

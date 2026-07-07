@@ -18,6 +18,8 @@ Ask before changing: API contracts, backend/frontend boundaries, state-managemen
 
 Never duplicate engineering validation, calculations, or standards logic in TypeScript.
 
+**Parameter ask wording:** planner owns navigation (what/when); `engine/messaging/` owns prompt copy. See `docs/rules.md` §12.
+
 ## Code changes
 
 - Minimize scope; match existing naming and patterns.

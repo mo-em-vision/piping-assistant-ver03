@@ -207,7 +207,7 @@ def interaction_from_assumption(item: dict[str, Any], node_id: str) -> NodeInter
         options=allowed,
         default=item.get("default"),
         confirmation_required=bool(item.get("requires_confirmation", False)),
-        question=str(item.get("description", "")) or None,
+        question=str(item.get("question") or "") or None,
     )
 
 

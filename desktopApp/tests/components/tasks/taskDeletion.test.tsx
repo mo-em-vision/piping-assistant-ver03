@@ -10,7 +10,6 @@ describe('WorkflowHeader', () => {
     render(
       <WorkflowHeader
         taskName="Pipe Thickness Calculation"
-        context={null}
         onDelete={onDelete}
       />,
     )

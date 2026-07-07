@@ -69,14 +69,14 @@ def test_joint_category_submission_resolves_weld_joint_efficiency_from_table(
                 requires_confirmation=True,
             ),
         },
-        missing=["joint_category", "weld_joint_efficiency"],
+        missing=["pipe_construction_type", "weld_joint_efficiency"],
     )
 
     submit_task_input(
         manager,
         "coeff-submit-test01",
-        parameter="joint_category",
-        value="seamless",
+        parameter="pipe_construction_type",
+        value="Seamless pipe",
         unit=None,
         standards_root=standards_root,
     )
@@ -150,3 +150,45 @@ def test_apply_coefficient_lookups_waits_for_confirmed_joint_category(
     assert efficiency is not None
     assert efficiency.validation.status == ValidationStatus.CONFIRMED
     assert efficiency.source.source_type == SourceType.TABLE_LOOKUP
+
+
+def test_apply_coefficient_lookups_resolves_temperature_coefficient_y_from_table(
+    project_root: Path,
+) -> None:
+    standards_root = project_root / "knowledge" / "standards"
+    manager = TaskStateManager()
+    task = manager.create_task("coeff-y-lookup01", status=TaskStatus.AWAITING_INPUT)
+    populate_task_facts(
+        task,
+        {
+            "material_grade": EngineeringInput(
+                "material_grade",
+                "astm_a106_gr_b",
+                "dimensionless",
+                InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+            "design_temperature": EngineeringInput(
+                "design_temperature",
+                200.0,
+                "F",
+                InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+            "metallurgical_group": EngineeringInput(
+                "metallurgical_group",
+                "ferritic_steels",
+                "dimensionless",
+                InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+        },
+    )
+
+    apply_coefficient_lookups(task, standards_root)
+
+    coefficient = task.fact_store.active_fact("temperature_coefficient_Y")
+    assert coefficient is not None
+    assert coefficient.validation.status == ValidationStatus.CONFIRMED
+    assert coefficient.source.source_type == SourceType.TABLE_LOOKUP
+    assert fact_scalar_value(coefficient) is not None

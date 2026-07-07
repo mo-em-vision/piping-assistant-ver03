@@ -67,6 +67,7 @@ export type PlannerInspectorSummaryDto = {
     target_field: string
     status: string
   }
+  current_phase: string
   next_input?: {
     field: string
     label: string
@@ -85,7 +86,13 @@ export type PlannerInspectorSummaryDto = {
     priority: number
     activation_status?: 'active' | 'conditional' | 'not_applicable'
   }>
-  alternatives: Array<{
+  conditional_requirements: Array<{
+    field: string
+    title: string
+    phase: string
+    activation_condition: unknown
+  }>
+  alternatives?: Array<{
     resolves: string
     options: Array<{
       id: string
@@ -95,10 +102,32 @@ export type PlannerInspectorSummaryDto = {
     }>
   }>
   derived_or_lookup_values: Array<{
+    id?: string
     field: string
+    title?: string
     method: string
     depends_on: string[]
     status: string
+    source_node_id?: string
+    activation_status?: string
+  }>
+  calculations: Array<{
+    field: string
+    title: string
+    depends_on: string[]
+    status: string
+  }>
+  system_resolved_requirements?: Array<{
+    id: string
+    field: string
+    title: string
+    requirement_class: string
+    method: string
+    depends_on: string[]
+    status: string
+    phase: string
+    source_node_id?: string
+    activation_status?: string
   }>
   planner_graph_summary: {
     selected_subgraph_count: number
@@ -115,6 +144,57 @@ export type PlannerInspectorSummaryDto = {
   } | null
   planner_traversal_view?: PlannerTraversalInspectorViewDto | null
   warnings: string[]
+}
+
+export type PlannerTraversalStateDto = {
+  traversal_id: string
+  current_active_node_id: string | null
+  current_active_node: {
+    node_id: string
+    node_type: string
+    title?: string
+    phase?: string
+    reason: string
+  } | null
+  pending_expansion_nodes: Array<{
+    node_id: string
+    node_type: string
+    title?: string
+    phase?: string
+    waiting_on: string[]
+    reason: string
+  }>
+  expanded_nodes: Array<{
+    node_id: string
+    node_type: string
+    title?: string
+    expanded_at_order: number
+    produced_requirements: string[]
+    produced_edges: string[]
+  }>
+  branch_decisions: Array<{
+    field: string
+    value: string | null
+    selected_node: string | null
+    candidate_nodes: string[]
+    status: 'unresolved' | 'resolved'
+  }>
+  traversal_events: Array<{
+    order: number
+    event_type:
+      | 'node_selected'
+      | 'node_expanded'
+      | 'requirement_created'
+      | 'edge_created'
+      | 'branch_decision_required'
+      | 'branch_decision_resolved'
+      | 'node_deferred'
+      | 'node_marked_not_applicable'
+    node_id?: string
+    requirement_id?: string
+    edge_id?: string
+    message: string
+  }>
 }
 
 export type PlannerTraversalInspectorViewDto = {
@@ -166,6 +246,74 @@ export type PlannerTraversalInspectorViewDto = {
   }>
 }
 
+export type EngineeringPlanDto = {
+  plan_id: string
+  task_id: string
+  workflow_id: string
+  root_goal: {
+    id: string
+    key: string
+    title: string
+    goal_class: 'calculation_goal'
+    target_parameter: string
+    target_field: string
+    status: string
+    blocked_by: string[]
+    provisional_blocked_by?: string[]
+    required_outputs: string[]
+  }
+  requirements: Record<
+    string,
+    {
+      id: string
+      key: string
+      field: string
+      title: string
+      parameter_node_id: string | null
+      requirement_class: string
+      status: string
+      phase: string
+      required_by: string[]
+      depends_on: string[]
+      activation_status?: string
+    }
+  >
+  dependencies: Array<{
+    from: string
+    to: string
+    type: string
+  }>
+  input_strategy?: {
+    mode: string
+    current_phase: string
+    next_fields: string[]
+    blocked_fields: string[]
+    resolved_fields: string[]
+  }
+  phases: Array<{
+    id: string
+    title: string
+    order: number
+    requirement_ids: string[]
+    status: string
+  }>
+  graph: {
+    selected_subgraph_node_ids: string[]
+    selected_branch_decisions: Array<{
+      field: string
+      value: string
+      selected_node: string
+    }>
+    expanded_node_ids: string[]
+  }
+  traversal?: PlannerTraversalStateDto
+  legacy_goal_map?: Record<string, unknown>
+  debug?: {
+    warnings: string[]
+    source?: string
+  }
+}
+
 export type EngineeringPlanViewDto = {
   overview: {
     goal: string
@@ -215,8 +363,13 @@ export type InspectionPayloadDto = {
   workflow_id: string
   execution_trace: ExecutionTraceStepDto[]
   planner_decisions: Record<string, PlannerDecisionDto>
+  /** @deprecated Use legacy_goal_map */
   goals?: Record<string, unknown>
-  engineering_plan?: EngineeringPlanViewDto | Record<string, unknown>
+  legacy_goal_map?: Record<string, unknown>
+  /** Normalized canonical engineering plan (source of truth). */
+  engineering_plan?: EngineeringPlanDto | null
+  /** Human-readable plan summary for inspector UI. */
+  engineering_plan_view?: EngineeringPlanViewDto | null
   planner_inspector_summary?: PlannerInspectorSummaryDto
   execution_context?: Record<string, unknown>
   authority_context?: Record<string, unknown>

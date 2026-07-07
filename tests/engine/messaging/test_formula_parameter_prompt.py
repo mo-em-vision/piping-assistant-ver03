@@ -66,8 +66,8 @@ def test_prompt_shows_formula_and_missing_parameters() -> None:
         {
             "straight_pipe_section": straight_section_assumption(),
             "pressure_loading": internal_pressure_assumption(),
-            "design_pressure": legacy_input(
-                "design_pressure",
+            "internal_design_gage_pressure": legacy_input(
+                "internal_design_gage_pressure",
                 8.0,
                 "bar",
                 original_value=8.0,
@@ -102,7 +102,7 @@ def test_classify_marks_unconfirmed_defaults_as_missing() -> None:
         "304.1.2-a",
         task_inputs=facts_from_inputs(
             {
-                "design_pressure": legacy_input("design_pressure", 500.0, "psi"),
+                "internal_design_gage_pressure": legacy_input("internal_design_gage_pressure", 500.0, "psi"),
                 "nominal_pipe_size": legacy_input("nominal_pipe_size", "10"),
                 "d_input_mode": legacy_input("d_input_mode", "nps_lookup"),
                 "material": legacy_input("material", "SA-106B"),
@@ -137,7 +137,8 @@ def test_planner_phase_reaches_parameter_gathering() -> None:
     assert plan.action == AgentAction.REQUEST_INPUT
     if plan.current_phase == NavigationPhase.COEFFICIENT_RESOLUTION:
         coeff_missing = plan.phase_missing.get(NavigationPhase.COEFFICIENT_RESOLUTION.value) or []
-        assert "weld_joint_efficiency" in coeff_missing
+        assert "pipe_construction_type" in coeff_missing or "joint_category" in coeff_missing
+        assert "weld_joint_efficiency" not in coeff_missing
     else:
-        gathering_missing = plan.phase_missing.get(NavigationPhase.PARAMETER_GATHERING.value) or []
-        assert "design_pressure" in plan.missing_inputs + gathering_missing
+            gathering_missing = plan.phase_missing.get(NavigationPhase.PARAMETER_GATHERING.value) or []
+            assert "internal_design_gage_pressure" in plan.missing_inputs + gathering_missing

@@ -42,7 +42,7 @@ def test_task_state_includes_curated_timeline() -> None:
         unit="dimensionless",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
-    set_fact_from_input(task, legacy_input(input_id="design_pressure",
+    set_fact_from_input(task, legacy_input(input_id="internal_design_gage_pressure",
         value=8.0,
         unit="bar",
         source=InputSource.USER,
@@ -70,22 +70,26 @@ def test_task_state_includes_curated_timeline() -> None:
     state = task_state(task, manager)
     titles = [step["title"] for step in state["progress"]["timeline"]]
     assert titles == [
+        "Straight pipe section",
         "Pressure loading",
-        "Material",
-        "Design pressure",
+        "Internal design gage pressure",
         "Nominal pipe size",
+        "Outside diameter",
+        "Material",
+        "Design temperature",
         "Thickness",
         "Report",
     ]
-    assert state["progress"]["timeline"][0]["display_value"] == "The pipe is internally pressurized."
-    assert state["progress"]["timeline"][1]["display_value"] == "ASTM A106 Grade B"
+    assert state["progress"]["timeline"][1]["display_value"] == "The pipe is internally pressurized."
     assert state["progress"]["timeline"][2]["display_value"] == "8.0 bar"
     assert state["progress"]["timeline"][3]["status"] == "active"
+    assert state["progress"]["timeline"][5]["display_value"] == "ASTM A106 Grade B"
+    assert state["progress"]["timeline"][5]["status"] == "done"
     report_step = next(step for step in state["progress"]["timeline"] if step["id"] == "report")
     assert report_step["status"] == "pending"
-    assert state["progress"]["completed_count"] == 3
+    assert state["progress"]["completed_count"] == 4
     assert any(item["name"] == "nominal_pipe_size" for item in state["parameters"])
-    assert any(item["name"] == "material" for item in state["parameters"])
+    assert any(item["name"] == "material_grade" for item in state["parameters"])
     assert isinstance(state["display_outputs"], list)
 
 
@@ -102,7 +106,7 @@ def test_task_state_timeline_includes_coefficient_parameters() -> None:
         unit="dimensionless",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
-    set_fact_from_input(task, legacy_input(input_id="design_pressure",
+    set_fact_from_input(task, legacy_input(input_id="internal_design_gage_pressure",
         value=8.0,
         unit="bar",
         source=InputSource.USER,
@@ -126,7 +130,6 @@ def test_task_state_timeline_includes_coefficient_parameters() -> None:
                 "joint_category",
                 "weld_joint_efficiency",
                 "weld_joint_strength_reduction_factor_W",
-                "temperature_coefficient_Y",
             ],
         },
     }
@@ -139,15 +142,20 @@ def test_task_state_timeline_includes_coefficient_parameters() -> None:
 
     state = task_state(task, manager)
     titles = [step["title"] for step in state["progress"]["timeline"]]
-    assert "Joint efficiency (E)" in titles
-    assert "Weld strength reduction (W)" in titles
-    assert "Temperature coefficient (Y)" in titles
+    assert "Weld joint efficiency (E)" in titles
+    assert any("Weld" in title and "W" in title for title in titles)
     assert "Allowable stress (S)" in titles
     assert state["progress"]["timeline"][titles.index("Allowable stress (S)")]["status"] == "done"
-    assert state["progress"]["timeline"][titles.index("Joint category")]["status"] == "active"
+    submittable = state["progress"].get("submittable_parameters") or []
+    assert submittable
+    active_id = state["progress"]["current_step_id"]
+    assert active_id == submittable[0]
+    active_step = next(step for step in state["progress"]["timeline"] if step["id"] == active_id)
+    assert active_step["status"] == "active"
+    assert state.get("current_ask", {}).get("parameter_id") == active_id
     param_names = [item["name"] for item in state["parameters"]]
     assert "weld_joint_efficiency" in param_names
-    assert "material" in param_names
+    assert "material_grade" in param_names
 
 
 def test_task_state_timeline_formats_allowable_stress_in_mpa() -> None:
@@ -169,10 +177,10 @@ def test_task_state_timeline_formats_allowable_stress_in_mpa() -> None:
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
     planning = {
-        "missing_inputs": ["design_pressure"],
+        "missing_inputs": ["internal_design_gage_pressure"],
         "missing_assumptions": [],
         "current_phase": "parameter_gathering",
-        "phase_missing": {"parameter_gathering": ["design_pressure"]},
+        "phase_missing": {"parameter_gathering": ["internal_design_gage_pressure"]},
     }
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
@@ -205,7 +213,7 @@ def test_task_state_report_step_active_after_thickness_complete() -> None:
         unit="dimensionless",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
-    set_fact_from_input(task, legacy_input(input_id="design_pressure",
+    set_fact_from_input(task, legacy_input(input_id="internal_design_gage_pressure",
         value=8.0,
         unit="bar",
         source=InputSource.USER,
@@ -315,7 +323,6 @@ def test_completed_pipe_wall_timeline_omits_internal_assumption_steps() -> None:
 
     assert "d_input_mode" not in timeline_ids
     assert "thin_wall" not in timeline_ids
-    assert "straight_pipe_section" not in timeline_ids
     assert "thickness" in timeline_ids
 
 

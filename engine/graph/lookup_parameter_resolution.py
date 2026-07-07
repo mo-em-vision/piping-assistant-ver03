@@ -1,0 +1,214 @@
+"""Infer parameter resolution from lookup nodes and catalog edges in the compiled graph."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from engine.graph.graph_store import GraphStore
+from engine.reference.parameter_keys import MATERIAL_GRADE_KEY, canonical_parameter_key
+
+_CATALOG_INPUT_KEYS = frozenset({MATERIAL_GRADE_KEY, "material"})
+
+
+def _resolve_lookup_key(store: GraphStore, key: str) -> str:
+    """Map PARAM-* ids or legacy aliases to canonical fact keys."""
+    text = str(key or "").strip()
+    if not text:
+        return ""
+    if text.startswith("PARAM-"):
+        node = store.get_node(text)
+        if node is not None:
+            param_key = str(node.metadata.get("key") or "").strip()
+            if param_key:
+                return canonical_parameter_key(param_key)
+        from engine.reference.workflow_sidecar import _PARAM_TO_FIELD
+
+        mapped = _PARAM_TO_FIELD.get(text)
+        if mapped:
+            return canonical_parameter_key(mapped)
+    return canonical_parameter_key(text)
+
+
+def _lookup_keys_from_metadata(store: GraphStore, metadata: dict[str, Any]) -> list[str]:
+    keys: list[str] = []
+    for item in metadata.get("inputs") or []:
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get("task_input_id") or item.get("id") or "").strip()
+        resolved = _resolve_lookup_key(store, key)
+        if resolved and resolved not in keys:
+            keys.append(resolved)
+    lookup_cfg = metadata.get("lookup")
+    if isinstance(lookup_cfg, dict):
+        for raw_key in lookup_cfg.get("keys") or []:
+            resolved = _resolve_lookup_key(store, str(raw_key))
+            if resolved and resolved not in keys:
+                keys.append(resolved)
+    return keys
+
+
+def _table_id_from_metadata(metadata: dict[str, Any]) -> str:
+    lookup_cfg = metadata.get("lookup")
+    if isinstance(lookup_cfg, dict):
+        table_id = str(lookup_cfg.get("table") or lookup_cfg.get("table_id") or "").strip()
+        if table_id:
+            return table_id
+    for item in metadata.get("lookups") or []:
+        if not isinstance(item, dict):
+            continue
+        table_id = str(item.get("table_id") or item.get("table") or "").strip()
+        if table_id:
+            return table_id
+    source = metadata.get("source")
+    if isinstance(source, dict):
+        return str(source.get("table_id") or "").strip()
+    return ""
+
+
+def lookup_resolution_for_parameter(
+    store: GraphStore,
+    param_node_id: str,
+) -> dict[str, Any] | None:
+    """Return table_lookup resolution inferred from lookup nodes that output this parameter."""
+    merged_keys: list[str] = []
+    table_ids: list[str] = []
+    found_lookup = False
+
+    for edge in store.incoming(param_node_id, edge_types={"returns_parameter"}):
+        lookup_node = store.get_node(edge.from_id)
+        if lookup_node is None or lookup_node.node_type != "lookup":
+            continue
+        keys = _lookup_keys_from_metadata(store, lookup_node.metadata)
+        if not keys:
+            continue
+        found_lookup = True
+        for key_name in keys:
+            if key_name not in merged_keys:
+                merged_keys.append(key_name)
+        table_id = _table_id_from_metadata(lookup_node.metadata)
+        if table_id and table_id not in table_ids:
+            table_ids.append(table_id)
+
+    if not found_lookup:
+        return None
+
+    resolution: dict[str, Any] = {"method": "table_lookup", "keys": merged_keys}
+    if table_ids:
+        resolution["table_id"] = table_ids[0]
+        if len(table_ids) > 1:
+            resolution["table_ids"] = table_ids
+
+    param_node = store.get_node(param_node_id)
+    if param_node is not None:
+        conditionals = param_node.metadata.get("lookup_conditionals")
+        if isinstance(conditionals, dict) and conditionals:
+            resolution["lookup_conditionals"] = conditionals
+
+    return resolution
+
+
+def catalog_resolution_for_parameter(
+    store: GraphStore,
+    param_node_id: str,
+) -> dict[str, Any] | None:
+    """Return material_catalog resolution when a parameter is derived from MAT-catalog."""
+    node = store.get_node(param_node_id)
+    if node is None:
+        return None
+
+    explicit = node.metadata.get("resolution")
+    if isinstance(explicit, dict) and str(explicit.get("method", "")) == "material_catalog":
+        keys = [
+            _resolve_lookup_key(store, str(key))
+            for key in (explicit.get("keys") or [])
+            if str(key).strip()
+        ]
+        if keys:
+            return {"method": "material_catalog", "keys": keys}
+        return None
+
+    param_key = canonical_parameter_key(str(node.metadata.get("key") or ""))
+    if param_key in _CATALOG_INPUT_KEYS:
+        return None
+
+    for item in node.metadata.get("edges") or []:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("type", "")) != "used_by":
+            continue
+        target = str(item.get("target") or "").strip()
+        if target == "MAT-catalog":
+            return {"method": "material_catalog", "keys": [MATERIAL_GRADE_KEY]}
+
+    for edge in store.outgoing(param_node_id, edge_types={"used_by"}):
+        catalog_node = store.get_node(edge.to_id)
+        if catalog_node is None or catalog_node.node_type != "material_catalog":
+            continue
+        return {"method": "material_catalog", "keys": [MATERIAL_GRADE_KEY]}
+
+    return None
+
+
+def parameter_resolution_for_parameter(
+    store: GraphStore,
+    param_node_id: str,
+) -> dict[str, Any] | None:
+    """Resolve explicit, lookup-output, or catalog-derived parameter resolution."""
+    node = store.get_node(param_node_id)
+    if node is None:
+        return None
+
+    explicit = node.metadata.get("resolution")
+    if isinstance(explicit, dict) and explicit.get("method"):
+        method = str(explicit.get("method", ""))
+        if method == "material_catalog":
+            return catalog_resolution_for_parameter(store, param_node_id)
+        return explicit
+
+    lookup_resolution = lookup_resolution_for_parameter(store, param_node_id)
+    if lookup_resolution is not None:
+        return lookup_resolution
+
+    return catalog_resolution_for_parameter(store, param_node_id)
+
+
+def param_node_id_for_fact_key(store: GraphStore, fact_key: str) -> str | None:
+    """Return PARAM-* id for a canonical runtime fact key when present in the graph."""
+    canonical = canonical_parameter_key(str(fact_key or "").strip())
+    if not canonical:
+        return None
+    for node in store.list_nodes(node_type="parameter"):
+        node_key = canonical_parameter_key(str(node.metadata.get("key") or ""))
+        if node_key == canonical:
+            return node.node_id
+    return None
+
+
+def prerequisite_input_keys(
+    store: GraphStore,
+    fact_key: str,
+) -> list[str]:
+    """Expand a parameter key to the user-input keys required to resolve it."""
+    canonical = canonical_parameter_key(str(fact_key or "").strip())
+    if not canonical:
+        return []
+
+    param_node_id = param_node_id_for_fact_key(store, canonical)
+    if param_node_id is None:
+        return [canonical]
+
+    resolution = parameter_resolution_for_parameter(store, param_node_id)
+    if not isinstance(resolution, dict):
+        return [canonical]
+
+    method = str(resolution.get("method", "user_input"))
+    if method == "material_catalog":
+        keys = [
+            _resolve_lookup_key(store, str(key))
+            for key in (resolution.get("keys") or [])
+            if str(key).strip()
+        ]
+        return keys or [canonical]
+    if method == "table_lookup":
+        return [canonical]
+    return [canonical]

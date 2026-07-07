@@ -469,15 +469,17 @@ class DesktopApiService:
                 details={"parameter": parameter},
             ) from exc
 
+        propose_on_field = parameter in _PROPOSE_DEFAULTS_ON_FIELDS
         refresh_task_planning(
             task,
             self._reader(),
-            propose_defaults=parameter in _PROPOSE_DEFAULTS_ON_FIELDS,
+            propose_defaults=propose_on_field,
         )
         manager.replace_task(task_id, task)
         task = maybe_execute_ready_workflow(task_id, manager, self._reader())
 
         reader = self._reader()
+        needs_finalize_planning = propose_on_field
         if has_execution_trace(task):
             graph = GraphTools(reader)
             root_slug = str(task.outputs.get("selected_root") or task.outputs.get("workflow") or "")
@@ -488,9 +490,11 @@ class DesktopApiService:
             )
             try_complete_definition_equations(task, reader, preview.execution_order)
             manager.replace_task(task_id, task)
+            needs_finalize_planning = True
 
-        refresh_task_planning(task, reader, propose_defaults=False)
-        manager.replace_task(task_id, task)
+        if needs_finalize_planning:
+            refresh_task_planning(task, reader, propose_defaults=False)
+            manager.replace_task(task_id, task)
         task = manager.get_task(task_id)
 
         self._save_manager(manager, session_id)

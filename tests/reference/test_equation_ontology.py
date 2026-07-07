@@ -19,13 +19,6 @@ _FORBIDDEN_FIELDS = frozenset(
         "calculation_result",
         "selected_for_execution",
         "active_in_context",
-        "variables",
-        "steps",
-        "executor",
-        "execution_function",
-        "calculation_module",
-        "outputs",
-        "equation_id",
     }
 )
 
@@ -74,6 +67,13 @@ def test_equation_nodes_have_required_template_fields() -> None:
         assert validate_equation_node(meta) == [], path.name
         for field in _FORBIDDEN_FIELDS:
             assert field not in meta, f"{path.name} must not contain {field!r} in frontmatter"
+        if "-eq-" in path.stem:
+            assert meta.get("equation_number"), path.name
+
+
+def test_equation_nodes_have_no_sidecar_directories() -> None:
+    for path in _equation_dir().glob("asme-b313-*"):
+        assert path.is_file(), f"unexpected non-file equation path: {path}"
 
 
 def test_equation_rejects_parent_edge() -> None:
@@ -88,7 +88,7 @@ def test_equation_rejects_parent_edge() -> None:
             "authorized_by": ["304.1.2-a"],
             "authority_context_required": True,
         },
-        "requires": [{"symbol": "P", "parameter": "PARAM-design-pressure"}],
+        "requires": [{"symbol": "P", "parameter": "PARAM-internal-design-gage-pressure"}],
         "metadata": {
             "status": "active",
             "last_revision": "2026-07-04",
@@ -100,13 +100,14 @@ def test_equation_rejects_parent_edge() -> None:
     assert any("structural edge type: parent" in issue for issue in issues)
 
 
-def test_equation_sidecars_expose_executor_metadata() -> None:
+def test_equation_nodes_expose_executor_metadata() -> None:
     pack_root = _project_root() / "knowledge" / "standards"
     reader = StandardsReader(pack_root, standard="asme_b31.3")
     record = reader.load("asme-b313-304-1-2-eq-3a")
     assert record.metadata.get("executor") == "calculate_wall_thickness"
     assert record.metadata.get("variables")
     assert record.metadata.get("steps")
+    assert record.metadata.get("equation_number") == "3a"
 
 
 def test_legacy_equation_aliases_resolve() -> None:

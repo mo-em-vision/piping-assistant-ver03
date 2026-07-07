@@ -79,6 +79,22 @@ def _refresh_goal_node(task: Task, goal: Goal, store: GoalStore) -> None:
         goal.satisfaction.satisfied_by = None
         return
 
+    from engine.graph.definition_equations import has_execution_trace
+    from models.planning import NavigationPhase
+
+    if (
+        goal.goal_class in {GoalClass.INPUT, GoalClass.SELECTION}
+        and str(goal.metadata.get("phase") or "") == NavigationPhase.DEFINITION_EQUATION_COMPLETION.value
+        and has_execution_trace(task)
+        and task.outputs.get("t") is None
+        and task.outputs.get("required_thickness") is None
+    ):
+        goal.satisfaction.status = SatisfactionStatus.BLOCKED
+        goal.state.status = GoalRuntimeStatus.BLOCKED
+        goal.state.blocked_by = ["required_thickness"]
+        goal.satisfaction.satisfied_by = None
+        return
+
     if goal.goal_class in {
         GoalClass.INPUT,
         GoalClass.SELECTION,

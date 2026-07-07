@@ -10,7 +10,7 @@ from typing import Any
 import yaml
 
 from engine.reference.pack_pipe_dimensions_db import resolve_pack_pipe_dimensions_db
-from engine.reference.pipe_dimensions_db import INCH_TO_MM, PipeDimensionsDatabase, PipeScheduleEntry
+from engine.reference.pipe_dimensions_db import INCH_TO_MM, PipeDimensionsDatabase, PipeScheduleEntry, _nps_sort_key
 from engine.reference.pipe_dimensions_registry import (
     load_pipe_dimensions_registry,
     resolve_pipe_dimension_source,
@@ -235,7 +235,7 @@ class PipeDimensionLookup:
 
     def _list_nps_sizes_yaml(self) -> list[str]:
         pipes = (self._yaml_table or {}).get("pipes", {}) or {}
-        return sorted(pipes.keys(), key=self._nps_sort_key)
+        return sorted(pipes.keys(), key=_nps_sort_key)
 
     def _resolve_nps_yaml(self, table: dict[str, Any], nps: str) -> str:
         text = str(nps).strip().strip('"').strip("'")
@@ -279,20 +279,3 @@ class PipeDimensionLookup:
             if str(key).upper() == upper and isinstance(row, dict):
                 return row
         return None
-
-    @staticmethod
-    def _nps_sort_key(nps: str) -> tuple[int, float]:
-        if "/" in nps:
-            parts = nps.split("-")
-            total = 0.0
-            for part in parts:
-                if "/" in part:
-                    num, den = part.split("/", 1)
-                    total += float(num) / float(den)
-                else:
-                    total += float(part)
-            return (0, total)
-        try:
-            return (1, float(nps))
-        except ValueError:
-            return (2, 0.0)

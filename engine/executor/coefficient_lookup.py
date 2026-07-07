@@ -12,13 +12,9 @@ from engine.reference.coefficient_resolver import (
     lookup_y_coefficient,
 )
 from engine.reference.standards_paths import resolve_standard_pack
-from engine.state.task_facts import (
-    active_facts,
-    fact_scalar_value,
-    fact_unit,
-    store_lookup_numeric_fact,
-)
-from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready
+from engine.reference.parameter_keys import MATERIAL_GRADE_KEY, parameter_is_ready, read_fact_value
+from engine.state.task_facts import active_facts, fact_unit, store_lookup_numeric_fact
+from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready, fact_scalar_value
 from models.task import Task
 
 from engine.reference.asme_b31_3_table_ids import (
@@ -62,6 +58,13 @@ def _input_ready(existing_inputs: dict[str, Any], input_id: str) -> bool:
     return True
 
 
+def _material_input(existing_inputs: dict[str, Any]) -> tuple[Any | None, bool]:
+    return (
+        read_fact_value(existing_inputs, MATERIAL_GRADE_KEY),
+        parameter_is_ready(existing_inputs, MATERIAL_GRADE_KEY),
+    )
+
+
 def _should_auto_apply(existing: Fact | None) -> bool:
     if existing is None:
         return True
@@ -100,21 +103,35 @@ def _remove_from_planning_missing(task: Task, input_id: str) -> None:
     refresh_goal_satisfaction(task)
 
 
+def _pipe_construction_type_value(existing_inputs: dict[str, Any]) -> Any | None:
+    for input_id in ("pipe_construction_type", "joint_category"):
+        value = _input_value(existing_inputs, input_id)
+        if value is not None:
+            return value
+    return None
+
+
+def _pipe_construction_type_ready(existing_inputs: dict[str, Any]) -> bool:
+    for input_id in ("pipe_construction_type", "joint_category"):
+        if _input_ready(existing_inputs, input_id):
+            return True
+    return False
+
+
 def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
     """Look up E, W, and Y when their prerequisite inputs are confirmed."""
     existing_inputs = active_facts(task)
     pack_root = resolve_standard_pack(standards_root, B31_3_SLUG)
 
-    material = _input_value(existing_inputs, "material")
-    joint_category = _input_value(existing_inputs, "joint_category")
+    material, material_ready = _material_input(existing_inputs)
+    joint_category = _pipe_construction_type_value(existing_inputs)
     design_temperature = _input_value(existing_inputs, "design_temperature")
     temp_input = existing_inputs.get("design_temperature")
     temp_unit = "F"
     if isinstance(temp_input, Fact):
         temp_unit = str(fact_unit(temp_input) or "F")
 
-    material_ready = _input_ready(existing_inputs, "material")
-    joint_ready = _input_ready(existing_inputs, "joint_category")
+    joint_ready = _pipe_construction_type_ready(existing_inputs)
     temperature_ready = _input_ready(existing_inputs, "design_temperature")
 
     if material_ready and joint_ready:
@@ -166,12 +183,20 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
     if temperature_ready and _thin_wall_assumed(existing_inputs):
         existing = task.fact_store.active_fact("temperature_coefficient_Y")
         if _should_auto_apply(existing):
+            metallurgical_group = _input_value(existing_inputs, "metallurgical_group")
             try:
                 y_value, _ = lookup_y_coefficient(
                     pack_root,
                     design_temperature=float(design_temperature),
                     design_temperature_unit=temp_unit,
-                    material=str(material) if material is not None else None,
+                    metallurgical_group=(
+                        str(metallurgical_group) if metallurgical_group else None
+                    ),
+                    material=(
+                        str(material)
+                        if material is not None and not metallurgical_group
+                        else None
+                    ),
                 )
             except (ValueError, FileNotFoundError):
                 y_value = None

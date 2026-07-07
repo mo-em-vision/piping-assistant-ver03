@@ -6,7 +6,6 @@ import { buildAskAiSelectionPrompt } from '@/templates/askAiSelectionPrompt'
 import { toUserFacingError } from '@/types/backend/errors'
 import type { UserFacingError } from '@/types/frontend/userError'
 import type { ChatContextDto, ChatMessageDto } from '@/types/backend/chat'
-import type { TaskStateDto } from '@/types/backend/api'
 
 import { getActiveSessionId, useProjectStore } from '@/store/projectStore'
 import { useRightPanelStore } from '@/store/rightPanelStore'
@@ -30,16 +29,6 @@ interface ChatStoreState {
   sendMessage: (message: string, taskId?: string, options?: SendMessageOptions) => Promise<void>
   clearMessages: (taskId?: string) => Promise<void>
   askAboutSelection: (selectedText: string) => Promise<void>
-}
-
-function stateToSummary(state: TaskStateDto) {
-  return {
-    id: state.task_id,
-    name: state.name,
-    description: state.description,
-    discipline: state.discipline,
-    status: 'in_progress' as const,
-  }
 }
 
 function resolveProjectName(sessionId: string | null, projectId?: string): string | undefined {
@@ -147,10 +136,7 @@ export const useChatStore = create<ChatStoreState>((set, get) => ({
       const skipTaskRefresh =
         resolvedMode === 'selection_explain' || resolvedMode === 'task_assist'
       if (response.task_state && !skipTaskRefresh) {
-        useTaskStore.setState({
-          activeTask: stateToSummary(response.task_state),
-          activeTaskState: response.task_state,
-        })
+        useTaskStore.getState().applyTaskState(response.task_state)
         await useTaskStore.getState().loadWorkspace()
       }
     } catch (error) {

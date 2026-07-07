@@ -16,7 +16,7 @@ Parameter nodes define **contextual engineering roles** — not values, units, r
 
 | Node | Class | Dimension | Concept |
 |------|-------|-----------|---------|
-| `PARAM-design-pressure` | physical_quantity | `DIM-pressure` | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
+| `PARAM-internal-design-gage-pressure` | physical_quantity | `DIM-pressure` | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
 | `PARAM-allowable-stress` | physical_quantity | `DIM-pressure` | [`CONCEPT-allowable-stress`](../concepts/nodes/CONCEPT-allowable-stress.yaml) |
 | `PARAM-design-temperature` | environmental_condition | `DIM-temperature` | [`CONCEPT-temperature`](../concepts/nodes/CONCEPT-temperature.yaml) |
 | `PARAM-corrosion-allowance` | geometric_quantity | `DIM-length` | [`CONCEPT-wall-thickness`](../concepts/nodes/CONCEPT-wall-thickness.yaml) |
@@ -29,8 +29,17 @@ Parameter nodes define **contextual engineering roles** — not values, units, r
 | `PARAM-pipe-construction-type` | selection | — | [`CONCEPT-pipe-construction`](../concepts/nodes/CONCEPT-pipe-construction.yaml) |
 | `PARAM-weld-joint-efficiency` | factor | `DIM-dimensionless` | [`CONCEPT-weld-joint-efficiency`](../concepts/nodes/CONCEPT-weld-joint-efficiency.yaml) |
 | `PARAM-temperature-coefficient-Y` | coefficient | `DIM-dimensionless` | [`CONCEPT-temperature-coefficient`](../concepts/nodes/CONCEPT-temperature-coefficient.yaml) |
+| `PARAM-nominal-pipe-size` | selection | — | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
+| `PARAM-pressure-loading` | selection | — | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
+| `PARAM-straight-pipe-section` | selection | — | — |
+| `PARAM-pipe-schedule` | selection | — | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
+| `PARAM-geometry-input-mode` | selection | — | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
+| `PARAM-actual-wall-thickness` | geometric_quantity | `DIM-length` | [`CONCEPT-wall-thickness`](../concepts/nodes/CONCEPT-wall-thickness.yaml) |
+| `PARAM-inside-diameter` | geometric_quantity | `DIM-length` | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
+| `PARAM-external-design-pressure` | physical_quantity | `DIM-pressure` | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
+| `PARAM-maximum-allowable-working-pressure` | calculated_quantity | `DIM-pressure` | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
 
-Parameter nodes define **contextual roles only** — no `value`, `unit`, `resolution`, or runtime state (see template forbidden fields).
+Parameter nodes define **contextual roles only** — no `value`, `unit`, `resolution`, or runtime state (see template forbidden fields). Composer UI hints live in `metadata` (`composer_input`, `composer_options`, `canonical_unit`, `default_value`) — see [`docs/rules.md`](../../../docs/rules.md) §17.
 
 ## Four-layer model
 

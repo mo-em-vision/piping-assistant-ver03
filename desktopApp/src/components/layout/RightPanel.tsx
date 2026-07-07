@@ -1,4 +1,4 @@
-import { lazy, Suspense, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState, lazy, Suspense } from 'react'
 
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { ParameterEditDialog } from '@/components/engineering/ParameterEditDialog'
@@ -25,10 +25,24 @@ import { ChatTabIcon, pinnedTabAriaLabel, StandardsTabIcon, TaskTabIcon } from '
 import { PanelSection } from './PanelSection'
 import './SidePanel.css'
 
-const NodeEditTab = env.devToolsAvailable
+const PlannerDevTab = env.devToolsAvailable
   ? lazy(async () => {
-      const module = await import('@dev-ui/NodeEditTab')
-      return { default: module.NodeEditTab }
+      const module = await import('@dev-ui/inspector/PlannerDevTab')
+      return { default: module.PlannerDevTab }
+    })
+  : null
+
+const TaskStateDevTab = env.devToolsAvailable
+  ? lazy(async () => {
+      const module = await import('@dev-ui/inspector/TaskStateDevTab')
+      return { default: module.TaskStateDevTab }
+    })
+  : null
+
+const OperationsDevTab = env.devToolsAvailable
+  ? lazy(async () => {
+      const module = await import('@dev-ui/inspector/OperationsDevTab')
+      return { default: module.OperationsDevTab }
     })
   : null
 
@@ -154,9 +168,9 @@ function ChatTab() {
 }
 
 export function RightPanel() {
-  const devUiActive = useDevUiActive()
   const activeTask = useTaskStore((state) => state.activeTask)
   const viewModel = useActiveTaskViewModel()
+  const devUiActive = useDevUiActive()
   const tabs = useRightPanelStore((state) => state.tabs)
   const activeTabId = useRightPanelStore((state) => state.activeTabId)
   const setActiveTab = useRightPanelStore((state) => state.setActiveTab)
@@ -170,7 +184,15 @@ export function RightPanel() {
     scrollTabItemIntoView(activeTabElement ?? null)
   }, [activeTabId, tabIdsKey])
 
-  const visibleTabs = tabs.filter((tab) => tab.kind !== 'task' || activeTask)
+  const visibleTabs = tabs.filter((tab) => {
+    if (tab.kind === 'task' || tab.kind === 'planner' || tab.kind === 'dev-task-state') {
+      return Boolean(activeTask)
+    }
+    if (tab.kind === 'dev-operations') {
+      return devUiActive
+    }
+    return true
+  })
   const activeTab = visibleTabs.find((tab) => tab.id === activeTabId) ?? visibleTabs[0]
 
   const setTabItemRef = (tabId: string, element: HTMLDivElement | null) => {
@@ -192,7 +214,8 @@ export function RightPanel() {
           {visibleTabs.map((tab) => {
             const isActive = tab.id === activeTabId
             const isClosable = tab.kind === 'reference' || tab.kind === 'material'
-            const isIconOnly = tab.kind === 'task' || tab.kind === 'chat' || tab.kind === 'standards'
+            const isIconOnly =
+              tab.kind === 'task' || tab.kind === 'chat' || tab.kind === 'standards'
             const tabAriaLabel =
               tab.kind === 'task'
                 ? pinnedTabAriaLabel('task', viewModel?.statusLabel)
@@ -200,13 +223,21 @@ export function RightPanel() {
                   ? pinnedTabAriaLabel('chat')
                   : tab.kind === 'standards'
                     ? pinnedTabAriaLabel('standards')
-                    : undefined
+                    : tab.kind === 'planner'
+                      ? 'Planner'
+                      : tab.kind === 'dev-task-state'
+                        ? 'Task State'
+                        : tab.kind === 'dev-operations'
+                          ? 'Operations'
+                          : undefined
+            const isDevTab =
+              tab.kind === 'planner' || tab.kind === 'dev-task-state' || tab.kind === 'dev-operations'
 
             return (
               <div
                 key={tab.id}
                 ref={(element) => setTabItemRef(tab.id, element)}
-                className={`side-panel__tab-item${isActive ? ' side-panel__tab-item--active' : ''}${isClosable ? ' side-panel__tab-item--closable' : ''}`}
+                className={`side-panel__tab-item${isActive ? ' side-panel__tab-item--active' : ''}${isClosable ? ' side-panel__tab-item--closable' : ''}${isDevTab ? ' side-panel__tab-item--dev' : ''}`}
                 onMouseEnter={
                   isClosable
                     ? (event) => scrollTabItemIntoView(event.currentTarget)
@@ -268,6 +299,25 @@ export function RightPanel() {
 
       <div className="side-panel__content side-panel__content--tabs">
         {activeTab?.kind === 'task' ? <TaskContextTab /> : null}
+        {devUiActive && activeTab?.kind === 'planner' && PlannerDevTab ? (
+          <div className="side-panel__tab-body side-panel__tab-body--dev">
+            <Suspense fallback={<p className="side-panel__hint">Loading planner…</p>}>
+              <PlannerDevTab />
+            </Suspense>
+          </div>
+        ) : null}
+        {devUiActive && activeTab?.kind === 'dev-task-state' && TaskStateDevTab ? (
+          <div className="side-panel__tab-body side-panel__tab-body--dev">
+            <Suspense fallback={<p className="side-panel__hint">Loading task state…</p>}>
+              <TaskStateDevTab />
+            </Suspense>
+          </div>
+        ) : null}
+        {devUiActive && activeTab?.kind === 'dev-operations' && OperationsDevTab ? (
+          <Suspense fallback={<p className="side-panel__hint">Loading operations…</p>}>
+            <OperationsDevTab />
+          </Suspense>
+        ) : null}
         {activeTab?.kind === 'chat' ? <ChatTab /> : null}
         {activeTab?.kind === 'standards' ? (
           <div className="side-panel__tab-body side-panel__tab-body--standards">
@@ -296,17 +346,6 @@ export function RightPanel() {
         {activeTab?.kind === 'material' ? (
           <div className="side-panel__tab-body side-panel__tab-body--reference">
             <MaterialReferenceTab materialId={activeTab.materialId} />
-          </div>
-        ) : null}
-        {activeTab?.kind === 'node-edit' && NodeEditTab && devUiActive ? (
-          <div className="side-panel__tab-body side-panel__tab-body--reference">
-            <Suspense fallback={<p className="node-edit-tab__hint">Loading node editor…</p>}>
-              <NodeEditTab
-                nodeId={activeTab.nodeId}
-                pack={activeTab.pack}
-                sourceField={activeTab.sourceField}
-              />
-            </Suspense>
           </div>
         ) : null}
       </div>

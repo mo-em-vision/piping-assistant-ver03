@@ -1,0 +1,60 @@
+---
+id: asme-b313-304-1-2-valrule-a
+type: validation_rule
+key: asme-b313-304-1-2-valrule-a
+name: Thin-Wall Applicability
+rule_class: validation
+description: >
+  After pressure design thickness t is calculated, verify t < D/6 so that
+  §304.1.2(a) thin-wall equations (3a/3b) remain applicable for straight pipe.
+authority:
+  authorized_by:
+  - 304.1.2-a
+  authority_context_required: true
+display:
+  text: t < D/6
+expression:
+  language: sympy
+  formula: thin_wall_applicable = t < D / 6
+requires:
+- symbol: t
+  required: true
+  description: Pressure design thickness from eq. (3a) or (3b)
+  parameter: PARAM-required-wall-thickness
+- symbol: D
+  required: true
+  description: Outside diameter of pipe
+  parameter: PARAM-outside-diameter
+validates:
+- symbol: thin_wall_applicable
+  parameter: PARAM-thin-wall-applicability
+conditions:
+  all_of:
+  - expression: t < D / 6
+    description: Thin-wall geometry limit per §304.1.2(a)
+on_fail:
+  severity: warning
+  blocks_goal: false
+  message: >
+    Calculated thickness does not satisfy t < D/6; §304.1.2(a) thin-wall
+    equations may not apply — see §304.1.2(b).
+edges:
+- type: requires_parameter
+  target: PARAM-required-wall-thickness
+  alias: t
+- type: requires_parameter
+  target: PARAM-outside-diameter
+  alias: D
+- type: validates_parameter
+  target: PARAM-thin-wall-applicability
+- type: constrains_equation
+  target: asme-b313-304-1-2-eq-3a
+- type: constrains_equation
+  target: asme-b313-304-1-2-eq-3b
+metadata:
+  status: active
+  version: 1
+  legacy_equation_id: valrule-304-1-2-a
+  last_revision: 2026-07-07
+  edited_by: admin
+---

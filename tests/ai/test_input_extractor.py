@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from ai.input_extractor import extract_pipe_wall_thickness_inputs
 from engine.graph.node_interaction import InteractionMode, NodeInteractionSpec
+from models.fact import fact_from_user_submission, fact_scalar_value, fact_unit
 from models.input import InputStatus, proposed_default_input
 
 USER_MESSAGE = "material ASTM A106, Temperature: 85 Celcius, Pressure: 4 inch"
@@ -12,11 +13,11 @@ USER_MESSAGE = "material ASTM A106, Temperature: 85 Celcius, Pressure: 4 inch"
 def test_extracts_material_and_temperature_from_user_message() -> None:
     result = extract_pipe_wall_thickness_inputs(USER_MESSAGE)
 
-    assert "material" in result.extracted
-    assert result.extracted["material"].value == "astm_a106_gr_b"
+    assert "material_grade" in result.extracted
+    assert fact_scalar_value(result.extracted["material_grade"]) == "astm_a106_gr_b"
     assert "design_temperature" in result.extracted
-    assert result.extracted["design_temperature"].value == 85.0
-    assert result.extracted["design_temperature"].unit == "C"
+    assert fact_scalar_value(result.extracted["design_temperature"]) == 85.0
+    assert fact_unit(result.extracted["design_temperature"]) in {"C", "degC"}
 
 
 def test_rejects_mislabeled_pressure_with_length_unit() -> None:
@@ -52,8 +53,9 @@ def test_extracts_valid_pressure_and_diameter() -> None:
 def test_extracts_nps_for_b36_lookup() -> None:
     result = extract_pipe_wall_thickness_inputs("NPS 2, design pressure 500 psi, material SA-106B, temp 200 F")
 
-    assert result.extracted["nominal_pipe_size"].value == "2"
-    assert result.extracted["d_input_mode"].value == "nps_lookup"
+    assert fact_scalar_value(result.extracted["nominal_pipe_size"]) == "2"
+    assert result.extracted["nominal_pipe_size"].original_unit == "NPS"
+    assert fact_scalar_value(result.extracted["d_input_mode"]) == "nps_lookup"
     assert "outside_diameter" not in result.extracted
 
 

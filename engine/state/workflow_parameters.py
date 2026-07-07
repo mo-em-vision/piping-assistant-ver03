@@ -134,17 +134,19 @@ def _resolve_active_nodes(
 
 def _param_nodes_by_input_id(store: GraphStore, active_nodes: set[str]) -> dict[str, str]:
     index: dict[str, str] = {}
+
+    def register(node_id: str, metadata: dict[str, Any]) -> None:
+        input_id = str(metadata.get("input_id") or metadata.get("key") or "").strip()
+        if input_id and input_id not in index:
+            index[input_id] = node_id
+
     for node_id in active_nodes:
         node = store.get_node(node_id)
         if node is None or node.node_type != "parameter":
             continue
-        input_id = str(node.metadata.get("input_id", "")).strip()
-        if input_id:
-            index.setdefault(input_id, node_id)
+        register(node_id, node.metadata)
     for node in store.list_nodes(node_type="parameter"):
-        input_id = str(node.metadata.get("input_id", "")).strip()
-        if input_id and input_id not in index:
-            index[input_id] = node.node_id
+        register(node.node_id, node.metadata)
     return index
 
 

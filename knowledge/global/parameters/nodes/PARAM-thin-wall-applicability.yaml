@@ -1,0 +1,25 @@
+---
+id: PARAM-thin-wall-applicability
+type: parameter
+key: thin_wall_applicability
+name: Thin-Wall Applicability
+parameter_class: categorical
+dimension: null
+description: >
+  Whether calculated pressure design thickness t satisfies the thin-wall
+  applicability limit t < D/6 per ASME B31.3 §304.1.2(a).
+canonical_symbol: thin_wall_valid
+aliases:
+  - thin wall applicability
+  - thin_wall
+introduced_by:
+  - 304.1.2-a
+edges:
+  - type: used_by
+    target: asme-b313-304-1-2-valrule-a
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-07
+  edited_by: admin
+---

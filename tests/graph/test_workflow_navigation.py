@@ -47,6 +47,35 @@ def test_phased_navigation_uses_config_order() -> None:
     assert gathering.index("design_pressure") < gathering.index("outside_diameter")
 
 
+def test_internal_pressure_omits_external_design_pressure_from_phase_missing() -> None:
+    from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
+    from tests.helpers.facts import facts_from_inputs
+
+    reader = StandardsReader(
+        __import__("pathlib").Path(__file__).resolve().parents[2] / "knowledge" / "standards",
+        standard="asme_b31.3",
+    )
+    config = load_workflow_navigation(reader, "pipe_wall_thickness_design")
+    inputs = facts_from_inputs(
+        {
+            "straight_pipe_section": straight_section_assumption(),
+            "pressure_loading": internal_pressure_assumption(),
+        },
+        task_id="nav-test",
+    )
+    phased = build_workflow_phased_navigation(
+        config=config,
+        assumption_eval=AssumptionEvaluation(),
+        expansion_eval=AssumptionEvaluation(),
+        user_inputs=["design_pressure", "nominal_pipe_size", "outside_diameter", "material", "design_temperature"],
+        execution_eval=AssumptionEvaluation(),
+        question_map={},
+        existing_inputs=inputs,
+    )
+    gathering = phased.phase_missing.get(NavigationPhase.PARAMETER_GATHERING.value) or []
+    assert "external_design_pressure" not in gathering
+
+
 def test_phase_allowlists_serializable() -> None:
     reader = StandardsReader(
         __import__("pathlib").Path(__file__).resolve().parents[2] / "knowledge" / "standards",

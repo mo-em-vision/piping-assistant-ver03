@@ -10,6 +10,7 @@ from engine.reference.standards_markdown import split_frontmatter
 _EXECUTION_KEYS = (
     "interactions",
     "assumptions",
+    "applicability",
     "provisional_assumptions",
     "parameter_defaults",
     "inputs",
@@ -154,13 +155,13 @@ def _param_to_field(param_id: str) -> str:
     mapping = {
         "pressure_loading": "pressure_loading",
         "straight_pipe_section": "straight_pipe_section",
-        "design_pressure": "design_pressure",
+    "internal_design_gage_pressure": "internal_design_gage_pressure",
         "outside_diameter": "outside_diameter",
         "allowable_stress": "allowable_stress",
         "weld_joint_efficiency": "weld_joint_efficiency",
         "weld_joint_strength_reduction_factor_w": "weld_joint_strength_reduction_factor_W",
         "temperature_coefficient_y": "temperature_coefficient_Y",
         "corrosion_allowance": "corrosion_allowance",
-        "material_specification": "material",
+        "material_specification": "material_grade",
     }
     return mapping.get(slug, slug)

@@ -16,7 +16,8 @@ Responsibilities:
 
 - Read active task context and `active_nodes` from the same session storage as the desktop API
 - Load node/edge metadata from per-pack `*_graph.db` via `GraphStore` (read-only)
-- Build an **induced subgraph** (edges only when both endpoints are in `active_nodes`)
+- Build an **induced subgraph** (edges only when both endpoints are in `active_nodes`) — legacy `/api/graph/snapshot`
+- Build a **workflow expansion projection** (`/api/workflow-expansion`) showing phases, branches, blockers, and skipped paths
 - Serve REST + WebSocket API on `:8765`; browser UI on `:3000` via Vite proxy
 - Watch `tasks.json` and graph DB / YAML sources; push snapshot or delta updates to clients
 - Run graph analysis (orphans, cycles, duplicates, components, hubs) on the current subgraph
@@ -35,6 +36,10 @@ The explorer **does not modify** graph sources or task state.
 | `__main__.py` | CLI entry: uvicorn on `GRAPH_EXPLORER_HOST` / `GRAPH_EXPLORER_PORT`. |
 | `server.py` | Starlette app: REST routes, WebSocket, `GraphExplorerService`, lifespan watcher. |
 | `adapter.py` | `TaskContextReader`, `GraphExplorerAdapter`. |
+| `workflow_expansion.py` | Orchestrator: `build_workflow_expansion_view()` → strategy dispatch. |
+| `expansion_types.py` | Pipe-wall phase constants, node/edge status enums. |
+| `projectors/base.py` | Shared read helpers, `GenericExpansionProjector`. |
+| `projectors/pipe_wall_thickness.py` | `PipeWallThicknessExpansionProjector` for runtime expansion view. |
 | `explorer_config.py` | Desktop user-data resolution, session auto-pick. |
 | `serializer.py` | JSON-serializable DTOs for API responses. |
 | `analysis.py` | `analyze_graph` — structural analysis of node/edge lists. |
@@ -62,7 +67,14 @@ The explorer **does not modify** graph sources or task state.
 | `src/main.tsx` | React root mount. |
 | `src/App.tsx` | Layout: header, sidebar (search/filter/analysis), canvas, side panel. |
 | `src/types.ts` | TS interfaces mirroring API DTOs. |
-| `src/hooks/useGraphWebSocket.ts` | WebSocket + 3s polling fallback; REST helpers. |
+| `src/hooks/useWorkflowExpansion.ts` | Poll `/api/workflow-expansion`; primary canvas data hook. |
+| `src/hooks/useGraphWebSocket.ts` | Legacy WebSocket + snapshot poll (optional helpers). |
+| `src/utils/expansionFilters.ts` | Client-side toggles: skipped branches, full graph, parameters, reference edges. |
+| `src/components/PhaseBadge.tsx` | Current phase + task status in header. |
+| `src/components/ExpansionTimelinePanel.tsx` | Phase timeline with per-field status. |
+| `src/components/ExpansionLegend.tsx` | Node status and edge style legend. |
+| `src/components/ExpansionSidePanel.tsx` | Selected node expansion details + raw JSON toggle. |
+| `src/components/ExpansionToolbar.tsx` | Fit, refresh, expansion view toggles. |
 | `src/store/graphStore.ts` | Zustand: snapshot/delta, layout positions, filters, React Flow nodes/edges. |
 | `src/components/GraphCanvas.tsx` | React Flow canvas, minimap, empty-state message. |
 | `src/components/GraphNode.tsx` | Custom node renderer (type colors, execution state). |
@@ -198,7 +210,25 @@ concurrently
             ↓ proxy /api, /ws → :8765
 ```
 
-### B. HTTP GET `/api/graph/snapshot`
+### B. HTTP GET `/api/workflow-expansion` (primary canvas)
+
+```text
+server.workflow_expansion
+    ↓
+adapter.reload()
+build_workflow_expansion_view(task_id, session_id, adapter)
+    ↓
+load_task_for_graph_explorer → ProjectSessionStore → Task
+PipeWallThicknessExpansionProjector.project()  (or GenericExpansionProjector)
+    ↓ read-only: planning_projection, expand_workflow, GraphStore
+JSONResponse({ task_id, current_phase, nodes[], edges[], timeline[], ... })
+    ↓
+web/useWorkflowExpansion → graphStore.setExpansionView
+    ↓
+GraphCanvas (filtered by expansion toggles)
+```
+
+### C. HTTP GET `/api/graph/snapshot` (legacy / analysis helper)
 
 ```text
 server.graph_snapshot
@@ -215,7 +245,7 @@ _build_subgraph(active_nodes, execution_states)
 JSONResponse(snapshot.to_dict())
 ```
 
-### C. Filesystem change → WebSocket push
+### D. Filesystem change → WebSocket push
 
 ```text
 watchdog GraphChangeHandler.on_any_event
@@ -237,7 +267,7 @@ web/useGraphWebSocket → graphStore.setSnapshot | applyDelta
 GraphCanvas (React Flow render)
 ```
 
-### D. User selects node in UI
+### E. User selects node in UI
 
 ```text
 App.selectNode
@@ -251,7 +281,7 @@ GraphStore incoming/outgoing + metadata → NodeDetailDto
 SidePanel renders detail; focusNode centers viewport
 ```
 
-### E. Graph analysis panel refresh
+### F. Graph analysis panel refresh
 
 ```text
 App useEffect on revision

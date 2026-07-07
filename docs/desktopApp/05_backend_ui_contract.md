@@ -167,6 +167,25 @@ Frontend controls:
 - interaction
 - component rendering
 
+## Graph-driven workflow paths (no hardcoded steps)
+
+Workflow **paths**, **branches**, and **which parameters to ask** are resolved by backend graph expansion — not by hardcoded lists in Python, TypeScript, or API constants.
+
+| Concern | Source of truth |
+| --- | --- |
+| Active execution subgraph | `expand_workflow()` — node `assumptions`, edge `when`, `applicability.applies_when` |
+| Parameters to collect | `required_user_inputs()` on active parameter nodes |
+| Path decision (e.g. internal vs external pressure) | `engine/graph/path_decision.resolve_path_decision()` from expanded nodes + task facts |
+| Timeline / composer order | `task.outputs.graph_input_order`, `collection_field_order` (set during planning refresh) |
+| Step labels | `task.outputs.graph_step_titles` from parameter node metadata |
+| Phase ordering only | `workflows/<id>/runtime.yaml` `navigation.phases` (does not inject branch-specific fields) |
+
+After each confirmed user input, the backend replans (`refresh_task_planning`) so ruled-out branches and their parameters drop from `phase_missing`, goals, and timeline.
+
+**Do not** add workflow-specific parameter lists to `api/workflow_timeline.py`, `engine/planner/`, or the desktop client. Author gates and branches on knowledge nodes and workflow runtime sidecars instead.
+
+Project rule: `docs/rules.md` §13 and `.cursor/rules/graph-expansion.mdc`.
+
 ---
 
 # 7. Dynamic UI Strategy

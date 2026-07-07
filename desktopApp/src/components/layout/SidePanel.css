@@ -278,6 +278,18 @@
   padding: 0.85rem;
 }
 
+.side-panel__tab-body--dev {
+  padding: 0.65rem 0.75rem;
+}
+
+.side-panel__tab-item--dev .side-panel__tab-label {
+  font-size: 0.7rem;
+}
+
+.side-panel__tab-item--dev .side-panel__tab {
+  padding: 0.45rem 0.5rem;
+}
+
 .side-panel__tab-body--chat {
   display: flex;
   flex-direction: column;

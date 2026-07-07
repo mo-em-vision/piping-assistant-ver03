@@ -140,6 +140,7 @@ def test_metallurgical_group_parameter_is_selection() -> None:
     assert meta.get("key") == "metallurgical_group"
     assert _introduced_by_targets(meta) == ["asme-b313-304-1-1-b"]
     assert "asme-b313-table-304-1-1-1" in edge_targets(meta, "used_by")
+    assert "MAT-catalog" in edge_targets(meta, "used_by")
 
 
 def test_weld_joint_efficiency_parameter_is_factor() -> None:
@@ -186,7 +187,7 @@ def test_outside_diameter_parameter() -> None:
 
 
 def test_design_pressure_introduced_by_304_1_1_b() -> None:
-    path = _parameters_dir() / "PARAM-design-pressure.yaml"
+    path = _parameters_dir() / "PARAM-internal-design-gage-pressure.yaml"
     meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
     assert _introduced_by_targets(meta) == ["asme-b313-304-1-1-b"]
     assert "asme-b313-304-1-2-a" in edge_targets(meta, "used_by")
@@ -221,7 +222,7 @@ def test_parameter_pack_compiles() -> None:
     pack_root = _project_root() / "knowledge" / "global" / "parameters"
     graph = GraphBuilder(pack_root).build()
     expected = {
-        "PARAM-design-pressure",
+        "PARAM-internal-design-gage-pressure",
         "PARAM-corrosion-allowance",
         "PARAM-material-grade",
         "PARAM-metallurgical-group",
@@ -236,14 +237,14 @@ def test_parameter_pack_compiles() -> None:
         "PARAM-minimum-required-thickness",
     }
     assert expected <= set(graph.nodes.keys())
-    param = graph.nodes["PARAM-design-pressure"]
+    param = graph.nodes["PARAM-internal-design-gage-pressure"]
     assert param.node_type == "parameter"
     assert param.metadata.get("parameter_class") == "physical_quantity"
     assert param.metadata.get("dimension") == "DIM-pressure"
     has_dim = [
         edge
         for edge in graph.edges
-        if edge.from_id == "PARAM-design-pressure" and edge.edge_type == "has_dimension"
+        if edge.from_id == "PARAM-internal-design-gage-pressure" and edge.edge_type == "has_dimension"
     ]
     assert len(has_dim) == 0  # DIM nodes live in a separate pack
     write_graph_cache(pack_root, graph)

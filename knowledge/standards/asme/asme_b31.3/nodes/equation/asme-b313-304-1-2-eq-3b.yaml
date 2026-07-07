@@ -14,7 +14,7 @@ requires:
 - symbol: P
   required: true
   description: Internal design gage pressure
-  parameter: PARAM-design-pressure
+  parameter: PARAM-internal-design-gage-pressure
 - symbol: d
   required: true
   description: Inside diameter of pipe
@@ -44,7 +44,7 @@ calculates:
   parameter: PARAM-required-wall-thickness
 edges:
 - type: requires_parameter
-  target: PARAM-design-pressure
+  target: PARAM-internal-design-gage-pressure
   alias: P
 - type: requires_parameter
   target: PARAM-inside-diameter
@@ -70,7 +70,7 @@ metadata:
   status: active
   version: 1
   legacy_equation_id: eq-3b
-  last_revision: 2026-07-04
+  last_revision: 2026-07-07
   edited_by: admin
 display:
   text: t = P(d+2c) / 2(SEW - P(1-Y))
@@ -82,4 +82,67 @@ applicability:
   - parameter: PARAM-straight-pipe-section
     operator: equals
     value: true
+  - parameter: PARAM-inside-diameter
+    operator: present
+equation_number: 3b
+paragraph_number: 304.1.2-a
+variables:
+  P:
+    symbol: P
+    description: Internal design gage pressure
+    unit: Pa
+  d:
+    symbol: d
+    description: Inside diameter of pipe
+    unit: mm
+  c:
+    symbol: c
+    description: Sum of mechanical, corrosion, and erosion allowances
+    unit: mm
+  S:
+    symbol: S
+    description: Stress value from Table A-1
+    unit: Pa
+  E:
+    symbol: E
+    description: Quality factor from Tables A-2 and A-3
+    unit: dimensionless
+  W:
+    symbol: W
+    description: Weld strength reduction factor per para. 302.3.5-e
+    unit: dimensionless
+  Y:
+    symbol: Y
+    description: Coefficient from Table 304.1.1
+    unit: dimensionless
+steps:
+- name: compute_denominator_terms
+  description: Calculate SEW and P(1-Y) terms
+  expressions:
+  - expression: S * E * W
+    assign: SEW
+  - expression: P * (1 - Y)
+    assign: P1Y
+- name: compute_required_thickness
+  description: Calculate pressure design wall thickness
+  expressions:
+  - expression: P * (d + 2 * c) / (2 * (SEW - P1Y))
+    assign: t
+executor: calculate_wall_thickness_3b
+conditions:
+  - id: thin_wall_check
+    name: Thin-Wall Applicability
+    expression: t < D/6
+    description: >
+      Post-evaluation check that calculated t satisfies the §304.1.2(a) thin-wall
+      applicability limit before the result is accepted.
+    sets_field: thin_wall
+    on_false: subsection_b
+outputs:
+- symbol: t
+  name: required_thickness
+  unit: mm
+  type: quantity
+equation_id: eq-3b
+nomenclature_ref: 304.1.1-b
 ---
