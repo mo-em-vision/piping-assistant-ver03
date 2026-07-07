@@ -9,6 +9,7 @@ import pytest
 from api.table_context import table_source_payload
 from engine.reference.asme_b31_3_table_ids import TABLE_302_3_3C, TABLE_304_1_1, TABLE_A_2, TABLE_A_3, TABLE_A_1A, TABLE_A_1B
 from engine.reference.standards_reader import StandardsReader
+from engine.reference.standards_tables import flatten_lookup_table_rows
 
 
 @pytest.fixture
@@ -65,6 +66,8 @@ def test_table_source_payload_includes_all_row_columns_for_table_304_1_1(
     standards_reader: StandardsReader,
 ) -> None:
     payload = table_source_payload(standards_reader, "table_304_1_1")
+    _, raw_data = standards_reader.load_table_by_id("table_304_1_1")
+    raw_rows = flatten_lookup_table_rows(raw_data)
 
     assert payload["table_id"] == TABLE_304_1_1
     column_keys = {column["key"] for column in payload["columns"]}
@@ -75,6 +78,14 @@ def test_table_source_payload_includes_all_row_columns_for_table_304_1_1(
     assert len(payload["rows"]) >= 30
     assert any(row.get("coefficient_Y") is not None for row in payload["rows"])
     assert len({row.get("material") for row in payload["rows"]}) >= 5
+    assert not any("temperature_c" in row for row in raw_rows)
+
+    ferritic_900 = next(
+        row
+        for row in payload["rows"]
+        if row.get("material_id") == "ferritic_steels" and row.get("design_temperature") == 900
+    )
+    assert abs(float(ferritic_900["temperature_c"]) - 482.22222222222223) < 1e-6
 
 
 def test_table_source_payload_includes_revision_year_from_source_node(
@@ -83,3 +94,5 @@ def test_table_source_payload_includes_revision_year_from_source_node(
     payload = table_source_payload(standards_reader, TABLE_304_1_1)
 
     assert payload["revision_year"] == 2024
+    assert payload["table_number"] == "304.1.1-1"
+    assert payload["paragraph_number"] in (None, "304.1.1-b")

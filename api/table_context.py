@@ -13,7 +13,11 @@ from typing import Any
 from api.node_context import revision_year_from_metadata
 from engine.reference.standards_reader import StandardsReader
 from engine.reference.standards_tables import flatten_lookup_table_rows
-from engine.reference.standards_tables import flatten_lookup_table_rows
+from engine.reference.table_metadata import (
+    resolve_lookup_node_id,
+    table_paragraph_reference,
+    table_reference,
+)
 
 
 
@@ -25,6 +29,32 @@ _DEFAULT_STANDARD_LABEL = "ASME B31.3"
 
 def _flatten_table_rows(data: dict[str, Any]) -> list[dict[str, Any]]:
     return flatten_lookup_table_rows(data)
+
+
+def _enrich_derived_temperature_columns(
+    data: dict[str, Any],
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Derive °C display values for Fahrenheit-tabulated lookup tables."""
+    if str(data.get("temperature_unit", "")).upper() != "F":
+        return rows
+    if not any("design_temperature" in row for row in rows):
+        return rows
+    if any("temperature_c" in row for row in rows):
+        return rows
+
+    from engine.units.unit_resolver import get_unit_resolver
+
+    resolver = get_unit_resolver()
+    enriched: list[dict[str, Any]] = []
+    for row in rows:
+        updated = dict(row)
+        temp_f = row.get("design_temperature")
+        if temp_f is not None:
+            converted, _ = resolver.convert_value(float(temp_f), "degF", "degC")
+            updated["temperature_c"] = converted
+        enriched.append(updated)
+    return enriched
 
 
 def _column_label(key: str) -> str:
@@ -67,8 +97,8 @@ def _collect_column_keys(data: dict[str, Any], rows: list[dict[str, Any]]) -> li
         "material",
         "description",
         "supplementary_examination",
-        "temperature_c",
         "design_temperature",
+        "temperature_c",
         "coefficient_Y",
         "quality_factor_E_c",
         "quality_factor_E",
@@ -93,6 +123,7 @@ def table_source_payload(reader: StandardsReader, table_id: str) -> dict[str, An
     description = str(data.get("description") or "").strip() or None
 
     rows = _flatten_table_rows(data)
+    rows = _enrich_derived_temperature_columns(data, rows)
 
     column_keys = _collect_column_keys(data, rows)
     if column_keys:
@@ -117,17 +148,36 @@ def table_source_payload(reader: StandardsReader, table_id: str) -> dict[str, An
         source_path = path.name
 
     revision_year = None
+    table_number = None
+    paragraph_number = None
     source_node = data.get("source_node")
     if source_node:
         try:
             record = reader.load(str(source_node))
             revision_year = revision_year_from_metadata(record.metadata)
+            table_number = table_reference(record.metadata) or None
+            paragraph_number = table_paragraph_reference(record.metadata) or None
         except FileNotFoundError:
             pass
+    if table_number is None:
+        lookup_node_id = resolve_lookup_node_id(reader, resolved_id)
+        if lookup_node_id:
+            try:
+                record = reader.load(lookup_node_id)
+                table_number = table_reference(record.metadata) or None
+                paragraph_number = paragraph_number or table_paragraph_reference(record.metadata) or None
+                if revision_year is None:
+                    revision_year = revision_year_from_metadata(record.metadata)
+            except FileNotFoundError:
+                pass
 
     return {
 
         "table_id": resolved_id,
+
+        "table_number": table_number,
+
+        "paragraph_number": paragraph_number,
 
         "title": title,
 

@@ -7,8 +7,10 @@ from pathlib import Path
 import pytest
 
 from engine.reference.coefficient_resolver import (
+    clamp_y_lookup_temperature_f,
     compute_thick_wall_y,
     interpolate_by_temperature,
+    list_pipe_construction_type_options,
     lookup_quality_factor,
     lookup_y_coefficient,
     propose_coefficient_defaults,
@@ -58,6 +60,58 @@ def test_lookup_y_with_metallurgical_group() -> None:
     assert value == 0.4
 
 
+def test_lookup_y_clamps_below_900f() -> None:
+    pack = _pack_root()
+    value_low, _ = lookup_y_coefficient(
+        pack,
+        design_temperature=100,
+        design_temperature_unit="F",
+        metallurgical_group="ferritic_steels",
+    )
+    value_at_900, _ = lookup_y_coefficient(
+        pack,
+        design_temperature=900,
+        design_temperature_unit="F",
+        metallurgical_group="ferritic_steels",
+    )
+    assert value_low == value_at_900 == 0.4
+
+
+def test_lookup_y_clamps_above_1250f() -> None:
+    pack = _pack_root()
+    value_high, _ = lookup_y_coefficient(
+        pack,
+        design_temperature=1500,
+        design_temperature_unit="F",
+        metallurgical_group="ferritic_steels",
+    )
+    value_at_1250, _ = lookup_y_coefficient(
+        pack,
+        design_temperature=1250,
+        design_temperature_unit="F",
+        metallurgical_group="ferritic_steels",
+    )
+    assert value_high == value_at_1250 == 0.7
+
+
+def test_lookup_y_interpolates_between_tabulated_points() -> None:
+    pack = _pack_root()
+    value, interpolated = lookup_y_coefficient(
+        pack,
+        design_temperature=975,
+        design_temperature_unit="F",
+        metallurgical_group="ferritic_steels",
+    )
+    assert interpolated is True
+    assert abs(value - 0.6) < 1e-9
+
+
+def test_clamp_y_lookup_temperature_f() -> None:
+    assert clamp_y_lookup_temperature_f(100.0) == 900.0
+    assert clamp_y_lookup_temperature_f(975.0) == 975.0
+    assert clamp_y_lookup_temperature_f(1500.0) == 1250.0
+
+
 def test_thick_wall_y_formula() -> None:
     y = compute_thick_wall_y(
         inside_diameter=200.0,
@@ -96,6 +150,22 @@ def test_lookup_quality_factor_resolves_material_catalog_alias() -> None:
     assert lookup_quality_factor(pack, material="A106 Gr B", joint_category="seamless") == 1.0
 
 
+def test_list_pipe_construction_type_options_filters_by_material() -> None:
+    pack = _pack_root()
+    all_options = list_pipe_construction_type_options(pack)
+    a106_options = list_pipe_construction_type_options(pack, material="A106 Gr B")
+    a53_options = list_pipe_construction_type_options(pack, material="A53")
+
+    assert len(all_options) >= len(a106_options)
+    assert {item["value"] for item in a106_options} == {"Seamless pipe"}
+    assert {item["value"] for item in a53_options} == {
+        "Seamless pipe",
+        "Electric resistance welded pipe",
+        "Furnace butt welded pipe",
+    }
+    assert all(item["label"] == item["value"] for item in all_options)
+
+
 def test_lookup_quality_factor_unknown_returns_none() -> None:
     pack = _pack_root()
     assert lookup_quality_factor(pack, material="UNKNOWN", joint_category="seamless") is None
@@ -118,4 +188,5 @@ def test_propose_coefficient_defaults_with_temperature() -> None:
         },
     )
     assert proposed["temperature_coefficient_Y"][0] == 0.4
-    assert proposed["weld_joint_efficiency"][0] == 1.0
+    assert "weld_joint_efficiency" not in proposed
+    assert "weld_joint_strength_reduction_factor_W" not in proposed

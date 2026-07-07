@@ -162,30 +162,13 @@ _TABLE_302_3_3C_ROWS = [
 
 
 
-def _celsius_to_fahrenheit(celsius: float) -> float:
-
-    return celsius * 9.0 / 5.0 + 32.0
-
-
-
-
-
 def _y_rows(points: list[tuple[float, float]]) -> list[dict[str, float]]:
-
     return [
-
         {
-
-            "temperature_c": temperature_c,
-
-            "design_temperature": _celsius_to_fahrenheit(temperature_c),
-
+            "design_temperature": temperature_f,
             "coefficient_Y": coefficient_y,
-
         }
-
-        for temperature_c, coefficient_y in points
-
+        for temperature_f, coefficient_y in points
     ]
 
 
@@ -199,27 +182,16 @@ _TABLE_304_1_1_MATERIALS = {
         "display_name": "Ferritic steels",
 
         "rows": _y_rows(
-
             [
-
-                (482, 0.4),
-
-                (510, 0.5),
-
-                (538, 0.7),
-
-                (566, 0.7),
-
-                (593, 0.7),
-
-                (621, 0.7),
-
-                (649, 0.7),
-
-                (677, 0.7),
-
+                (900, 0.4),
+                (950, 0.5),
+                (1000, 0.7),
+                (1050, 0.7),
+                (1100, 0.7),
+                (1150, 0.7),
+                (1200, 0.7),
+                (1250, 0.7),
             ]
-
         ),
 
     },
@@ -229,27 +201,16 @@ _TABLE_304_1_1_MATERIALS = {
         "display_name": "Austenitic steels",
 
         "rows": _y_rows(
-
             [
-
-                (482, 0.4),
-
-                (510, 0.4),
-
-                (538, 0.4),
-
-                (566, 0.4),
-
-                (593, 0.5),
-
-                (621, 0.7),
-
-                (649, 0.7),
-
-                (677, 0.7),
-
+                (900, 0.4),
+                (950, 0.4),
+                (1000, 0.4),
+                (1050, 0.4),
+                (1100, 0.5),
+                (1150, 0.7),
+                (1200, 0.7),
+                (1250, 0.7),
             ]
-
         ),
 
     },
@@ -259,27 +220,16 @@ _TABLE_304_1_1_MATERIALS = {
         "display_name": "Nickel alloys",
 
         "rows": _y_rows(
-
             [
-
-                (482, 0.4),
-
-                (510, 0.4),
-
-                (538, 0.4),
-
-                (566, 0.4),
-
-                (593, 0.4),
-
-                (621, 0.4),
-
-                (649, 0.5),
-
-                (677, 0.7),
-
+                (900, 0.4),
+                (950, 0.4),
+                (1000, 0.4),
+                (1050, 0.4),
+                (1100, 0.4),
+                (1150, 0.4),
+                (1200, 0.5),
+                (1250, 0.7),
             ]
-
         ),
 
     },
@@ -288,7 +238,7 @@ _TABLE_304_1_1_MATERIALS = {
 
         "display_name": "Gray iron",
 
-        "rows": _y_rows([(482, 0.0)]),
+        "rows": _y_rows([(900, 0.0)]),
 
     },
 
@@ -297,27 +247,16 @@ _TABLE_304_1_1_MATERIALS = {
         "display_name": "Other ductile metals",
 
         "rows": _y_rows(
-
             [
-
-                (482, 0.4),
-
-                (510, 0.4),
-
-                (538, 0.4),
-
-                (566, 0.4),
-
-                (593, 0.4),
-
-                (621, 0.4),
-
-                (649, 0.4),
-
-                (677, 0.4),
-
+                (900, 0.4),
+                (950, 0.4),
+                (1000, 0.4),
+                (1050, 0.4),
+                (1100, 0.4),
+                (1150, 0.4),
+                (1200, 0.4),
+                (1250, 0.4),
             ]
-
         ),
 
     },
@@ -573,11 +512,11 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
         version="1.0",
 
-        temperature_unit="C",
+        temperature_unit="F",
 
         interpolation=True,
 
-        keys=["material_id", "temperature_c", "design_temperature"],
+        keys=["material_id", "design_temperature"],
 
         layout="material_rows",
 

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from engine.reference.material_catalog_db import material_display_name, standards_root_from_pack_root
+from engine.reference.parameter_keys import MATERIAL_GRADE_KEY, read_parameter_value
 from engine.reference.material_resolver import canonical_material_id, resolve_material_table_key
 from engine.reference.asme_b31_3_table_ids import (
     TABLE_302_3_5,
@@ -17,6 +18,9 @@ from engine.reference.asme_b31_3_table_ids import (
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_tables import StandardsTablesDatabase
 from models.fact import Fact, NumericValue, fact_scalar_value, fact_unit
+
+Y_TABLE_TEMP_MIN_F = 900.0
+Y_TABLE_TEMP_MAX_F = 1250.0
 
 
 def interpolate_by_temperature(
@@ -93,6 +97,11 @@ def temperature_to_fahrenheit(value: float, unit: str = "F") -> float:
     return temp_f
 
 
+def clamp_y_lookup_temperature_f(temperature_f: float) -> float:
+    """Clamp design temperature to the tabulated 304.1.1-1 Fahrenheit range."""
+    return max(Y_TABLE_TEMP_MIN_F, min(Y_TABLE_TEMP_MAX_F, temperature_f))
+
+
 def lookup_y_coefficient(
     pack_root: Path,
     *,
@@ -106,6 +115,7 @@ def lookup_y_coefficient(
 
     table_data = _load_table(pack_root, TABLE_304_1_1)
     temp_f = temperature_to_fahrenheit(design_temperature, design_temperature_unit)
+    lookup_temp_f = clamp_y_lookup_temperature_f(temp_f)
     rows = flatten_lookup_table_rows(table_data)
     group_token = str(metallurgical_group or "").strip()
     if group_token:
@@ -117,7 +127,7 @@ def lookup_y_coefficient(
     interpolate = bool(table_data.get("interpolation", True))
     value, _, interpolated = interpolate_by_temperature(
         rows,
-        temperature_f=temp_f,
+        temperature_f=lookup_temp_f,
         value_key="coefficient_Y",
         interpolate=interpolate,
     )
@@ -170,6 +180,38 @@ def _normalize_joint_category(value: str) -> str:
 
 def _row_material_token(row: dict[str, Any]) -> str:
     return str(row.get("material_id") or row.get("material", ""))
+
+
+def list_pipe_construction_type_options(
+    pack_root: Path,
+    *,
+    material: str | None = None,
+) -> list[dict[str, str]]:
+    """Distinct Table A-3 joint categories for pipe construction type dropdowns."""
+    table_data = _load_table(pack_root, TABLE_A_3)
+    rows = table_data.get("rows", []) or []
+    standards_root = standards_root_from_pack_root(pack_root)
+    material_key: str | None = None
+    if material:
+        material_keys = {_row_material_token(row): row for row in rows}
+        material_key = resolve_material_table_key(
+            material_keys,
+            material,
+            standards_root=standards_root,
+        )
+
+    seen: set[str] = set()
+    options: list[dict[str, str]] = []
+    for row in rows:
+        if material_key is not None and _row_material_token(row) != material_key:
+            continue
+        label = str(row.get("joint_category", "")).strip()
+        if not label or label in seen:
+            continue
+        seen.add(label)
+        options.append({"value": label, "label": label})
+
+    return sorted(options, key=lambda item: item["label"].lower())
 
 
 def lookup_quality_factor(
@@ -288,7 +330,7 @@ def propose_coefficient_defaults(
                     group_value = group_raw.value
                 else:
                     group_value = group_raw
-            material_raw = existing_inputs.get("material")
+            material_raw = read_parameter_value(existing_inputs, MATERIAL_GRADE_KEY)
             material_value = None
             if material_raw is not None:
                 if isinstance(material_raw, Fact):
@@ -310,71 +352,5 @@ def propose_coefficient_defaults(
             )
         except (ValueError, FileNotFoundError):
             pass
-
-    material = existing_inputs.get("material")
-    joint_category = existing_inputs.get("joint_category")
-    joint_value = "seamless"
-    if joint_category is not None:
-        joint_value = (
-            joint_category.value if hasattr(joint_category, "value") else joint_category
-        )
-    if material is not None:
-        mat_value = material.value if hasattr(material, "value") else material
-        try:
-            e_value = lookup_quality_factor(
-                pack_root,
-                material=str(mat_value),
-                joint_category=str(joint_value),
-            )
-        except (ValueError, FileNotFoundError):
-            e_value = None
-        if e_value is not None:
-            mat_label = str(mat_value)
-            standards_root = standards_root_from_pack_root(pack_root)
-            material_id = canonical_material_id(mat_label, standards_root=standards_root)
-            if material_id is not None:
-                display = material_display_name(standards_root, material_id)
-                if display:
-                    mat_label = display
-            proposed["weld_joint_efficiency"] = (
-                e_value,
-                f"Tables A-2/A-3 for {mat_label} ({joint_value})",
-            )
-
-    if material is not None and temp is not None:
-        if isinstance(material, Fact):
-            mat_value = fact_scalar_value(material)
-        elif hasattr(material, "value"):
-            mat_value = material.value
-        else:
-            mat_value = material
-        if isinstance(temp, Fact):
-            raw_temp = fact_scalar_value(temp)
-            temp_unit = fact_unit(temp) or "F"
-        elif isinstance(temp, NumericValue):
-            raw_temp = temp.amount
-            temp_unit = temp.unit or "F"
-        elif hasattr(temp, "value"):
-            raw_temp = temp.value
-            temp_unit = getattr(temp, "unit", "F") or "F"
-        else:
-            raw_temp = temp
-            temp_unit = "F"
-        cat_value = joint_value
-        try:
-            w_value = lookup_w_factor(
-                pack_root,
-                material=str(mat_value),
-                design_temperature=float(raw_temp),
-                design_temperature_unit=str(temp_unit or "F"),
-                weld_joint_category=str(cat_value),
-            )
-        except (ValueError, FileNotFoundError):
-            w_value = None
-        if w_value is not None:
-            proposed["weld_joint_strength_reduction_factor_W"] = (
-                w_value,
-                "Table 302.3.5-1 per §302.3.5-e",
-            )
 
     return proposed
