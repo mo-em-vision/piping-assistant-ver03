@@ -175,7 +175,7 @@ Example:
 ```
 Active:
 
-Pipe Thickness Calculation
+Pipe Wall Thickness Design
 
 
 Saved:

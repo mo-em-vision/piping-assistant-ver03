@@ -119,14 +119,46 @@ def test_planner_header_traversal_support_pipe_wall() -> None:
 
 
 def test_planner_header_traversal_support_non_pipe_wall() -> None:
-    manager, task = _fresh_task()
-    task.outputs["workflow"] = "some_other_workflow"
-    task.outputs["selected_root"] = "some_other_workflow"
-    plan = build_pipe_wall_engineering_plan(task)
-    plan.workflow_id = "some_other_workflow"
+    plan = _synthetic_generic_plan_with_traversal()
     summary = build_planner_inspector_summary(plan)
-    assert summary["header"]["traversal_support_level"] == "none"
-    assert "pipe wall" in (summary["header"]["traversal_support_note"] or "").lower()
+    assert summary["header"]["traversal_support_level"] == "full"
+    assert summary["header"]["traversal_support_note"] is None
+
+
+def _synthetic_generic_plan_with_traversal():
+    from models.engineering_plan import (
+        CalculationGoal,
+        EngineeringPlan,
+        PlanGraph,
+        PlannerTraversalState,
+        TraversalExpandedNode,
+        new_plan_id,
+    )
+
+    return EngineeringPlan(
+        plan_id=new_plan_id(),
+        task_id="task-generic",
+        workflow_id="generic_sample_workflow",
+        root_goal=CalculationGoal(
+            id="GOAL-generic",
+            key="calculate-generic",
+            title="Generic Workflow",
+            target_field="generic_output",
+        ),
+        graph=PlanGraph(),
+        phases=[],
+        traversal=PlannerTraversalState(
+            traversal_id="TRAV-generic",
+            expanded_nodes=[
+                TraversalExpandedNode(
+                    node_id="WF-GENERIC",
+                    node_type="workflow",
+                    expanded_at_order=1,
+                    title="Generic Workflow",
+                )
+            ],
+        ),
+    )
 
 
 def test_requirements_panel_resolution_labels() -> None:

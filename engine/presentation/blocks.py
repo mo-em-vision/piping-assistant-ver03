@@ -205,6 +205,9 @@ def _equation_result_from_history(history_entry: dict[str, Any]) -> dict[str, An
     render_steps = trace.get("render_steps")
     if isinstance(render_steps, dict) and render_steps:
         payload["render_steps"] = render_steps
+    equation_display_trace = trace.get("equation_display_trace")
+    if isinstance(equation_display_trace, dict) and equation_display_trace:
+        payload["equation_display_trace"] = equation_display_trace
     return payload
 
 

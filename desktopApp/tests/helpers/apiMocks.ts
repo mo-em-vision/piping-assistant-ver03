@@ -12,7 +12,7 @@ export function jsonResponse(body: unknown, status = 200): Response {
 export function createTaskState(overrides: Partial<TaskStateDto> = {}): TaskStateDto {
   return {
     task_id: 'pipe-wall-thickness-test01',
-    name: 'Pipe Thickness Calculation',
+    name: 'Pipe Wall Thickness Design',
     workflow_id: 'pipe_wall_thickness_design',
     discipline: 'Piping',
     description: 'ASME B31.3 wall thickness design',

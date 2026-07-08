@@ -378,6 +378,8 @@ Do not delete without explicit approval.
 | `chat_service.py` | Chat list/send/clear with AI agents |
 | `chat_orchestrator.py` | Flow Guidance on `waiting_input` turns; `presentation` + `new_transcript_blocks` in chat data |
 | `flow_guidance.py` | `build_flow_guidance_payload` → `task_state["flow_guidance"]` |
+| `center_panel_contract.py` | Shared `REPORT_ROLE_ORDER` + presentation package assembly for scroll/report-preview parity |
+| `completion_next_workflows_transcript.py` | Durable `next_workflows` block on task completion |
 | `chat_context.py` | Task context brief, conversation trimming |
 | `report_service.py` | Report generate/preview/download/status |
 | `task_continuation_service.py` | Post-completion AI suggestions |
@@ -469,9 +471,23 @@ Confidence: **High** = clear importers and runtime path; **Medium** = indirect o
 
 ### `equation_inputs_display.py`
 
-- **Purpose:** Formula input tables and LaTeX substitution strings.
+- **Purpose:** Formula input tables and LaTeX substitution strings (legacy pipe-wall migration helpers).
 - **Public:** Many `build_*` and `format_*` helpers
 - **Imported by:** `output_blocks`, `serializers`, `node_calculation_summaries`, tests
+- **Active:** Yes — **High** (migration fallback; new equations use `equation_display_trace`)
+
+### `equation_display_trace_serializer.py`
+
+- **Purpose:** Thin API wrapper over `engine/equation/display_trace_serializer.py`.
+- **Public:** `enrich_equation_block`, `find_trace_for_equation`, `trace_to_dict`
+- **Imported by:** `equation_evaluation_display.py`, tests
+- **Active:** Yes — **High**
+
+### `equation_evaluation_display.py`
+
+- **Purpose:** Graph-driven equation preview/trace blocks; attaches inline `equation_display_trace` when execution or live blocked trace is available.
+- **Public:** `build_equation_evaluation_block`, `build_equation_trace_block`
+- **Imported by:** `output_blocks.py`, `display_block_metadata.py`, tests
 - **Active:** Yes — **High**
 
 ### `node_display.py`

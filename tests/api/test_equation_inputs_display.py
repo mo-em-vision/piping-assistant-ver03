@@ -256,7 +256,9 @@ def test_allowable_stress_value_includes_asme_b31_3_lookup_context() -> None:
 
     rows = build_formula_inputs_table_rows(task)
     stress_row = next(row for row in rows if row["symbol"] == "S")
-    assert stress_row["value"] == "193 MPa (ASME B31.3 Table A-1, ASTM A106 Grade B @ 400 °F)"
+    assert stress_row["value"] == (
+        "193 MPa (ASME B31.3 Table A-1 (para. 302.3.5-d), ASTM A106 Grade B @ 400 °F)"
+    )
 
 
 def test_build_formula_inputs_table_rows_include_coefficients() -> None:
@@ -397,7 +399,9 @@ def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
     assert equation["input_table"]["columns"][2]["label"] == "Value"
     assert equation["input_table"]["rows"][0]["symbol"] == "P"
     assert equation["input_table"]["rows"][0]["value"] == "3.0 bar"
-    assert equation["input_table"]["rows"][2]["value"] == AWAITING_USER_INPUT
+    unresolved_row = equation["input_table"]["rows"][2]
+    assert unresolved_row["value"] == ""
+    assert unresolved_row.get("value_reference")
 
 
 def test_allowable_stress_not_emitted_as_standalone_result_block(standards_reader) -> None:

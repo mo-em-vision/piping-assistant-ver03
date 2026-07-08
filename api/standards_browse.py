@@ -16,6 +16,57 @@ from engine.reference.standards_tasks_db import StandardsTasksDatabase
 
 _DEFAULT_STANDARD_LABEL = "ASME B31.3"
 _SUPPORTED_BROWSE_STANDARDS = frozenset({"asme_b31.3"})
+_INDEX_WORKFLOW_ALIASES = {
+    "pipe-wall-thickness": "pipe_wall_thickness_design",
+    "pipe-wall-thickness.yaml": "pipe_wall_thickness_design",
+    "mawp": "mawp_design",
+    "mawp.yaml": "mawp_design",
+}
+
+
+def _workflow_slug_from_metadata(metadata: dict[str, Any], source_ref: str) -> str:
+    for field in ("key", "engineering_intent"):
+        value = metadata.get(field)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    slug = normalize_root_id(source_ref)
+    if slug.endswith(".yaml"):
+        slug = slug[:-5]
+    return _INDEX_WORKFLOW_ALIASES.get(slug, slug)
+
+
+def _is_pack_workflow_record(source_rel_path: str) -> bool:
+    return source_rel_path.startswith("workflows/")
+
+
+def _workflow_linked_node_ids(metadata: dict[str, Any]) -> set[str]:
+    nodes: set[str] = set()
+    anchors_to = metadata.get("anchors_to")
+    if isinstance(anchors_to, str) and anchors_to.strip():
+        nodes.add(anchors_to.strip())
+    depends_on = metadata.get("depends_on") or []
+    if isinstance(depends_on, list):
+        for dep in depends_on:
+            if isinstance(dep, dict):
+                node_id = str(dep.get("node_id") or "").strip()
+                if node_id:
+                    nodes.add(node_id)
+    for edge in metadata.get("edges") or []:
+        if not isinstance(edge, dict):
+            continue
+        edge_type = str(edge.get("type") or "").strip()
+        target = str(edge.get("target") or "").strip()
+        if not target or edge_type not in {"depends_on", "starts_from_paragraph"}:
+            continue
+        if target.startswith(("WF-", "B313-WF-")):
+            continue
+        nodes.add(target)
+    for entry in metadata.get("entry_points") or []:
+        if isinstance(entry, dict):
+            paragraph = str(entry.get("paragraph") or "").strip()
+            if paragraph:
+                nodes.add(paragraph)
+    return nodes
 
 
 def _node_metadata(reader: StandardsReader, node_id: str) -> dict[str, Any]:
@@ -40,6 +91,13 @@ def _resolve_table_id_for_node(
                     resolved = reader.tables_database.resolve_table_id(table_id)
                     return resolved or table_id
 
+    lookup_block = metadata.get("lookup")
+    if isinstance(lookup_block, dict):
+        table_id = str(lookup_block.get("table") or "").strip()
+        if table_id:
+            resolved = reader.tables_database.resolve_table_id(table_id)
+            return resolved or table_id
+
     if node_id.startswith("B313-table-"):
         suffix = node_id.removeprefix("B313-table-")
         candidates = [
@@ -51,6 +109,25 @@ def _resolve_table_id_for_node(
             resolved = reader.tables_database.resolve_table_id(candidate)
             if resolved:
                 return resolved
+
+    if node_id.startswith("asme-b313-table-"):
+        suffix = node_id.removeprefix("asme-b313-table-")
+        candidates = [
+            node_id,
+            f"asme_b31.3_{suffix}",
+            suffix,
+            f"table_{suffix.replace('-', '_')}",
+        ]
+        for candidate in candidates:
+            resolved = reader.tables_database.resolve_table_id(candidate)
+            if resolved:
+                return resolved
+
+    table_number = str(metadata.get("table_number") or "").strip()
+    if table_number:
+        resolved = reader.tables_database.resolve_table_id(table_number)
+        if resolved:
+            return resolved
 
     return reader.tables_database.resolve_table_id(node_id)
 
@@ -150,23 +227,13 @@ def _build_node_workflow_map(
         if str(metadata.get("type") or "") not in {"root", "workflow"}:
             continue
         source_rel_path = str(record.get("source_rel_path") or "")
-        if not source_rel_path.startswith(prefix):
+        if not _is_pack_workflow_record(source_rel_path) and not source_rel_path.startswith(prefix):
             continue
 
-        workflow_id = str(metadata.get("engineering_intent") or normalize_root_id(source_rel_path))
+        workflow_id = _workflow_slug_from_metadata(metadata, source_rel_path)
         workflow = _workflow_summary(workflow_id)
 
-        depended_nodes: set[str] = set()
-        anchors_to = metadata.get("anchors_to")
-        if isinstance(anchors_to, str) and anchors_to.strip():
-            depended_nodes.add(anchors_to.strip())
-        depends_on = metadata.get("depends_on") or []
-        if isinstance(depends_on, list):
-            for dep in depends_on:
-                if isinstance(dep, dict):
-                    node_id = str(dep.get("node_id") or "").strip()
-                    if node_id:
-                        depended_nodes.add(node_id)
+        depended_nodes = _workflow_linked_node_ids(metadata)
 
         for node_id in depended_nodes:
             node_workflows[node_id].append(workflow)
@@ -216,7 +283,6 @@ def _build_available_tasks_entries(
         return []
 
     database = StandardsTasksDatabase(tasks_db_path)
-    prefix = f"{standard_slug}/"
     entries: list[dict[str, Any]] = []
 
     for root_id in database.list_node_ids():
@@ -227,10 +293,10 @@ def _build_available_tasks_entries(
         if str(metadata.get("type") or "") not in {"root", "workflow"}:
             continue
         source_rel_path = str(record.get("source_rel_path") or "")
-        if not source_rel_path.startswith(prefix):
+        if not _is_pack_workflow_record(source_rel_path):
             continue
 
-        workflow_id = str(metadata.get("engineering_intent") or normalize_root_id(source_rel_path))
+        workflow_id = _workflow_slug_from_metadata(metadata, source_rel_path)
         workflow = _workflow_summary(workflow_id)
         if not workflow["available"]:
             continue
@@ -298,7 +364,7 @@ def _parse_analysis_entry_points(pack_root: Path) -> list[dict[str, Any]]:
         if not title or link_match is None:
             continue
 
-        workflow_id = normalize_root_id(link_match.group(1))
+        workflow_id = _workflow_slug_from_metadata({}, link_match.group(1))
         workflow = _workflow_summary(workflow_id)
         entries.append(_workflow_leaf(workflow_id=workflow_id, label=title, workflow=workflow))
 

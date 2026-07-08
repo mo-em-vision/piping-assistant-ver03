@@ -16,12 +16,12 @@ from models.fact import SourceType, ValidationStatus
 def test_revealed_inputs_include_current_and_completed_phases() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-timeline01", status=TaskStatus.AWAITING_INPUT)
-    set_fact_from_input(task, legacy_input(input_id="material",
+    set_fact_from_input(task, legacy_input(input_id="material_grade",
         value="SA-106B",
         unit="dimensionless",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
-    set_fact_from_input(task, legacy_input(input_id="design_pressure",
+    set_fact_from_input(task, legacy_input(input_id="internal_design_gage_pressure",
         value=8.0,
         unit="bar",
         source=InputSource.USER,
@@ -35,9 +35,9 @@ def test_revealed_inputs_include_current_and_completed_phases() -> None:
             ],
         },
         "graph_input_order": [
-            "design_pressure",
+            "internal_design_gage_pressure",
             "nominal_pipe_size",
-            "material",
+            "material_grade",
             "design_temperature",
         ],
     }
@@ -47,9 +47,9 @@ def test_revealed_inputs_include_current_and_completed_phases() -> None:
 
     revealed = revealed_pipe_wall_input_ids(task, planning_projection(task))
     assert revealed == [
-        "design_pressure",
+        "internal_design_gage_pressure",
         "nominal_pipe_size",
-        "material",
+        "material_grade",
         "outside_diameter",
     ]
 
@@ -58,8 +58,8 @@ def test_revealed_inputs_expand_into_coefficient_phase() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-timeline02", status=TaskStatus.AWAITING_INPUT)
     for input_id, value in (
-        ("material", "SA-106B"),
-        ("design_pressure", 8.0),
+        ("material_grade", "SA-106B"),
+        ("internal_design_gage_pressure", 8.0),
         ("design_temperature", 200.0),
         ("nominal_pipe_size", "10"),
     ):
@@ -69,8 +69,8 @@ def test_revealed_inputs_expand_into_coefficient_phase() -> None:
                 input_id=input_id,
                 value=value,
                 unit="dimensionless"
-                if input_id in {"material", "nominal_pipe_size"}
-                else ("bar" if input_id == "design_pressure" else "C"),
+                if input_id in {"material_grade", "nominal_pipe_size"}
+                else ("bar" if input_id == "internal_design_gage_pressure" else "C"),
                 source=InputSource.USER,
                 status=InputStatus.CONFIRMED,
             ),
@@ -128,7 +128,7 @@ def test_timeline_input_order_appends_newly_revealed_parameters() -> None:
         unit="dimensionless",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
-    set_fact_from_input(task, legacy_input(input_id="design_pressure",
+    set_fact_from_input(task, legacy_input(input_id="internal_design_gage_pressure",
         value=8.0,
         unit="bar",
         source=InputSource.USER,
@@ -139,17 +139,17 @@ def test_timeline_input_order_appends_newly_revealed_parameters() -> None:
         "graph_input_order": [
             "straight_pipe_section",
             "pressure_loading",
-            "design_pressure",
+            "internal_design_gage_pressure",
             "nominal_pipe_size",
-            "material",
+            "material_grade",
         ],
         "collection_field_order": [
             "straight_pipe_section",
             "pressure_loading",
-            "design_pressure",
+            "internal_design_gage_pressure",
             "nominal_pipe_size",
             "outside_diameter",
-            "material",
+            "material_grade",
         ],
     }
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
@@ -157,7 +157,7 @@ def test_timeline_input_order_appends_newly_revealed_parameters() -> None:
     early = revealed_pipe_wall_input_ids(task, planning_projection(task))
     task.outputs["timeline_input_order"] = early
 
-    set_fact_from_input(task, legacy_input(input_id="material",
+    set_fact_from_input(task, legacy_input(input_id="material_grade",
         value="SA-106B",
         unit="dimensionless",
         source=InputSource.USER,
@@ -186,10 +186,10 @@ def test_timeline_input_order_appends_newly_revealed_parameters() -> None:
     assert revealed[:4] == [
         "straight_pipe_section",
         "pressure_loading",
-        "design_pressure",
+        "internal_design_gage_pressure",
         "nominal_pipe_size",
     ]
-    assert revealed.index("material") > revealed.index("nominal_pipe_size")
+    assert revealed.index("material_grade") > revealed.index("nominal_pipe_size")
     assert revealed[-1:] == ["pipe_construction_type"]
 
 

@@ -70,7 +70,7 @@ class TestConversationLifecycle:
 
         first, _ = orchestrator.handle_message("Calculate pipe wall thickness")
         task_id = first.task_id
-        manager.store_input(task_id, sample_inputs()["design_pressure"])
+        manager.store_input(task_id, sample_inputs()["internal_design_gage_pressure"])
 
         second, _ = orchestrator.handle_message(
             "Calculate pipe wall thickness — design pressure is 500 psi",

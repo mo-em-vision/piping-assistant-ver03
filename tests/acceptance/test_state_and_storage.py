@@ -23,7 +23,7 @@ class TestTaskStateHandling:
     def test_preserves_active_task_and_inputs(self, state_manager) -> None:
         task_id = "acceptance-state-preserve"
         state_manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
-        state_manager.store_input(task_id, sample_inputs()["design_pressure"])
+        state_manager.store_input(task_id, sample_inputs()["internal_design_gage_pressure"])
 
         active = state_manager.get_active_task()
         assert active is not None
@@ -37,7 +37,7 @@ class TestTaskStateHandling:
     ) -> None:
         task_id = "acceptance-state-resume"
         state_manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
-        state_manager.store_input(task_id, sample_inputs()["design_pressure"])
+        state_manager.store_input(task_id, sample_inputs()["internal_design_gage_pressure"])
 
         paused = execute_workflow(task_id, PIPE_WALL_THICKNESS_ROOT, state=state_manager, reader=standards_reader)
         assert paused.status == ExecutionStatus.AWAITING_INPUT

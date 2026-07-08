@@ -14,6 +14,7 @@ def test_debug_output_keys_are_excluded_from_parameters() -> None:
         "engineering_plan",
         "engineering_plan_view",
         "planner_inspector_summary",
+        "planner_debug_projection",
         "graph_navigation",
         "_plan_edges",
         "_planner_decisions",

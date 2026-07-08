@@ -63,6 +63,7 @@ def test_inspection_endpoint_still_includes_full_debug_payload() -> None:
 
     assert isinstance(payload.get("engineering_plan"), dict)
     assert isinstance(payload.get("planner_inspector_summary"), dict)
+    assert isinstance(payload.get("planner_debug_projection"), dict)
     assert isinstance(payload.get("legacy_goal_map"), dict)
     assert isinstance(payload.get("canonical_task_state"), dict)
     assert isinstance(payload.get("task_state_views"), dict)

@@ -125,6 +125,128 @@ describe('EquationOutput', () => {
     }
   })
 
+  it('renders value_provenance pending derived trail with chips', () => {
+    const { getByText, getByRole, queryByText } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-provenance',
+          type: 'equation',
+          content: 't = PD / 2(SEW + PY)',
+          display: 't = PD / 2(SEW + PY)',
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'definition', label: 'Definition', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+            ],
+            rows: [
+              {
+                symbol: 'S',
+                definition: 'Allowable stress',
+                value: '',
+                value_provenance: {
+                  source_type: 'table_lookup',
+                  status: 'pending_derived',
+                  label: 'Resolved from Table A-1',
+                  reference_chips: [
+                    {
+                      ref_type: 'table',
+                      id: 'asme_b31.3_A-1',
+                      label: 'Table A-1',
+                      target: { table_id: 'asme_b31.3_A-1', node_id: 'asme_b31.3_A-1' },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        }}
+      />,
+    )
+
+    expect(getByText(/Resolved from Table A-1/i)).toBeTruthy()
+    expect(getByRole('button', { name: 'Table A-1' })).toBeTruthy()
+    expect(queryByText('Awaiting user input')).toBeNull()
+  })
+
+  it('renders awaiting user input only for true user-input provenance', () => {
+    const { container, getByText } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-user-input',
+          type: 'equation',
+          content: 't = PD / 2(SEW + PY)',
+          display: 't = PD / 2(SEW + PY)',
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'definition', label: 'Definition', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+            ],
+            rows: [
+              {
+                symbol: 'P',
+                definition: 'Internal design gage pressure',
+                value: 'Awaiting user input',
+                value_provenance: {
+                  source_type: 'user_input',
+                  status: 'awaiting_user_input',
+                  label: 'Awaiting user input',
+                },
+              },
+            ],
+          },
+        }}
+      />,
+    )
+
+    expect(getByText('Awaiting user input')).toBeTruthy()
+    expect(container.querySelector('.output-equation__input-pending')).toBeTruthy()
+  })
+
+  it('does not show raw internal ids as primary provenance text', () => {
+    const { queryByText, getByRole } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-chip-label',
+          type: 'equation',
+          content: 't_m = t + c',
+          display: 't_m = t + c',
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'definition', label: 'Definition', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+            ],
+            rows: [
+              {
+                symbol: 't',
+                definition: 'pressure design thickness',
+                value: '',
+                value_provenance: {
+                  source_type: 'equation_output',
+                  status: 'pending_derived',
+                  label: 'Produced by Eq. (3a), §304.1.2',
+                  reference_chips: [
+                    {
+                      ref_type: 'paragraph',
+                      id: '304.1.2-a',
+                      label: '§304.1.2',
+                      target: { paragraph_id: '304.1.2-a', node_id: '304.1.2-a' },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        }}
+      />,
+    )
+
+    expect(queryByText('304.1.2-a')).toBeNull()
+    expect(getByRole('button', { name: '§304.1.2' })).toBeTruthy()
+  })
+
   it('renders derived parameter value references in the value column', () => {
     const { getByRole, getByText, queryByText } = render(
       <EquationOutput
@@ -216,6 +338,39 @@ describe('EquationOutput', () => {
     expect(getByText('Internal design gage pressure')).toBeTruthy()
     expect(getByText(/Symbols defined in/)).toBeTruthy()
     expect(getByRole('button', { name: '§304.1.1(b)' })).toBeTruthy()
+  })
+
+  it('renders backend equation_display_trace without client-side substitution', () => {
+    const { container } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-trace-evaluated',
+          type: 'equation',
+          content: 'legacy content should not be used',
+          equation_display_trace: {
+            equation_id: 'eq-3a',
+            node_id: '304.1.2-a',
+            symbolic_latex: 't = \\frac{PD}{2(SEW + PY)}',
+            substituted_latex: 't = \\frac{(1)(2)}{2((3)(4)(5) + (1)(6))} = 7\\ \\mathrm{mm}',
+            result_latex: '7\\ \\mathrm{mm}',
+            latex_source: 'metadata_display_text',
+            status: 'evaluated',
+            inputs: [],
+            intermediate_values: [],
+            result: {
+              symbol: 't',
+              value: 7,
+              unit: 'mm',
+              display_value: '7\\ \\mathrm{mm}',
+            },
+          },
+        }}
+      />,
+    )
+
+    expect(container.textContent).not.toContain('legacy content')
+    expect(container.querySelectorAll('.output-equation__math').length).toBe(2)
+    expect(container.textContent).toContain('7')
   })
 })
 

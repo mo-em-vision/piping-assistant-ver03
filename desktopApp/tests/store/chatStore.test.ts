@@ -195,7 +195,7 @@ describe('chatStore askAboutSelection', () => {
     })
     expect(sendPayload?.message).toContain('clarification')
     expect(sendPayload?.message).toContain('selected snippet')
-    expect(sendPayload?.message).toContain('Pipe Thickness Calculation')
+    expect(sendPayload?.message).toContain('Pipe Wall Thickness Design')
     expect(sendPayload?.message).toContain('## Current task state')
   })
 })

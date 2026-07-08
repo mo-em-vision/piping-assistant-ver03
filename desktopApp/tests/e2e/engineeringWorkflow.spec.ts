@@ -6,7 +6,7 @@ test.describe('engineering workflow (mock mode)', () => {
 
     await page.getByRole('button', { name: /pipe thickness — line 200/i }).click()
 
-    await expect(page.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Pipe Wall Thickness Design' })).toBeVisible()
     await expect(page.getByPlaceholder('Value…')).toBeVisible()
 
     const npsField = page.getByPlaceholder('Value…')

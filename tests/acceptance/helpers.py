@@ -22,6 +22,7 @@ from tests.helpers.facts import fact_get_value
 
 PIPE_WALL_THICKNESS_ROOT = "pipe_wall_thickness_design"
 WALL_THICKNESS_NODE = "304.1.2-a"
+WALL_THICKNESS_EQUATION_NODE = "asme-b313-304-1-2-eq-3a"
 EXTERNAL_WALL_THICKNESS_NODE = "B313-304.1.3"
 MATERIAL_STRESS_NODE = "B313-lookup-allowable-stress"
 DEFINITION_SECTION_NODE = "B313-304.1.1"
@@ -100,38 +101,49 @@ def sample_inputs(
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-        "design_pressure": EngineeringInput(
-            input_id="design_pressure",
+        "internal_design_gage_pressure": EngineeringInput(
+            input_id="internal_design_gage_pressure",
             value=pressure,
             unit="psi",
             source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
             original_value=pressure if isinstance(pressure, (int, float)) else None,
             original_unit="psi",
+        ),
+        "nominal_pipe_size": EngineeringInput(
+            input_id="nominal_pipe_size",
+            value=4,
+            unit="dimensionless",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
         ),
         "outside_diameter": EngineeringInput(
             input_id="outside_diameter",
             value=diameter,
             unit="in",
             source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
             original_value=diameter,
             original_unit="in",
         ),
-        "material": EngineeringInput(
-            input_id="material",
+        "material_grade": EngineeringInput(
+            input_id="material_grade",
             value=material,
             unit="dimensionless",
             source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
         ),
         "design_temperature": EngineeringInput(
             input_id="design_temperature",
             value=temperature,
             unit="F",
             source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
             original_value=temperature,
             original_unit="F",
         ),
-        "joint_category": EngineeringInput(
-            input_id="joint_category",
+        "pipe_construction_type": EngineeringInput(
+            input_id="pipe_construction_type",
             value="seamless",
             unit="dimensionless",
             source=InputSource.USER,
@@ -142,6 +154,13 @@ def sample_inputs(
             value=0.5,
             unit="mm",
             source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
+        "metallurgical_group": EngineeringInput(
+            input_id="metallurgical_group",
+            value="ferritic_steels",
+            unit="dimensionless",
+            source=InputSource.SYSTEM,
             status=InputStatus.CONFIRMED,
         ),
     }

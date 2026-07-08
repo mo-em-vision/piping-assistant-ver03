@@ -11,6 +11,15 @@ from engine.reference.paragraph_hierarchy import paragraph_reference
 from engine.reference.standards_reader import StandardsReader
 from models.task import Task
 
+AWAITING_USER_INPUT = "Awaiting user input"
+
+_VALUE_PROVENANCE_SOURCE_TYPES = frozenset(
+    {"user_input", "equation_output", "table_lookup", "default", "unknown"}
+)
+_VALUE_PROVENANCE_STATUSES = frozenset(
+    {"resolved", "pending_derived", "awaiting_user_input"}
+)
+
 
 def resolve_parameter_value_reference(
     reader: StandardsReader,
@@ -67,6 +76,336 @@ def resolve_input_value_reference(
         task,
         active_nodes=active_nodes,
     )
+
+
+def build_value_provenance(
+    reader: StandardsReader,
+    param_id: str,
+    task: Task,
+    *,
+    display_value: str | None = None,
+    active_nodes: set[str] | frozenset[str] | None = None,
+    trace_source_type: str | None = None,
+    trace_source_ref: str | None = None,
+) -> dict[str, Any]:
+    """Build canonical single-hop value provenance for equation input table rows."""
+    param_id = str(param_id or "").strip()
+    display = str(display_value or "").strip()
+    has_value = bool(display and display != AWAITING_USER_INPUT)
+
+    if not param_id:
+        return _awaiting_user_provenance("unknown")
+
+    store = reader.graph_store
+    if not store.available:
+        return _awaiting_user_provenance("unknown")
+
+    try:
+        param = reader.load(param_id)
+    except FileNotFoundError:
+        return _awaiting_user_provenance("unknown")
+
+    meta = param.metadata
+    if trace_source_type == "user_input" or (
+        not trace_source_type and _is_user_input_parameter(store, param_id, meta)
+    ):
+        if has_value:
+            return {
+                "source_type": "user_input",
+                "status": "resolved",
+                "label": "User supplied",
+                "source_ref": {"parameter_id": param_id},
+            }
+        return _awaiting_user_provenance("user_input", param_id=param_id)
+
+    inputs = task.fact_store.active_facts()
+    active = set(active_nodes) if active_nodes is not None else set(task.active_nodes or [])
+    producers = _active_producers_for_parameter(store, param_id, inputs)
+    producer_id = _select_producer(producers, active) if producers else ""
+
+    source_type = _normalize_trace_source_type(trace_source_type)
+    if source_type is None and producer_id:
+        source_type = _source_type_for_producer(reader, producer_id)
+    if source_type is None:
+        resolution = meta.get("resolution") or parameter_resolution_for_parameter(store, param_id) or {}
+        method = str(resolution.get("method", "")).strip() if isinstance(resolution, dict) else ""
+        if method == "table_lookup" or lookup_resolution_for_parameter(store, param_id):
+            source_type = "table_lookup"
+        elif str(meta.get("parameter_class", "")).strip() == "calculated_quantity":
+            source_type = "equation_output"
+        else:
+            source_type = "unknown"
+
+    value_reference = resolve_parameter_value_reference(
+        reader,
+        param_id,
+        task,
+        active_nodes=active_nodes,
+    )
+    if value_reference is None and trace_source_ref:
+        value_reference = _reference_link_from_trace_source(
+            reader,
+            trace_source_ref,
+            source_type,
+        )
+
+    if source_type == "unknown" and value_reference is not None:
+        source_type = (
+            "table_lookup"
+            if value_reference.get("reference_kind") == "table"
+            else "equation_output"
+        )
+
+    status = "resolved" if has_value else "pending_derived"
+    label = _provenance_label(
+        reader,
+        param_id=param_id,
+        producer_id=producer_id,
+        source_type=source_type,
+        value_reference=value_reference,
+    )
+    source_ref = _source_ref_payload(
+        param_id=param_id,
+        producer_id=producer_id,
+        source_type=source_type,
+        value_reference=value_reference,
+        trace_source_ref=trace_source_ref,
+    )
+
+    provenance: dict[str, Any] = {
+        "source_type": source_type,
+        "status": status,
+        "label": label,
+    }
+    if source_ref:
+        provenance["source_ref"] = source_ref
+    return provenance
+
+
+def apply_value_provenance_to_row(
+    row: dict[str, Any],
+    reader: StandardsReader,
+    param_id: str,
+    task: Task,
+    *,
+    display_value: str | None = None,
+    active_nodes: set[str] | frozenset[str] | None = None,
+    trace_source_type: str | None = None,
+    trace_source_ref: str | None = None,
+) -> dict[str, Any]:
+    """Attach value_provenance and legacy value fields to an equation input row."""
+    updated = dict(row)
+    resolved_display = display_value if display_value is not None else updated.get("value")
+    provenance = build_value_provenance(
+        reader,
+        param_id,
+        task,
+        display_value=str(resolved_display or ""),
+        active_nodes=active_nodes,
+        trace_source_type=trace_source_type,
+        trace_source_ref=trace_source_ref,
+    )
+    updated["value_provenance"] = provenance
+
+    status = str(provenance.get("status") or "")
+    source_type = str(provenance.get("source_type") or "")
+
+    if status == "awaiting_user_input":
+        updated["value"] = AWAITING_USER_INPUT
+        updated["value_status"] = "unresolved_user_input"
+        updated.pop("value_reference", None)
+        return updated
+
+    if status == "pending_derived":
+        updated["value"] = ""
+        value_reference = resolve_parameter_value_reference(
+            reader,
+            param_id,
+            task,
+            active_nodes=active_nodes,
+        )
+        if value_reference is None and trace_source_ref:
+            value_reference = _reference_link_from_trace_source(
+                reader,
+                trace_source_ref,
+                source_type,
+            )
+        if value_reference is not None:
+            updated["value_reference"] = value_reference
+        updated["value_status"] = (
+            "lookup_derived" if source_type == "table_lookup" else "unresolved_derived"
+        )
+        return updated
+
+    updated["value_status"] = (
+        "user_supplied"
+        if source_type == "user_input"
+        else "lookup_derived" if source_type == "table_lookup" else "equation_derived"
+    )
+    value_reference = resolve_parameter_value_reference(
+        reader,
+        param_id,
+        task,
+        active_nodes=active_nodes,
+    )
+    if value_reference is not None and source_type != "user_input":
+        updated["value_reference"] = value_reference
+    return updated
+
+
+def _awaiting_user_provenance(
+    source_type: str,
+    *,
+    param_id: str | None = None,
+) -> dict[str, Any]:
+    provenance: dict[str, Any] = {
+        "source_type": source_type,
+        "status": "awaiting_user_input",
+        "label": AWAITING_USER_INPUT,
+    }
+    if param_id:
+        provenance["source_ref"] = {"parameter_id": param_id}
+    return provenance
+
+
+def _normalize_trace_source_type(source_type: str | None) -> str | None:
+    normalized = str(source_type or "").strip()
+    if normalized == "system":
+        return "default"
+    if normalized in _VALUE_PROVENANCE_SOURCE_TYPES:
+        return normalized
+    return None
+
+
+def _source_type_for_producer(reader: StandardsReader, producer_id: str) -> str:
+    producer_id = str(producer_id or "").strip()
+    if not producer_id:
+        return "unknown"
+    try:
+        record = reader.load(producer_id)
+    except FileNotFoundError:
+        return "unknown"
+    node_type = str(record.metadata.get("type") or "").strip()
+    if node_type == "lookup":
+        return "table_lookup"
+    if node_type == "equation":
+        return "equation_output"
+    if node_type == "table":
+        return "table_lookup"
+    return "unknown"
+
+
+def _provenance_label(
+    reader: StandardsReader,
+    *,
+    param_id: str,
+    producer_id: str,
+    source_type: str,
+    value_reference: dict[str, str] | None,
+) -> str:
+    if source_type == "table_lookup":
+        if value_reference and value_reference.get("label"):
+            return f"Resolved from {value_reference['label']}"
+        description = _parameter_description(reader, param_id)
+        if description:
+            return f"Resolved from {description.lower()} table"
+        return "Resolved from standards table"
+
+    if source_type == "equation_output":
+        equation_label = ""
+        paragraph_label = ""
+        if producer_id:
+            try:
+                from engine.reference.equation_metadata import equation_reference
+
+                record = reader.load(producer_id)
+                eq_number = equation_reference(record.metadata)
+                if eq_number:
+                    equation_label = f"Eq. ({eq_number})"
+            except FileNotFoundError:
+                pass
+        if value_reference and value_reference.get("label"):
+            paragraph_label = str(value_reference["label"])
+        if equation_label and paragraph_label:
+            return f"Produced by {equation_label}, {paragraph_label}"
+        if equation_label:
+            return f"Produced by {equation_label}"
+        if paragraph_label:
+            return f"Produced by {paragraph_label}"
+        return "Produced by governing equation"
+
+    return AWAITING_USER_INPUT
+
+
+def _parameter_description(reader: StandardsReader, param_id: str) -> str:
+    try:
+        record = reader.load(param_id)
+    except FileNotFoundError:
+        return ""
+    for key in ("description", "name", "label", "title"):
+        text = str(record.metadata.get(key) or "").strip()
+        if text:
+            return text
+    return ""
+
+
+def _source_ref_payload(
+    *,
+    param_id: str,
+    producer_id: str,
+    source_type: str,
+    value_reference: dict[str, str] | None,
+    trace_source_ref: str | None,
+) -> dict[str, str]:
+    payload: dict[str, str] = {"parameter_id": param_id}
+    if source_type == "equation_output":
+        if producer_id:
+            payload["equation_id"] = producer_id
+            payload["node_id"] = producer_id
+        if value_reference and value_reference.get("node_id"):
+            payload["paragraph_id"] = str(value_reference["node_id"])
+    elif source_type == "table_lookup":
+        table_id = ""
+        if value_reference and value_reference.get("node_id"):
+            table_id = str(value_reference["node_id"])
+        elif trace_source_ref:
+            table_id = str(trace_source_ref).strip()
+        if table_id:
+            payload["table_id"] = table_id
+            payload["node_id"] = table_id
+    return payload
+
+
+def _reference_link_from_trace_source(
+    reader: StandardsReader,
+    source_ref: str,
+    source_type: str,
+) -> dict[str, str] | None:
+    source_ref = str(source_ref or "").strip()
+    if not source_ref:
+        return None
+    if source_type == "table_lookup":
+        return _lookup_table_reference(reader, {"id": source_ref, "lookup": {"table": source_ref}})
+    if source_type == "equation_output":
+        return _reference_link_from_producer(reader, source_ref)
+    return _paragraph_reference_link(reader, source_ref)
+
+
+def legacy_value_status_from_provenance(provenance: dict[str, Any]) -> str:
+    """Map value_provenance to legacy value_status for backward compatibility."""
+    status = str(provenance.get("status") or "")
+    source_type = str(provenance.get("source_type") or "")
+    if status == "awaiting_user_input":
+        return "unresolved_user_input"
+    if status == "pending_derived":
+        return "lookup_derived" if source_type == "table_lookup" else "unresolved_derived"
+    if source_type == "user_input":
+        return "user_supplied"
+    if source_type == "table_lookup":
+        return "lookup_derived"
+    if source_type in {"equation_output", "default"}:
+        return "equation_derived"
+    return "unresolved_user_input"
 
 
 def _param_id_for_input_key(reader: StandardsReader, input_id: str) -> str:

@@ -11,11 +11,11 @@ entries:
       traversal_event: branch_decision_required
       edge_reason: straight_pipe_section
     text: >-
-      Before collecting design parameters, the workflow confirms whether this
-      analysis applies to a straight pipe section. This gate controls which
-      standard paragraphs enter the active path.
+      Before expanding ASME B31.3 paragraph 304.1.1, the workflow confirms
+      whether this analysis applies to a straight pipe section. This gate
+      controls which standard paragraphs enter the active path.
     refs:
-      node_id: "304.1.2-a"
+      node_id: "304.1.1-a"
 
   - id: pressure-loading-branch
     match:
@@ -24,9 +24,42 @@ entries:
       edge_reason: pressure_loading
     text: >-
       The workflow is selecting the internal versus external pressure branch.
-      The active governing equation will depend on this decision.
+      Internal pressure design uses paragraph 304.1.2; external pressure design
+      uses paragraph 304.1.3. The active governing equation depends on this
+      decision.
     refs:
       node_id: "304.1.2-a"
+      equation_id: asme-b313-required-wall-thickness
+
+  - id: input-context-internal-pressure
+    match:
+      current_phase: parameter_gathering
+      edge_reason: internal_design_gage_pressure
+    text: >-
+      Internal design gage pressure is collected for the governing thickness
+      equation on the selected internal-pressure branch. It combines with
+      allowable stress and geometry inputs to determine required thickness.
+    refs:
+      equation_id: asme-b313-required-wall-thickness
+
+  - id: input-context-design-temperature
+    match:
+      current_phase: parameter_gathering
+      edge_reason: design_temperature
+    text: >-
+      Design temperature is used with the selected material to resolve allowable
+      stress from the applicable material table on the active branch.
+    refs:
+      equation_id: asme-b313-required-wall-thickness
+
+  - id: input-context-material-grade
+    match:
+      current_phase: parameter_gathering
+      edge_reason: material_grade
+    text: >-
+      Material specification and grade are used with design temperature to
+      resolve allowable stress from the applicable material table.
+    refs:
       equation_id: asme-b313-required-wall-thickness
 
   - id: parameter-gathering-entry

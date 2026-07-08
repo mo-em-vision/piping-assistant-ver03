@@ -1,13 +1,13 @@
 import { useInspectionPayload } from './useInspectionPayload'
-import { useInspectorStore } from './inspectorStore'
 import { PlannerDevPanel } from './PlannerDevPanel'
 import { useDevRenderSpan } from './useDevRenderSpan'
 
 export function PlannerDevTab() {
   const { payload, error, loading } = useInspectionPayload()
-  const selectedNodeId = useInspectorStore((state) => state.selectedNodeId)
 
-  useDevRenderSpan('planner_dev_panel_render', Boolean(payload), [payload, selectedNodeId])
+  useDevRenderSpan('planner_dev_panel_render', Boolean(payload?.planner_debug_projection), [
+    payload?.planner_debug_projection,
+  ])
 
   if (loading && !payload) {
     return <p className="inspector-empty">Loading planner state…</p>
@@ -21,7 +21,10 @@ export function PlannerDevTab() {
     )
   }
 
-  const plannerDecision = selectedNodeId ? payload.planner_decisions[selectedNodeId] ?? null : null
+  const projection = payload.planner_debug_projection
+  if (!projection) {
+    return <p className="inspector-empty">Planner debug projection not available.</p>
+  }
 
-  return <PlannerDevPanel payload={payload} selectedNodeId={selectedNodeId} plannerDecision={plannerDecision} />
+  return <PlannerDevPanel projection={projection} />
 }

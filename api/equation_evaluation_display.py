@@ -21,7 +21,10 @@ from engine.reference.formula_display import (
     resolve_equation_display_variables,
 )
 from engine.reference.parameter_keys import param_node_id_for_input, parameter_node_description
-from engine.reference.parameter_value_source import resolve_parameter_value_reference
+from engine.reference.parameter_value_source import (
+    apply_value_provenance_to_row,
+    resolve_parameter_value_reference,
+)
 from engine.reference.standards_reader import StandardsReader
 from models.planning import NavigationPhase
 from models.task import Task
@@ -175,7 +178,72 @@ def build_equation_evaluation_block(
         tagged.pop("display_channel", None)
     if tagged.get("input_table") and tagged.get("variables"):
         tagged.pop("variables", None)
+
+    from api.equation_display_trace_serializer import enrich_equation_block, find_trace_for_equation
+
+    execution_trace = find_trace_for_equation(task, equation_id)
+    if execution_trace is None:
+        execution_trace = _live_equation_display_trace(
+            task,
+            reader,
+            equation_id=equation_id,
+            equation_metadata=eq_record.metadata,
+            source_node_id=focus_node_id,
+        )
+    if execution_trace is not None:
+        tagged = enrich_equation_block(tagged, execution_trace, reader=reader, task=task)
+
     return tagged
+
+
+def _live_equation_display_trace(
+    task: Task,
+    reader: StandardsReader,
+    *,
+    equation_id: str,
+    equation_metadata: dict[str, Any],
+    source_node_id: str,
+):
+    from engine.equation.equation_display_trace_builder import build_equation_display_trace
+    from engine.graph.assumption_checker import field_value
+    from engine.graph.relationship_resolver import resolve_require_bindings
+
+    store = reader.graph_store
+    if not store.available:
+        return None
+
+    bindings = resolve_require_bindings(store, equation_metadata.get("requires"))
+    symbol_values: dict[str, float] = {}
+    facts = task.fact_store.active_facts()
+    for binding in bindings:
+        input_id = _param_input_id(reader, binding.param_id)
+        value = None
+        if input_id:
+            raw = field_value(input_id, facts)
+            if raw is not None:
+                try:
+                    value = float(raw)
+                except (TypeError, ValueError):
+                    value = None
+            if value is None:
+                output_value = task.outputs.get(input_id)
+                if output_value is None:
+                    output_value = task.outputs.get(binding.sympy_symbol)
+                if isinstance(output_value, (int, float)):
+                    value = float(output_value)
+        if value is not None:
+            symbol_values[binding.sympy_symbol] = value
+
+    return build_equation_display_trace(
+        reader=reader,
+        equation_id=equation_id,
+        equation_metadata=equation_metadata,
+        symbol_values=symbol_values,
+        source_node_id=source_node_id,
+        task_inputs=facts,
+        dependency_outputs=dict(task.outputs),
+        task=task,
+    )
 
 
 def build_equation_trace_block(
@@ -295,23 +363,20 @@ def _equation_input_rows(
         display = None
         if input_id:
             display = _input_display_value(task, input_id) or _output_display_value(task, input_id)
-        value_reference = resolve_parameter_value_reference(reader, param_id, task) if param_id else None
         row: dict[str, Any] = {
             "symbol": symbol,
             "definition": definition,
             "value": display or "",
             "parameter_id": param_id or None,
         }
-        if value_reference is not None:
-            row["value_reference"] = value_reference
-            row["value_status"] = _value_status_for_row(
+        if param_id:
+            row = apply_value_provenance_to_row(
+                row,
                 reader,
                 param_id,
-                display,
-                value_reference,
+                task,
+                display_value=display or "",
             )
-            if not display:
-                row["value"] = ""
         elif display:
             row["value_status"] = "user_supplied"
         else:
@@ -348,29 +413,22 @@ def _legacy_variable_rows(
             display = _input_display_value(task, input_id) or _output_display_value(task, input_id)
         if display is None and variable.get("value"):
             display = str(variable["value"])
-        value_reference = (
-            resolve_parameter_value_reference(reader, param_id, task) if param_id else None
-        )
         row: dict[str, Any] = {
             "symbol": symbol,
             "definition": definition,
             "value": display or "",
         }
-        if value_reference is not None:
-            row["value_reference"] = value_reference
-            row["value_status"] = _value_status_for_row(
+        if param_id:
+            row["parameter_id"] = param_id
+            row = apply_value_provenance_to_row(
+                row,
                 reader,
                 param_id,
-                display,
-                value_reference,
+                task,
+                display_value=display or "",
             )
-            if not display:
-                row["value"] = ""
         elif display:
             row["value_status"] = "user_supplied"
-        elif param_id:
-            row["value"] = AWAITING_USER_INPUT
-            row["value_status"] = "unresolved_user_input"
         else:
             row["value"] = AWAITING_USER_INPUT
             row["value_status"] = "unresolved_user_input"
@@ -427,17 +485,6 @@ def _param_input_id(reader: StandardsReader, param_id: str) -> str | None:
         return None
     key = str(param.metadata.get("key") or param.metadata.get("input_id") or "").strip()
     return key or None
-
-
-def _value_status_for_row(
-    reader: StandardsReader,
-    param_id: str,
-    display: str | None,
-    value_reference: dict[str, str],
-) -> str:
-    if value_reference.get("reference_kind") == "table":
-        return "lookup_derived" if display else "unresolved_derived"
-    return "equation_derived" if display else "unresolved_derived"
 
 
 def _output_display_value(task: Task, input_id: str) -> str | None:

@@ -54,7 +54,7 @@ describe('taskStore API integration', () => {
   it('loads workspace from backend responses', async () => {
     const taskState = {
       task_id: 'pipe-wall-thickness-test01',
-      name: 'Pipe Thickness Calculation',
+      name: 'Pipe Wall Thickness Design',
       workflow_id: 'pipe_wall_thickness_design',
       discipline: 'Piping',
       description: 'ASME B31.3 wall thickness design',
@@ -86,7 +86,7 @@ describe('taskStore API integration', () => {
               workflows: [
                 {
                   id: 'pipe_wall_thickness_design',
-                  name: 'Pipe Thickness Calculation',
+                  name: 'Pipe Wall Thickness Design',
                   description: 'ASME B31.3',
                   discipline: 'Piping',
                   available: true,
@@ -135,7 +135,7 @@ describe('taskStore API integration', () => {
     expect(state.userError).toBeNull()
     expect(state.availableTasks).toHaveLength(1)
     expect(state.activeTask?.id).toBe(taskState.task_id)
-    expect(state.activeTaskState?.name).toBe('Pipe Thickness Calculation')
+    expect(state.activeTaskState?.name).toBe('Pipe Wall Thickness Design')
   })
 
   it('stores user-facing error when backend request fails', async () => {
@@ -267,7 +267,7 @@ describe('engineering workflow integration', () => {
             workflows: [
               {
                 id: 'pipe_wall_thickness_design',
-                name: 'Pipe Thickness Calculation',
+                name: 'Pipe Wall Thickness Design',
                 description: 'ASME B31.3',
                 discipline: 'Piping',
                 available: true,
@@ -360,7 +360,7 @@ describe('engineering workflow integration', () => {
 
     useProjectStore.setState({ activeProjectId: 'default' })
     await useTaskStore.getState().createTask('pipe_wall_thickness_design')
-    expect(useTaskStore.getState().activeTask?.name).toBe('Pipe Thickness Calculation')
+    expect(useTaskStore.getState().activeTask?.name).toBe('Pipe Wall Thickness Design')
 
     await useTaskStore.getState().submitParameter('nominal_pipe_size', '6')
     const taskState = useTaskStore.getState().activeTaskState

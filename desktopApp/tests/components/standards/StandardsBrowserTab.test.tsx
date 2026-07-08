@@ -41,7 +41,7 @@ const mockBrowse: StandardsBrowseDto = {
           related_workflows: [
             {
               id: 'pipe_wall_thickness_design',
-              name: 'Pipe Thickness Calculation',
+              name: 'Pipe Wall Thickness Design',
               description: 'ASME B31.3 wall thickness design workflow',
               discipline: 'Piping',
               available: true,
@@ -65,7 +65,7 @@ const mockBrowse: StandardsBrowseDto = {
           related_workflows: [
             {
               id: 'pipe_wall_thickness_design',
-              name: 'Pipe Thickness Calculation',
+              name: 'Pipe Wall Thickness Design',
               description: 'ASME B31.3 wall thickness design workflow',
               discipline: 'Piping',
               available: true,
@@ -122,7 +122,7 @@ describe('StandardsBrowserTab', () => {
     fireEvent.click(screen.getByRole('button', { name: '§304.1.1' }))
 
     expect(await screen.findByText('Node preview: B313-304.1.1')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Pipe Thickness Calculation' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pipe Wall Thickness Design' })).toBeInTheDocument()
     expect(screen.queryByText('Required thickness relationship')).not.toBeInTheDocument()
   })
 
@@ -130,7 +130,7 @@ describe('StandardsBrowserTab', () => {
     render(<StandardsBrowserTab />)
 
     fireEvent.click(await screen.findByRole('button', { name: '§304.1.1' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Pipe Thickness Calculation' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Pipe Wall Thickness Design' }))
 
     await waitFor(() => {
       expect(useUiStore.getState().createTaskDialog).toEqual({

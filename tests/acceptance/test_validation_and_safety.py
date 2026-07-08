@@ -94,7 +94,7 @@ class TestErrorHandlingAcceptance:
     ) -> None:
         task_id = "acceptance-error-pause"
         state_manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
-        state_manager.store_input(task_id, sample_inputs()["design_pressure"])
+        state_manager.store_input(task_id, sample_inputs()["internal_design_gage_pressure"])
 
         result = execute_workflow(task_id, PIPE_WALL_THICKNESS_ROOT, state=state_manager, reader=standards_reader)
         assert result.status == ExecutionStatus.AWAITING_INPUT

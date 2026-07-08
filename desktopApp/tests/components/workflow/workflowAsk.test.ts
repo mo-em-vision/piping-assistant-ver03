@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { getWorkflowAsk } from '@/components/workflow/workflowAsk'
+import { DEFAULT_WORKFLOW_ASK_PROMPT, getWorkflowAsk } from '@/components/workflow/workflowAsk'
 import { mockTaskState } from '@/mock/taskState.mock'
 import { buildTaskStateViewModel } from '@/store/taskStateManager'
 
@@ -443,5 +443,86 @@ describe('getWorkflowAsk', () => {
 
     expect(ask.kind).toBe('input')
     expect(ask.prompt).toBe('Confirm corrosion allowance from flow guidance.')
+  })
+
+  it('prefers short_prompt over full prompt for composer display', () => {
+    const ask = getWorkflowAsk({
+      ...mockTaskState,
+      current_ask: {
+        kind: 'input',
+        parameter_id: 'internal_design_gage_pressure',
+        prompt:
+          'Enter the internal design gage pressure P, including units. Examples: 500 psi, 8 bar.',
+        short_prompt: 'Enter internal design gage pressure P.',
+      },
+      parameters: [
+        {
+          name: 'internal_design_gage_pressure',
+          label: 'Internal design gage pressure',
+          type: 'unit',
+          required: true,
+          units: ['bar', 'psi'],
+          default_unit: 'bar',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          submittable: true,
+        },
+      ],
+      progress: {
+        ...mockTaskState.progress,
+        submittable_parameters: ['internal_design_gage_pressure'],
+        current_step_id: 'internal_design_gage_pressure',
+      },
+    })
+
+    expect(ask.prompt).toBe('Enter internal design gage pressure P.')
+    expect(ask.prompt).not.toContain('500 psi')
+  })
+
+  it('does not fall back to DEFAULT_WORKFLOW_ASK_PROMPT for active input with parameter_id', () => {
+    const ask = getWorkflowAsk(
+      {
+        ...mockTaskState,
+        current_ask: {
+          kind: 'input',
+          parameter_id: 'internal_design_gage_pressure',
+          prompt:
+            'Enter the internal design gage pressure P, including units. Examples: 500 psi, 8 bar.',
+        },
+        parameters: [
+          {
+            name: 'internal_design_gage_pressure',
+            label: 'Internal design gage pressure',
+            type: 'unit',
+            required: true,
+            units: ['bar', 'psi'],
+            default_unit: 'bar',
+            default_value: null,
+            value: null,
+            options: null,
+            validation: null,
+            status: 'pending',
+            requires_confirmation: false,
+            submittable: true,
+          },
+        ],
+        progress: {
+          ...mockTaskState.progress,
+          submittable_parameters: ['internal_design_gage_pressure'],
+          current_step_id: 'internal_design_gage_pressure',
+        },
+      },
+      [],
+    )
+
+    expect(ask.kind).toBe('input')
+    expect(ask.parameter?.name).toBe('internal_design_gage_pressure')
+    expect(ask.prompt).not.toBe(DEFAULT_WORKFLOW_ASK_PROMPT)
+    expect(ask.prompt).toBeTruthy()
+    expect(ask.prompt).toContain('500 psi')
   })
 })

@@ -10,7 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
+from engine.equation.equation_display_trace_builder import build_equation_display_trace
+from engine.equation.equation_renderer import EquationRenderSteps
 from engine.equation.sympy_evaluator import evaluate_equation
+from models.calculation import CalculationResult, QuantityResult
 from engine.graph.assumption_checker import field_value, evaluate_node_execution_assumptions
 from engine.graph.param_priority import normalize_require_ids
 from engine.graph.relationship_resolver import resolve_require_bindings
@@ -560,17 +563,31 @@ class NodeRunner:
                     if isinstance(value, (int, float)):
                         intermediates[key] = float(value)
 
+        trace_payload = {
+            "calculation": asdict(calculation),
+            "intermediates": intermediates,
+            "variables_si": variables,
+        }
+        trace_payload = self._attach_equation_display_trace(
+            trace_payload,
+            record=record,
+            symbol_values={
+                key: float(value)
+                for key, value in variables.items()
+                if isinstance(value, (int, float))
+            },
+            dependency_outputs=dependency_outputs,
+            task_inputs=task_inputs,
+            calculation=calculation,
+        )
+
         return self._finalize_result(
             record,
             status=NodeExecutionStatus.COMPLETED,
             inputs=resolved,
             outputs=outputs,
             warnings=warnings,
-            trace={
-                "calculation": asdict(calculation),
-                "intermediates": intermediates,
-                "variables_si": variables,
-            },
+            trace=trace_payload,
         )
 
     def _resolve_calculation_inputs(
@@ -1063,17 +1080,29 @@ class NodeRunner:
                 for alias in self._OUTPUT_ALIASES.get(symbol, ()):
                     outputs[alias] = value
 
+        trace_payload = {
+            "substitution": result.substitution,
+            "result_text": result.result_text,
+            "equation": display,
+            "render_steps": asdict(result.render_steps),
+        }
+        sympy_calculation = self._calculation_from_sympy_result(record, result.outputs)
+        trace_payload = self._attach_equation_display_trace(
+            trace_payload,
+            record=record,
+            symbol_values=symbol_values,
+            dependency_outputs=dependency_outputs,
+            task_inputs=task_inputs,
+            calculation=sympy_calculation,
+            render_steps=result.render_steps,
+        )
+
         return self._finalize_result(
             record,
             status=NodeExecutionStatus.COMPLETED,
             inputs=symbol_values,
             outputs=outputs,
-            trace={
-                "substitution": result.substitution,
-                "result_text": result.result_text,
-                "equation": display,
-                "render_steps": asdict(result.render_steps),
-            },
+            trace=trace_payload,
         )
 
     def _run_micro_lookup(
@@ -1304,13 +1333,83 @@ class NodeRunner:
                 for alias in self._OUTPUT_ALIASES.get(symbol, ()):
                     outputs[alias] = value
 
+        trace_payload = {"calculation": asdict(calculation)}
+        trace_payload = self._attach_equation_display_trace(
+            trace_payload,
+            record=record,
+            symbol_values={
+                key: float(value)
+                for key, value in resolved.items()
+                if isinstance(value, (int, float))
+            },
+            dependency_outputs=dependency_outputs,
+            task_inputs=task_inputs,
+            calculation=calculation,
+        )
+        trace_payload["variables_si"] = prepare_symbol_map(
+            resolved,
+            self._symbol_unit_map(record),
+        )
+
         return self._finalize_result(
             record,
             status=NodeExecutionStatus.COMPLETED,
             inputs=resolved,
             outputs=outputs,
-            trace={"calculation": asdict(calculation)},
+            trace=trace_payload,
         )
+
+    def _calculation_from_sympy_result(
+        self,
+        record: NodeRecord,
+        outputs: dict[str, float],
+    ) -> CalculationResult | None:
+        if not outputs:
+            return None
+        symbol = next(iter(outputs))
+        value = float(outputs[symbol])
+        unit = ""
+        for spec in record.metadata.get("outputs", []) or []:
+            if isinstance(spec, dict) and str(spec.get("symbol", "")) == symbol:
+                unit = str(spec.get("unit") or "")
+                break
+        return CalculationResult(
+            calculation_id=record.node_id,
+            final_result=QuantityResult(symbol=symbol, value=value, unit=unit),
+        )
+
+    def _attach_equation_display_trace(
+        self,
+        trace: dict[str, Any],
+        *,
+        record: NodeRecord,
+        symbol_values: dict[str, float],
+        dependency_outputs: dict[str, Any],
+        task_inputs: dict[str, Fact],
+        calculation: CalculationResult | None = None,
+        render_steps: EquationRenderSteps | None = None,
+        source_node_id: str = "",
+        status: str | None = None,
+    ) -> dict[str, Any]:
+        node_type = str(record.metadata.get("type", ""))
+        if node_type != "equation" and not record.metadata.get("requires"):
+            return trace
+
+        display_trace = build_equation_display_trace(
+            reader=self._reader,
+            equation_id=record.node_id,
+            equation_metadata=record.metadata,
+            symbol_values=symbol_values,
+            source_node_id=source_node_id or record.node_id,
+            dependency_outputs=dependency_outputs,
+            task_inputs=task_inputs,
+            calculation=calculation,
+            render_steps=render_steps,
+            status=status,  # type: ignore[arg-type]
+        )
+        updated = dict(trace)
+        updated["equation_display_trace"] = display_trace.to_dict()
+        return updated
 
     @staticmethod
     def _symbol_unit_map(record: NodeRecord) -> dict[str, str]:

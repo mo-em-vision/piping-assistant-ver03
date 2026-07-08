@@ -34,12 +34,12 @@ def _pipe_wall_task(manager: TaskStateManager, task_id: str, *, missing: list[st
 
 def test_submit_temperature_after_material_resolves_allowable_stress(standards_root: Path) -> None:
     manager = TaskStateManager()
-    _pipe_wall_task(manager, "s-submit-test01", missing=["material", "design_temperature"])
+    _pipe_wall_task(manager, "s-submit-test01", missing=["material_grade", "design_temperature"])
 
     submit_task_input(
         manager,
         "s-submit-test01",
-        parameter="material",
+        parameter="material_grade",
         value="A106 Gr B",
         unit=None,
         standards_root=standards_root,
@@ -63,29 +63,20 @@ def test_submit_temperature_after_material_resolves_allowable_stress(standards_r
     assert lookup["table_id"] == "asme_b31.3_A-1"
     assert lookup["standard"] == "asme_b31.3"
     assert lookup["design_temperature_f"] == pytest.approx(200)
-    assert updated.inputs["allowable_stress"].unit == "Pa"
+    assert updated.outputs.get("allowable_stress_unit") == "Pa"
 
 
 def test_submit_unknown_material_raises(standards_root: Path) -> None:
     manager = TaskStateManager()
-    _pipe_wall_task(manager, "s-submit-test02", missing=["material", "design_temperature"])
+    _pipe_wall_task(manager, "s-submit-test02", missing=["material_grade", "design_temperature"])
 
-    submit_task_input(
-        manager,
-        "s-submit-test02",
-        parameter="material",
-        value="Unknown Alloy XYZ",
-        unit=None,
-        standards_root=standards_root,
-    )
-
-    with pytest.raises(ValueError, match="Material not found"):
+    with pytest.raises(ValueError, match="Select a material from the available options"):
         submit_task_input(
             manager,
             "s-submit-test02",
-            parameter="design_temperature",
-            value=200,
-            unit="F",
+            parameter="material_grade",
+            value="Unknown Alloy XYZ",
+            unit=None,
             standards_root=standards_root,
         )
 
@@ -97,8 +88,8 @@ def test_allowable_stress_resolver_updates_on_temperature_change(standards_root:
     manager = TaskStateManager()
     task = manager.create_task("s-resolver-test01", status=TaskStatus.AWAITING_INPUT)
     populate_task_facts(task, {
-        "material": EngineeringInput(
-            input_id="material",
+        "material_grade": EngineeringInput(
+            input_id="material_grade",
             value="SA-106B",
             unit="dimensionless",
             source=InputSource.USER,

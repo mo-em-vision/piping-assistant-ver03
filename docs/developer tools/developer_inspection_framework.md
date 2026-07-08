@@ -88,17 +88,19 @@ api/performance_trace.py GET /api/v1/dev/performance/traces
 
 ### Frontend layout
 
-Primary developer surface: **right-panel dev tabs** (`Planner`, `Task State`, `Performance`) when Dev Mode is enabled.
+Primary developer surface: **right-panel dev tabs** (`Planner / Workflow Debug`, `Task State`, `Performance`) when Dev Mode is enabled.
 
 ```
 dev/desktop_ui/inspector/
-  PlannerDevTab.tsx             Right panel: Planner tab entry
-  PlannerDevPanel.tsx           Header card, traversal timeline, phase/requirements/warnings
-  PlannerHeaderCard.tsx         Workflow, phase, active node, status badge, why_here
-  PlannerTraversalTimeline.tsx  Vertical traversal path (completed/current/blocked/skipped)
-  PlannerPhasePanel.tsx         Current vs future phase fields
-  PlannerRequirementsPanel.tsx  Conditional, lookup, calculation requirements
-  PlannerWarningsPanel.tsx      Plan validation + planner warnings
+  PlannerDevTab.tsx                 Right panel: Planner / Workflow Debug tab entry
+  PlannerDevPanel.tsx               Seven readable sections from planner_debug_projection
+  PlannerSummarySection.tsx         Workflow title, slug, confidence, reason, status
+  PlannerCurrentStepSection.tsx     Active node and next expected action
+  PlannerTraversalTimelineSection.tsx  Visited timeline (no graph canvas)
+  PlannerPendingWorkSection.tsx     Pending nodes, calculations, validations, lookups
+  PlannerRequiredInputsSection.tsx  PARAM-enriched required input rows
+  PlannerBlockedReasonSection.tsx   Blocked / waiting reason + plan warnings
+  plannerDebugDisplay.ts            "not available" display helpers
   TaskStateDevTab.tsx           Right panel: Task State tab entry
   TaskStateDevPanel.tsx         Structured facts, decisions, outputs, validation, timeline
   TaskStateHeaderCard.tsx       Task summary card
@@ -107,9 +109,7 @@ dev/desktop_ui/inspector/
   OutputsPanel.tsx              Produced outputs
   ValidationPanel.tsx           Validation status and conflicts
   TraceTimelinePanel.tsx        Execution + lifecycle event timeline
-  InspectorAdvancedSection.tsx  Collapsed raw JSON (Advanced / Raw Data)
-  plannerInspectorSummary.ts    resolvePlannerInspectorSummary
-  validateEngineeringPlan.ts    Client-side plan invariant checks (mirrors plan_validation.py)
+  InspectorAdvancedSection.tsx  Collapsed raw JSON (Advanced Planner JSON)
   useInspectionPayload.ts       Poll inspection API for active task (separate inspection_poll traces)
   PerformanceDevTab.tsx           Right panel: Performance tab entry
   PerformanceTracePanel.tsx       Trace selector, span table, severity highlighting
@@ -120,7 +120,7 @@ dev/desktop_ui/inspector/
 desktopApp/src/services/api/inspectionApi.ts
 desktopApp/src/services/performance/tracedRequest.ts
 desktopApp/src/store/performanceTraceStore.ts
-desktopApp/src/types/backend/inspection.ts   PlannerInspectorSummaryDto, TaskStateViewsDto, PerformanceTraceDto
+desktopApp/src/types/backend/inspection.ts   PlannerDebugProjectionDto (preferred), PlannerInspectorSummaryDto (compat), TaskStateViewsDto
 ```
 
 Legacy bottom-dock `DeveloperInspector.tsx` (execution trace) may exist but is not the primary dev surface for planner/task state.
@@ -178,7 +178,8 @@ Response fields:
 |-------|-------------|
 | `engineering_plan` | **Canonical** normalized engineering plan (source of truth) |
 | `engineering_plan_view` | Human-readable phases/overview |
-| `planner_inspector_summary` | Compact planner debug rebuilt from `engineering_plan` on each fetch |
+| `planner_debug_projection` | **Preferred** Dev Mode Planner tab contract — read-only derived view from `engineering_plan` |
+| `planner_inspector_summary` | Compact planner debug (backward compat) rebuilt from `engineering_plan` on each fetch |
 | `planner_inspector_summary.header` | Workflow, phase, active node, status badge, `why_here` (inspector debug only) |
 | `planner_inspector_summary.phase_panel` | Current-phase active/completed/missing/future fields |
 | `planner_inspector_summary.traversal_path` | Ordered timeline rows for traversal UI |
@@ -309,20 +310,29 @@ Per-node records are built from `ExecutionPlan` structure (`engine/inspection/pl
 
 Select a trace step in the Inspector, then open the **Planner** tab to see the decision for that node.
 
-### Planner tab (engineering plan)
+### Planner / Workflow Debug tab
 
-The **Planner** dev tab is driven by **`engineering_plan`** (canonical), not the legacy `goal_store` projection. The default view is human-readable cards and tables; raw JSON is under **Advanced / Raw Data**.
+The **Planner / Workflow Debug** dev tab is driven by **`planner_debug_projection`** — a read-only derived view of the canonical **`engineering_plan`**. It must **not** infer missing facts from `task_state`, `engineering_plan`, or other inspection payload fields. Missing fields render **"not available"**.
 
-| Section | Source |
-|---------|--------|
-| Header card | `planner_inspector_summary.header` |
-| Traversal path timeline | `planner_inspector_summary.traversal_path` |
-| Phase panel (current vs future) | `planner_inspector_summary.phase_panel` |
-| Requirements panel | `planner_inspector_summary.requirements_panel` |
-| Warnings | `planner_inspector_summary.warnings` + `validateEngineeringPlan(engineering_plan)` |
-| Legacy goal map | Collapsed **Advanced / Raw Data** — `legacy_goal_map` |
+`planner_debug_projection` is **developer-only** and must never drive workflow execution, user-facing output, graph traversal, equation evaluation, validation, or parameter resolution.
 
-`build_planner_inspector_summary()` (`engine/planner/plan_inspector.py`) includes:
+| Section | Source field |
+|---------|--------------|
+| Planner Summary | `workflow_title`, `workflow_slug`, `planner_confidence`, `planner_reason`, `current_step` |
+| Current Execution Step | `active_node`, `next_expected_action` |
+| Traversal Timeline | `visited_timeline` |
+| Pending Work | `pending_nodes`, `pending_calculations`, `pending_validations`, `pending_lookups` |
+| Required Inputs | `required_inputs` |
+| Blocked / Waiting Reason | `blocked_reason`, `warnings` |
+| Advanced Planner JSON (collapsed) | `raw_planner_state` only |
+
+`build_planner_debug_projection()` (`engine/planner/planner_debug_projection.py`) derives all fields from `EngineeringPlan` only. Inspection API includes both `planner_debug_projection` (preferred UI contract) and `planner_inspector_summary` (backward compat).
+
+`planner_confidence` / `planner_reason` return `null` until planner selection metadata is persisted on the task (TODO in projection builder).
+
+### Planner inspector summary (backward compat)
+
+`build_planner_inspector_summary()` (`engine/planner/plan_inspector.py`) remains on the inspection payload for backward compatibility:
 
 - `root_goal`, `current_phase`, `next_input`, `outstanding_required_inputs`
 - `current_phase_inputs`, `future_phase_inputs`
@@ -366,12 +376,13 @@ Built in `engine/planner/planner_traversal.py` when `build_pipe_wall_engineering
 | `branch_decisions` | Unresolved/resolved path decisions with `candidate_nodes` (e.g. `pressure_loading` → `304.1.2-a`, `304.1.3`) |
 | `traversal_events` | Ordered log: `node_expanded`, `node_selected`, `branch_decision_required`, `node_deferred`, … |
 
-Open the **Planner** dev tab after starting a pipe wall thickness task. Expand **Planner traversal** for the full walk state.
+Open the **Planner / Workflow Debug** dev tab after starting a workflow. Traversal timeline appears whenever `engineering_plan.traversal` is present (any workflow).
 
-Invariants: `engine/planner/plan_validation.py` (`validate_engineering_plan`, `validate_engineering_plan_dict`). Validation runs after `finalize_engineering_plan()`; failures appear in the **Warnings** section of the Planner tab.
+Invariants: `engine/planner/plan_validation.py` (`validate_engineering_plan`, `validate_engineering_plan_dict`). Validation runs after `finalize_engineering_plan()`; failures appear in `blocked_reason` / `warnings` on the projection.
 
 Tests:
 
+- `tests/planner/test_planner_debug_projection.py`
 - `tests/planner/test_planner_traversal.py`
 - `tests/planner/test_planner_inspector_views.py`
 - `tests/planner/test_fresh_pipe_wall_normalized_plan.py`

@@ -8,7 +8,7 @@ import pytest
 
 from api.desktop_service import ApiError, DesktopApiService
 from config.loader import CLIConfig
-from tests.acceptance.helpers import run_completed_workflow
+from models.task import TaskStatus
 from tests.api.conftest import api_session_id
 
 
@@ -31,13 +31,17 @@ def temp_service(tmp_path: Path) -> DesktopApiService:
 
 def test_continuation_suggestions_for_completed_task(
     temp_service: DesktopApiService,
-    standards_reader,
-    state_manager,
 ) -> None:
     session_id = api_session_id(temp_service)
-    task_id = "pipe-wall-thickness-desi-cont01"
-    run_completed_workflow(state_manager, standards_reader, task_id)
-    temp_service._save_manager(state_manager, session_id)
+    created = temp_service.create_task("pipe_wall_thickness_design", session_id)
+    task_id = created["task_id"]
+
+    store = temp_service._store_for(session_id)
+    manager = store.load_state_manager()
+    task = manager.get_task(task_id)
+    task.status = TaskStatus.COMPLETED
+    manager.replace_task(task_id, task)
+    store.save_state_manager(manager)
 
     payload = temp_service.get_task_continuation_suggestions(task_id, session_id)
 

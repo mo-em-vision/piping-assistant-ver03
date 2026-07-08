@@ -12,7 +12,7 @@ describe('buildAskAiTaskStateBrief', () => {
     const brief = buildAskAiTaskStateBrief(mockTaskState, 'Refinery Expansion')
 
     expect(brief).toContain('Project: Refinery Expansion')
-    expect(brief).toContain('Pipe Thickness Calculation')
+    expect(brief).toContain('Pipe Wall Thickness Design')
     expect(brief).toContain('pipe_wall_thickness_design')
     expect(brief).toContain('Inputs already provided:')
     expect(brief).toContain('Visible workspace content:')
@@ -32,7 +32,7 @@ describe('buildAskAiSelectionPrompt', () => {
     expect(prompt).toContain('definitions')
     expect(prompt).toContain('examples')
     expect(prompt).toContain('## Current task state')
-    expect(prompt).toContain('Pipe Thickness Calculation')
+    expect(prompt).toContain('Pipe Wall Thickness Design')
     expect(prompt).toContain('t = 12.5 mm')
     expect(prompt).not.toContain('{{')
   })

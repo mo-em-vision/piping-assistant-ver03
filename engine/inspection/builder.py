@@ -24,6 +24,7 @@ from engine.state.task_state_canonical import (
     build_canonical_task_state,
     build_task_inspector_summary,
 )
+from engine.planner.planner_debug_projection import planner_debug_projection_for_task
 from engine.planner.plan_inspector import (
     canonical_engineering_plan_for_task,
     engineering_plan_view_for_task,
@@ -98,6 +99,7 @@ def _build_inspection_payload_impl(
     )
     inspector_summary = build_task_inspector_summary(canonical)
     planner_summary = planner_inspector_summary_for_task(task)
+    planner_debug = planner_debug_projection_for_task(task, reader=reader)
     task_state_views = build_task_state_views(
         task,
         canonical,
@@ -122,6 +124,7 @@ def _build_inspection_payload_impl(
             "engineering_plan": canonical_engineering_plan_for_task(task),
             "engineering_plan_view": engineering_plan_view_for_task(task),
             "planner_inspector_summary": planner_inspector_summary_for_task(task),
+            "planner_debug_projection": planner_debug,
             "provenance_index": [record.to_dict() for record in provenance_index],
             "provenance_warnings": provenance_warnings or list(outputs.get("_provenance_warnings") or []),
             "workflow_state": _workflow_state_dict(workflow_state),

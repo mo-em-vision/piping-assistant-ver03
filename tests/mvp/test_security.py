@@ -83,7 +83,7 @@ class TestUserInputAttacks:
         manager_a = TaskStateManager()
         manager_b = TaskStateManager()
         manager_a.create_task("pipe-wall-thickness-design-task-a")
-        manager_a.store_input("pipe-wall-thickness-design-task-a", sample_inputs()["design_pressure"])
+        manager_a.store_input("pipe-wall-thickness-design-task-a", sample_inputs()["internal_design_gage_pressure"])
 
         assert manager_a.get_task("pipe-wall-thickness-design-task-a").inputs
         with pytest.raises(TaskNotFoundError):

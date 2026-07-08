@@ -246,75 +246,44 @@ describe('validateEngineeringPlan', () => {
   })
 })
 
-describe('PlannerDevPanel validation section', () => {
-  it('renders plan validation status', async () => {
+describe('PlannerDevPanel blocked reason section', () => {
+  it('renders blocked reason from projection only', async () => {
     const { PlannerDevPanel } = await import('@dev-ui/inspector/PlannerDevPanel')
     render(
       <PlannerDevPanel
-        payload={{
-          task_id: 'task-1',
-          workflow_id: 'pipe_wall_thickness_design',
-          execution_trace: [],
-          planner_decisions: {},
-          engineering_plan: minimalValidPlan,
-          planner_inspector_summary: {
-            root_goal: minimalValidPlan.root_goal,
-            current_phase: 'expansion_assumptions',
-            next_input: {
-              field: 'straight_pipe_section',
-              label: 'Straight Pipe Section',
-              phase: 'expansion_assumptions',
-              expected_value_class: 'selection',
-              priority: 1,
-            },
-            outstanding_required_inputs: [],
-            conditional_requirements: [],
-            derived_or_lookup_values: [],
-            calculations: [],
-            planner_graph_summary: {
-              selected_subgraph_count: 1,
-              expanded_node_count: 1,
-              dependency_edge_count: 1,
-              branch_decision_count: 0,
-            },
-            warnings: [],
+        projection={{
+          workflow_title: 'Test Workflow',
+          workflow_slug: 'test_workflow',
+          planner_confidence: null,
+          planner_reason: null,
+          current_step: {
+            phase: 'parameter_gathering',
+            phase_label: 'Parameter gathering',
+            status_badge: 'waiting_for_input',
           },
-          planning_summary: {},
-          provenance_index: [],
-          provenance_warnings: [],
-          workflow_state: {
-            current_node: null,
-            visited_nodes: [],
+          active_node: null,
+          visited_timeline: [],
+          pending_nodes: [],
+          pending_calculations: [],
+          pending_validations: [],
+          pending_lookups: [],
+          required_inputs: [],
+          blocked_reason: {
+            kind: 'not_available',
+            message: 'Insufficient plan evidence to classify blocker',
+            missing_item: null,
           },
-          inspector_summary: {
-            status: 'awaiting_input',
-            phase: 'expansion_assumptions',
-            current_blocker: null,
-            resolved_inputs: [],
-            missing_inputs: [],
-            selected_branch_decisions: [],
-            pending_calculations: [],
-            execution_graph_summary: {
-              expanded_count: 0,
-              active_count: 0,
-              resolved_count: 0,
-              pending_count: 0,
-            },
-            warnings: [],
+          next_expected_action: null,
+          warnings: ['Plan warning example'],
+          raw_planner_state: {
+            engineering_plan: minimalValidPlan,
+            planner_inspector_summary: {},
           },
-          execution_events: [],
-          lifecycle_events: [],
-          replay_frames: [],
-          replay_snapshot: {},
-          integrity_checks: [],
-          performance: { total_duration_ms: 0, step_count: 0, by_node_ms: {} },
-          breakpoint: { paused: false },
         }}
-        selectedNodeId={null}
-        plannerDecision={null}
       />,
     )
-    expect(screen.getByText('Warnings')).toBeInTheDocument()
-    expect(screen.getByText('Valid normalized engineering plan.')).toBeInTheDocument()
+    expect(screen.getByText('Blocked / Waiting Reason')).toBeInTheDocument()
+    expect(screen.getByText('Plan warning example')).toBeInTheDocument()
+    expect(screen.queryByText('Valid normalized engineering plan.')).not.toBeInTheDocument()
   })
 })

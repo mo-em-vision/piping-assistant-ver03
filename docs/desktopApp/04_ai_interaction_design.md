@@ -115,7 +115,7 @@ Example:
 
 Detected task:
 
-Pipe Thickness Calculation
+Pipe Wall Thickness Design
 
 Steps:
 

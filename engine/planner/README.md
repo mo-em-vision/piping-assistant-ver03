@@ -29,7 +29,7 @@ Normalized **`EngineeringPlan`** output (`models/engineering_plan.py`) captures 
 
 **Active** via `PlannerAgent` (CLI chat) and `api/workflow_bootstrap.py` (`GraphTools`, navigation phases, `build_engineering_plan` → `store_engineering_plan_on_task`). User-facing parameter prompts live in `engine/messaging/workflow_parameter_prompts.py` and `parameter_input_prompt.py`.
 
-Inspector payloads include `engineering_plan` (canonical), `engineering_plan_view`, `planner_inspector_summary` (rebuilt from `engineering_plan` on inspection fetch), and `legacy_goal_map` (deprecated goal_store projection, debug only).
+Inspector payloads include `engineering_plan` (canonical), `engineering_plan_view`, `planner_debug_projection` (preferred Dev Mode Planner tab contract), `planner_inspector_summary` (backward compat, rebuilt from `engineering_plan` on inspection fetch), and `legacy_goal_map` (deprecated goal_store projection, debug only).
 
 ## Validation
 
@@ -75,14 +75,15 @@ api/workflow_bootstrap.refresh_planning_state
   → validate_engineering_plan (attach plan.debug on failure)
   → store_engineering_plan_on_task
       → engineering_plan, engineering_plan_view
-      → planner_inspector_summary
+      → planner_inspector_summary, planner_debug_projection
       → graph_navigation
 ```
 
 ```
 GET inspection payload (DEV_INSPECTION_ENABLED)
-  → planner_inspector_summary_for_task (rebuild from engineering_plan)
-  → PlannerDevPanel + validateEngineeringPlan (client)
+  → planner_debug_projection_for_task (preferred Planner tab contract)
+  → planner_inspector_summary_for_task (backward compat, rebuild from engineering_plan)
+  → PlannerDevPanel (projection only — no client inference)
 ```
 
 ## Per-file inventory
@@ -96,6 +97,7 @@ GET inspection payload (DEV_INSPECTION_ENABLED)
 | `pipe_wall_plan.py` | Pipe wall requirement templates | `build_pipe_wall_requirements`, `build_pipe_wall_dependencies` | engineering_plan_builder |
 | `planner_traversal.py` | Traversal debug snapshot | `build_planner_traversal_state`, `build_traversal_summary`, `build_planner_traversal_inspector_view` | engineering_plan_builder, plan_inspector |
 | `plan_inspector.py` | Inspector summaries / plan view | `build_planner_inspector_summary`, `planner_inspector_summary_for_task`, `engineering_plan_from_dict` | legacy_goal_adapter, inspection/builder, tests |
+| `planner_debug_projection.py` | Read-only Dev Mode Planner tab projection | `build_planner_debug_projection`, `planner_debug_projection_for_task` | inspection/builder, tests |
 | `plan_validation.py` | Plan invariants | `validate_engineering_plan`, `validate_engineering_plan_dict` | engineering_plan_builder, tests |
 | `plan_dependencies.py` | Central dependency edges | `build_plan_dependencies` | legacy_goal_adapter |
 | `plan_phases.py` | Phase + input strategy | `build_plan_phases_and_strategy` | engineering_plan_builder |

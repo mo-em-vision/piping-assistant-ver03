@@ -243,4 +243,57 @@ describe('mergeDisplayOutputs', () => {
     const row = merged[0]?.type === 'equation' ? merged[0].input_table?.rows[0] : undefined
     expect(row?.value).toBe('2.000 mm')
   })
+
+  it('updates durable equation_trace when equation_display_trace payload changes', () => {
+    const previousTrace: DisplayOutputBlock = {
+      id: 'equation-trace-304.1.2-a-asme-b313-304-1-2-eq-3a',
+      type: 'equation',
+      lifecycle: 'durable',
+      display_role: 'equation_trace',
+      equation_node_id: 'asme-b313-304-1-2-eq-3a',
+      source_node_id: '304.1.2-a',
+      content: 't = PD / 2(SEW + PY)',
+      display: 't = PD / 2(SEW + PY)',
+      equation_display_trace: {
+        equation_id: 'asme-b313-304-1-2-eq-3a',
+        node_id: '304.1.2-a',
+        symbolic_latex: 't = \\frac{PD}{2(SEW + PY)}',
+        substituted_latex: null,
+        result_latex: null,
+        latex_source: 'metadata_display_text',
+        status: 'blocked',
+        inputs: [],
+        intermediate_values: [],
+        result: null,
+      },
+    }
+    const incomingTrace: DisplayOutputBlock = {
+      ...previousTrace,
+      equation_display_trace: {
+        equation_id: 'asme-b313-304-1-2-eq-3a',
+        node_id: '304.1.2-a',
+        symbolic_latex: 't = \\frac{PD}{2(SEW + PY)}',
+        substituted_latex: 't = \\frac{(1)(2)}{2((3)(4)(5) + (1)(6))} = 7\\ \\mathrm{mm}',
+        result_latex: '7\\ \\mathrm{mm}',
+        latex_source: 'metadata_display_text',
+        status: 'evaluated',
+        inputs: [],
+        intermediate_values: [],
+        result: {
+          symbol: 't',
+          value: 7,
+          unit: 'mm',
+          display_value: '7\\ \\mathrm{mm}',
+        },
+      },
+      content: 't = \\frac{(1)(2)}{2((3)(4)(5) + (1)(6))} = 7\\ \\mathrm{mm}',
+    }
+
+    const merged = mergeDisplayOutputs([previousTrace], [incomingTrace])
+    expect(merged).toHaveLength(1)
+    if (merged[0]?.type === 'equation') {
+      expect(merged[0].equation_display_trace?.status).toBe('evaluated')
+      expect(merged[0].equation_display_trace?.substituted_latex).toContain('7')
+    }
+  })
 })

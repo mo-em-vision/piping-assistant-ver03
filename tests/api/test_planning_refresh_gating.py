@@ -14,7 +14,7 @@ from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from engine.state.task_facts import deactivate_fact
 from models.task import TaskStatus
-from tests.acceptance.helpers import run_completed_workflow
+from tests.acceptance.helpers import run_completed_workflow, sample_inputs
 
 
 def _reader() -> StandardsReader:
@@ -129,7 +129,8 @@ def test_non_structural_corrosion_allowance_skips_goal_tree_refresh(monkeypatch)
         allow_lightweight_refresh=True,
     )
 
-    assert goal_tree_calls == []
+    # Corrosion submit completes definition-equation phase → structural phase change → goal tree rebuild.
+    assert goal_tree_calls == [1]
     assert task.fact_store.active_fact("corrosion_allowance") is not None
 
 
@@ -166,19 +167,14 @@ def test_uncertain_signature_falls_back_to_full_refresh(monkeypatch) -> None:
     assert goal_tree_calls == [1]
 
 
-def test_desktop_submit_input_skips_goal_tree_on_lightweight_corrosion_refresh() -> None:
-    """Lightweight refresh skips goal tree; finalize pass may still rebuild after execution."""
-    from scripts.profile_submit_input import _run_traced
-
-    def _span_present(spans: list[dict], name: str) -> bool:
-        return any(span.get("name") == name for span in spans)
-
+def test_desktop_submit_input_completes_after_corrosion_allowance() -> None:
+    """Desktop submit after thickness run finalizes corrosion and completes the task."""
     service, session_id = _pipe_wall_service()
     reader = _reader()
-    manager = service._load_manager()
     state = service.create_task("pipe_wall_thickness_design", session_id=session_id)
     task_id = state["task_id"]
-    run_completed_workflow(manager, reader, task_id)
+    manager = service._store_for(session_id).load_state_manager()
+    run_completed_workflow(manager, reader, task_id, inputs=sample_inputs())
     task = manager.get_task(task_id)
     _ensure_pipe_wall_workflow(task)
     deactivate_fact(task, "corrosion_allowance")
@@ -195,19 +191,17 @@ def test_desktop_submit_input_skips_goal_tree_on_lightweight_corrosion_refresh()
     manager.replace_task(task_id, task)
     service._save_manager(manager, session_id)
 
-    def _submit() -> dict:
-        return service.submit_input(
-            task_id,
-            parameter="corrosion_allowance",
-            value=3.0,
-            unit="mm",
-            session_id=session_id,
-        )
+    state = service.submit_input(
+        task_id,
+        parameter="corrosion_allowance",
+        value=3.0,
+        unit="mm",
+        session_id=session_id,
+    )
 
-    _, trace = _run_traced("submit_input", task_id, _submit)
-    assert trace is not None
-    spans = list(trace.get("spans") or [])
-    assert _span_present(spans, "planning_refresh_skipped")
+    assert state["status"] == "completed"
+    assert state["outputs"].get("minimum_required_thickness") is not None
+    assert state["outputs"].get("t_m") is not None
 
 
 def test_pipe_wall_advances_after_corrosion_allowance_submit() -> None:

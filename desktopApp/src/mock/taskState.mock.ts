@@ -3,7 +3,7 @@ import type { TaskStateDto } from '@/types/backend/api'
 /** MOCK_DATA — sample backend task state for Phase 4 visualization in mock mode. */
 export const mockTaskState: TaskStateDto = {
   task_id: 'mock-pipe-thickness',
-  name: 'Pipe Thickness Calculation',
+  name: 'Pipe Wall Thickness Design',
   workflow_id: 'pipe_wall_thickness_design',
   discipline: 'Piping',
   description: 'ASME B31.3 wall thickness design',

@@ -9,6 +9,8 @@ ProjectionMode = Literal["interactive", "full"]
 
 from api.error_catalog import enrich_api_error_payload
 from api.flow_guidance import build_flow_guidance_payload
+from api.flow_guidance_transcript import load_flow_guidance_transcript_blocks
+from api.completion_next_workflows_transcript import flatten_transcript_blocks_for_api
 from api.equation_inputs_display import (
     _input_display_value,
     format_thickness_result_display,
@@ -20,6 +22,7 @@ from api.node_context import active_node_context_for_task
 from api.node_provenance import step_provenance
 from api.output_blocks import build_display_outputs
 from api.parameter_definitions import build_parameter_definitions
+from api.reference_links import enrich_display_output_dict, enrich_flow_guidance_payload
 from api.workflow_timeline import (
     collect_all_missing,
     is_mawp_task,
@@ -165,6 +168,7 @@ _OUTPUT_DEBUG_KEYS = frozenset(
     {
         "engineering_plan",
         "planner_inspector_summary",
+        "planner_debug_projection",
         "engineering_plan_view",
     }
 )
@@ -839,14 +843,26 @@ def _task_state_impl(
             with perf_span("engineering_plan_view", "serializer"):
                 legacy_extras["engineering_plan_view"] = _engineering_plan_view_for_task(task)
         with perf_span("display_output_projection", "serializer"):
-            legacy_extras["display_outputs"] = build_display_outputs(
-                task,
-                standards_root=resolved_standards_root,
-                reader=resolved_reader,
-            )
+            legacy_extras["display_outputs"] = [
+                enrich_display_output_dict(item, resolved_reader, task=task)
+                for item in build_display_outputs(
+                    task,
+                    standards_root=resolved_standards_root,
+                    reader=resolved_reader,
+                )
+            ]
         with perf_span("flow_guidance", "serializer"):
-            legacy_extras["flow_guidance"] = build_flow_guidance_payload(
+            transcript_blocks = load_flow_guidance_transcript_blocks(task)
+            flow_guidance_payload = build_flow_guidance_payload(
                 task,
+                resolved_reader,
+                transcript_blocks=transcript_blocks,
+            )
+            flow_guidance_payload["transcript_blocks"] = flatten_transcript_blocks_for_api(
+                transcript_blocks,
+            )
+            legacy_extras["flow_guidance"] = enrich_flow_guidance_payload(
+                flow_guidance_payload,
                 resolved_reader,
             )
     legacy_extras["progress"] = {

@@ -208,7 +208,7 @@ def test_mvp_acceptance_checklist(
     elif criterion_id == "state_can_resume":
         task_id = "acceptance-checklist-resume"
         state_manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
-        state_manager.store_input(task_id, sample_inputs()["design_pressure"])
+        state_manager.store_input(task_id, sample_inputs()["internal_design_gage_pressure"])
         paused = execute_workflow(task_id, PIPE_WALL_THICKNESS_ROOT, state=state_manager, reader=standards_reader)
         assert paused.status == ExecutionStatus.AWAITING_INPUT
         for engineering_input in sample_inputs().values():

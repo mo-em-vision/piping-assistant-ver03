@@ -24,6 +24,6 @@
       "react-dom": ["./node_modules/react-dom"]
     }
   },
-  "include": ["src", "electron", "vite-env.d.ts", "../dev/desktop_ui"],
+  "include": ["src", "electron", "vite-env.d.ts", "../dev/desktop_ui", "../contracts"],
   "exclude": ["../dev/desktop_ui/tests"]
 }

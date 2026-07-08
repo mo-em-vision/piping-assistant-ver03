@@ -2,6 +2,61 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
+
+@dataclass
+class PromptAssemblyContext:
+    """Structured context for assembling a single parameter ask prompt."""
+
+    parameter_id: str
+    label: str
+    symbol: str | None = None
+    phase: str | None = None
+    purpose: str | None = None
+    usage_site: str | None = None
+    units: tuple[str, ...] = ()
+    options: tuple[str, ...] = ()
+    examples: tuple[str, ...] = ()
+    warnings: tuple[str, ...] = ()
+    next_step: str | None = None
+    body: str | None = None
+
+
+def render_parameter_prompt(ctx: PromptAssemblyContext) -> str:
+    """Render a user-facing prompt from structured context."""
+    if ctx.body and ctx.body.strip():
+        base = ctx.body.strip()
+    else:
+        headline = f"Enter {ctx.label}"
+        if ctx.symbol:
+            headline += f" ({ctx.symbol})"
+        parts: list[str] = [headline]
+        if ctx.purpose:
+            parts.append(ctx.purpose.rstrip("."))
+        if ctx.usage_site:
+            parts.append(ctx.usage_site.rstrip("."))
+        base = ". ".join(parts) + "."
+
+    lines = [base]
+    if ctx.units:
+        unit_text = ", ".join(ctx.units)
+        lines.append(f"Include units ({unit_text}).")
+    if ctx.examples:
+        examples = ", ".join(f"`{item}`" for item in ctx.examples)
+        lines.append(f"Examples: {examples}.")
+    if ctx.warnings:
+        for warning in ctx.warnings:
+            lines.append(warning.rstrip(".") + ".")
+    if ctx.next_step:
+        lines.append(ctx.next_step.rstrip(".") + ".")
+    if ctx.options:
+        lines.append("")
+        lines.extend(format_numbered_choices(ctx.options))
+        lines.append("")
+        lines.append(format_reply_hint(len(ctx.options)))
+    return "\n".join(lines)
+
 
 def format_numbered_choices(
     options: tuple[str, ...] | list[str],

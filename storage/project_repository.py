@@ -22,6 +22,18 @@ def _json_default(value: Any) -> Any:
     raise TypeError(f"Object of type {type(value)!r} is not JSON serializable")
 
 
+def _task_status_from_payload(task_data: dict[str, Any]) -> str:
+    status = task_data.get("status")
+    if status:
+        return str(status)
+    execution_context = task_data.get("execution_context")
+    if isinstance(execution_context, dict):
+        context_status = execution_context.get("status")
+        if context_status:
+            return str(context_status)
+    return "awaiting_input"
+
+
 class ProjectRepository:
     def __init__(self, database: DesktopDatabase) -> None:
         self._db = database
@@ -192,7 +204,7 @@ class ProjectRepository:
                     (
                         project_id,
                         task_id,
-                        str(task_data.get("status") or "awaiting_input"),
+                        _task_status_from_payload(task_data),
                         str(workflow) if workflow else None,
                         json.dumps(task_data, default=_json_default),
                         now,

@@ -4,10 +4,21 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from api.desktop_service import DesktopApiService
 from api.standards_browse import build_standards_browse_payload
 from config.loader import CLIConfig
 from engine.reference.standards_reader import StandardsReader
+
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+def _nodes_db_available(project_root: Path | None = None) -> bool:
+    root = project_root or _REPO_ROOT
+    return (
+        root / "knowledge" / "standards" / "asme" / "asme_b31.3" / "asme_b313_nodes.db"
+    ).exists()
 
 
 def _service(project_root: Path, tmp_path: Path) -> DesktopApiService:
@@ -60,12 +71,16 @@ def _find_group_by_label(tree: list[dict], label: str) -> dict | None:
     return None
 
 
+@pytest.mark.skipif(
+    not _nodes_db_available(),
+    reason="Run scripts/build_standards_nodes_db.py to build asme_b313_nodes.db",
+)
 def test_build_standards_browse_tree_includes_known_nodes(project_root: Path) -> None:
     reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
     payload = build_standards_browse_payload(reader, standard="asme_b31.3")
 
     node_ids = _collect_node_ids(payload["tree"])
-    assert "B313-304.1.1" in node_ids
+    assert "304.1.1-a" in node_ids
     assert "asme-b313-table-A-1" in node_ids
 
     section_labels = [item["label"] for item in payload["tree"] if item.get("kind") == "group"]
@@ -73,6 +88,10 @@ def test_build_standards_browse_tree_includes_known_nodes(project_root: Path) ->
     assert any(label == "Available tasks" for label in section_labels)
 
 
+@pytest.mark.skipif(
+    not _nodes_db_available(),
+    reason="Run scripts/build_standards_nodes_db.py to build asme_b313_nodes.db",
+)
 def test_appendix_a_tree_omits_redundant_folder_group(project_root: Path) -> None:
     reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
     payload = build_standards_browse_payload(reader, standard="asme_b31.3")
@@ -90,6 +109,10 @@ def test_appendix_a_tree_omits_redundant_folder_group(project_root: Path) -> Non
     assert _find_leaf(payload["tree"], "asme-b313-table-A-1") is not None
 
 
+@pytest.mark.skipif(
+    not _nodes_db_available(),
+    reason="Run scripts/build_standards_nodes_db.py to build asme_b313_nodes.db",
+)
 def test_browse_links_pipe_wall_thickness_workflow(project_root: Path) -> None:
     reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
     payload = build_standards_browse_payload(reader, standard="asme_b31.3")
@@ -104,9 +127,9 @@ def test_browse_links_pipe_wall_thickness_workflow(project_root: Path) -> None:
     ]
     assert any(child.get("workflow_id") == "pipe_wall_thickness_design" for child in workflow_leaves)
 
-    node_304 = _find_leaf(payload["tree"], "304.1.1")
+    node_304 = _find_leaf(payload["tree"], "304.1.1-a")
     if node_304 is None:
-        node_304 = _find_leaf(payload["tree"], "B313-304.1.1")
+        node_304 = _find_leaf(payload["tree"], "304.1.1")
     assert node_304 is not None
     related = node_304.get("related_workflows") or []
     assert any(item.get("id") == "pipe_wall_thickness_design" for item in related)
@@ -118,6 +141,10 @@ def test_browse_links_pipe_wall_thickness_workflow(project_root: Path) -> None:
     assert any(item.get("id") == "mawp_design" for item in table_related)
 
 
+@pytest.mark.skipif(
+    not _nodes_db_available(),
+    reason="Run scripts/build_standards_nodes_db.py to build asme_b313_nodes.db",
+)
 def test_get_standards_browse_endpoint(project_root: Path, tmp_path: Path) -> None:
     service = _service(project_root, tmp_path)
     payload = service.get_standards_browse("asme_b31.3")
@@ -125,4 +152,4 @@ def test_get_standards_browse_endpoint(project_root: Path, tmp_path: Path) -> No
     assert payload["standard"] == "ASME B31.3"
     assert payload["standard_slug"] == "asme_b31.3"
     assert isinstance(payload["tree"], list)
-    assert "B313-304.1.1" in _collect_node_ids(payload["tree"])
+    assert "304.1.1-a" in _collect_node_ids(payload["tree"])

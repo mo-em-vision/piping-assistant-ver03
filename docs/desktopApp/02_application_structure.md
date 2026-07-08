@@ -79,7 +79,7 @@ The application should display engineering workflows available to the user.
 
 Examples:
 
-- Pipe Thickness Calculation
+- Pipe Wall Thickness Design
 - Flange Selection
 - Material Selection
 - Tank Design
@@ -341,7 +341,7 @@ User:
 
 AI:
 
-"I detected a Pipe Thickness Calculation task. Would you like to start a new calculation workspace?"
+"I detected a Pipe Wall Thickness Design task. Would you like to start a new calculation workspace?"
 
 [Start Task]
 

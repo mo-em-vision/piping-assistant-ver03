@@ -193,7 +193,7 @@ describe('taskStore transcript integration', () => {
           workflows: [
             {
               id: 'pipe_wall_thickness_design',
-              name: 'Pipe Thickness Calculation',
+              name: 'Pipe Wall Thickness Design',
               description: 'ASME B31.3',
               discipline: 'Piping',
               available: true,

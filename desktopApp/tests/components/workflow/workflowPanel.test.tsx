@@ -12,9 +12,9 @@ import { mockTaskState } from '@/mock/taskState.mock'
 
 describe('WorkflowHeader', () => {
   it('renders task name only', () => {
-    render(<WorkflowHeader taskName="Pipe Thickness Calculation" />)
+    render(<WorkflowHeader taskName="Pipe Wall Thickness Design" />)
 
-    expect(screen.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Pipe Wall Thickness Design' })).toBeInTheDocument()
     expect(
       screen.queryByText(/Calculation of Minimum Required Thickness of a straight section pipe/i),
     ).not.toBeInTheDocument()

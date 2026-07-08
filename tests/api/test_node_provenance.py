@@ -28,17 +28,17 @@ def standards_reader(project_root: Path) -> StandardsReader:
 
 
 def test_provenance_for_node_shape(standards_reader: StandardsReader) -> None:
-    provenance = provenance_for_node(standards_reader, "B313-304.1.1")
+    provenance = provenance_for_node(standards_reader, "304.1.1-a")
 
     assert provenance is not None
-    assert provenance["node_id"] == "B313-304.1.1"
-    assert provenance["paragraph"] == "304.1.1"
+    assert provenance["node_id"] == "304.1.1-a"
+    assert provenance["paragraph"] == "304.1.1-a"
     assert provenance["hover_excerpt"]
     assert provenance["standard"] == "ASME B31.3"
 
 
 def test_provenance_for_node_includes_source_field(standards_reader: StandardsReader) -> None:
-    provenance = provenance_for_node(standards_reader, "B313-304.1.1", source_field="purpose")
+    provenance = provenance_for_node(standards_reader, "304.1.1-a", source_field="purpose")
 
     assert provenance is not None
     assert provenance["source_field"] == "purpose"
@@ -66,13 +66,13 @@ def test_display_outputs_include_provenance(standards_reader: StandardsReader) -
     planning = {
         "goal": "pipe wall thickness design",
         "action": "request_input",
-        "active_definition_node": "B313-304.1.1",
+        "active_definition_node": "304.1.1-a",
         "missing_inputs": ["material"],
         "current_phase": "parameter_gathering",
     }
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
-    task.active_nodes = ["B313-304.1.1"]
+    task.active_nodes = ["304.1.1-a"]
     manager.replace_task(task.task_id, task)
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
@@ -119,14 +119,14 @@ def test_step_provenance_for_calculation_step(standards_reader: StandardsReader)
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
     task_with_planning(
         task,
-        {"active_definition_node": "B313-304.1.1"},
+        {"active_definition_node": "304.1.1-a"},
         workflow_id="pipe_wall_thickness_design",
     )
-    task.active_nodes = ["B313-304.1.1"]
+    task.active_nodes = ["304.1.1-a"]
     manager.replace_task(task.task_id, task)
 
     provenance = step_provenance(standards_reader, task, "thickness", planning_projection(task))
 
     assert provenance is not None
-    assert provenance["node_id"] == "B313-304.1.1"
+    assert provenance["node_id"] == "304.1.1-a"
     assert provenance["source_field"] == "title"

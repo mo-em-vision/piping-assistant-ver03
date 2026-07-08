@@ -6,7 +6,7 @@ import type { TaskStateDto } from '@/types/backend/api'
 function pipeWallState(): TaskStateDto {
   return {
     task_id: 'test-task',
-    name: 'Pipe Thickness Calculation',
+    name: 'Pipe Wall Thickness Design',
     workflow_id: 'pipe_wall_thickness_design',
     discipline: 'Piping',
     description: 'test',

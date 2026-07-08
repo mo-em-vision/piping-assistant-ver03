@@ -41,7 +41,7 @@ def test_straight_pipe_prompt_is_deterministic() -> None:
     )
 
     assert prompt is not None
-    assert "straight section" in prompt.lower()
+    assert "straight pipe" in prompt.lower()
     assert "choose one" in prompt.lower()
     assert "1." in prompt
     assert plan.current_phase == NavigationPhase.EXPANSION_ASSUMPTIONS

@@ -195,25 +195,13 @@ def _build_planner_graph_summary(plan: EngineeringPlan) -> dict[str, int]:
     }
 
 
-_PIPE_WALL_TRAVERSAL_SLUGS = frozenset({"pipe_wall_thickness_design", "pipe_wall_thickness"})
-
-
 def _traversal_support(plan: EngineeringPlan) -> dict[str, str | None]:
-    slug = plan.workflow_id.replace("-", "_")
-    if slug not in _PIPE_WALL_TRAVERSAL_SLUGS:
-        return {
-            "level": "none",
-            "note": (
-                "Traversal timeline is only built for pipe wall thickness workflows today. "
-                "Use the phase and requirements panels for other workflows."
-            ),
-        }
-    if plan.traversal is None:
-        return {
-            "level": "limited",
-            "note": "Traversal state is unavailable for this engineering plan snapshot.",
-        }
-    return {"level": "full", "note": None}
+    if plan.traversal is not None:
+        return {"level": "full", "note": None}
+    return {
+        "level": "limited",
+        "note": "Traversal state is unavailable for this engineering plan snapshot.",
+    }
 
 
 def _resolution_label(*, resolution_kind: str, awaiting_user_input: bool) -> str:

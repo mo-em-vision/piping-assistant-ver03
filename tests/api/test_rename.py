@@ -64,7 +64,7 @@ def test_rename_task_updates_display_name_and_preserves_id(temp_service: Desktop
     project = temp_service.create_project("Rename Task Project")
     created = temp_service.create_task("pipe_wall_thickness_design", project["id"])
     task_id = created["task_id"]
-    assert created["name"] == "Pipe Thickness Calculation"
+    assert created["name"] == "Pipe Wall Thickness Design"
 
     renamed = temp_service.rename_task(task_id, "Line 200 Thickness", project["id"])
     assert renamed["task_id"] == task_id

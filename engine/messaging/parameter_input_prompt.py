@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from engine.graph.graph_timeline import graph_question_for_field
 from engine.graph.node_interaction import (
+    InteractionMode,
     NodeInteractionSpec,
     collect_path_interactions,
     collect_root_interactions,
@@ -13,7 +13,17 @@ from engine.graph.node_interaction import (
     question_for_interaction,
 )
 from engine.messaging.formula_parameter_prompt import guidance_for_parameter_input
-from engine.messaging.workflow_parameter_prompts import default_workflow_parameter_prompt
+from engine.messaging.parameter_prompt_context import (
+    parameter_metadata_context,
+    parameter_prompt_from_metadata,
+)
+from engine.messaging.prompt_format import PromptAssemblyContext, render_parameter_prompt
+from engine.messaging.step_prompt import build_interaction_step_prompt
+from engine.messaging.workflow_parameter_prompts import (
+    default_workflow_parameter_prompt,
+    short_workflow_parameter_prompt,
+)
+from engine.reference.parameter_keys import canonical_parameter_key, parameter_display_label
 from engine.reference.standards_reader import StandardsReader
 from models.task import Task
 
@@ -66,37 +76,232 @@ def build_parameter_input_prompt(
     planning: dict[str, Any] | None = None,
 ) -> str | None:
     """Return a user-facing prompt for a workflow parameter input."""
+    canonical_id = canonical_parameter_key(parameter_id)
     facts = dict(task.fact_store.active_facts())
+    spec = interaction_for_parameter(reader, task, canonical_id)
 
-    spec = interaction_for_parameter(reader, task, parameter_id)
+    if spec is not None and _needs_numbered_interaction_prompt(spec, canonical_id):
+        numbered = build_interaction_step_prompt(
+            reader=reader,
+            task=task,
+            parameter_id=canonical_id,
+            planning=planning,
+            spec=spec,
+        )
+        if numbered:
+            return numbered
+
     if spec is not None:
         interaction_prompt = question_for_interaction(spec, facts).strip()
         if interaction_prompt:
             return interaction_prompt
 
-    graph_question = graph_question_for_field(reader, parameter_id)
-    if graph_question and graph_question.strip():
-        return graph_question.strip()
+    metadata_ctx = parameter_metadata_context(reader, canonical_id)
+    metadata_prompt = parameter_prompt_from_metadata(metadata_ctx)
+    if metadata_prompt:
+        return _enrich_metadata_prompt(metadata_ctx, metadata_prompt, planning)
 
-    default_prompt = default_workflow_parameter_prompt(parameter_id)
+    equation_guidance = guidance_for_parameter_input(reader, task, canonical_id)
+    if equation_guidance:
+        return _enrich_equation_guidance(
+            reader,
+            task,
+            canonical_id,
+            equation_guidance.strip(),
+            planning=planning,
+            metadata_ctx=metadata_ctx,
+        )
+
+    legacy = _legacy_phase_question(canonical_id, planning)
+    if legacy:
+        return legacy
+
+    default_prompt = default_workflow_parameter_prompt(canonical_id)
     if default_prompt:
         return default_prompt
 
-    equation_guidance = guidance_for_parameter_input(reader, task, parameter_id)
-    if equation_guidance:
-        return equation_guidance.strip()
+    return _final_messaging_fallback(canonical_id, planning=planning, metadata_ctx=metadata_ctx)
 
-    if planning:
-        phase_questions = planning.get("phase_questions") or {}
-        phase_missing = planning.get("phase_missing") or {}
-        if isinstance(phase_questions, dict) and isinstance(phase_missing, dict):
-            for phase, fields in phase_missing.items():
-                if not isinstance(fields, list) or parameter_id not in fields:
-                    continue
-                questions = phase_questions.get(phase)
-                if isinstance(questions, dict):
-                    prompt = questions.get(parameter_id)
-                    if isinstance(prompt, str) and prompt.strip():
-                        return prompt.strip()
 
+def build_short_parameter_input_prompt(
+    reader: StandardsReader,
+    task: Task,
+    parameter_id: str,
+    *,
+    planning: dict[str, Any] | None = None,
+) -> str | None:
+    """Return a short composer prompt without numbered choices or long narration."""
+    canonical_id = canonical_parameter_key(parameter_id)
+    facts = dict(task.fact_store.active_facts())
+
+    catalog_prompt = short_workflow_parameter_prompt(canonical_id)
+    if catalog_prompt:
+        return catalog_prompt
+
+    spec = interaction_for_parameter(reader, task, canonical_id)
+    if spec is not None:
+        if spec.question and spec.question.strip():
+            return spec.question.strip()
+        interaction_prompt = question_for_interaction(spec, facts).strip()
+        if interaction_prompt:
+            return interaction_prompt
+
+    metadata_ctx = parameter_metadata_context(reader, canonical_id)
+    metadata_prompt = parameter_prompt_from_metadata(metadata_ctx)
+    if metadata_prompt:
+        label = (
+            metadata_ctx.name
+            if metadata_ctx and metadata_ctx.name
+            else parameter_display_label(canonical_id, reader=reader)
+        )
+        symbol = metadata_ctx.canonical_symbol if metadata_ctx else None
+        headline = f"Enter {label}"
+        if symbol:
+            headline += f" ({symbol})"
+        return headline + "."
+
+    legacy = _legacy_phase_question(canonical_id, planning)
+    if legacy:
+        return _first_sentence(legacy)
+
+    default_prompt = default_workflow_parameter_prompt(canonical_id)
+    if default_prompt:
+        return _first_sentence(default_prompt)
+
+    label = parameter_display_label(canonical_id, reader=reader)
+    return f"Enter {label}."
+
+
+def _first_sentence(text: str) -> str:
+    stripped = text.strip()
+    if not stripped:
+        return stripped
+    for separator in (". ", ".\n"):
+        index = stripped.find(separator)
+        if index > 0:
+            return stripped[: index + 1].strip()
+    return stripped
+
+
+def _needs_numbered_interaction_prompt(spec: NodeInteractionSpec, parameter_id: str) -> bool:
+    if parameter_id == "straight_pipe_section":
+        return True
+    if spec.mode == InteractionMode.DECISION and spec.options:
+        return True
+    if spec.confirmation_required and spec.default is not None:
+        return True
+    return False
+
+
+def _legacy_phase_question(parameter_id: str, planning: dict[str, Any] | None) -> str | None:
+    if not planning:
+        return None
+    phase_questions = planning.get("phase_questions") or {}
+    phase_missing = planning.get("phase_missing") or {}
+    if not isinstance(phase_questions, dict) or not isinstance(phase_missing, dict):
+        return None
+    for phase, fields in phase_missing.items():
+        if not isinstance(fields, list) or parameter_id not in fields:
+            continue
+        questions = phase_questions.get(phase)
+        if isinstance(questions, dict):
+            prompt = questions.get(parameter_id)
+            if isinstance(prompt, str) and prompt.strip():
+                return prompt.strip()
     return None
+
+
+def _enrich_metadata_prompt(
+    metadata_ctx,
+    prompt: str,
+    planning: dict[str, Any] | None,
+) -> str:
+    if metadata_ctx is None:
+        return prompt
+    ctx = PromptAssemblyContext(
+        parameter_id=metadata_ctx.parameter_id,
+        label=metadata_ctx.name or parameter_display_label(metadata_ctx.parameter_id),
+        symbol=metadata_ctx.canonical_symbol,
+        phase=str((planning or {}).get("current_phase") or "") or None,
+        body=prompt,
+        units=metadata_ctx.allowed_units,
+    )
+    return render_parameter_prompt(ctx)
+
+
+def _enrich_equation_guidance(
+    reader: StandardsReader,
+    task: Task,
+    parameter_id: str,
+    guidance: str,
+    *,
+    planning: dict[str, Any] | None,
+    metadata_ctx,
+) -> str:
+    label = (
+        metadata_ctx.name
+        if metadata_ctx and metadata_ctx.name
+        else parameter_display_label(parameter_id, reader=reader)
+    )
+    symbol = metadata_ctx.canonical_symbol if metadata_ctx else None
+    ctx = PromptAssemblyContext(
+        parameter_id=parameter_id,
+        label=label,
+        symbol=symbol,
+        phase=str((planning or {}).get("current_phase") or "") or None,
+        body=guidance,
+        usage_site=_equation_usage_line(reader, task, parameter_id),
+        units=metadata_ctx.allowed_units if metadata_ctx else (),
+        examples=_default_examples_for_parameter(parameter_id),
+    )
+    return render_parameter_prompt(ctx)
+
+
+def _equation_usage_line(reader: StandardsReader, task: Task, parameter_id: str) -> str | None:
+    from engine.messaging.formula_parameter_prompt import _focus_node_for_parameter
+    from engine.reference.formula_display import load_equation_context
+
+    facts = dict(task.fact_store.active_facts())
+    node_id = _focus_node_for_parameter(reader, task, facts)
+    if node_id is None:
+        return None
+    eq_ctx = load_equation_context(reader, node_id, task_facts=facts)
+    display = eq_ctx.get("display")
+    if isinstance(display, str) and display.strip():
+        return f"Used in the governing equation: {display.strip()}"
+    return None
+
+
+def _default_examples_for_parameter(parameter_id: str) -> tuple[str, ...]:
+    if parameter_id == "internal_design_gage_pressure":
+        return ("500 psi", "8 bar", "3.5 MPa")
+    if parameter_id == "design_temperature":
+        return ("400 F", "200 C")
+    if parameter_id in {"material_grade", "material"}:
+        return ("ASTM A106 Grade B",)
+    if parameter_id == "corrosion_allowance":
+        return ("1.5 mm", "0.0625 in")
+    return ()
+
+
+def _final_messaging_fallback(
+    parameter_id: str,
+    *,
+    planning: dict[str, Any] | None,
+    metadata_ctx,
+) -> str:
+    label = (
+        metadata_ctx.name
+        if metadata_ctx and metadata_ctx.name
+        else parameter_display_label(parameter_id)
+    )
+    ctx = PromptAssemblyContext(
+        parameter_id=parameter_id,
+        label=label,
+        symbol=metadata_ctx.canonical_symbol if metadata_ctx else None,
+        phase=str((planning or {}).get("current_phase") or "") or None,
+        purpose=f"Provide {label.lower()} to continue the workflow",
+        units=metadata_ctx.allowed_units if metadata_ctx else (),
+        examples=_default_examples_for_parameter(parameter_id),
+    )
+    return render_parameter_prompt(ctx)

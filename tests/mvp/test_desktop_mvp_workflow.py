@@ -63,7 +63,13 @@ def test_mvp_project_task_and_input_collection(mvp_service: DesktopApiService) -
     facts = updated.get("facts") or updated.get("inputs") or {}
     assert facts
     if "material_grade" in facts:
-        assert facts["material_grade"]["value"] == "astm_a106_gr_b"
+        material = facts["material_grade"]
+        assert material["key"] == "material_grade"
+        value = material["value"]
+        assert isinstance(value, dict)
+        assert value["normalized_key"] == "astm_a106_gr_b"
+        assert material.get("display_value")
+        assert material["source"]["source_type"] == "user_input"
 
     tasks = mvp_service.list_tasks(session_id)
     assert len(tasks["tasks"]) == 1

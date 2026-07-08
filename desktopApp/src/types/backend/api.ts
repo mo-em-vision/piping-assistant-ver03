@@ -187,6 +187,7 @@ export interface CurrentAskDto {
   kind: 'input' | 'clarify' | 'waiting'
   parameter_id?: string | null
   prompt?: string | null
+  short_prompt?: string | null
 }
 
 export interface WorkflowDisplayDto {

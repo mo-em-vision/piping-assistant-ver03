@@ -148,6 +148,9 @@ def test_presentation_equation_result_includes_render_steps() -> None:
     assert {"original", "substituted", "simplified", "evaluated"} <= set(steps.keys())
     assert steps["original"]
     assert steps["evaluated"]
+    equation_display_trace = equation_blocks[0].get("equation_display_trace")
+    if isinstance(equation_display_trace, dict):
+        assert equation_display_trace.get("status") in {"evaluated", "blocked"}
 
 
 def test_workflow_state_builder_attaches_presentation_blocks() -> None:

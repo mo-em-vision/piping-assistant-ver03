@@ -1,0 +1,15 @@
+.reference-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  margin-top: 0.45rem;
+}
+
+.reference-chip-list--inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.4rem;
+  margin-top: 0;
+  margin-left: 0.25rem;
+  vertical-align: baseline;
+}

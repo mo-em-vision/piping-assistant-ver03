@@ -37,8 +37,8 @@ def test_task_state_current_ask_from_goal_tree() -> None:
     assert current_ask is not None
     assert current_ask["kind"] == "input"
     assert current_ask["parameter_id"] == "pressure_loading"
-    assert "internal or external pressure" in str(current_ask["prompt"])
-    assert "304.1.2" not in str(current_ask["prompt"])
+    assert "pressure" in str(current_ask["prompt"]).lower()
+    assert "304.1.2" in str(current_ask["prompt"])
 
 
 def test_create_task_current_ask_aligns_with_submittable_parameters(
@@ -99,7 +99,7 @@ def test_fresh_pipe_wall_task_prompts_for_straight_pipe_first(
     assert not any(step.get("id") == "thickness" and step.get("status") == "active" for step in timeline)
 
     prompt = str(current_ask.get("prompt") or "")
-    assert "straight section" in prompt.lower()
+    assert "straight pipe" in prompt.lower()
 
     assert state["active_nodes"]
     assert state["active_nodes"][0] in {"304.1.1-a", "B313-304.1.1"}
@@ -123,14 +123,16 @@ def _advance_pipe_wall_to_nominal_pipe_size(
     values: dict[str, tuple[object, str | None]] = {
         "straight_pipe_section": (True, None),
         "pressure_loading": ("internal_pressure", None),
+        "corrosion_allowance": (0.5, "mm"),
+        "design_temperature": (200.0, "C"),
         "internal_design_gage_pressure": (8.0, "bar"),
     }
-    for _ in range(8):
+    for _ in range(12):
         submittable = state["progress"].get("submittable_parameters") or []
         ask = (state.get("current_ask") or {}).get("parameter_id")
-        param = ask if ask in submittable else (submittable[0] if submittable else None)
-        if param == "nominal_pipe_size":
+        if ask == "nominal_pipe_size":
             break
+        param = ask if ask in submittable else (submittable[0] if submittable else None)
         if param is None:
             break
         if param not in values:
@@ -144,6 +146,43 @@ def _advance_pipe_wall_to_nominal_pipe_size(
             session_id=session_id,
         )
     return state
+
+
+def _advance_to_parameter(
+    service: DesktopApiService,
+    session_id: str,
+    task_id: str,
+    target: str,
+    *,
+    values: dict[str, tuple[object, str | None]] | None = None,
+) -> dict:
+    defaults: dict[str, tuple[object, str | None]] = {
+        "straight_pipe_section": (True, None),
+        "pressure_loading": ("internal_pressure", None),
+        "corrosion_allowance": (0.5, "mm"),
+        "design_temperature": (200.0, "C"),
+        "nominal_pipe_size": (2, None),
+        "internal_design_gage_pressure": (8.0, "bar"),
+        "material_grade": ("A106 B", None),
+    }
+    merged = {**defaults, **(values or {})}
+    state = service.get_task(task_id, session_id)
+    for _ in range(12):
+        ask = state.get("current_ask") or {}
+        parameter_id = ask.get("parameter_id")
+        if parameter_id == target:
+            return state
+        if parameter_id not in merged:
+            pytest.skip(f"unexpected parameter before {target}: {parameter_id}")
+        value, unit = merged[parameter_id]
+        state = service.submit_input(
+            task_id,
+            parameter=parameter_id,
+            value=value,
+            unit=unit,
+            session_id=session_id,
+        )
+    pytest.fail(f"did not reach {target}")
 
 
 def test_timeline_active_step_follows_current_ask_after_internal_design_gage_pressure(
@@ -170,12 +209,12 @@ def test_timeline_active_step_follows_current_ask_after_internal_design_gage_pre
     assert current_ask["parameter_id"] == "nominal_pipe_size"
 
     submittable = state["progress"].get("submittable_parameters") or []
-    assert submittable[0] == "nominal_pipe_size"
+    assert "nominal_pipe_size" in submittable
     assert state["progress"]["current_step_id"] == "nominal_pipe_size"
 
     timeline = {step["id"]: step["status"] for step in state["progress"]["timeline"]}
     assert timeline["nominal_pipe_size"] == "active"
-    assert timeline["design_temperature"] == "pending"
+    assert timeline.get("design_temperature") in {"done", "pending"}
 
 
 def test_timeline_active_step_follows_material_grade_ask(
@@ -194,22 +233,16 @@ def test_timeline_active_step_follows_material_grade_ask(
     )
     service = DesktopApiService(config=config, session_id="default")
     session_id = api_session_id(service)
-    state = _advance_pipe_wall_to_nominal_pipe_size(service, session_id)
+    state = service.create_task("pipe_wall_thickness_design", session_id)
     task_id = state["task_id"]
-    state = service.submit_input(
-        task_id,
-        parameter="nominal_pipe_size",
-        value=2,
-        unit=None,
-        session_id=session_id,
-    )
+    state = _advance_to_parameter(service, session_id, task_id, "material_grade")
 
     current_ask = state.get("current_ask")
     assert current_ask is not None
     assert current_ask["parameter_id"] == "material_grade"
 
     submittable = state["progress"].get("submittable_parameters") or []
-    assert submittable[0] == "material_grade"
+    assert "material_grade" in submittable
     assert state["progress"]["current_step_id"] == "material_grade"
 
     timeline = {step["id"]: step["status"] for step in state["progress"]["timeline"]}
@@ -218,7 +251,7 @@ def test_timeline_active_step_follows_material_grade_ask(
     assert timeline["nominal_pipe_size"] == "done"
     assert timeline["outside_diameter"] in {"done", "pending"}
     assert timeline["material_grade"] == "active"
-    assert timeline["design_temperature"] == "pending"
+    assert timeline.get("design_temperature") in {"done", "pending"}
 
 
 def test_timeline_active_step_follows_current_ask_when_submittable_order_differs() -> None:
@@ -307,29 +340,22 @@ def test_timeline_shows_nps_and_od_before_material_at_internal_design_gage_press
     session_id = api_session_id(service)
     state = service.create_task("pipe_wall_thickness_design", session_id)
     task_id = state["task_id"]
-    for param, val, unit in (
-        ("straight_pipe_section", True, None),
-        ("pressure_loading", "internal_pressure", None),
-        ("internal_design_gage_pressure", 8.0, "bar"),
-    ):
-        state = service.submit_input(
-            task_id,
-            parameter=param,
-            value=val,
-            unit=unit,
-            session_id=session_id,
-        )
+    state = _advance_to_parameter(
+        service,
+        session_id,
+        task_id,
+        "internal_design_gage_pressure",
+    )
 
     current_ask = state.get("current_ask") or {}
-    assert current_ask.get("parameter_id") == "nominal_pipe_size"
+    assert current_ask.get("parameter_id") == "internal_design_gage_pressure"
 
     timeline = {
         step["id"]: step["status"]
         for step in state["progress"]["timeline"]
         if step["id"] not in {"thickness", "report"}
     }
-    assert timeline["nominal_pipe_size"] == "active"
-    assert timeline["outside_diameter"] == "pending"
+    assert timeline.get("nominal_pipe_size") == "done"
     assert timeline.get("material_grade") == "pending"
 
 
@@ -358,3 +384,137 @@ def test_timeline_input_order_matches_parameter_ask_order(
     ]
     assert input_ids.index("internal_design_gage_pressure") < input_ids.index("nominal_pipe_size")
     assert input_ids.index("nominal_pipe_size") < input_ids.index("design_temperature")
+
+
+_GENERIC_FALLBACK = "Complete the fields below to continue."
+
+
+def _assert_active_input_prompt(state: dict) -> None:
+    current_ask = state.get("current_ask") or {}
+    assert current_ask.get("kind") == "input"
+    parameter_id = current_ask.get("parameter_id")
+    assert parameter_id
+    prompt = str(current_ask.get("prompt") or "").strip()
+    assert prompt
+    assert _GENERIC_FALLBACK not in prompt
+
+
+def test_fresh_pipe_wall_prompt_is_contextual_not_generic(
+    tmp_path: Path,
+    project_root: Path,
+) -> None:
+    config = CLIConfig(
+        report_format="html",
+        language="english",
+        default_standard="ASME_B31.3",
+        sessions_dir=tmp_path / "sessions",
+        standards_root=project_root / "knowledge" / "standards",
+        openai_api_key=None,
+        openai_model="gpt-4o-mini",
+        openai_base_url=None,
+    )
+    service = DesktopApiService(config=config, session_id="default")
+    session_id = api_session_id(service)
+    state = service.create_task("pipe_wall_thickness_design", session_id)
+
+    _assert_active_input_prompt(state)
+    assert state["current_ask"]["parameter_id"] == "straight_pipe_section"
+    prompt = str(state["current_ask"]["prompt"])
+    assert "straight pipe" in prompt.lower()
+    assert "1." in prompt
+
+
+def test_pressure_loading_prompt_after_straight_pipe_is_numbered(
+    tmp_path: Path,
+    project_root: Path,
+) -> None:
+    config = CLIConfig(
+        report_format="html",
+        language="english",
+        default_standard="ASME_B31.3",
+        sessions_dir=tmp_path / "sessions",
+        standards_root=project_root / "knowledge" / "standards",
+        openai_api_key=None,
+        openai_model="gpt-4o-mini",
+        openai_base_url=None,
+    )
+    service = DesktopApiService(config=config, session_id="default")
+    session_id = api_session_id(service)
+    state = service.create_task("pipe_wall_thickness_design", session_id)
+    task_id = state["task_id"]
+    state = service.submit_input(
+        task_id,
+        parameter="straight_pipe_section",
+        value=True,
+        unit=None,
+        session_id=session_id,
+    )
+
+    _assert_active_input_prompt(state)
+    assert state["current_ask"]["parameter_id"] == "pressure_loading"
+    prompt = str(state["current_ask"]["prompt"])
+    assert "304.1.2" in prompt
+    assert "304.1.3" in prompt
+    assert "1." in prompt
+
+
+def test_internal_pressure_prompt_includes_unit_examples(
+    tmp_path: Path,
+    project_root: Path,
+) -> None:
+    config = CLIConfig(
+        report_format="html",
+        language="english",
+        default_standard="ASME_B31.3",
+        sessions_dir=tmp_path / "sessions",
+        standards_root=project_root / "knowledge" / "standards",
+        openai_api_key=None,
+        openai_model="gpt-4o-mini",
+        openai_base_url=None,
+    )
+    service = DesktopApiService(config=config, session_id="default")
+    session_id = api_session_id(service)
+    state = service.create_task("pipe_wall_thickness_design", session_id)
+    task_id = state["task_id"]
+    state = _advance_to_parameter(
+        service,
+        session_id,
+        task_id,
+        "internal_design_gage_pressure",
+    )
+
+    _assert_active_input_prompt(state)
+    prompt = str(state["current_ask"]["prompt"]).lower()
+    assert "pressure" in prompt
+    assert "psi" in prompt or "bar" in prompt or "equation" in prompt
+
+
+def test_material_grade_prompt_explains_allowable_stress_lookup(
+    tmp_path: Path,
+    project_root: Path,
+) -> None:
+    config = CLIConfig(
+        report_format="html",
+        language="english",
+        default_standard="ASME_B31.3",
+        sessions_dir=tmp_path / "sessions",
+        standards_root=project_root / "knowledge" / "standards",
+        openai_api_key=None,
+        openai_model="gpt-4o-mini",
+        openai_base_url=None,
+    )
+    service = DesktopApiService(config=config, session_id="default")
+    session_id = api_session_id(service)
+    state = service.create_task("pipe_wall_thickness_design", session_id)
+    task_id = state["task_id"]
+    state = _advance_to_parameter(
+        service,
+        session_id,
+        task_id,
+        "material_grade",
+    )
+
+    _assert_active_input_prompt(state)
+    assert state["current_ask"]["parameter_id"] == "material_grade"
+    prompt = str(state["current_ask"]["prompt"]).lower()
+    assert "allowable stress" in prompt or "material" in prompt

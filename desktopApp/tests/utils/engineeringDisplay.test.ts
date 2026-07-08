@@ -14,7 +14,7 @@ describe('taskStateManager stress display', () => {
   it('formats timeline fallback values in MPa when unit is Pa', () => {
     const viewModel = buildTaskStateViewModel({
       task_id: 'task-1',
-      name: 'Pipe Thickness Calculation',
+      name: 'Pipe Wall Thickness Design',
       workflow_id: 'pipe_wall_thickness_design',
       discipline: 'Piping',
       description: '',

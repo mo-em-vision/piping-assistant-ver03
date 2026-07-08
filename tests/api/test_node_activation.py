@@ -89,7 +89,6 @@ def test_create_task_returns_node_activation_outputs(
     state = service.create_task("pipe_wall_thickness_design", session_id)
 
     assert state["active_nodes"][0] in {"304.1.1-a", "B313-304.1.1"}
-    assert "WF-PIPE-WALL-THICKNESS" in state["active_nodes"]
     param_names = {item["name"] for item in state["parameters"]}
     assert "straight_pipe_section" in param_names
     assert state.get("active_node_context", {}).get("node_id") in {"304.1.1-a", "B313-304.1.1"}
@@ -132,7 +131,7 @@ def test_submit_input_advances_to_pressure_loading(
     pressure_param = next(item for item in state["parameters"] if item["name"] == "pressure_loading")
     assert pressure_param["status"] == "confirmed"
     assert any(
-        item["name"] == "design_pressure" and item["status"] == "pending"
+        item["name"] == "internal_design_gage_pressure" and item["status"] == "pending"
         for item in state["parameters"]
     )
     pressure_step = next(

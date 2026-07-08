@@ -4,7 +4,7 @@ import type { ProjectSummary, TaskSummary } from '@/types/frontend/workspace'
 export const mockAvailableTasks: TaskSummary[] = [
   {
     id: 'pipe_wall_thickness',
-    name: 'Pipe Thickness Calculation',
+    name: 'Pipe Wall Thickness Design',
     description: 'ASME B31.3 wall thickness design workflow',
     discipline: 'Piping',
   },

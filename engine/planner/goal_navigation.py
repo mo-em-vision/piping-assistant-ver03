@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
+from engine.messaging.parameter_input_prompt import (
+    build_parameter_input_prompt,
+    build_short_parameter_input_prompt,
+)
 from engine.reference.standards_reader import StandardsReader
 from models.fact import fact_is_expansion_ready
 from models.goal import Goal, GoalClass, SatisfactionStatus, goal_parameter_key
@@ -154,6 +157,36 @@ def _prompt_for_goal(
     return None
 
 
+def _attach_short_prompt(
+    ask: dict[str, Any],
+    task: Task,
+    planning: dict[str, Any],
+    *,
+    reader: StandardsReader | None,
+) -> dict[str, Any]:
+    kind = ask.get("kind")
+    if kind == "input":
+        param = ask.get("parameter_id")
+        if isinstance(param, str) and param.strip() and reader is not None:
+            short = build_short_parameter_input_prompt(
+                reader,
+                task,
+                param.strip(),
+                planning=planning,
+            )
+            if short:
+                ask["short_prompt"] = short
+    elif kind == "clarify":
+        prompt = ask.get("prompt")
+        if isinstance(prompt, str) and prompt.strip():
+            ask["short_prompt"] = prompt.strip()
+    elif kind == "waiting":
+        prompt = ask.get("prompt")
+        if isinstance(prompt, str) and prompt.strip():
+            ask["short_prompt"] = prompt.strip()
+    return ask
+
+
 def build_current_ask(
     task: Task,
     planning: dict[str, Any],
@@ -169,20 +202,30 @@ def build_current_ask(
         composer_param = goal.metadata.get("composer_parameter")
         if not isinstance(composer_param, str) or not composer_param.strip():
             composer_param = composer_parameter_id(task, param)
-        return {
-            "kind": "input",
-            "parameter_id": composer_param,
-            "prompt": _prompt_for_goal(goal, planning, task=task, reader=reader),
-        }
+        return _attach_short_prompt(
+            {
+                "kind": "input",
+                "parameter_id": composer_param,
+                "prompt": _prompt_for_goal(goal, planning, task=task, reader=reader),
+            },
+            task,
+            planning,
+            reader=reader,
+        )
 
     blocked = clarify_blocked_goal(task)
     if blocked is not None:
         prompt = blocked.question.prompt.strip() if blocked.question else "Workflow path is blocked."
-        return {
-            "kind": "clarify",
-            "parameter_id": None,
-            "prompt": prompt,
-        }
+        return _attach_short_prompt(
+            {
+                "kind": "clarify",
+                "parameter_id": None,
+                "prompt": prompt,
+            },
+            task,
+            planning,
+            reader=reader,
+        )
 
     from api.workflow_timeline import submittable_parameter_ids
 
@@ -207,11 +250,16 @@ def build_current_ask(
                         if isinstance(candidate, str) and candidate.strip():
                             prompt = candidate.strip()
                             break
-        return {
-            "kind": "input",
-            "parameter_id": param,
-            "prompt": prompt,
-        }
+        return _attach_short_prompt(
+            {
+                "kind": "input",
+                "parameter_id": param,
+                "prompt": prompt,
+            },
+            task,
+            planning,
+            reader=reader,
+        )
 
     current_phase = str(planning.get("current_phase") or "")
     if current_phase == "ready":
@@ -227,11 +275,16 @@ def build_current_ask(
             prompt = None
             if reader is not None:
                 prompt = build_parameter_input_prompt(reader, task, param, planning=planning)
-            return {
-                "kind": "input",
-                "parameter_id": param,
-                "prompt": prompt,
-            }
+            return _attach_short_prompt(
+                {
+                    "kind": "input",
+                    "parameter_id": param,
+                    "prompt": prompt,
+                },
+                task,
+                planning,
+                reader=reader,
+            )
 
     if isinstance(phase_missing, dict):
         for fields in phase_missing.values():

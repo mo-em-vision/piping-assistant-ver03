@@ -57,5 +57,9 @@ def test_inspection_enabled_returns_payload(tmp_path: Path, project_root: Path) 
         summary = payload.get("planner_inspector_summary") or {}
         assert "header" in summary
         assert "traversal_path" in summary
+        projection = payload.get("planner_debug_projection") or {}
+        assert projection.get("workflow_slug")
+        assert "blocked_reason" in projection
+        assert "raw_planner_state" in projection
     finally:
         os.environ.pop("DEV_INSPECTION_ENABLED", None)

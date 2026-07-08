@@ -1,5 +1,6 @@
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 import { EngineeringMathText } from '@/components/math/engineeringMath'
+import { ReferenceChipList } from '@/components/outputs/ReferenceChipList'
 
 import type { ReferenceLinkDto } from '@/types/backend/outputs'
 import type { TextOutputBlock } from '@/types/backend/outputs'
@@ -66,12 +67,18 @@ export function TextOutput({ block }: TextOutputProps) {
           </>
         ) : null}
         <EngineeringMathText text={block.content} />
-        {inlineReferences && block.reference_links?.length ? (
+        {inlineReferences ? (
+          <ReferenceChipList chips={block.reference_chips} className="reference-chip-list--inline" />
+        ) : null}
+        {inlineReferences && !block.reference_chips?.length && block.reference_links?.length ? (
           <InlineReferenceLinks links={block.reference_links} />
         ) : null}
         {block.content_suffix ? <EngineeringMathText text={block.content_suffix} /> : null}
       </p>
-      {!inlineReferences && block.reference_links?.length ? (
+      {!inlineReferences && block.reference_chips?.length ? (
+        <ReferenceChipList chips={block.reference_chips} />
+      ) : null}
+      {!inlineReferences && !block.reference_chips?.length && block.reference_links?.length ? (
         <ReferenceLinkList links={block.reference_links} />
       ) : null}
     </article>

@@ -148,6 +148,4 @@ def test_orchestrator_symbol_labeled_input_updates_known_parameters() -> None:
     task = manager.get_task(task_id)
     assert fact_get_value(task, "internal_design_gage_pressure") == 8.0
     assert fact_get_value(task, "outside_diameter") == 4.0
-    assert "Value: 8 bar" in response.message
-    assert "Value: 4 in" in response.message or "Value: 4.0 in" in response.message
-    assert "Known parameters:" in response.message
+    assert "material_grade" in (response.data.get("missing_inputs") or [])

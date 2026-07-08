@@ -46,6 +46,7 @@ describe('task state missing inputs', () => {
       ...mockTaskState,
       progress: {
         ...mockTaskState.progress,
+        current_step_id: 'design_temperature',
         missing_inputs: ['design_temperature'],
         submittable_parameters: ['design_temperature'],
       },
@@ -55,6 +56,6 @@ describe('task state missing inputs', () => {
 
     expect(state.progress.missing_inputs).toEqual(['design_temperature'])
     expect(state.progress.missing_inputs).not.toContain('nominal_pipe_size')
-    expect(viewModel?.currentStepId).not.toBe('nominal_pipe_size')
+    expect(viewModel?.currentStepId).toBe('design_temperature')
   })
 })

@@ -3,11 +3,28 @@
 from __future__ import annotations
 
 from engine.reference.parameter_value_source import (
+    build_value_provenance,
     resolve_input_value_reference,
     resolve_parameter_value_reference,
 )
 from engine.state.state_manager import TaskStateManager
 from models.task import TaskStatus
+
+
+def test_build_value_provenance_equation_output_pending(standards_reader) -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("value-prov-t", status=TaskStatus.AWAITING_INPUT)
+    task.active_nodes = ["304.1.1-a", "304.1.2-a"]
+
+    provenance = build_value_provenance(
+        standards_reader,
+        "PARAM-required-wall-thickness",
+        task,
+        display_value="",
+    )
+    assert provenance["source_type"] == "equation_output"
+    assert provenance["status"] == "pending_derived"
+    assert "Eq." in provenance["label"] or "§" in provenance["label"]
 
 
 def test_required_wall_thickness_references_internal_pressure_paragraph(standards_reader) -> None:

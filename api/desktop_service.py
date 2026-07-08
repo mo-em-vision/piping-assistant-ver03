@@ -52,7 +52,16 @@ from api.parameter_edit import (
     begin_parameter_edit as begin_parameter_edit_session,
 )
 from api.serializers import task_state, task_summary, workflow_catalog
+from api.completion_next_workflows_transcript import (
+    append_completion_next_workflows_transcript,
+    flatten_transcript_blocks_for_api,
+    maybe_repair_completion_next_workflows_transcript,
+)
+from api.flow_guidance_sync import sync_flow_guidance_transcript
+from api.input_archive_transcript import InputArchiveEvent, append_input_archive_transcript
 from api.task_continuation_service import get_continuation_suggestions
+from engine.planner.goal_navigation import build_current_ask
+from engine.reference.parameter_keys import canonical_parameter_key
 from engine.inspection.performance_trace import attach_trace_to_payload, perf_span
 
 _PROPOSE_DEFAULTS_ON_FIELDS = frozenset(
@@ -110,22 +119,25 @@ class DesktopApiService:
         reader = self._reader()
         if ensure_task_planning(task, reader):
             manager.replace_task(task.task_id, task)
-        return task
+            return task, True
+        return task, False
 
     def _maybe_refresh_stale_pipe_wall_task(self, task, manager):
-        task = self._maybe_ensure_task_planning(task, manager)
+        task, changed = self._maybe_ensure_task_planning(task, manager)
         if not has_execution_trace(task) and task_ready_for_execution(task):
             task = maybe_execute_ready_workflow(task.task_id, manager, self._reader())
+            changed = True
         if not is_pipe_wall_thickness_task(task):
-            return task
+            return task, changed
         if not has_execution_trace(task):
-            return task
+            return task, changed
 
         workflow = str(task.outputs.get("workflow") or "")
         if workflow == "B313-PIPE-WALL-THICKNESS-DESIGN":
             selected = str(task.outputs.get("selected_root") or "")
             if selected and selected != workflow:
                 task.outputs["workflow"] = selected
+                changed = True
 
         has_t = task.outputs.get("t") is not None or task.outputs.get("required_thickness") is not None
         missing_tm = (
@@ -142,7 +154,23 @@ class DesktopApiService:
         if needs_refresh:
             refresh_task_planning(task, self._reader())
             manager.replace_task(task.task_id, task)
-        return task
+            changed = True
+        return task, changed
+
+    def _prepare_task_for_projection(self, task, manager) -> tuple[Any, bool]:
+        task, refresh_changed = self._maybe_refresh_stale_pipe_wall_task(task, manager)
+        task, transcript_changed = sync_flow_guidance_transcript(task, self._reader())
+        if transcript_changed:
+            manager.replace_task(task.task_id, task)
+        repair_changed = False
+        if task.status == TaskStatus.COMPLETED:
+            task, repair_changed = maybe_repair_completion_next_workflows_transcript(
+                task,
+                self._reader(),
+            )
+            if repair_changed:
+                manager.replace_task(task.task_id, task)
+        return task, refresh_changed or transcript_changed or repair_changed
 
     @classmethod
     def from_project_root(cls, project_root: Path | None = None) -> DesktopApiService:
@@ -307,8 +335,9 @@ class DesktopApiService:
             task = manager.get_task(task_id)
         except TaskNotFoundError as exc:
             raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
-        task = self._maybe_refresh_stale_pipe_wall_task(task, manager)
-        self._save_manager(manager, session_id)
+        task, dirty = self._prepare_task_for_projection(task, manager)
+        if dirty:
+            self._save_manager(manager, session_id)
         payload = self._task_state(task, manager)
         # #region agent log
         with open("debug-12f291.log", "a", encoding="utf-8") as _f:
@@ -398,6 +427,7 @@ class DesktopApiService:
             task = manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
             bootstrap_new_task(task, workflow_id, self.config)
             manager.replace_task(task_id, task)
+            task, _dirty = self._prepare_task_for_projection(task, manager)
             self._save_manager(manager, session_id)
             return self._task_state(task, manager)
 
@@ -408,8 +438,9 @@ class DesktopApiService:
             task = manager.set_active_task(task_id)
         except TaskNotFoundError as exc:
             raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
-        task = self._maybe_refresh_stale_pipe_wall_task(task, manager)
-        self._save_manager(manager, session_id)
+        task, dirty = self._prepare_task_for_projection(task, manager)
+        if dirty:
+            self._save_manager(manager, session_id)
         return self._task_state(task, manager)
 
     def delete_task(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
@@ -440,6 +471,7 @@ class DesktopApiService:
             raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
         task.outputs["display_name"] = cleaned
         manager.replace_task(task_id, task)
+        task, _dirty = self._prepare_task_for_projection(task, manager)
         self._save_manager(manager, session_id)
         return self._task_state(task, manager)
 
@@ -459,6 +491,13 @@ class DesktopApiService:
                 manager.get_task(task_id)
             except TaskNotFoundError as exc:
                 raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+
+            task_before = manager.get_task(task_id)
+            was_completed = task_before.status == TaskStatus.COMPLETED
+            reader = self._reader()
+            planning_before = planning_projection(task_before)
+            pre_submit_current_ask = build_current_ask(task_before, planning_before, reader=reader)
+            canonical_parameter = canonical_parameter_key(parameter)
 
             try:
                 task = submit_task_input(
@@ -510,6 +549,32 @@ class DesktopApiService:
                 )
                 manager.replace_task(task_id, task)
             task = manager.get_task(task_id)
+            submitted_fact = task.fact_store.active_fact(canonical_parameter)
+            if submitted_fact is not None:
+                task, archive_changed = append_input_archive_transcript(
+                    task,
+                    InputArchiveEvent(
+                        pre_submit_current_ask=pre_submit_current_ask,
+                        submitted_parameter_id=canonical_parameter,
+                        submitted_raw_value=value,
+                        submitted_unit=unit,
+                        fact=submitted_fact,
+                    ),
+                )
+                if archive_changed:
+                    manager.replace_task(task_id, task)
+                    task = manager.get_task(task_id)
+
+            if task.status == TaskStatus.COMPLETED and not was_completed:
+                task, next_workflows_changed = append_completion_next_workflows_transcript(
+                    task,
+                    reader,
+                )
+                if next_workflows_changed:
+                    manager.replace_task(task_id, task)
+                    task = manager.get_task(task_id)
+
+            task, _dirty = self._prepare_task_for_projection(task, manager)
 
             self._save_manager(manager, session_id)
             return self._task_state(task, manager)
@@ -562,6 +627,7 @@ class DesktopApiService:
 
         refresh_task_planning(task, self._reader(), propose_defaults=False)
         manager.replace_task(task_id, task)
+        task, _dirty = self._prepare_task_for_projection(task, manager)
         self._save_manager(manager, session_id)
         return self._task_state(task, manager)
 

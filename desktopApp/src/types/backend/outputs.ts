@@ -1,6 +1,13 @@
 import type { NodeProvenanceDto } from '@/types/backend/api'
 
-export type OutputBlockType = 'text' | 'equation' | 'table' | 'graph' | 'reference' | 'result'
+export type OutputBlockType =
+  | 'text'
+  | 'equation'
+  | 'table'
+  | 'graph'
+  | 'reference'
+  | 'result'
+  | 'next_workflows'
 
 export type TextVariant = 'body' | 'caption' | 'warning' | 'assumption'
 
@@ -20,6 +27,19 @@ export interface OutputBlockBase {
 
 export type ReferenceLinkKind = 'node' | 'table'
 
+export interface ReferenceChipDto {
+  ref_type: 'node' | 'equation' | 'table' | 'paragraph'
+  id: string
+  label: string
+  title?: string
+  target: {
+    node_id?: string
+    equation_id?: string
+    table_id?: string
+    paragraph_id?: string
+  }
+}
+
 export interface ReferenceLinkDto {
   node_id: string
   label: string
@@ -28,12 +48,39 @@ export interface ReferenceLinkDto {
   reference_kind?: ReferenceLinkKind | null
 }
 
+export type ValueProvenanceSourceType =
+  | 'user_input'
+  | 'equation_output'
+  | 'table_lookup'
+  | 'default'
+  | 'unknown'
+
+export type ValueProvenanceStatus = 'resolved' | 'pending_derived' | 'awaiting_user_input'
+
+export interface ValueProvenanceSourceRefDto {
+  node_id?: string
+  equation_id?: string
+  table_id?: string
+  paragraph_id?: string
+  parameter_id?: string
+}
+
+export interface ValueProvenanceDto {
+  source_type: ValueProvenanceSourceType
+  status: ValueProvenanceStatus
+  label: string
+  detail?: string
+  source_ref?: ValueProvenanceSourceRefDto
+  reference_chips?: ReferenceChipDto[]
+}
+
 export interface TextOutputBlock extends OutputBlockBase {
   type: 'text'
   content: string
   content_suffix?: string
   variant?: TextVariant
   reference_links?: ReferenceLinkDto[]
+  reference_chips?: ReferenceChipDto[]
   reference_links_placement?: 'inline' | 'below'
 }
 
@@ -57,11 +104,58 @@ export interface EquationInputTableRowDto {
   value_status?: string
   definition_reference?: ReferenceLinkDto | null
   value_reference?: ReferenceLinkDto | null
+  value_provenance?: ValueProvenanceDto
+  reference_chips?: ReferenceChipDto[]
 }
 
 export interface EquationInputTableDto {
   columns: TableColumnDto[]
   rows: EquationInputTableRowDto[]
+}
+
+export type EquationDisplayStatus = 'evaluated' | 'blocked' | 'failed'
+export type EquationDisplayLatexSource =
+  | 'metadata_display_latex'
+  | 'metadata_display_text'
+  | 'sympy_generated'
+export type EquationDisplaySourceType =
+  | 'user_input'
+  | 'table_lookup'
+  | 'equation_output'
+  | 'default'
+  | 'system'
+
+export interface EquationDisplayQuantityDto {
+  symbol: string
+  value: number
+  unit: string
+  display_value: string
+}
+
+export interface EquationDisplayInputDto {
+  symbol: string
+  parameter_id?: string | null
+  label: string
+  value?: number | null
+  unit?: string | null
+  display_value?: string | null
+  source_type?: EquationDisplaySourceType | null
+  source_ref?: string | null
+}
+
+export interface EquationDisplayTraceDto {
+  equation_id: string
+  node_id: string
+  paragraph?: string | null
+  title?: string | null
+  symbolic_latex: string
+  substituted_latex?: string | null
+  result_latex?: string | null
+  latex_source: EquationDisplayLatexSource
+  result?: EquationDisplayQuantityDto | null
+  inputs: EquationDisplayInputDto[]
+  intermediate_values: EquationDisplayQuantityDto[]
+  status: EquationDisplayStatus
 }
 
 export interface EquationOutputBlock extends OutputBlockBase {
@@ -73,6 +167,8 @@ export interface EquationOutputBlock extends OutputBlockBase {
   result?: EquationResultDto | null
   leading_result?: EquationResultDto | null
   nomenclature_reference?: ReferenceLinkDto | null
+  reference_chips?: ReferenceChipDto[]
+  equation_display_trace?: EquationDisplayTraceDto | null
 }
 
 export interface TableColumnDto {
@@ -125,6 +221,25 @@ export interface ResultOutputBlock extends OutputBlockBase {
   status?: 'pass' | 'fail' | 'pending' | 'info'
 }
 
+export interface NextWorkflowActionDto {
+  type: 'start_workflow'
+  workflow_id: string
+}
+
+export interface NextWorkflowSuggestionDto {
+  workflow_id: string
+  title: string
+  description?: string
+  available: boolean
+  action?: NextWorkflowActionDto
+}
+
+export interface NextWorkflowsOutputBlock extends OutputBlockBase {
+  type: 'next_workflows'
+  content: string
+  suggestions: NextWorkflowSuggestionDto[]
+}
+
 export type DisplayOutputBlock =
   | TextOutputBlock
   | EquationOutputBlock
@@ -132,3 +247,4 @@ export type DisplayOutputBlock =
   | GraphOutputBlock
   | ReferenceOutputBlock
   | ResultOutputBlock
+  | NextWorkflowsOutputBlock

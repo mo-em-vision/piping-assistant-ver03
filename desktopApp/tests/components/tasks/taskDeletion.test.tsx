@@ -9,12 +9,12 @@ describe('WorkflowHeader', () => {
     const onDelete = vi.fn()
     render(
       <WorkflowHeader
-        taskName="Pipe Thickness Calculation"
+        taskName="Pipe Wall Thickness Design"
         onDelete={onDelete}
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: /delete pipe thickness calculation/i }))
+    fireEvent.click(screen.getByRole('button', { name: /delete pipe wall thickness design/i }))
     expect(onDelete).toHaveBeenCalledTimes(1)
   })
 })
@@ -25,7 +25,7 @@ describe('TaskContextMenu', () => {
     const onClose = vi.fn()
     const task = {
       id: 'pipe-wall-thickness-desi-test01',
-      name: 'Pipe Thickness Calculation',
+      name: 'Pipe Wall Thickness Design',
       description: 'ASME B31.3 wall thickness design workflow',
       discipline: 'Piping',
       status: 'in_progress',

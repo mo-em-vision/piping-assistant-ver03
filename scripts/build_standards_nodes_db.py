@@ -177,6 +177,22 @@ def _collect_assets(node_dir: Path, node_id: str) -> list[dict[str, Any]]:
     return []
 
 
+_PARAGRAPH_NODE_ID = re.compile(r"^\d+\.\d")
+
+
+def _normalize_index_node_id(raw: str) -> str | None:
+    node_id = raw.strip().strip("`").strip()
+    if not node_id:
+        return None
+    if "…" in node_id or "..." in node_id or "," in node_id:
+        return None
+    if node_id.startswith(("B313-", "ASTM-", "asme-b313-", "asme_b313_")):
+        return node_id
+    if _PARAGRAPH_NODE_ID.match(node_id):
+        return node_id
+    return None
+
+
 def _parse_index_md(pack_root: Path) -> list[dict[str, Any]]:
     index_path = pack_root / "index.md"
     if not index_path.is_file():
@@ -193,8 +209,8 @@ def _parse_index_md(pack_root: Path) -> list[dict[str, Any]]:
         cells = [cell.strip() for cell in line.strip("|").split("|")]
         if not cells:
             continue
-        node_id = cells[0] if cells[0] and not cells[0].startswith("`") else None
-        if node_id and (node_id.startswith("B313-") or node_id.startswith("ASTM-")):
+        node_id = _normalize_index_node_id(cells[0])
+        if node_id:
             description = cells[-1] if len(cells) > 1 else None
             rows.append(
                 {

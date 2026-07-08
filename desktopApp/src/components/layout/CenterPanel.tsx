@@ -4,10 +4,8 @@ import { ChatPanel } from '@/components/chat/ChatPanel'
 import { ErrorBanner } from '@/components/errors/ErrorBanner'
 import { SidePanelContextMenu } from '@/components/layout/SidePanelContextMenu'
 import { TaskErrorList } from '@/components/errors/TaskErrorList'
-import {
-  buildWorkflowHistory,
-  getWorkflowAsk,
-} from '@/components/workflow/buildWorkflowHistory'
+import { getWorkflowAsk } from '@/components/workflow/buildWorkflowHistory'
+import { buildCenterPanelTranscript } from '@/utils/buildCenterPanelTranscript'
 import { TaskCompletionNextSteps } from '@/components/workflow/TaskCompletionNextSteps'
 import { WorkflowComposer } from '@/components/workflow/WorkflowComposer'
 import { WorkflowHeader } from '@/components/workflow/WorkflowHeader'
@@ -50,8 +48,17 @@ export function CenterPanel() {
     if (!viewModel) {
       return []
     }
-    return buildWorkflowHistory(viewModel.timeline, activeTaskState?.display_outputs ?? [], activeTaskState?.workflow_id)
-  }, [viewModel, activeTaskState?.display_outputs])
+    return buildCenterPanelTranscript(
+      activeTaskState?.display_outputs ?? [],
+      activeTaskState?.flow_guidance?.transcript_blocks ?? [],
+      activeTaskState?.workflow_id,
+    )
+  }, [
+    viewModel,
+    activeTaskState?.display_outputs,
+    activeTaskState?.flow_guidance?.transcript_blocks,
+    activeTaskState?.workflow_id,
+  ])
 
   const showCompletionNextSteps = isTaskCompleted(activeTaskState) && workflowAsk.kind === 'none'
 

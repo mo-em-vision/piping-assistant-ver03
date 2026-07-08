@@ -15,6 +15,9 @@ describe('transcript reload UI', () => {
 
     const taskState = createTaskState({
       display_outputs: [],
+      flow_guidance: {
+        transcript_blocks: [],
+      },
     })
 
     saveTranscriptCache(taskState.task_id, [
@@ -47,7 +50,7 @@ describe('transcript reload UI', () => {
             workflows: [
               {
                 id: 'pipe_wall_thickness_design',
-                name: 'Pipe Thickness Calculation',
+                name: 'Pipe Wall Thickness Design',
                 description: 'ASME B31.3',
                 discipline: 'Piping',
                 available: true,
@@ -108,7 +111,7 @@ describe('transcript reload UI', () => {
 
     const { useProjectStore } = await import('@/store/projectStore')
     const { useTaskStore } = await import('@/store/taskStore')
-    const { default: CenterPanel } = await import('@/components/layout/CenterPanel')
+    const { CenterPanel } = await import('@/components/layout/CenterPanel')
 
     useProjectStore.setState({ activeProjectId: 'default', projects: [{ id: 'default', name: 'Default Project' }] })
     useTaskStore.setState({

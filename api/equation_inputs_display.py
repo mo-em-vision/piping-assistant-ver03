@@ -12,9 +12,12 @@ from engine.reference.parameter_keys import (
     active_fact_for_key,
     active_material_grade_fact,
     is_material_grade_parameter,
+    param_node_id_for_input,
     parameter_node_description,
 )
-from engine.reference.parameter_value_source import resolve_input_value_reference
+from engine.reference.parameter_value_source import (
+    apply_value_provenance_to_row,
+)
 from engine.reference.material_catalog_db import material_display_name
 from engine.reference.material_resolver import canonical_material_id
 from engine.reference.standards_reader import StandardsReader
@@ -400,17 +403,20 @@ def _build_formula_table_rows(
         if _skip_formula_input_row(task, input_id):
             continue
         display = _input_display_value(task, input_id)
-        row: dict[str, str] = {
+        param_id = param_node_id_for_input(input_id) if reader is not None else ""
+        row: dict[str, Any] = {
             "symbol": symbol,
             "definition": parameter_node_description(reader=reader, input_id=input_id),
             "value": display or "",
         }
-        if not display and reader is not None:
-            value_reference = resolve_input_value_reference(reader, input_id, task)
-            if value_reference is not None:
-                row["value_reference"] = value_reference
-            else:
-                row["value"] = AWAITING_USER_INPUT
+        if reader is not None and param_id:
+            row = apply_value_provenance_to_row(
+                row,
+                reader,
+                param_id,
+                task,
+                display_value=display or "",
+            )
         elif not display:
             row["value"] = AWAITING_USER_INPUT
         rows.append(row)

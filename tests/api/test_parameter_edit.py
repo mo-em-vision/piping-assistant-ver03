@@ -23,21 +23,38 @@ def _sample_task(manager: TaskStateManager) -> str:
     }
     task_with_planning(
         task,
-        {"current_phase": "ready", "phase_missing": {}},
+        {
+            "current_phase": "ready",
+            "phase_missing": {},
+            "collection_field_order": [
+                "straight_pipe_section",
+                "pressure_loading",
+                "internal_design_gage_pressure",
+                "nominal_pipe_size",
+                "material_grade",
+                "design_temperature",
+            ],
+        },
         workflow_id="pipe_wall_thickness_design",
     )
     for input_id, value in (
         ("pressure_loading", "internal_pressure"),
-        ("material", "SA-106B"),
-        ("design_pressure", 8.0),
+        ("material_grade", "SA-106B"),
+        ("internal_design_gage_pressure", 8.0),
         ("design_temperature", 38.0),
         ("nominal_pipe_size", "6"),
     ):
-        set_fact_from_input(task, legacy_input(input_id=input_id,
-            value=value,
-            unit="dimensionless" if input_id in {"material", "nominal_pipe_size", "pressure_loading"} else ("bar" if input_id == "design_pressure" else "C")),
-            source=InputSource.USER,
-            status=InputStatus.CONFIRMED,
+        set_fact_from_input(
+            task,
+            legacy_input(
+                input_id=input_id,
+                value=value,
+                unit="dimensionless"
+                if input_id in {"material_grade", "nominal_pipe_size", "pressure_loading"}
+                else ("bar" if input_id == "internal_design_gage_pressure" else "C"),
+                source=InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
         )
     manager.replace_task(task.task_id, task)
     return task.task_id
@@ -52,7 +69,7 @@ def test_assess_parameter_edit_flags_pressure_loading_path_change() -> None:
 
     assert impact["affects_path"] is True
     assert impact["affects_design"] is True
-    assert "design_pressure" in impact["downstream_parameters"]
+    assert "internal_design_gage_pressure" in impact["downstream_parameters"]
 
 
 def test_begin_parameter_edit_clears_downstream_and_opens_edit_session() -> None:
@@ -60,19 +77,19 @@ def test_begin_parameter_edit_clears_downstream_and_opens_edit_session() -> None
     task_id = _sample_task(manager)
     task = manager.get_task(task_id)
 
-    begin_parameter_edit(task, "design_pressure")
+    begin_parameter_edit(task, "internal_design_gage_pressure")
     manager.replace_task(task_id, task)
 
     assert task.status == TaskStatus.AWAITING_INPUT
     assert task.fact_store.active_fact("design_temperature") is None
     assert task.outputs.get("required_thickness") is None
-    assert task.outputs["edit_session"]["parameter"] == "design_pressure"
+    assert task.outputs["edit_session"]["parameter"] == "internal_design_gage_pressure"
 
     planning = planning_projection(task)
-    assert submittable_parameter_ids(task, planning) == ["design_pressure"]
+    assert submittable_parameter_ids(task, planning) == ["internal_design_gage_pressure"]
 
     parameters = build_parameter_definitions(task)
-    edited = next(item for item in parameters if item["name"] == "design_pressure")
+    edited = next(item for item in parameters if item["name"] == "internal_design_gage_pressure")
     assert edited["status"] == "pending"
     assert edited["editing"] is True
 
@@ -81,20 +98,20 @@ def test_submit_after_edit_clears_edit_session() -> None:
     manager = TaskStateManager()
     task_id = _sample_task(manager)
     task = manager.get_task(task_id)
-    begin_parameter_edit(task, "design_pressure")
+    begin_parameter_edit(task, "internal_design_gage_pressure")
     manager.replace_task(task_id, task)
 
     submit_task_input(
         manager,
         task_id,
-        parameter="design_pressure",
+        parameter="internal_design_gage_pressure",
         value=10.0,
         unit="bar",
     )
 
     updated = manager.get_task(task_id)
     assert "edit_session" not in updated.outputs
-    assert fact_get_value(updated, "design_pressure") == 10.0
+    assert fact_get_value(updated, "internal_design_gage_pressure") == 10.0
 
 
 def test_desktop_service_preview_parameter_edit(tmp_path, project_root) -> None:
@@ -119,7 +136,7 @@ def test_desktop_service_preview_parameter_edit(tmp_path, project_root) -> None:
     task_id = _sample_task(manager)
     service._save_manager(manager, session_id)
 
-    impact = service.preview_parameter_edit(task_id, "design_pressure", session_id)
+    impact = service.preview_parameter_edit(task_id, "internal_design_gage_pressure", session_id)
 
-    assert impact["parameter"] == "design_pressure"
+    assert impact["parameter"] == "internal_design_gage_pressure"
     assert impact["affects_design"] is True

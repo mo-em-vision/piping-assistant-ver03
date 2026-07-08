@@ -40,6 +40,8 @@ None at package level. All modules are referenced from `builder.py` or `api/insp
 Desktop Inspector button
   → api/inspection.py (dev_guard check)
   → build_inspection_payload(task, manager, reader)
+    → planner_debug_projection.planner_debug_projection_for_task
+    → plan_inspector.planner_inspector_summary_for_task
     → trace.build_execution_trace
     → replay.build_replay_frames / build_replay_snapshot
     → provenance.build_provenance_index
@@ -60,6 +62,7 @@ Executor.execute_plan (when inspection enabled)
 |------|---------|-------------|-----------|
 | `__init__.py` | Lazy `build_inspection_payload` | `inspection_enabled` | external |
 | `builder.py` | **Assemble API payload** | `build_inspection_payload` | api/inspection |
+| `value_classification.py` | Route values to inspector surfaces | `classify_inspection_value`, `INSPECTION_EXCLUDED_OUTPUT_KEYS` | task_state_views |
 | `dev_guard.py` | Env gate | `inspection_enabled` | api, executor |
 | `integrity.py` | Graph integrity checks | `run_integrity_checks` | builder, api |
 | `models.py` | DTOs | `ExecutionTraceStep`, `PlannerDecision`, … | all inspection modules |

@@ -260,6 +260,24 @@ function parameterForActiveTimelineStep(
   return null
 }
 
+function composerPromptFromCurrentAsk(
+  backendAsk: NonNullable<TaskStateDto['current_ask']>,
+  parameter: ParameterDefinitionDto | null,
+): string | null {
+  const shortPrompt = backendAsk.short_prompt?.trim()
+  if (shortPrompt) {
+    return shortPrompt
+  }
+  const promptMatchesParameter =
+    backendAsk.parameter_id != null &&
+    parameter != null &&
+    parameterNamesMatch(backendAsk.parameter_id, parameter.name)
+  if (promptMatchesParameter) {
+    return backendAsk.prompt?.trim() || null
+  }
+  return null
+}
+
 export function getWorkflowAsk(
   state: TaskStateDto | null,
   timeline: TimelineStepViewModel[] = [],
@@ -272,13 +290,10 @@ export function getWorkflowAsk(
   if (backendAsk?.kind === 'input') {
     const parameter = resolveInputAskParameter(state, backendAsk.parameter_id)
     if (parameter) {
-      const promptMatchesParameter =
-        backendAsk.parameter_id != null &&
-        parameterNamesMatch(backendAsk.parameter_id, parameter.name)
       return {
         kind: 'input',
         prompt:
-          (promptMatchesParameter ? backendAsk.prompt?.trim() : null) ||
+          composerPromptFromCurrentAsk(backendAsk, parameter) ||
           parameter.guidance?.trim() ||
           promptForParameter(parameter, timeline, state),
         parameter,
@@ -289,7 +304,11 @@ export function getWorkflowAsk(
   if (backendAsk?.kind === 'clarify') {
     return {
       kind: 'clarify',
-      prompt: backendAsk.prompt?.trim() ?? blockedGoalPrompt(state) ?? 'Workflow path is blocked.',
+      prompt:
+        backendAsk.short_prompt?.trim() ||
+        backendAsk.prompt?.trim() ||
+        blockedGoalPrompt(state) ||
+        'Workflow path is blocked.',
       parameter: null,
     }
   }
@@ -307,8 +326,9 @@ export function getWorkflowAsk(
     return {
       kind: 'waiting',
       prompt:
-        backendAsk.prompt?.trim() ??
-        activeStep?.hint?.trim() ??
+        backendAsk.short_prompt?.trim() ||
+        backendAsk.prompt?.trim() ||
+        activeStep?.hint?.trim() ||
         (activeStep?.title ? `Working on ${activeStep.title}…` : DEFAULT_WORKFLOW_ASK_PROMPT),
       parameter: null,
     }

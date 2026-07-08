@@ -16,7 +16,7 @@ export type ReferenceViewerContext = TableViewerContext | NodeViewerContext
 
 export type RightPanelTab =
   | { id: 'task'; kind: 'task'; title: 'Task' }
-  | { id: 'planner'; kind: 'planner'; title: 'Planner' }
+  | { id: 'planner'; kind: 'planner'; title: 'Planner / Workflow Debug' }
   | { id: 'dev-task-state'; kind: 'dev-task-state'; title: 'Task State' }
   | { id: 'dev-performance'; kind: 'dev-performance'; title: 'Performance' }
   | { id: 'chat'; kind: 'chat'; title: 'Chat' }
@@ -37,7 +37,11 @@ export type RightPanelTab =
     }
 
 const TASK_TAB: RightPanelTab = { id: 'task', kind: 'task', title: 'Task' }
-const PLANNER_TAB: RightPanelTab = { id: 'planner', kind: 'planner', title: 'Planner' }
+const PLANNER_TAB: RightPanelTab = {
+  id: 'planner',
+  kind: 'planner',
+  title: 'Planner / Workflow Debug',
+}
 const DEV_TASK_STATE_TAB: RightPanelTab = {
   id: 'dev-task-state',
   kind: 'dev-task-state',

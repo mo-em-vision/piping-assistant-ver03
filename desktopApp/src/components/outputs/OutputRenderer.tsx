@@ -1,5 +1,6 @@
 import { EquationOutput } from './EquationOutput'
 import { GraphOutput } from './GraphOutput'
+import { NextWorkflowsOutput } from './NextWorkflowsOutput'
 import { ReferenceOutput } from './ReferenceOutput'
 import { ResultOutput } from './ResultOutput'
 import { TableOutput } from './TableOutput'
@@ -40,6 +41,8 @@ export function OutputRenderer({
             return <ReferenceOutput key={block.id} block={block} />
           case 'result':
             return <ResultOutput key={block.id} block={block} />
+          case 'next_workflows':
+            return <NextWorkflowsOutput key={block.id} block={block} />
           default:
             return null
         }

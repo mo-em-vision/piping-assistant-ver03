@@ -34,7 +34,7 @@ def test_prior_turns_for_llm_excludes_latest_message_and_filters_task() -> None:
 def test_build_task_context_brief_includes_task_and_progress_fields() -> None:
     brief = build_task_context_brief(
         {
-            "name": "Pipe Thickness Calculation",
+            "name": "Pipe Wall Thickness Design",
             "discipline": "Piping",
             "workflow_id": "B313-PIPE-WALL-THICKNESS-DESIGN",
             "status": "in_progress",
@@ -59,7 +59,7 @@ def test_build_task_context_brief_includes_task_and_progress_fields() -> None:
     )
 
     assert "Project: Refinery Expansion" in brief
-    assert "Task: Pipe Thickness Calculation" in brief
+    assert "Task: Pipe Wall Thickness Design" in brief
     assert "Current topic: §304.1.2" in brief
     assert "Still needed: material" in brief
     assert "Visible workspace content: Wall thickness result" in brief

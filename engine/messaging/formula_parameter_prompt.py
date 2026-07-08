@@ -265,6 +265,9 @@ def classify_formula_parameters(
             continue
 
         if _is_missing(symbol, input_id, input_spec, task_inputs, phase_missing):
+            if symbol in _LOOKUP_DERIVED_SYMBOLS and input_id not in phase_missing:
+                if _lookup_keys_missing(symbol, task_inputs):
+                    continue
             guidance = _missing_guidance(
                 reader,
                 symbol=symbol,
@@ -477,6 +480,30 @@ def _resolve_s_display(task_inputs: dict[str, Fact]) -> str | None:
     return None
 
 
+_LOOKUP_DERIVED_SYMBOLS = frozenset({"S", "E", "W", "Y"})
+
+
+def _lookup_keys_missing(symbol: str, task_inputs: dict[str, Fact]) -> bool:
+    """Return True when prerequisite lookup keys for a derived symbol are still absent."""
+    from engine.reference.parameter_keys import read_parameter_value
+
+    if symbol == "S":
+        material = read_parameter_value(task_inputs, "material_grade")
+        temperature = read_parameter_value(task_inputs, "design_temperature")
+        return material is None or temperature is None
+    if symbol == "E":
+        return read_parameter_value(task_inputs, "pipe_construction_type") is None
+    if symbol == "W":
+        return (
+            read_parameter_value(task_inputs, "material_grade") is None
+            or read_parameter_value(task_inputs, "design_temperature") is None
+            or read_parameter_value(task_inputs, "pipe_construction_type") is None
+        )
+    if symbol == "Y":
+        return read_parameter_value(task_inputs, "design_temperature") is None
+    return False
+
+
 def _is_missing(
     symbol: str,
     input_id: str,
@@ -506,11 +533,13 @@ def _is_missing(
     if symbol == "S":
         if _resolve_s_display(task_inputs) is not None:
             return False
+        from engine.reference.parameter_keys import read_parameter_value
+
+        material = read_parameter_value(task_inputs, "material_grade")
+        temperature = read_parameter_value(task_inputs, "design_temperature")
         return (
-            "material" in phase_missing
-            or "design_temperature" in phase_missing
-            or "material" not in task_inputs
-            or "design_temperature" not in task_inputs
+            material is None
+            or temperature is None
             or input_id in phase_missing
         )
 
@@ -701,7 +730,7 @@ def guidance_for_parameter_input(
         input_id = _input_id_for(symbol, input_spec, entry)
         if input_id != parameter_id:
             continue
-        return _missing_guidance(
+        guidance = _missing_guidance(
             reader,
             symbol=symbol,
             input_id=input_id,
@@ -710,6 +739,12 @@ def guidance_for_parameter_input(
             task_inputs=facts,
             record_metadata=record.metadata,
         )
+        display = eq_ctx.get("display")
+        if isinstance(display, str) and display.strip():
+            return (
+                f"Used in the governing equation: {display.strip()}\n\n{guidance}"
+            )
+        return guidance
 
     spec = find_interaction(interaction_specs, parameter_id)
     if spec is not None:

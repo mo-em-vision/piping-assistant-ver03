@@ -16,7 +16,7 @@ Organize the three-panel workspace (left nav, center workflow, right references/
 | `workflow/` | 15 | 9 | `WorkflowComposer`, `WorkflowHeader`, `WorkflowHistory`, `TaskCompletionNextSteps` | Active task workflow UI |
 | `standards/` | 21 | 12 | `StandardsBrowserTab`, `StandardsMarkdownViewer`, `NodeReferenceTab`, `TableReferenceTab` | Standards browse + reference tabs |
 | `inputs/` | 13 | 9 | `ParameterForm`, `ParameterInput`, `MaterialSelector` | Parameter input widgets |
-| `outputs/` | 8 | 7 | `OutputRenderer`, `TextOutput`, `EquationOutput` | `display_outputs` rendering |
+| `outputs/` | 12 | 9 | `OutputRenderer`, `TextOutput`, `EquationOutput`, `NextWorkflowsOutput`, `ReferenceChipList` | `display_outputs` + transcript block rendering |
 | `engineering/` | 12 | 6 | `TaskTimeline`, `TimelineStep`, `NodeCalculationGroup` | Progress/timeline/calculations |
 | `chat/` | 8 | 5 | `ChatPanel`, `ChatMessage`, `ChatInput` | Right-panel and center chat |
 | `errors/` | 5 | 3 | `ErrorBanner`, `ConnectionErrorBanner`, `TaskErrorList` | User-facing errors |
@@ -88,6 +88,7 @@ All other subfolders have tested, wired entry components.
 - **Output pipeline:** `OutputRenderer` dispatches by block `kind` to `outputs/*`; `TextOutput` integrates dev hover and reference links.
 - **Standards duplication:** Browse UI (`StandardsBrowserTab`) vs deep-linked reference tabs (`NodeReferenceTab`, `TableReferenceTab`, `MaterialReferenceTab`) share `standardsApi` but different component trees.
 - **CSS co-location:** Most subfolders pair `.tsx` + `.css`; `workflow/WorkflowPanel.css` imported from `CenterPanel`.
+- **Center panel scroll contract (Phases 1–6):** `CenterPanel` merges `flow_guidance.transcript_blocks` + `display_outputs` via `buildCenterPanelTranscript` (`src/utils/buildCenterPanelTranscript.ts`). Shared block order comes from `contracts/center_panel_report_role_order.json` (imported in `centerPanelContract.ts`). Composer stays on `current_ask.short_prompt` only — not merged into scroll history. See `docs/desktopApp/center_panel_output_contract.md`.
 
 ---
 
@@ -100,7 +101,7 @@ All other subfolders have tested, wired entry components.
 | `WorkspaceLayout.tsx` | Three-column grid, resize handles, lazy inspector slot |
 | `AppHeader.tsx` | Title, backend status, inspector toggle, reload |
 | `LeftPanel.tsx` | Projects, tasks, recent tasks, rename dialogs |
-| `CenterPanel.tsx` | Workflow composer/history or empty state; task errors |
+| `CenterPanel.tsx` | Workflow composer/history or empty state; task errors; scroll via `buildCenterPanelTranscript` |
 | `RightPanel.tsx` | Tabbed: task details, chat, standards, dynamic references |
 | `ResizeHandle.tsx` | Drag to resize side panels |
 | `PanelSection.tsx` | Collapsible section wrapper |
@@ -197,9 +198,9 @@ Smaller scoped folders — see table above. `ReportPanel` uses `reportStore`; `R
 WorkspaceLayout
   → CenterPanel
       → WorkflowHeader
-      → WorkflowHistory (buildWorkflowHistory)
+      → WorkflowHistory (buildCenterPanelTranscript → buildWorkflowHistory items)
       → WorkflowComposer (ParameterForm → inputs/*)
-      → Output blocks via history items → OutputRenderer
+      → Output blocks via history items → OutputRenderer (text, equation, next_workflows, …)
   → RightPanel
       → Task tab: TaskTimeline, NodeCalculationGroup, ParameterEditDialog
       → Chat tab: ChatPanel

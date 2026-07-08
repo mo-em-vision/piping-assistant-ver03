@@ -11,6 +11,7 @@ _PLANNER_DEBUG_OUTPUT_KEYS = frozenset(
         "engineering_plan",
         "engineering_plan_view",
         "planner_inspector_summary",
+        "planner_debug_projection",
         "graph_navigation",
     }
 )

@@ -228,6 +228,25 @@ def emit_equation_blocks(
         render_steps = result.get("render_steps")
         if isinstance(render_steps, dict) and render_steps:
             equation_block["steps"] = render_steps
+        equation_display_trace = result.get("equation_display_trace")
+        if isinstance(equation_display_trace, dict) and equation_display_trace:
+            equation_block["equation_display_trace"] = equation_display_trace
+            from engine.equation.display_trace_serializer import enrich_equation_block, trace_from_dict
+
+            trace_obj = trace_from_dict(equation_display_trace)
+            if trace_obj is not None:
+                equation_block = enrich_equation_block(
+                    {
+                        "id": f"equation-result-{equation_id}",
+                        "type": "equation",
+                        "title": None,
+                        "content": display,
+                        "display": display,
+                    },
+                    trace_obj,
+                )
+                equation_block["type"] = "equation_result"
+                equation_block["node_id"] = equation_id
         blocks.append(equation_block)
         for edge in store.outgoing(equation_id, edge_types={"explains"}):
             node = store.get_node(edge.to_id)

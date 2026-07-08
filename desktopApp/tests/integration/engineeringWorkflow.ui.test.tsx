@@ -48,12 +48,12 @@ describe('engineering workflow UI (mock mode)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Create new task' }))
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /pipe thickness calculation/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /pipe wall thickness design/i })).toBeInTheDocument()
     })
-    await user.click(screen.getByRole('button', { name: /pipe thickness calculation/i }))
+    await user.click(screen.getByRole('button', { name: /pipe wall thickness design/i }))
 
     await waitFor(() => {
-      expect(screen.getByRole('heading', { name: 'Pipe Thickness Calculation' })).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Pipe Wall Thickness Design' })).toBeInTheDocument()
     })
 
     expect(screen.getByText('Governing equation')).toBeInTheDocument()
@@ -87,7 +87,7 @@ describe('engineering workflow UI (mock mode)', () => {
     })
 
     await user.click(screen.getByRole('button', { name: 'Create new task' }))
-    await user.click(screen.getByRole('button', { name: /pipe thickness calculation/i }))
+    await user.click(screen.getByRole('button', { name: /pipe wall thickness design/i }))
 
     await waitFor(() => {
       expect(

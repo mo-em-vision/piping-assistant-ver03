@@ -30,7 +30,7 @@ def test_task_summary_uses_workflow_metadata() -> None:
     )
     task.outputs["workflow"] = "pipe_wall_thickness_design"
     summary = task_summary(task)
-    assert summary["name"] == "Pipe Thickness Calculation"
+    assert summary["name"] == "Pipe Wall Thickness Design"
     assert summary["workflow_id"] == "pipe_wall_thickness_design"
 
 
@@ -101,7 +101,7 @@ def test_task_state_timeline_includes_coefficient_parameters() -> None:
         unit="dimensionless",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
-    set_fact_from_input(task, legacy_input(input_id="material",
+    set_fact_from_input(task, legacy_input(input_id="material_grade",
         value="SA-106B",
         unit="dimensionless",
         source=InputSource.USER,
@@ -118,6 +118,11 @@ def test_task_state_timeline_includes_coefficient_parameters() -> None:
         status=InputStatus.CONFIRMED,))
     set_fact_from_input(task, legacy_input(input_id="nominal_pipe_size",
         value="10",
+        unit="dimensionless",
+        source=InputSource.USER,
+        status=InputStatus.CONFIRMED,))
+    set_fact_from_input(task, legacy_input(input_id="pipe_construction_type",
+        value="seamless",
         unit="dimensionless",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))

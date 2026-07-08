@@ -140,5 +140,8 @@ def test_planner_phase_reaches_parameter_gathering() -> None:
         assert "pipe_construction_type" in coeff_missing or "joint_category" in coeff_missing
         assert "weld_joint_efficiency" not in coeff_missing
     else:
-            gathering_missing = plan.phase_missing.get(NavigationPhase.PARAMETER_GATHERING.value) or []
-            assert "internal_design_gage_pressure" in plan.missing_inputs + gathering_missing
+        gathering_missing = plan.phase_missing.get(NavigationPhase.PARAMETER_GATHERING.value) or []
+        combined = set(plan.missing_inputs + gathering_missing)
+        assert combined
+        assert "weld_joint_efficiency" not in combined
+        assert "allowable_stress" not in combined

@@ -52,4 +52,12 @@ Navigation only. Paragraph content lives in flat `nodes/paragraph/{id}.yaml` fil
 | `asme_b313_304_3_3_valrule_6a` | 304.3.3-c | Available reinforcement area check (eq. 6a) |
 | `asme_b313_304_3_3_eq_7` / `eq_8` | 304.3.3-c | Areas A_2 / A_3 |
 
+## Appendix A
+
+| Node ID | Path | Description |
+|---------|------|-------------|
+| asme-b313-table-A-1 | `nodes/tables/asme-b313-table-A-1.yaml` | Table A-1 basic allowable stresses in tension |
+| asme-b313-table-A-2 | `nodes/tables/asme-b313-table-A-2.yaml` | Table A-2 quality factors |
+| asme-b313-table-A-3 | `nodes/tables/asme-b313-table-A-3.yaml` | Table A-3 material limitations |
+
 Naming convention: see [docs/node-templates/Paragraph Node.md](../../../docs/node-templates/Paragraph%20Node.md) and `.cursor/rules/paragraph-subsection-naming.mdc`.

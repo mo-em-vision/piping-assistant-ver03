@@ -86,10 +86,11 @@ Stop if you drift into kitchen-sink refactors, wrong abstractions, or duplicatin
 
 ### Where prompt text lives
 
-- **Workflow interaction specs** — `interactions` on workflow sidecars / `runtime.yaml` (highest priority when present).
-- **Graph / parameter nodes** — `question` or `description` on parameter nodes.
-- **Equation context** — `engine/messaging/formula_parameter_prompt.py`.
-- **Default catalog** — `engine/messaging/workflow_parameter_prompts.py` (`DEFAULT_WORKFLOW_PARAMETER_PROMPTS`).
+- **Workflow interaction specs** — `interactions` on workflow sidecars / `runtime.yaml` (highest priority when present). Gate phases (yes/no, branch decisions) delegate numbered formatting to `engine/messaging/step_prompt.py`.
+- **PARAM-* node metadata** — `question` then `description` on parameter nodes, read via `engine/messaging/parameter_prompt_context.py` (messaging-owned; Graph Engine does not own user-facing wording).
+- **Equation / lookup context** — `engine/messaging/formula_parameter_prompt.py`.
+- **Default catalog** — `engine/messaging/workflow_parameter_prompts.py` (`DEFAULT_WORKFLOW_PARAMETER_PROMPTS`) — fallback only.
+- **Final messaging fallback** — structured minimal prompt from `parameter_display_label()` + phase context when no higher-priority source applies.
 - **LLM agent stubs** — `ai/prompts/` (intent/planner agents only; not desktop parameter asks).
 
 ### Resolution entry point
@@ -100,15 +101,22 @@ All desktop/API parameter asks must resolve through:
 
 Order inside that function (do not bypass or reorder without updating docs and tests):
 
-1. Workflow interaction spec (`question_for_interaction`)
-2. Graph parameter node question
-3. Equation guidance
+1. Workflow interaction spec / `runtime.yaml` / sidecar interaction question (gate phases use numbered formatting from `step_prompt` helpers)
+2. PARAM-* node `question`, then useful `description` if no question (`parameter_prompt_context.py`)
+3. Equation or lookup context (`formula_parameter_prompt.guidance_for_parameter_input`)
 4. Legacy `phase_questions` on planning (backward compatibility only)
 5. `default_workflow_parameter_prompt()` from `workflow_parameter_prompts.py`
+6. Final messaging fallback (structured minimal prompt — not the frontend generic string)
+
+### Desktop vs CLI prompt paths
+
+- **Desktop workflow composer** — canonical source is `task_state.current_ask.prompt` and `parameter.guidance` (both from `build_parameter_input_prompt`).
+- **CLI / transcript** — may additionally use `flow_guidance.active_prompt` from `ResponseComposer` (multi-block formula or step prompts). The composer does not author prompt copy.
 
 ### Do not
 
-- Add or edit user-facing parameter prompt strings in `engine/planner/planner.py`, `goal_migration.py`, or serializers as the **source of truth**.
+- Add or edit user-facing parameter prompt strings in `engine/planner/planner.py`, `goal_migration.py`, serializers, or `engine/graph/` as the **source of truth**.
+- Add prompt-building logic to `engine/graph/graph_timeline.py` or other Graph Engine modules.
 - Store new prompt copy in `NavigationPlan.questions` / `phase_questions` for greenfield features — resolve at display time via the messaging layer.
 - Duplicate prompt catalogs in the frontend; the backend owns engineering wording.
 
@@ -323,7 +331,8 @@ lookup_conditionals:
 | --- | --- |
 | `engine/planner/planner_traversal.py` | Derive traversal from requirements, `input_strategy`, graph preview, path decisions |
 | `EngineeringPlan.traversal` | Persist full state on `task.outputs.engineering_plan` |
-| `planner_inspector_summary` | Rebuilt from `engineering_plan` on each inspection payload — **not** from `goal_store` |
+| `planner_inspector_summary` | Rebuilt from `engineering_plan` on each inspection payload — **not** from `goal_store` (backward compat) |
+| `planner_debug_projection` | **Preferred** read-only Dev Mode Planner tab contract — derived from `engineering_plan` only; never drives execution |
 | `current_active_node_id` | Must match next planner ask; follows phase order (assumptions → path → gathering → coefficients → equations) |
 | `pending_expansion_nodes` | Include nodes blocked by unresolved gates/branches with `waiting_on` + `reason` |
 | `plan_validation.py` | Invariants after `finalize_engineering_plan()`; errors on `plan.debug` |
@@ -334,7 +343,8 @@ lookup_conditionals:
 | --- | --- |
 | `engineering_plan` | Canonical normalized plan (`plan.to_dict()`) — **source of truth** |
 | `engineering_plan_view` | Human-readable inspector summary (phases, overview) |
-| `planner_inspector_summary` | Compact planner debug: root goal, phase, next input, outstanding inputs, conditional/lookup/calculation reqs, graph + traversal summary |
+| `planner_inspector_summary` | Compact planner debug (backward compat): root goal, phase, inputs, traversal summary |
+| `planner_debug_projection` | **Preferred** Dev Mode Planner tab UI contract — seven readable sections; `raw_planner_state` for Advanced JSON only |
 | `legacy_goal_map` | Optional backward-compatible `goal_store` projection (`GOAL-*` / `REQ-*` keys) — debug panel only |
 
 Do not expose the legacy goal map as `engineering_plan` or as the default planner output.
@@ -349,9 +359,11 @@ Derived from `EngineeringPlan` only (`engine/planner/plan_inspector.py`):
 - `planner_graph_summary`, `traversal_summary`, `planner_traversal_view`
 - `warnings` (includes validation errors when present)
 
-Inspection API rebuilds summary via `planner_inspector_summary_for_task()` (`engine/inspection/builder.py`).
+Inspection API rebuilds summary via `planner_inspector_summary_for_task()` and projection via `planner_debug_projection_for_task()` (`engine/inspection/builder.py`).
 
-Dev UI: **Planner** tab (`PlannerDevPanel`) reads `engineering_plan` / `planner_inspector_summary`; legacy goal map is under an explicit deprecated `<details>` panel.
+Dev UI: **Planner / Workflow Debug** tab (`PlannerDevPanel`) reads **`planner_debug_projection` only** — no client inference from `engineering_plan`, `task_state`, or other payload fields. Missing fields render **"not available"**. Raw state is collapsed under **Advanced Planner JSON** (`raw_planner_state`). `planner_inspector_summary` remains on the payload for backward compatibility.
+
+`planner_debug_projection` is **read-only and developer-only** — it must never drive workflow execution, user-facing output, graph traversal, equation evaluation, validation, or parameter resolution.
 
 ### Do not
 
@@ -364,10 +376,11 @@ Dev UI: **Planner** tab (`PlannerDevPanel`) reads `engineering_plan` / `planner_
 
 - `engine/planner/planner_traversal.py` — builder and inspector view helpers
 - `engine/planner/plan_inspector.py` — `build_planner_inspector_summary`, `planner_inspector_summary_for_task`
-- `dev/desktop_ui/inspector/plannerInspectorSummary.ts` — client resolvers + `validateEngineeringPlan`
+- `engine/planner/planner_debug_projection.py` — `build_planner_debug_projection`, `planner_debug_projection_for_task`
+- `dev/desktop_ui/inspector/PlannerDevPanel.tsx` — renders projection sections only
 - `models/engineering_plan.py` — `PlannerTraversalState` types
 - `docs/developer tools/developer_inspection_framework.md` — Planner tab
-- `tests/planner/test_planner_traversal.py`, `tests/planner/test_fresh_pipe_wall_normalized_plan.py`
+- `tests/planner/test_planner_traversal.py`, `tests/planner/test_fresh_pipe_wall_normalized_plan.py`, `tests/planner/test_planner_debug_projection.py`
 
 ---
 
@@ -528,6 +541,44 @@ State/session storage may persist `transcript_blocks`, but it must **not** deriv
 - `docs/core/11. planner_layer_design.md` — planner vs guidance boundary
 - `docs/core/14. graph_engine_design.md` — graph vs guidance boundary
 - `engine/presentation/README.md` — module inventory
+
+---
+
+## 24. Equation display trace (evaluated equation substitution)
+
+**Every evaluated equation must expose a canonical `equation_display_trace` object built in the execution layer and rendered by API/presentation/frontend without client-side substitution.**
+
+| Layer | Owns |
+| --- | --- |
+| Execution (`engine/equation/`, `engine/executor/node_runner.py`) | Build `equation_display_trace` from equation metadata, resolved facts, `CalculationResult`, optional `render_steps` enrichment |
+| API (`api/equation_display_trace_serializer.py`, `api/equation_evaluation_display.py`) | Serialize trace onto `EquationOutputBlock`; legacy pipe-wall substitution blocks remain as fallback during migration |
+| Presentation (`engine/presentation/blocks.py`, `engine/graph/display_emitter.py`) | Same trace object on equation result blocks |
+| Frontend (`EquationOutput`) | Render `equation_display_trace` only; no engineering formatting or symbol substitution in TypeScript |
+
+### Canonical field
+
+- `equation_display_trace` on execution trace payloads and equation output blocks.
+- `EquationOutputBlock` mirrors the trace schema; do not invent competing display fields.
+
+### LaTeX source priority
+
+1. `display_latex` metadata
+2. Authored `display.text` (equation content only)
+3. SymPy reconstruction (mark `latex_source: sympy_generated`)
+
+Shared formatting: `engine/equation/latex_format.py` (`\mathrm{}` units, numeric display strings).
+
+### Do not
+
+- Build per-equation KaTeX substitution strings in `api/equation_inputs_display.py` for new equations (legacy pipe-wall helpers are migration-only).
+- Reconstruct substitutions in the frontend.
+- Store presentation-only equation state on `WorkflowState`.
+
+### Design references
+
+- `models/equation_display_trace.py` — canonical dataclasses
+- `engine/equation/equation_display_trace_builder.py` — generic builder
+- `docs/rules.md` §15–§16 — input provenance (`source_type`: `user_input`, `table_lookup`, `equation_output`)
 
 ---
 
