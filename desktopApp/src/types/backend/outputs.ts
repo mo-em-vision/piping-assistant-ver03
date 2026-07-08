@@ -9,6 +9,13 @@ export interface OutputBlockBase {
   type: OutputBlockType
   title?: string
   provenance?: NodeProvenanceDto
+  lifecycle?: 'durable' | 'preview' | 'volatile'
+  display_role?: string
+  display_channel?: string
+  equation_node_id?: string
+  source_node_id?: string
+  history_eligible?: boolean
+  volatile?: boolean
 }
 
 export type ReferenceLinkKind = 'node' | 'table'
@@ -47,6 +54,7 @@ export interface EquationInputTableRowDto {
   symbol?: string
   definition?: string
   value?: string
+  value_status?: string
   definition_reference?: ReferenceLinkDto | null
   value_reference?: ReferenceLinkDto | null
 }

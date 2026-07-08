@@ -24,7 +24,7 @@ The Developer Inspector answers: *“Where did this value come from, and why did
 | **Graph** | Active subgraph summary in the inspector layout |
 | **Replay** | Step through stored execution frames without re-running calculations |
 | **Integrity** | Smoke checks that the graph (not filenames or hardcoded UI) is the source of truth |
-| **Logs / Performance** | Audit events, lifecycle events, per-node timing |
+| **Logs / Performance** | Audit events, lifecycle events, per-interaction performance traces |
 
 ---
 
@@ -80,13 +80,15 @@ engine/inspection/
   replay.py             Replay frames and snapshots
   integrity.py          Four graph integrity checks
   builder.py            build_inspection_payload()
+  performance_trace.py  trace_id-scoped spans (dev-only performance panel)
 
 api/inspection.py       API helpers (get payload, breakpoints, integrity run)
+api/performance_trace.py GET /api/v1/dev/performance/traces
 ```
 
 ### Frontend layout
 
-Primary developer surface: **right-panel dev tabs** (`Planner`, `Task State`, `Operations`) when Dev Mode is enabled.
+Primary developer surface: **right-panel dev tabs** (`Planner`, `Task State`, `Performance`) when Dev Mode is enabled.
 
 ```
 dev/desktop_ui/inspector/
@@ -108,10 +110,17 @@ dev/desktop_ui/inspector/
   InspectorAdvancedSection.tsx  Collapsed raw JSON (Advanced / Raw Data)
   plannerInspectorSummary.ts    resolvePlannerInspectorSummary
   validateEngineeringPlan.ts    Client-side plan invariant checks (mirrors plan_validation.py)
-  useInspectionPayload.ts       Poll inspection API for active task
+  useInspectionPayload.ts       Poll inspection API for active task (separate inspection_poll traces)
+  PerformanceDevTab.tsx           Right panel: Performance tab entry
+  PerformanceTracePanel.tsx       Trace selector, span table, severity highlighting
+  usePerformanceTraces.ts         Merge frontend store traces with backend poll API
+  useDevRenderSpan.ts             Double-rAF dev panel render timing
+  performanceTraceHelpers.ts      Duration formatting and severity thresholds
 
 desktopApp/src/services/api/inspectionApi.ts
-desktopApp/src/types/backend/inspection.ts   PlannerInspectorSummaryDto, TaskStateViewsDto
+desktopApp/src/services/performance/tracedRequest.ts
+desktopApp/src/store/performanceTraceStore.ts
+desktopApp/src/types/backend/inspection.ts   PlannerInspectorSummaryDto, TaskStateViewsDto, PerformanceTraceDto
 ```
 
 Legacy bottom-dock `DeveloperInspector.tsx` (execution trace) may exist but is not the primary dev surface for planner/task state.
@@ -212,6 +221,44 @@ GET /api/v1/tasks/{taskId}/inspection/integrity?session_id={sessionId}
 ```
 
 Returns `{ "checks": [ { "check_id", "name", "passed", "message", "details" } ] }`.
+
+### Performance traces (dev only)
+
+```
+GET /api/v1/dev/performance/traces?limit=40
+```
+
+Returns `{ "traces": [ PerformanceTraceDto, ... ] }` — recent interaction traces from the in-memory ring buffer (max 40).
+
+Each `submit_input` / `create_task` interaction should share one `trace_id`. The **desktop app generates the trace id** and sends `X-Performance-Trace-Id` on traced requests; the backend accepts the header and only generates a fallback when missing.
+
+| Field | Description |
+|-------|-------------|
+| `trace_id` | 16-char hex interaction id |
+| `trigger` | `submit_input`, `create_task`, `inspection_poll`, or HTTP route label |
+| `task_id` | Active task when known |
+| `total_duration_ms` | Wall time for the interaction |
+| `llm_call_occurred` | True when any span used the LLM client |
+| `status` | `running`, `success`, or `error` |
+| `spans` | Typed spans (`op_type`, `duration_ms`, `status`, `llm`, short `notes`) |
+| `spans_omitted` | Count truncated when span limit (80) exceeded |
+
+`performance_trace` is also attached to `task_state` JSON responses when inspection is enabled.
+
+**Inspection poll separation:** `GET .../inspection` uses `trigger = "inspection_poll"`. Poll traces must not merge into `submit_input` traces. The Performance tab shows the trigger label to make this visible.
+
+**Frontend spans** (desktop app only): `request_sent`, `response_received`, `frontend_state_update`, and dev render spans (`planner_dev_panel_render`, `task_state_dev_panel_render`, etc.) use `op_type = "frontend"`.
+
+#### Profiling script
+
+From the repository root:
+
+```powershell
+set DEV_INSPECTION_ENABLED=1
+python scripts/profile_submit_input.py --steps 2 --inspection-poll
+```
+
+Prints per-trace op_type breakdown, top slow spans, and submit vs inspection_poll summary. Backend-only — frontend spans appear when reproducing through the desktop app Performance tab.
 
 ---
 
@@ -401,13 +448,13 @@ These are lightweight smoke checks against the compiled graph, not full CI mutat
 
 ```bash
 # Inspection API, trace enrichment, planner decisions, integrity
-python -m pytest tests/api/test_inspection_api.py tests/execution/test_inspection_trace.py tests/planner/test_planner_decisions.py tests/integrity/ -q
+python -m pytest tests/api/test_inspection_api.py tests/api/test_performance_trace.py tests/execution/test_inspection_trace.py tests/planner/test_planner_decisions.py tests/integrity/ -q
 
 # Replay determinism
 python -m pytest tests/acceptance/test_reproducibility.py::TestReproducibilityAcceptance::test_replay_frames_are_deterministic -q
 
 # Frontend
-cd desktopApp && npm run test:run -- ../dev/desktop_ui/tests/ExecutionTracePanel.test.tsx
+cd desktopApp && npm run test:run -- ../dev/desktop_ui/tests/ExecutionTracePanel.test.tsx ../dev/desktop_ui/tests/PerformanceTracePanel.test.tsx
 ```
 
 ---

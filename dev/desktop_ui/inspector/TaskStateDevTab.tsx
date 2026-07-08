@@ -3,10 +3,16 @@ import { useTaskStore } from '@/store/taskStore'
 import { SummarySection } from './TaskStateSummarySection'
 import { TaskStateDevPanel } from './TaskStateDevPanel'
 import { useInspectionPayload } from './useInspectionPayload'
+import { useDevRenderSpan } from './useDevRenderSpan'
 
 export function TaskStateDevTab() {
   const { payload, error, loading } = useInspectionPayload()
   const activeTaskState = useTaskStore((state) => state.activeTaskState)
+
+  useDevRenderSpan('task_state_dev_panel_render', Boolean(payload || activeTaskState), [
+    payload,
+    activeTaskState,
+  ])
 
   if (loading && !payload && !activeTaskState) {
     return <p className="inspector-empty">Loading task state…</p>

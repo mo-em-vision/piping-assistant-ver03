@@ -67,6 +67,29 @@ function goalMapFromState(state: TaskStateDto): Record<string, GoalRecord> | nul
   return map as Record<string, GoalRecord>
 }
 
+type FlowGuidancePromptBlock = {
+  text?: string | null
+  payload?: { parameter_id?: string | null }
+  refs?: { parameter_id?: string | null }
+}
+
+function flowGuidancePromptForParameter(state: TaskStateDto, parameterName: string): string | null {
+  const flowGuidance = (state as TaskStateDto & { flow_guidance?: { active_prompt?: FlowGuidancePromptBlock } })
+    .flow_guidance
+  const activePrompt = flowGuidance?.active_prompt
+  if (!activePrompt?.text?.trim()) {
+    return null
+  }
+  const promptParameterId =
+    activePrompt.payload?.parameter_id?.trim() ||
+    activePrompt.refs?.parameter_id?.trim() ||
+    null
+  if (promptParameterId && !parameterNamesMatch(promptParameterId, parameterName)) {
+    return null
+  }
+  return activePrompt.text.trim()
+}
+
 function goalPromptForParameter(state: TaskStateDto, parameterName: string): string | null {
   const goals = goalMapFromState(state)
   if (!goals) {
@@ -195,6 +218,11 @@ function promptForParameter(
   const hint = timelineStep?.hint?.trim()
   if (hint) {
     return hint
+  }
+
+  const flowGuidancePrompt = flowGuidancePromptForParameter(state, parameter.name)
+  if (flowGuidancePrompt) {
+    return flowGuidancePrompt
   }
 
   const goalPrompt = goalPromptForParameter(state, parameter.name)

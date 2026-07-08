@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
+
+ProjectionMode = Literal["interactive", "full"]
 
 from api.error_catalog import enrich_api_error_payload
 from api.flow_guidance import build_flow_guidance_payload
@@ -50,12 +52,14 @@ from engine.state.goal_projection import (
     legacy_goal_map_for_task,
     planning_projection,
 )
+from api.workflow_display import workflow_display_meta
 from engine.state.task_state_canonical import (
     build_canonical_task_state,
     build_legacy_task_state_view,
     build_task_inspector_summary,
     validate_task_state_invariants,
 )
+from engine.inspection.performance_trace import perf_span
 from engine.state.state_manager import TaskStateManager
 from models.fact import Fact, ValidationStatus, fact_scalar_value, fact_to_dict, fact_unit
 from models.task import Task, TaskStatus
@@ -64,6 +68,9 @@ WORKFLOW_CATALOG: tuple[dict[str, Any], ...] = (
     {
         "id": PIPE_WALL_THICKNESS_DESIGN,
         "name": "Pipe Thickness Calculation",
+        "display_title": "Pipe Wall Thickness Design",
+        "subtitle": "ASME B31.3 §304.1 — Pressure design thickness for straight pipe",
+        "standard_ref": "ASME B31.3 §304.1",
         "description": "ASME B31.3 wall thickness design workflow",
         "discipline": "Piping",
         "available": True,
@@ -190,8 +197,10 @@ def _task_display_name(task: Task) -> str:
     if isinstance(custom, str) and custom.strip():
         return custom.strip()
     workflow_id = _task_workflow_id(task)
+    if not workflow_id:
+        return task.task_id
     meta = _workflow_meta(workflow_id)
-    return meta["name"]
+    return workflow_display_meta(workflow_id, meta)["display_title"]
 
 
 def _fact_to_dict(fact: Fact) -> dict[str, Any]:
@@ -700,6 +709,25 @@ def task_state(
     *,
     standards_root: Path | None = None,
     reader: StandardsReader | None = None,
+    projection_mode: ProjectionMode = "interactive",
+) -> dict[str, Any]:
+    with perf_span("task_state", "serializer", notes=f"mode={projection_mode}"):
+        return _task_state_impl(
+            task,
+            manager,
+            standards_root=standards_root,
+            reader=reader,
+            projection_mode=projection_mode,
+        )
+
+
+def _task_state_impl(
+    task: Task,
+    manager: TaskStateManager,
+    *,
+    standards_root: Path | None = None,
+    reader: StandardsReader | None = None,
+    projection_mode: ProjectionMode = "interactive",
 ) -> dict[str, Any]:
     workflow_id = _task_workflow_id(task)
     meta = _workflow_meta(workflow_id)
@@ -750,13 +778,14 @@ def task_state(
             task, ask_parameter_id, revealed=revealed
         )
 
-    canonical = build_canonical_task_state(
-        task,
-        manager,
-        planning=planning,
-        progress_steps=timeline,
-        reader=resolved_reader,
-    )
+    with perf_span("canonical_task_state", "serializer"):
+        canonical = build_canonical_task_state(
+            task,
+            manager,
+            planning=planning,
+            progress_steps=timeline,
+            reader=resolved_reader,
+        )
     invariant_violations = validate_task_state_invariants(canonical)
     if invariant_violations:
         canonical.setdefault("debug", {})["invariant_violations"] = invariant_violations
@@ -772,43 +801,54 @@ def task_state(
     if current_step_id:
         canonical_progress = {**canonical_progress, "current_step_id": current_step_id}
 
-    inspector_summary = build_task_inspector_summary({**canonical, "progress": canonical_progress})
+    include_debug_projections = projection_mode == "full"
+    inspector_summary = None
+    if include_debug_projections:
+        inspector_summary = build_task_inspector_summary({**canonical, "progress": canonical_progress})
 
-    legacy_extras = {
-        "discipline": meta["discipline"],
-        "description": str(planning.get("goal") or meta["description"]),
-        "facts": {key: _fact_to_dict(value) for key, value in task.fact_store.active_facts().items()},
-        "legacy_goal_map": legacy_goal_map_for_task(task),
-        "execution_context": execution_context_summary(task),
-        "authority_context": authority_context_summary(task),
-        "outputs": _public_task_outputs(task),
-        "engineering_plan": _canonical_engineering_plan_for_task(task),
-        "engineering_plan_view": _engineering_plan_view_for_task(task),
-        "warnings": list(task.warnings),
-        "parameters": build_parameter_definitions(task, reader=resolved_reader),
-        "node_calculations": build_node_calculation_summaries(task, resolved_reader),
-        "display_outputs": build_display_outputs(
-            task,
-            standards_root=resolved_standards_root,
-            reader=resolved_reader,
-        ),
-        "active_node_context": active_node_context,
-        "current_ask": current_ask,
-        "options": {
-            "available_workflows": [item for item in WORKFLOW_CATALOG if item["available"]],
-        },
-        "errors": _build_task_errors(task),
-        "workflow_state": workflow_state_payload(
-            manager,
-            task.task_id,
-            reader=resolved_reader,
-        ),
-        "flow_guidance": build_flow_guidance_payload(
-            task,
-            resolved_reader,
-        ),
-        "inspector_summary": inspector_summary,
-    }
+    with perf_span("engineering_plan_projection", "serializer", notes=f"mode={projection_mode}"):
+        legacy_extras: dict[str, Any] = {
+            "discipline": meta["discipline"],
+            "description": str(planning.get("goal") or meta["description"]),
+            "workflow_display": workflow_display_meta(workflow_id, meta),
+            "facts": {key: _fact_to_dict(value) for key, value in task.fact_store.active_facts().items()},
+            "execution_context": execution_context_summary(task),
+            "authority_context": authority_context_summary(task),
+            "outputs": _public_task_outputs(task),
+            "warnings": list(task.warnings),
+            "parameters": build_parameter_definitions(task, reader=resolved_reader),
+            "node_calculations": build_node_calculation_summaries(task, resolved_reader),
+            "active_node_context": active_node_context,
+            "current_ask": current_ask,
+            "options": {
+                "available_workflows": [item for item in WORKFLOW_CATALOG if item["available"]],
+            },
+            "errors": _build_task_errors(task),
+            "workflow_state": workflow_state_payload(
+                manager,
+                task.task_id,
+                reader=resolved_reader,
+            ),
+        }
+        if include_debug_projections:
+            legacy_extras["inspector_summary"] = inspector_summary
+            with perf_span("legacy_goal_map_projection", "serializer"):
+                legacy_extras["legacy_goal_map"] = legacy_goal_map_for_task(task)
+            with perf_span("engineering_plan_to_dict", "serializer"):
+                legacy_extras["engineering_plan"] = _canonical_engineering_plan_for_task(task)
+            with perf_span("engineering_plan_view", "serializer"):
+                legacy_extras["engineering_plan_view"] = _engineering_plan_view_for_task(task)
+        with perf_span("display_output_projection", "serializer"):
+            legacy_extras["display_outputs"] = build_display_outputs(
+                task,
+                standards_root=resolved_standards_root,
+                reader=resolved_reader,
+            )
+        with perf_span("flow_guidance", "serializer"):
+            legacy_extras["flow_guidance"] = build_flow_guidance_payload(
+                task,
+                resolved_reader,
+            )
     legacy_extras["progress"] = {
         **canonical_progress,
         "steps": timeline,
@@ -818,9 +858,11 @@ def task_state(
 
     payload = build_legacy_task_state_view(canonical, legacy_extras=legacy_extras)
     payload["status"] = task.status.value
-    payload["canonical"] = json_safe(canonical)
-    payload["inspector_summary"] = json_safe(inspector_summary)
-    return json_safe(payload)
+    if include_debug_projections:
+        payload["canonical"] = json_safe(canonical)
+        payload["inspector_summary"] = json_safe(inspector_summary)
+    with perf_span("response_serialization", "serializer"):
+        return json_safe(payload)
 
 
 def workflow_state_payload(

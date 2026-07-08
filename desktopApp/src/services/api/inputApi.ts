@@ -1,6 +1,7 @@
 import { backendClient } from './backendClient'
 import { requestManager } from './requestManager'
 import { parseTaskState } from './responseParser'
+import { tracedRequest } from '@/services/performance/tracedRequest'
 
 import type { TaskStateDto } from '@/types/backend/api'
 import type { ParameterEditImpactDto } from '@/types/backend/api'
@@ -13,6 +14,22 @@ export const inputApi = {
       backendClient
         .post<TaskStateDto>(`/api/v1/tasks/${taskId}/inputs${query}`, payload)
         .then(parseTaskState),
+    )
+  },
+
+  submitTraced(
+    taskId: string,
+    payload: SubmitInputPayload,
+    traceId: string,
+    sessionId?: string,
+  ) {
+    const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''
+    return requestManager.run(`inputs:submit:${taskId}:${payload.parameter}`, () =>
+      tracedRequest<TaskStateDto>(
+        `/api/v1/tasks/${taskId}/inputs${query}`,
+        { method: 'POST', body: payload },
+        { traceId, trigger: 'submit_input', taskId },
+      ).then(parseTaskState),
     )
   },
 

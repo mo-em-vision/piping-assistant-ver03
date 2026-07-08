@@ -53,6 +53,7 @@ from api.parameter_edit import (
 )
 from api.serializers import task_state, task_summary, workflow_catalog
 from api.task_continuation_service import get_continuation_suggestions
+from engine.inspection.performance_trace import attach_trace_to_payload, perf_span
 
 _PROPOSE_DEFAULTS_ON_FIELDS = frozenset(
     {
@@ -95,12 +96,15 @@ class DesktopApiService:
             self._standards_reader.reload()
 
     def _task_state(self, task, manager) -> dict[str, Any]:
-        return task_state(
+        payload = task_state(
             task,
             manager,
             standards_root=self.config.standards_root,
             reader=self._reader(),
+            projection_mode="interactive",
         )
+        with perf_span("performance_trace_attachment", "serializer"):
+            return attach_trace_to_payload(payload)
 
     def _maybe_ensure_task_planning(self, task, manager):
         reader = self._reader()
@@ -161,7 +165,8 @@ class DesktopApiService:
         return self._store().load_state_manager()
 
     def _save_manager(self, manager: TaskStateManager, session_id: str | None = None) -> None:
-        self._store_for(session_id).save_state_manager(manager)
+        with perf_span("task_state_persist", "database"):
+            self._store_for(session_id).save_state_manager(manager)
 
     def list_workflows(self) -> list[dict[str, Any]]:
         return workflow_catalog(self._reader())
@@ -343,7 +348,8 @@ class DesktopApiService:
             manager.get_task(task_id)
         except TaskNotFoundError as exc:
             raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
-        return get_inspection_payload(manager, task_id, reader=self._reader())
+        with perf_span("get_inspection", "api", notes=f"task_id={task_id}"):
+            return get_inspection_payload(manager, task_id, reader=self._reader())
 
     def set_inspection_breakpoint(
         self,
@@ -376,23 +382,24 @@ class DesktopApiService:
         return get_operations_payload()
 
     def create_task(self, workflow_id: str, session_id: str | None = None) -> dict[str, Any]:
-        router = Router()
-        if workflow_id not in router.supported_workflows():
-            raise ApiError(
-                "workflow_unavailable",
-                f"Workflow is not available: {workflow_id}",
-                status=400,
-                details={"workflow_id": workflow_id},
-            )
+        with perf_span("create_task", "api", notes=f"workflow_id={workflow_id}"):
+            router = Router()
+            if workflow_id not in router.supported_workflows():
+                raise ApiError(
+                    "workflow_unavailable",
+                    f"Workflow is not available: {workflow_id}",
+                    status=400,
+                    details={"workflow_id": workflow_id},
+                )
 
-        store = self._store_for(session_id)
-        manager = store.load_state_manager()
-        task_id = new_task_id(workflow_id)
-        task = manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
-        bootstrap_new_task(task, workflow_id, self.config)
-        manager.replace_task(task_id, task)
-        self._save_manager(manager, session_id)
-        return self._task_state(task, manager)
+            store = self._store_for(session_id)
+            manager = store.load_state_manager()
+            task_id = new_task_id(workflow_id)
+            task = manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
+            bootstrap_new_task(task, workflow_id, self.config)
+            manager.replace_task(task_id, task)
+            self._save_manager(manager, session_id)
+            return self._task_state(task, manager)
 
     def activate_task(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
         store = self._store_for(session_id)
@@ -445,60 +452,67 @@ class DesktopApiService:
         unit: str | None = None,
         session_id: str | None = None,
     ) -> dict[str, Any]:
-        store = self._store_for(session_id)
-        manager = store.load_state_manager()
-        try:
-            manager.get_task(task_id)
-        except TaskNotFoundError as exc:
-            raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
+        with perf_span("submit_input", "api", notes=f"parameter={parameter}"):
+            store = self._store_for(session_id)
+            manager = store.load_state_manager()
+            try:
+                manager.get_task(task_id)
+            except TaskNotFoundError as exc:
+                raise ApiError("task_not_found", f"Task not found: {task_id}", status=404) from exc
 
-        try:
-            task = submit_task_input(
-                manager,
-                task_id,
-                parameter=parameter,
-                value=value,
-                unit=unit,
-                standards_root=self._reader().standards_root,
+            try:
+                task = submit_task_input(
+                    manager,
+                    task_id,
+                    parameter=parameter,
+                    value=value,
+                    unit=unit,
+                    standards_root=self._reader().standards_root,
+                )
+            except ValueError as exc:
+                raise ApiError(
+                    "invalid_input",
+                    str(exc),
+                    status=400,
+                    details={"parameter": parameter},
+                ) from exc
+
+            propose_on_field = parameter in _PROPOSE_DEFAULTS_ON_FIELDS
+            refresh_task_planning(
+                task,
+                self._reader(),
+                propose_defaults=propose_on_field,
+                allow_lightweight_refresh=True,
             )
-        except ValueError as exc:
-            raise ApiError(
-                "invalid_input",
-                str(exc),
-                status=400,
-                details={"parameter": parameter},
-            ) from exc
-
-        propose_on_field = parameter in _PROPOSE_DEFAULTS_ON_FIELDS
-        refresh_task_planning(
-            task,
-            self._reader(),
-            propose_defaults=propose_on_field,
-        )
-        manager.replace_task(task_id, task)
-        task = maybe_execute_ready_workflow(task_id, manager, self._reader())
-
-        reader = self._reader()
-        needs_finalize_planning = propose_on_field
-        if has_execution_trace(task):
-            graph = GraphTools(reader)
-            root_slug = str(task.outputs.get("selected_root") or task.outputs.get("workflow") or "")
-            preview = graph.preview_plan(
-                task_id=task_id,
-                root_id=root_slug,
-                inputs=dict(task.fact_store.active_facts()),
-            )
-            try_complete_definition_equations(task, reader, preview.execution_order)
             manager.replace_task(task_id, task)
-            needs_finalize_planning = True
+            task = maybe_execute_ready_workflow(task_id, manager, self._reader())
 
-        if needs_finalize_planning:
-            refresh_task_planning(task, reader, propose_defaults=False)
-            manager.replace_task(task_id, task)
-        task = manager.get_task(task_id)
+            reader = self._reader()
+            needs_finalize_planning = propose_on_field
+            if has_execution_trace(task):
+                graph = GraphTools(reader)
+                root_slug = str(task.outputs.get("selected_root") or task.outputs.get("workflow") or "")
+                preview = graph.preview_plan(
+                    task_id=task_id,
+                    root_id=root_slug,
+                    inputs=dict(task.fact_store.active_facts()),
+                )
+                try_complete_definition_equations(task, reader, preview.execution_order)
+                manager.replace_task(task_id, task)
+                needs_finalize_planning = True
 
-        self._save_manager(manager, session_id)
-        return self._task_state(task, manager)
+            if needs_finalize_planning:
+                refresh_task_planning(
+                    task,
+                    reader,
+                    propose_defaults=False,
+                    allow_lightweight_refresh=False,
+                )
+                manager.replace_task(task_id, task)
+            task = manager.get_task(task_id)
+
+            self._save_manager(manager, session_id)
+            return self._task_state(task, manager)
 
     def preview_parameter_edit(
         self,

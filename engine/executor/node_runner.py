@@ -263,6 +263,11 @@ class NodeRunner:
             or lookup_config.get("table")
             or ""
         ).strip()
+        source = record.metadata.get("source")
+        if isinstance(source, dict):
+            db_table_id = str(source.get("table_id") or "").strip()
+            if db_table_id:
+                table_ref = self._lookup_engine._resolve_table_ref(db_table_id)
         try:
             if table_ref in {"asme-b313-table-A-1", "A-1", "asme_b31.3_A-1"}:
                 lookup_result = self._lookup_engine.execute_lookup(

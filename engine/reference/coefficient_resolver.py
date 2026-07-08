@@ -301,7 +301,11 @@ def _thin_wall_assumed(existing_inputs: dict[str, Any]) -> bool:
     thin_wall = existing_inputs.get("thin_wall")
     if thin_wall is None:
         return True
-    raw = thin_wall.value if hasattr(thin_wall, "value") else thin_wall
+    raw = fact_scalar_value(thin_wall) if isinstance(thin_wall, Fact) else thin_wall
+    if isinstance(raw, bool):
+        return raw
+    if raw is None:
+        return True
     return str(raw).strip().lower() in {"true", "1", "yes"}
 
 

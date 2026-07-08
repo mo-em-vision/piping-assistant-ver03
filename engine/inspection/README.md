@@ -67,3 +67,15 @@ Executor.execute_plan (when inspection enabled)
 | `provenance.py` | Value provenance index | `build_provenance_index` | builder |
 | `replay.py` | Step replay frames | `build_replay_snapshot` | builder, api |
 | `trace.py` | Execution trace from outputs | `build_execution_trace`, `persist_plan_metadata` | builder, executor, api |
+| `performance_trace.py` | Dev performance spans | `begin_interaction_trace`, `perf_span`, `recent_traces_snapshot` | api/server, api/desktop_service |
+
+## Performance tracing (dev)
+
+`performance_trace.py` groups typed spans under a client- or server-generated `trace_id` per interaction. Spans are capped (80/trace, 40 recent traces). Inspection GET routes use `trigger = "inspection_poll"` so poll cost stays separate from `submit_input`.
+
+Profile locally:
+
+```powershell
+set DEV_INSPECTION_ENABLED=1
+python scripts/profile_submit_input.py --steps 2 --inspection-poll
+```

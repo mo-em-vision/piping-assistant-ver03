@@ -6,7 +6,19 @@ import re
 from pathlib import Path
 from typing import Any
 
-from engine.state.goal_projection import planning_projection
+from api.display_block_metadata import (
+    DISPLAY_CHANNEL_CURRENT_NODE_INTRO,
+    DISPLAY_ROLE_ACTIVATION,
+    DISPLAY_ROLE_APPLICABILITY,
+    DISPLAY_ROLE_CONCLUSION,
+    DISPLAY_ROLE_DERIVED,
+    DISPLAY_ROLE_INTRO,
+    DISPLAY_ROLE_PREVIEW,
+    DISPLAY_ROLE_RECOMMENDATION,
+    DISPLAY_ROLE_SUBSTITUTED,
+    dedupe_preview_tier_equations,
+    tag_display_block,
+)
 from api.equation_evaluation_display import (
     build_equation_evaluation_block,
     resolve_focus_node_for_equation_display,
@@ -25,6 +37,7 @@ from api.workflow_timeline import is_mawp_task, is_pipe_wall_thickness_task
 from engine.reference.formula_display import load_equation_context
 from engine.reference.standards_reader import StandardsReader
 from engine.router import PIPE_WALL_THICKNESS_DESIGN
+from engine.state.goal_projection import planning_projection
 from models.fact import FactClass, ValidationStatus, fact_scalar_value
 from models.task import Task, TaskStatus
 
@@ -114,10 +127,6 @@ def build_display_outputs(
     if has_trace:
         blocks.extend(_blocks_from_execution_trace(trace, task))
 
-    status_block = _planning_status_block(task, planning)
-    if status_block:
-        blocks.append(status_block)
-
     return _finalize_display_blocks(blocks, resolved_reader, task=task, planning=planning)
 
 
@@ -141,10 +150,15 @@ def _finalize_display_blocks(
     task: Task | None = None,
     planning: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
+    from api.display_block_metadata import append_equation_trace_blocks
+
     default_node_id = None
     if task is not None:
         default_node_id = definition_node_id_for_task(task, reader, planning)
     enrich_display_blocks_provenance(blocks, reader, default_node_id=default_node_id)
+    blocks = dedupe_preview_tier_equations(blocks)
+    if task is not None:
+        blocks = append_equation_trace_blocks(blocks, task, reader)
     return _dedupe_blocks_by_id(blocks)
 
 
@@ -152,7 +166,7 @@ def _reader_for(standards_root: Path | None) -> StandardsReader:
     if standards_root is not None:
         return StandardsReader(standards_root, standard="asme_b31.3")
     project_root = Path(__file__).resolve().parent.parent
-    return StandardsReader(project_root / "standards", standard="asme_b31.3")
+    return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
 
 
 def _activated_definition_blocks(
@@ -261,9 +275,6 @@ def _build_mawp_display_outputs(
 
     blocks.extend(_activated_definition_blocks(task, planning, reader))
     blocks.extend(_mawp_equation_preview_blocks(task, reader))
-    status_block = _planning_status_block(task, planning)
-    if status_block:
-        blocks.append(status_block)
     return _finalize_display_blocks(blocks, reader, task=task, planning=planning)
 
 
@@ -463,9 +474,6 @@ def _build_pipe_wall_display_outputs(
 
     blocks.extend(_activated_definition_blocks(task, planning, reader))
     blocks.extend(_path_calculation_preview_blocks(task, planning, reader, trace=trace))
-    status_block = _planning_status_block(task, planning)
-    if status_block:
-        blocks.append(status_block)
     return _finalize_display_blocks(blocks, reader, task=task, planning=planning)
 
 
@@ -532,13 +540,17 @@ def _minimum_thickness_equation_block(task: Task) -> dict[str, Any] | None:
         t_m_value=float(t_m_value) if isinstance(t_m_value, (int, float)) else None,
         unit=unit,
     )
-    return {
-        "id": "minimum-thickness-equation",
-        "type": "equation",
-        "title": None,
-        "content": latex,
-        "display": display,
-    }
+    return tag_display_block(
+        {
+            "id": "minimum-thickness-equation",
+            "type": "equation",
+            "title": None,
+            "content": latex,
+            "display": display,
+        },
+        display_role=DISPLAY_ROLE_DERIVED,
+        equation_node_id="asme-b313-304-1-1-eq-2",
+    )
 
 
 def _minimum_thickness_conclusion_block(task: Task) -> dict[str, Any] | None:
@@ -557,17 +569,20 @@ def _minimum_thickness_conclusion_block(task: Task) -> dict[str, Any] | None:
         or task.outputs.get("minimum_required_thickness_unit")
         or "mm"
     )
-    return {
-        "id": "minimum-thickness-conclusion",
-        "type": "text",
-        "title": None,
-        "content": (
-            f"Minimum required pipe wall thickness is "
-            f"{format_thickness_result_display(float(t_m), unit)}. "
-            "The selected pipe wall thickness must be not less than t_m per §304.1.1-a."
-        ),
-        "variant": "body",
-    }
+    return tag_display_block(
+        {
+            "id": "minimum-thickness-conclusion",
+            "type": "text",
+            "title": None,
+            "content": (
+                f"Minimum required pipe wall thickness is "
+                f"{format_thickness_result_display(float(t_m), unit)}. "
+                "The selected pipe wall thickness must be not less than t_m per §304.1.1-a."
+            ),
+            "variant": "body",
+        },
+        display_role=DISPLAY_ROLE_CONCLUSION,
+    )
 
 
 def _pipe_schedule_recommendation_block(
@@ -586,22 +601,25 @@ def _pipe_schedule_recommendation_block(
     if recommendation is None:
         return None
 
-    return {
-        "id": "pipe-schedule-recommendation",
-        "type": "text",
-        "title": None,
-        "content": format_schedule_recommendation_text(recommendation),
-        "variant": "body",
-        "pipe_schedule_recommendation": {
-            "nps": recommendation.nps,
-            "schedule": recommendation.schedule,
-            "wall_thickness_mm": recommendation.wall_thickness_mm,
-            "minimum_required_thickness_mm": recommendation.minimum_required_thickness_mm,
-            "standard": recommendation.standard_display,
-            "standard_slug": recommendation.standard_slug,
-            "table_id": recommendation.table_id,
+    return tag_display_block(
+        {
+            "id": "pipe-schedule-recommendation",
+            "type": "text",
+            "title": None,
+            "content": format_schedule_recommendation_text(recommendation),
+            "variant": "body",
+            "pipe_schedule_recommendation": {
+                "nps": recommendation.nps,
+                "schedule": recommendation.schedule,
+                "wall_thickness_mm": recommendation.wall_thickness_mm,
+                "minimum_required_thickness_mm": recommendation.minimum_required_thickness_mm,
+                "standard": recommendation.standard_display,
+                "standard_slug": recommendation.standard_slug,
+                "table_id": recommendation.table_id,
+            },
         },
-    }
+        display_role=DISPLAY_ROLE_RECOMMENDATION,
+    )
 
 
 def _corrosion_allowance_mm(task: Task) -> float | None:
@@ -637,13 +655,16 @@ def _thin_wall_applicability_block(task: Task, trace: list[Any]) -> dict[str, An
             "continuing with thick wall condition (t > D/6)"
         )
 
-    return {
-        "id": "thin-wall-applicability-check",
-        "type": "text",
-        "title": None,
-        "content": content,
-        "variant": "body",
-    }
+    return tag_display_block(
+        {
+            "id": "thin-wall-applicability-check",
+            "type": "text",
+            "title": None,
+            "content": content,
+            "variant": "body",
+        },
+        display_role=DISPLAY_ROLE_APPLICABILITY,
+    )
 
 
 def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] | None:
@@ -655,13 +676,16 @@ def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] 
     substitution = node_trace.get("substitution")
     if isinstance(substitution, str) and substitution.strip():
         display = substitution.strip()
-        return {
-            "id": "path-calculation-substituted-equation",
-            "type": "equation",
-            "title": None,
-            "content": display,
-            "display": display,
-        }
+        return tag_display_block(
+            {
+                "id": "path-calculation-substituted-equation",
+                "type": "equation",
+                "title": None,
+                "content": display,
+                "display": display,
+            },
+            display_role=DISPLAY_ROLE_SUBSTITUTED,
+        )
 
     calculation = node_trace.get("calculation")
     if not isinstance(calculation, dict):
@@ -690,13 +714,16 @@ def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] 
         variables_si=variables,
     )
 
-    return {
-        "id": "path-calculation-substituted-equation",
-        "type": "equation",
-        "title": None,
-        "content": latex,
-        "display": display,
-    }
+    return tag_display_block(
+        {
+            "id": "path-calculation-substituted-equation",
+            "type": "equation",
+            "title": None,
+            "content": latex,
+            "display": display,
+        },
+        display_role=DISPLAY_ROLE_SUBSTITUTED,
+    )
 
 
 def _wall_thickness_calculation_trace_entry(trace: list[Any]) -> dict[str, Any] | None:
@@ -721,22 +748,27 @@ def _path_preview_intro_block(selected_node: str, reference: dict[str, str]) -> 
     paragraph = str(reference.get("paragraph", "")).strip()
     excerpt = str(reference.get("excerpt", "")).strip().rstrip(".")
     label = f"§{paragraph}" if paragraph else selected_node
-    return {
-        "id": f"path-preview-intro-{selected_node}",
-        "type": "text",
-        "title": None,
-        "content": f"{excerpt} based on",
-        "content_suffix": " with the following equation:",
-        "variant": "body",
-        "reference_links": [
-            {
-                "node_id": selected_node,
-                "label": label,
-                "paragraph": paragraph or None,
-            }
-        ],
-        "reference_links_placement": "inline",
-    }
+    return tag_display_block(
+        {
+            "id": f"path-preview-intro-{selected_node}",
+            "type": "text",
+            "title": None,
+            "content": f"{excerpt} based on",
+            "content_suffix": " with the following equation:",
+            "variant": "body",
+            "reference_links": [
+                {
+                    "node_id": selected_node,
+                    "label": label,
+                    "paragraph": paragraph or None,
+                }
+            ],
+            "reference_links_placement": "inline",
+        },
+        display_role=DISPLAY_ROLE_INTRO,
+        source_node_id=selected_node,
+        display_channel=DISPLAY_CHANNEL_CURRENT_NODE_INTRO,
+    )
 
 
 def _task_workflow_id(task: Task) -> str:

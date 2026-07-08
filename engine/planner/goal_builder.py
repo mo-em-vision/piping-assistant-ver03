@@ -8,6 +8,7 @@ from engine.graph.navigation_phases import build_workflow_phased_navigation
 from engine.graph.workflow_navigation import load_workflow_navigation
 from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
 from engine.planner.tools import GraphTools
+from engine.inspection.performance_trace import perf_span
 from engine.reference.standards_reader import StandardsReader
 from engine.planner.workflow_goal_metadata import (
     lookup_fields_for_workflow,
@@ -291,11 +292,12 @@ def refresh_goal_tree(
     root_slug: str | None = None,
 ) -> None:
     """Rebuild goal tree and refresh satisfaction."""
-    build_goal_tree(
-        task,
-        reader,
-        preview=preview,
-        question_map=question_map,
-        phased=phased,
-        root_slug=root_slug,
-    )
+    with perf_span("goal_tree_refresh", "planner"):
+        build_goal_tree(
+            task,
+            reader,
+            preview=preview,
+            question_map=question_map,
+            phased=phased,
+            root_slug=root_slug,
+        )

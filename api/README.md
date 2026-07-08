@@ -203,7 +203,7 @@ DesktopApiService.from_project_root(project_root)
 The largest response payload is built by `serializers.task_state`, which composes:
 
 ```text
-task_state(task, manager, standards_root, reader)
+task_state(task, manager, standards_root, reader, projection_mode="interactive")
   → build_parameter_definitions
   → build_display_outputs (output_blocks)
   → build_node_calculation_summaries
@@ -213,6 +213,10 @@ task_state(task, manager, standards_root, reader)
   → equation display helpers (equation_inputs_display)
   → build_flow_guidance_payload (flow_guidance) — Flow Guidance Layer §21
 ```
+
+**Projection modes:** `interactive` (default for `submit_input`, `get_task`, `activate_task`) omits `engineering_plan`, `engineering_plan_view`, `legacy_goal_map`, `canonical`, and `inspector_summary`. Full planner debug payloads remain on `GET /api/v1/tasks/{id}/inspection` via `build_inspection_payload`. Pass `projection_mode="full"` to `task_state()` for tests or legacy consumers.
+
+**Planning refresh gating:** `refresh_task_planning(..., allow_lightweight_refresh=True)` compares graph-derived structural fields in `planning_structure_signature` (`engine/planner/planning_structure.py`). When structure is unchanged, `goal_tree_refresh` is skipped and `planning_refresh_skipped` is traced. Any snapshot uncertainty or structural delta falls back to full refresh.
 
 ### Session model
 
@@ -461,6 +465,7 @@ Confidence: **High** = clear importers and runtime path; **Medium** = indirect o
 - **Public:** `build_display_outputs`
 - **Imported by:** `serializers`, `engine/reports/report_data`, `engine/inspection/provenance`, tests
 - **Active:** Yes — **High**
+- **Durable history:** `display_outputs` carries durable workflow blocks only. Volatile blocks (`planning-status`, archived prompts) are not emitted. Preview-tier blocks use `lifecycle: preview` and `display_channel` (`current_equation_preview`, `current_node_intro`); durable results use `lifecycle: durable`. Preview duplicates collapse in `dedupe_preview_tier_equations()` via `equation_node_id`. Frontend merges durable blocks append-only and treats preview as authoritative per snapshot (`mergeDisplayOutputs`, `displayBlockLifecycle`).
 
 ### `equation_inputs_display.py`
 

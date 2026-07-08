@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from engine.messaging.prompt_format import format_numbered_choices, format_reply_hint
+from engine.messaging.prompt_format import format_numbered_choices, format_reply_hint
+from engine.reference.parameter_keys import parameter_display_label
 from engine.graph.node_interaction import (
     NodeInteractionSpec,
     collect_path_interactions,
@@ -123,7 +125,7 @@ def _format_confirm_default_prompt(
     spec: NodeInteractionSpec,
     task: Task,
 ) -> str:
-    label = spec.symbol or field_id
+    label = spec.symbol or parameter_display_label(field_id)
     default_val = spec.default
     stored = task.fact_store.active_fact(field_id)
     if stored is not None and stored.default is not None:
@@ -160,6 +162,7 @@ def _format_decision_prompt(
     spec: NodeInteractionSpec | None,
     navigation_plan: NavigationPlan,
 ) -> str:
+    display_label = parameter_display_label(field_id)
     options = tuple(spec.options) if spec and spec.options else (
         "internal_pressure",
         "external_pressure",
@@ -171,12 +174,12 @@ def _format_decision_prompt(
         else (
             navigation_plan.questions[0].strip()
             if navigation_plan.questions
-            else f"Select a value for {field_id}."
+            else f"Select a value for {display_label}."
         )
     )
 
     lines = [
-        f"Input required ({field_id}) — {question}",
+        f"Input required — {question}",
         "",
     ]
     lines.extend(format_numbered_choices(labels))

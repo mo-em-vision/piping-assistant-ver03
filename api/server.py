@@ -12,7 +12,14 @@ from urllib.parse import parse_qs, urlparse
 
 from api.desktop_service import ApiError, DesktopApiService
 from api.operation_tracker import get_operations_payload
+from api.performance_trace import get_performance_traces_payload
 from engine.inspection.operation_tracker import track_operation
+from engine.inspection.performance_trace import (
+    attach_trace_to_payload,
+    current_trace_id,
+    request_trace_context,
+    trace_header_name,
+)
 from api.dev_studio.routes import (
     handle_dev_delete,
     handle_dev_get,
@@ -32,14 +39,27 @@ def _api_error_from_exception(exc: ApiError) -> dict[str, Any]:
     return _api_error_payload(exc.code, exc.message, details=exc.details)
 
 
-def _json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict[str, Any]) -> None:
-    body = json_dumps(payload).encode("utf-8")
+def _json_response(
+    handler: BaseHTTPRequestHandler,
+    status: int,
+    payload: dict[str, Any],
+    *,
+    attach_trace: bool = True,
+) -> None:
+    response_payload = attach_trace_to_payload(payload) if attach_trace else payload
+    body = json_dumps(response_payload).encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json")
     handler.send_header("Content-Length", str(len(body)))
     handler.send_header("Access-Control-Allow-Origin", "*")
     handler.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-    handler.send_header("Access-Control-Allow-Headers", "Content-Type")
+    handler.send_header(
+        "Access-Control-Allow-Headers",
+        f"Content-Type, {trace_header_name()}",
+    )
+    trace_id = current_trace_id()
+    if trace_id:
+        handler.send_header(trace_header_name(), trace_id)
     handler.end_headers()
     handler.wfile.write(body)
 
@@ -122,7 +142,12 @@ class ApiHandler(BaseHTTPRequestHandler):
                     path=path,
                     method=self.command,
                 ):
-                    getattr(self, mname)()
+                    with request_trace_context(
+                        method=self.command,
+                        path=path,
+                        headers=self.headers,
+                    ):
+                        getattr(self, mname)()
             self.wfile.flush()
         except ConnectionResetError:
             self.close_connection = True
@@ -131,7 +156,10 @@ class ApiHandler(BaseHTTPRequestHandler):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header(
+            "Access-Control-Allow-Headers",
+            f"Content-Type, {trace_header_name()}",
+        )
         self.end_headers()
 
     def do_GET(self) -> None:
@@ -232,6 +260,16 @@ class ApiHandler(BaseHTTPRequestHandler):
 
             if path == "/api/v1/dev/operations":
                 _json_response(self, 200, get_operations_payload())
+                return
+
+            if path == "/api/v1/dev/performance/traces":
+                limit = int(query.get("limit", ["40"])[0] or "40")
+                _json_response(
+                    self,
+                    200,
+                    get_performance_traces_payload(limit=limit),
+                    attach_trace=False,
+                )
                 return
 
             if path.startswith("/api/v1/dev/"):

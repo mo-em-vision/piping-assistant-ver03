@@ -192,3 +192,54 @@ def test_apply_coefficient_lookups_resolves_temperature_coefficient_y_from_table
     assert coefficient.validation.status == ValidationStatus.CONFIRMED
     assert coefficient.source.source_type == SourceType.TABLE_LOOKUP
     assert fact_scalar_value(coefficient) is not None
+
+
+def test_apply_coefficient_lookups_resolves_y_when_thin_wall_boolean_fact_is_true(
+    project_root: Path,
+) -> None:
+    standards_root = project_root / "knowledge" / "standards"
+    manager = TaskStateManager()
+    task = manager.create_task("coeff-y-thin-wall01", status=TaskStatus.AWAITING_INPUT)
+    populate_task_facts(
+        task,
+        {
+            "material_grade": EngineeringInput(
+                "material_grade",
+                "astm_a106_gr_b",
+                "dimensionless",
+                InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+            "design_temperature": EngineeringInput(
+                "design_temperature",
+                85.0,
+                "C",
+                InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+            "metallurgical_group": EngineeringInput(
+                "metallurgical_group",
+                "ferritic_steels",
+                "dimensionless",
+                InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+        },
+    )
+    set_fact_from_input(
+        task,
+        legacy_input(
+            input_id="thin_wall",
+            value=True,
+            unit="dimensionless",
+            source=InputSource.SYSTEM,
+            status=InputStatus.CONFIRMED,
+        ),
+    )
+
+    apply_coefficient_lookups(task, standards_root)
+
+    coefficient = task.fact_store.active_fact("temperature_coefficient_Y")
+    assert coefficient is not None
+    assert coefficient.source.source_type == SourceType.TABLE_LOOKUP
+    assert fact_scalar_value(coefficient) == 0.4

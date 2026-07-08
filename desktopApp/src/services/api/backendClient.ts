@@ -1,10 +1,17 @@
 import { env } from '@/config/env'
+import { PERFORMANCE_TRACE_HEADER } from '@/services/performance/traceId'
 import { ApiError } from '@/types/backend/apiError'
 import type { ApiErrorBody } from '@/types/backend/api'
 
 export interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown
   timeoutMs?: number
+  performanceTraceId?: string
+}
+
+export interface BackendResponse<T> {
+  data: T
+  headers: Headers
 }
 
 export class BackendClient {
@@ -15,7 +22,12 @@ export class BackendClient {
   }
 
   async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const { body, timeoutMs = 15_000, headers, ...init } = options
+    const response = await this.requestDetailed<T>(path, options)
+    return response.data
+  }
+
+  async requestDetailed<T>(path: string, options: RequestOptions = {}): Promise<BackendResponse<T>> {
+    const { body, timeoutMs = 15_000, headers, performanceTraceId, ...init } = options
     const url = `${this.getBaseUrl()}${path.startsWith('/') ? path : `/${path}`}`
 
     const response = await fetch(url, {
@@ -23,6 +35,7 @@ export class BackendClient {
       headers: {
         Accept: 'application/json',
         ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+        ...(performanceTraceId ? { [PERFORMANCE_TRACE_HEADER]: performanceTraceId } : {}),
         ...headers,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -36,7 +49,10 @@ export class BackendClient {
       throw new ApiError(response.status, errorBody)
     }
 
-    return payload as T
+    return {
+      data: payload as T,
+      headers: response.headers,
+    }
   }
 
   async get<T>(path: string, options?: RequestOptions): Promise<T> {

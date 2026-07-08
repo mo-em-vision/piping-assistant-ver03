@@ -1,6 +1,12 @@
 import { backendClient } from './backendClient'
+import { tracedRequest } from '@/services/performance/tracedRequest'
+import { generateTraceId } from '@/services/performance/traceId'
 
-import type { DevOperationsSnapshotDto, InspectionPayloadDto } from '@/types/backend/inspection'
+import type {
+  DevOperationsSnapshotDto,
+  InspectionPayloadDto,
+  PerformanceTracesSnapshotDto,
+} from '@/types/backend/inspection'
 
 function withSession(path: string, sessionId?: string): string {
   if (!sessionId) {
@@ -15,6 +21,18 @@ export const inspectionApi = {
     return backendClient.get<InspectionPayloadDto>(
       withSession(`/api/v1/tasks/${taskId}/inspection`, sessionId),
     )
+  },
+
+  getTraced(taskId: string, traceId: string, sessionId?: string) {
+    return tracedRequest<InspectionPayloadDto>(
+      withSession(`/api/v1/tasks/${taskId}/inspection`, sessionId),
+      { method: 'GET' },
+      { traceId, trigger: 'inspection_poll', taskId, preserveActiveTrace: true },
+    )
+  },
+
+  createInspectionPollTraceId() {
+    return generateTraceId()
   },
 
   setBreakpoint(
@@ -36,5 +54,11 @@ export const inspectionApi = {
 
   getOperations() {
     return backendClient.get<DevOperationsSnapshotDto>('/api/v1/dev/operations')
+  },
+
+  getPerformanceTraces(limit = 40) {
+    return backendClient.get<PerformanceTracesSnapshotDto>(
+      `/api/v1/dev/performance/traces?limit=${encodeURIComponent(String(limit))}`,
+    )
   },
 }

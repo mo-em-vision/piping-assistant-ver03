@@ -52,12 +52,16 @@ export function createTaskState(overrides: Partial<TaskStateDto> = {}): TaskStat
 }
 
 export function installFetchMock(handlers: Record<string, (init?: RequestInit) => Response | Promise<Response>>) {
+  const orderedHandlers = Object.entries(handlers).sort(
+    ([left], [right]) => right.length - left.length,
+  )
+
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input.toString()
     const method = (init?.method ?? 'GET').toUpperCase()
     const key = `${method} ${url}`
 
-    for (const [pattern, handler] of Object.entries(handlers)) {
+    for (const [pattern, handler] of orderedHandlers) {
       if (key.includes(pattern) || url.includes(pattern)) {
         return handler(init)
       }

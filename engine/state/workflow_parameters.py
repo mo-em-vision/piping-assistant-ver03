@@ -10,19 +10,11 @@ from engine.reference.node_types import is_designation_node, is_quantity_node
 from engine.reference.parameter_metadata import parameter_concept_id
 from engine.reference.relationship_taxonomy import PARAMETER_CONCEPT_TRAVERSAL_TYPES
 from engine.reference.standards_reader import StandardsReader
+from engine.inspection.value_classification import is_inspection_excluded_output_key
 from engine.units.unit_registry import get_unit_registry
 from models.fact import Fact, FactClass, fact_scalar_value, fact_unit
 from models.task import Task
 from models.workflow_state import WorkflowParameter
-
-_CONTROL_OUTPUT_KEYS = {
-    "workflow",
-    "selected_root",
-    "graph_root",
-    "graph_version",
-    "_execution_trace",
-    "_validation_trace",
-}
 
 _DEFAULT_PRIORITY = 100
 
@@ -59,9 +51,7 @@ def build_workflow_parameters(
         )
 
     for name, value in task.outputs.items():
-        if name in _CONTROL_OUTPUT_KEYS or name.endswith("_lookup"):
-            continue
-        if name.endswith("_unit"):
+        if is_inspection_excluded_output_key(name):
             continue
         if name in parameters:
             continue
@@ -92,7 +82,7 @@ def _parameters_without_graph(task: Task) -> dict[str, WorkflowParameter]:
             symbol=fact.symbol,
         )
     for name, value in task.outputs.items():
-        if name in _CONTROL_OUTPUT_KEYS or name.endswith("_lookup") or name.endswith("_unit"):
+        if is_inspection_excluded_output_key(name):
             continue
         if name in parameters:
             continue

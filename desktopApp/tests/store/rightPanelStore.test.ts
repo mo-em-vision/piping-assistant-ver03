@@ -49,7 +49,7 @@ describe('rightPanelStore', () => {
     expect(state.tabs.map((tab) => tab.kind)).toEqual(['task', 'chat', 'standards', 'reference'])
   })
 
-  it('syncDevTabs(true) adds Planner, Task State, and Operations tabs when a task is active', () => {
+  it('syncDevTabs(true) adds Planner, Task State, and Performance tabs when a task is active', () => {
     useRightPanelStore.getState().reset(true)
     useRightPanelStore.getState().syncDevTabs(true, true)
 
@@ -58,18 +58,18 @@ describe('rightPanelStore', () => {
       'task',
       'planner',
       'dev-task-state',
-      'dev-operations',
+      'dev-performance',
       'chat',
       'standards',
     ])
   })
 
-  it('syncDevTabs(true) adds Operations tab without a task', () => {
+  it('syncDevTabs(true) adds Performance tab without a task', () => {
     useRightPanelStore.getState().reset(false)
     useRightPanelStore.getState().syncDevTabs(true, false)
 
     const state = useRightPanelStore.getState()
-    expect(state.tabs.map((tab) => tab.id)).toEqual(['dev-operations', 'chat', 'standards'])
+    expect(state.tabs.map((tab) => tab.id)).toEqual(['dev-performance', 'chat', 'standards'])
   })
 
   it('syncDevTabs(false) removes dev tabs and moves active tab away from planner', () => {
@@ -94,7 +94,7 @@ describe('rightPanelStore', () => {
       'task',
       'planner',
       'dev-task-state',
-      'dev-operations',
+      'dev-performance',
       'chat',
       'standards',
     ])

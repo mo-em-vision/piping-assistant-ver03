@@ -299,7 +299,7 @@ describe('PlannerTraversalTimeline', () => {
 describe('TaskStateDevPanel', () => {
   it('shows structured task state panels without raw JSON in default view', () => {
     render(<TaskStateDevPanel payload={samplePayload} activeTaskState={null} />)
-    expect(screen.getByText('Facts / inputs')).toBeInTheDocument()
+    expect(screen.getAllByText('Facts / inputs').length).toBeGreaterThan(0)
     expect(screen.getByText(/Developer \/ debug view only/)).toBeInTheDocument()
     expect(screen.queryByRole('tab', { name: 'Raw State' })).not.toBeInTheDocument()
     expect(screen.getByText('Advanced / Raw Data — Canonical task state')).toBeInTheDocument()

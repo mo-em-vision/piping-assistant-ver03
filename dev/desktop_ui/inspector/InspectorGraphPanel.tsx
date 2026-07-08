@@ -1,5 +1,7 @@
 import './InspectorPanels.css'
 
+import { useDevRenderSpan } from './useDevRenderSpan'
+
 type InspectorGraphPanelProps = {
   activeTaskId: string | null
   sessionId: string | null
@@ -7,6 +9,7 @@ type InspectorGraphPanelProps = {
 }
 
 export function InspectorGraphPanel({ activeTaskId }: InspectorGraphPanelProps) {
+  useDevRenderSpan('graph_visualizer_render', Boolean(activeTaskId), [activeTaskId])
   if (!activeTaskId) {
     return (
       <div className="inspector-graph">

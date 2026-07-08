@@ -162,3 +162,28 @@ def parameter_node_description(
     if description:
         return re.sub(r"\s+", " ", description)
     return input_id or node_id
+
+
+def parameter_display_label(parameter_id: str, *, reader: Any | None = None) -> str:
+    """Return user-facing label from PARAM ``name`` metadata, not internal keys."""
+    canonical = canonical_parameter_key(parameter_id)
+    api_id = api_parameter_id(canonical)
+    node_id = param_node_id_for_input(api_id)
+
+    metadata: dict[str, Any] | None = None
+    if node_id.startswith("PARAM-"):
+        metadata = load_parameter_node_metadata(node_id)
+    if metadata is None and reader is not None:
+        try:
+            metadata = reader.load(node_id).metadata
+        except FileNotFoundError:
+            metadata = None
+    if metadata is None:
+        metadata = load_parameter_node_metadata(node_id)
+
+    if metadata is not None:
+        name = str(metadata.get("name", "")).strip()
+        if name:
+            return name
+
+    return api_id.replace("_", " ").strip().title()

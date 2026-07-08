@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { inspectionApi } from '@/services/api/inspectionApi'
 import { getActiveSessionId } from '@/store/projectStore'
+import { usePerformanceTraceStore } from '@/store/performanceTraceStore'
 import { useTaskStore } from '@/store/taskStore'
 
 import type { InspectionPayloadDto } from '@/types/backend/inspection'
@@ -20,11 +21,17 @@ export function useInspectionPayload(pollMs = 2000) {
       return
     }
     setLoading(true)
+    const traceId = inspectionApi.createInspectionPollTraceId()
     try {
-      const data = await inspectionApi.get(activeTaskId, sessionId ?? undefined)
+      const data = await inspectionApi.getTraced(activeTaskId, traceId, sessionId ?? undefined)
       setPayload(data)
       setError(null)
     } catch (err) {
+      usePerformanceTraceStore.getState().finalizeTrace(
+        traceId,
+        'error',
+        err instanceof Error ? err.message : 'inspection poll failed',
+      )
       setError(err instanceof Error ? err.message : 'Inspection unavailable')
       setPayload(null)
     } finally {

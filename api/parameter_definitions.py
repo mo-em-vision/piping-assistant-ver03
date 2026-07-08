@@ -21,6 +21,7 @@ from engine.reference.material_resolver import canonical_material_id
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
 from engine.state.task_facts import deactivate_fact
+from engine.inspection.performance_trace import perf_span
 from models.fact import FactClass, ValidationStatus, fact_from_user_submission, fact_scalar_value
 from models.task import Task
 
@@ -363,6 +364,26 @@ def submit_task_input(
     unit: str | None,
     standards_root: Path | None = None,
 ) -> Task:
+    with perf_span("submit_task_input", "state", notes=f"parameter={parameter}"):
+        return _submit_task_input_impl(
+            manager,
+            task_id,
+            parameter=parameter,
+            value=value,
+            unit=unit,
+            standards_root=standards_root,
+        )
+
+
+def _submit_task_input_impl(
+    manager: TaskStateManager,
+    task_id: str,
+    *,
+    parameter: str,
+    value: Any,
+    unit: str | None,
+    standards_root: Path | None = None,
+) -> Task:
     task = manager.get_task(task_id)
     planning = planning_projection(task)
     original_parameter = parameter
@@ -456,71 +477,72 @@ def submit_task_input(
 
     task = manager.get_task(task_id)
     workflow_id = _task_workflow_id(task)
-    if parameter == "outside_diameter":
-        from engine.state.task_facts import deactivate_fact, store_system_categorical_fact
+    with perf_span("lookup_side_effects", "lookup", notes=f"parameter={parameter}"):
+        if parameter == "outside_diameter":
+            from engine.state.task_facts import deactivate_fact, store_system_categorical_fact
 
-        store_system_categorical_fact(task, key="d_input_mode", label="direct_od")
-        deactivate_fact(task, "inside_diameter")
-        manager.replace_task(task_id, task)
-        task = manager.get_task(task_id)
+            store_system_categorical_fact(task, key="d_input_mode", label="direct_od")
+            deactivate_fact(task, "inside_diameter")
+            manager.replace_task(task_id, task)
+            task = manager.get_task(task_id)
 
-    if parameter == "inside_diameter":
-        from engine.state.task_facts import deactivate_fact
+        if parameter == "inside_diameter":
+            from engine.state.task_facts import deactivate_fact
 
-        deactivate_fact(task, "outside_diameter")
-        deactivate_fact(task, "nominal_pipe_size")
-        manager.replace_task(task_id, task)
-        task = manager.get_task(task_id)
+            deactivate_fact(task, "outside_diameter")
+            deactivate_fact(task, "nominal_pipe_size")
+            manager.replace_task(task_id, task)
+            task = manager.get_task(task_id)
 
-    if parameter == "nominal_pipe_size":
-        if standards_root is None:
-            raise ValueError("Standards root is required to resolve nominal pipe size.")
-        if workflow_id == MAWP_DESIGN:
-            apply_nominal_pipe_size_for_mawp(task, standards_root)
-        else:
-            apply_nominal_pipe_size_lookup(task, standards_root)
-        from engine.state.task_facts import deactivate_fact
+        if parameter == "nominal_pipe_size":
+            if standards_root is None:
+                raise ValueError("Standards root is required to resolve nominal pipe size.")
+            if workflow_id == MAWP_DESIGN:
+                apply_nominal_pipe_size_for_mawp(task, standards_root)
+            else:
+                apply_nominal_pipe_size_lookup(task, standards_root)
+            from engine.state.task_facts import deactivate_fact
 
-        deactivate_fact(task, "inside_diameter")
-        manager.replace_task(task_id, task)
-        task = manager.get_task(task_id)
+            deactivate_fact(task, "inside_diameter")
+            manager.replace_task(task_id, task)
+            task = manager.get_task(task_id)
 
-    if parameter == "pipe_schedule" and workflow_id == MAWP_DESIGN:
-        if standards_root is None:
-            raise ValueError("Standards root is required to resolve pipe schedule.")
-        apply_pipe_schedule_lookup(task, standards_root)
-        manager.replace_task(task_id, task)
-        task = manager.get_task(task_id)
+        if parameter == "pipe_schedule" and workflow_id == MAWP_DESIGN:
+            if standards_root is None:
+                raise ValueError("Standards root is required to resolve pipe schedule.")
+            apply_pipe_schedule_lookup(task, standards_root)
+            manager.replace_task(task_id, task)
+            task = manager.get_task(task_id)
 
-    if parameter == "geometry_input_mode" and workflow_id == MAWP_DESIGN:
-        apply_direct_geometry_mode(task)
-        manager.replace_task(task_id, task)
-        task = manager.get_task(task_id)
+        if parameter == "geometry_input_mode" and workflow_id == MAWP_DESIGN:
+            apply_direct_geometry_mode(task)
+            manager.replace_task(task_id, task)
+            task = manager.get_task(task_id)
 
-    if is_material_grade_parameter(parameter) or parameter == "design_temperature":
-        if standards_root is None:
-            raise ValueError("Standards root is required to resolve allowable stress.")
-        apply_allowable_stress_lookup(task, standards_root)
-        manager.replace_task(task_id, task)
-        task = manager.get_task(task_id)
+        if is_material_grade_parameter(parameter) or parameter == "design_temperature":
+            if standards_root is None:
+                raise ValueError("Standards root is required to resolve allowable stress.")
+            apply_allowable_stress_lookup(task, standards_root)
+            manager.replace_task(task_id, task)
+            task = manager.get_task(task_id)
 
-    if is_material_grade_parameter(parameter):
-        if standards_root is None:
-            raise ValueError("Standards root is required to resolve metallurgical group.")
-        apply_metallurgical_group_lookup(task, standards_root)
-        manager.replace_task(task_id, task)
-        task = manager.get_task(task_id)
+        if is_material_grade_parameter(parameter):
+            if standards_root is None:
+                raise ValueError("Standards root is required to resolve metallurgical group.")
+            apply_metallurgical_group_lookup(task, standards_root)
+            manager.replace_task(task_id, task)
+            task = manager.get_task(task_id)
 
-    if is_material_grade_parameter(parameter) or parameter in {
-        "design_temperature",
-        "pipe_construction_type",
-        "joint_category",
-    }:
-        if standards_root is None:
-            raise ValueError("Standards root is required to resolve weld joint coefficients.")
-        apply_coefficient_lookups(task, standards_root)
-        manager.replace_task(task_id, task)
-        task = manager.get_task(task_id)
+        if is_material_grade_parameter(parameter) or parameter in {
+            "design_temperature",
+            "pipe_construction_type",
+            "joint_category",
+        }:
+            if standards_root is None:
+                raise ValueError("Standards root is required to resolve weld joint coefficients.")
+            apply_coefficient_lookups(task, standards_root)
+            manager.replace_task(task_id, task)
+            task = manager.get_task(task_id)
 
     if active_edit_parameter(task) == parameter:
         clear_edit_session(task)

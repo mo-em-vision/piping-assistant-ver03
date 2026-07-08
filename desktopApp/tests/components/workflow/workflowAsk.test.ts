@@ -326,4 +326,122 @@ describe('getWorkflowAsk', () => {
     expect(ask.parameter?.name).toBe('design_temperature')
     expect(ask.parameter?.name).not.toBe('corrosion_allowance')
   })
+
+  it('resolves prompt from parameter guidance without legacy_goal_map', () => {
+    const ask = getWorkflowAsk({
+      ...mockTaskState,
+      legacy_goal_map: undefined,
+      goals: undefined,
+      progress: {
+        ...mockTaskState.progress,
+        submittable_parameters: ['design_temperature'],
+      },
+      parameters: [
+        {
+          name: 'design_temperature',
+          label: 'Design Temperature',
+          type: 'number',
+          required: true,
+          units: ['C'],
+          default_unit: 'C',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          submittable: true,
+          guidance: 'Enter design temperature for allowable stress lookup.',
+        },
+      ],
+    })
+
+    expect(ask.kind).toBe('input')
+    expect(ask.prompt).toBe('Enter design temperature for allowable stress lookup.')
+  })
+
+  it('resolves prompt from current_ask without legacy_goal_map', () => {
+    const ask = getWorkflowAsk({
+      ...mockTaskState,
+      legacy_goal_map: undefined,
+      goals: undefined,
+      current_ask: {
+        kind: 'input',
+        parameter_id: 'nominal_pipe_size',
+        prompt: 'Backend current_ask prompt for pipe size.',
+      },
+      progress: {
+        ...mockTaskState.progress,
+        submittable_parameters: ['nominal_pipe_size'],
+      },
+      parameters: mockTaskState.parameters.map((parameter) =>
+        parameter.name === 'nominal_pipe_size'
+          ? { ...parameter, status: 'pending', submittable: true }
+          : parameter,
+      ),
+    })
+
+    expect(ask.kind).toBe('input')
+    expect(ask.prompt).toBe('Backend current_ask prompt for pipe size.')
+  })
+
+  it('resolves prompt from flow_guidance active_prompt without legacy_goal_map', () => {
+    const ask = getWorkflowAsk(
+      {
+        ...mockTaskState,
+        legacy_goal_map: undefined,
+        goals: undefined,
+        current_ask: {
+          kind: 'waiting',
+          parameter_id: null,
+          prompt: null,
+        },
+        flow_guidance: {
+          presentation_blocks: [],
+          transcript_blocks: [],
+          active_prompt: {
+            block_id: 'prompt-corrosion',
+            kind: 'prompt',
+            source: 'messaging',
+            text: 'Confirm corrosion allowance from flow guidance.',
+            payload: { parameter_id: 'corrosion_allowance' },
+          },
+        },
+        progress: {
+          ...mockTaskState.progress,
+          submittable_parameters: [],
+          current_step_id: 'corrosion_allowance',
+        },
+        parameters: [
+          {
+            name: 'corrosion_allowance',
+            label: 'Corrosion allowance',
+            type: 'number',
+            required: true,
+            units: ['mm'],
+            default_unit: 'mm',
+            default_value: null,
+            value: null,
+            options: null,
+            validation: null,
+            status: 'pending',
+            requires_confirmation: false,
+            submittable: false,
+          },
+        ],
+      },
+      [
+        {
+          id: 'corrosion_allowance',
+          title: 'Corrosion allowance',
+          status: 'active',
+          value: null,
+          unit: null,
+        },
+      ],
+    )
+
+    expect(ask.kind).toBe('input')
+    expect(ask.prompt).toBe('Confirm corrosion allowance from flow guidance.')
+  })
 })

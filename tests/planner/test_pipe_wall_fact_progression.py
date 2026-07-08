@@ -331,7 +331,7 @@ def test_bootstrap_task_state_exposes_fresh_canonical_engineering_plan(tmp_path:
     bootstrap_new_task(task, "pipe_wall_thickness_design", config)
     manager.replace_task(task.task_id, task)
 
-    payload = task_state(task, manager, reader=reader)
+    payload = task_state(task, manager, reader=reader, projection_mode="full")
     plan = payload.get("engineering_plan")
     assert isinstance(plan, dict)
     assert "requirements" in plan

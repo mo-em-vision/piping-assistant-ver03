@@ -6,6 +6,7 @@ from typing import Any
 
 from engine.graph.assumption_checker import AssumptionEvaluation
 from engine.graph.graph_engine import GraphEngine, normalize_root_id
+from engine.inspection.performance_trace import perf_span
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from models.agent import AlternativePathRecord
@@ -90,13 +91,14 @@ class GraphTools:
         lazy: bool = False,
     ) -> ExecutionPlan:
         slug = normalize_root_id(root_id)
-        return self._engine.build_plan(
-            task_id=task_id,
-            root_id=slug,
-            inputs=inputs or {},
-            reader=self._reader,
-            lazy=lazy,
-        )
+        with perf_span("graph_build_plan", "graph", notes=f"root_id={slug}"):
+            return self._engine.build_plan(
+                task_id=task_id,
+                root_id=slug,
+                inputs=inputs or {},
+                reader=self._reader,
+                lazy=lazy,
+            )
 
     def pending_decision_interactions_for_root(
         self,

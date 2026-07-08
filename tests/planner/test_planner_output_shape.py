@@ -32,7 +32,7 @@ def test_task_state_engineering_plan_is_canonical_not_goal_map() -> None:
     build_goal_tree(task, reader)
     manager.replace_task(task.task_id, task)
 
-    payload = task_state(task, manager, reader=reader)
+    payload = task_state(task, manager, reader=reader, projection_mode="full")
 
     plan = payload.get("engineering_plan")
     assert isinstance(plan, dict)

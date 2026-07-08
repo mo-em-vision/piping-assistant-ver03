@@ -83,3 +83,34 @@ def test_build_equation_evaluation_block_derived_t_shows_value_reference(standar
     c_row = next(row for row in block["input_table"]["rows"] if row["symbol"] == "c")
     assert c_row.get("value_reference") is None
     assert c_row["value"] == AWAITING_USER_INPUT
+
+
+def test_eq2_trace_updates_t_value_when_output_available(standards_reader) -> None:
+    from api.equation_evaluation_display import build_equation_trace_block
+    from api.equation_inputs_display import AWAITING_USER_INPUT
+
+    manager = TaskStateManager()
+    task = manager.create_task("eq-eval-trace-t", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "path_decision": {
+            "pressure_loading": "internal_pressure",
+            "selected_node": "304.1.2-a",
+        },
+        "current_phase": "formula_parameters",
+    }
+    task.outputs = {
+        "workflow": "pipe_wall_thickness_design",
+        "t": 2.0,
+        "required_thickness": 2.0,
+    }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    task.active_nodes = ["304.1.1-a", "304.1.2-a"]
+
+    trace = build_equation_trace_block(task, standards_reader, "304.1.1-a")
+    assert trace is not None
+    assert trace.get("display_role") == "equation_trace"
+    t_row = next(row for row in trace["input_table"]["rows"] if row["symbol"] == "t")
+    assert t_row["value"] != AWAITING_USER_INPUT
+    assert "2.000" in t_row["value"]
+    assert t_row.get("value_reference") is not None
+    assert t_row.get("value_status") == "equation_derived"

@@ -39,9 +39,9 @@ describe('taskStateManager', () => {
 
     expect(viewModel).not.toBeNull()
     expect(viewModel?.statusLabel).toBe('Awaiting input')
-    expect(viewModel?.completedCount).toBe(2)
-    expect(viewModel?.totalCount).toBe(4)
-    expect(viewModel?.currentStep?.title).toBe('Thickness')
+    expect(viewModel?.completedCount).toBe(4)
+    expect(viewModel?.totalCount).toBe(7)
+    expect(viewModel?.currentStep?.title).toBe('Nominal pipe size')
   })
 })
 
@@ -179,6 +179,78 @@ describe('engineering workflow integration', () => {
     vi.stubEnv('VITE_MOCK_DATA', 'false')
   })
 
+  it('accepts compact submit responses without engineering_plan', async () => {
+    const { createTaskState, jsonResponse } = await import('../helpers/apiMocks')
+
+    let currentTask = createTaskState({
+      progress: {
+        timeline: [],
+        steps: [],
+        missing_inputs: ['straight_pipe_section'],
+        missing_assumptions: [],
+        step_progress: [],
+      },
+    })
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = input.toString()
+        const method = (init?.method ?? 'GET').toUpperCase()
+
+        if (method === 'POST' && url.includes('/inputs')) {
+          currentTask = createTaskState({
+            progress: {
+              ...currentTask.progress,
+              missing_inputs: ['pressure_loading'],
+            },
+            current_ask: {
+              kind: 'input',
+              parameter_id: 'pressure_loading',
+              prompt: 'How is the pipe pressurized?',
+            },
+          })
+          return jsonResponse(currentTask)
+        }
+
+        if (url.includes(`/api/v1/tasks/${currentTask.task_id}`) && method === 'GET') {
+          return jsonResponse(currentTask)
+        }
+
+        if (method === 'POST' && /\/api\/v1\/tasks(\?|$)/.test(url) && !url.includes('/activate')) {
+          return jsonResponse(currentTask, 201)
+        }
+
+        if (url.match(/\/api\/v1\/tasks(\?|$)/) && method === 'GET') {
+          return jsonResponse({
+            session_id: 'default',
+            active_task_id: currentTask.task_id,
+            tasks: [],
+            recent_tasks: [],
+          })
+        }
+
+        if (url.includes('/api/v1/workflows')) {
+          return jsonResponse({ workflows: [] })
+        }
+
+        return jsonResponse({ error: { code: 'not_found', message: `${method} ${url}` } }, 404)
+      }),
+    )
+
+    const { useProjectStore } = await import('@/store/projectStore')
+    const { useTaskStore } = await import('@/store/taskStore')
+    useProjectStore.setState({ activeProjectId: 'default' })
+    await useTaskStore.getState().createTask('pipe_wall_thickness_design')
+    await useTaskStore.getState().submitParameter('straight_pipe_section', true)
+
+    const taskState = useTaskStore.getState().activeTaskState
+    expect(taskState?.engineering_plan).toBeUndefined()
+    expect(taskState?.legacy_goal_map).toBeUndefined()
+    expect(taskState?.canonical).toBeUndefined()
+    expect(taskState?.current_ask?.parameter_id).toBe('pressure_loading')
+  })
+
   it('creates task, submits input, and generates report via API mocks', async () => {
     const { createTaskState, jsonResponse } = await import('../helpers/apiMocks')
 
@@ -300,18 +372,25 @@ describe('engineering workflow integration', () => {
     expect(useReportStore.getState().userError).toBeNull()
   })
 
-  it('preserves prior display_outputs after submitParameter', async () => {
+  it('preserves durable display_outputs after submitParameter', async () => {
     const { createTaskState, jsonResponse } = await import('../helpers/apiMocks')
 
-    const equationBlock = {
+    const durableExplanation = {
+      id: 'preview-intro',
+      type: 'text' as const,
+      lifecycle: 'durable' as const,
+      content: 'The minimum required wall thickness shall be computed.',
+    }
+    const previewEquation = {
       id: 'path-preview-equation-B313-304.1.2',
       type: 'equation' as const,
+      lifecycle: 'preview' as const,
       content: 't = PD / 2(SEW + PY)',
       display: 't = PD / 2(SEW + PY)',
     }
 
     let currentTask = createTaskState({
-      display_outputs: [equationBlock],
+      display_outputs: [durableExplanation, previewEquation],
       current_ask: {
         kind: 'input',
         parameter_id: 'nominal_pipe_size',
@@ -390,22 +469,23 @@ describe('engineering workflow integration', () => {
     await useTaskStore.getState().submitParameter('nominal_pipe_size', '6')
 
     const outputs = useTaskStore.getState().activeTaskState?.display_outputs ?? []
-    expect(outputs.some((block) => block.id === equationBlock.id)).toBe(true)
-    expect(outputs.some((block) => block.id === 'archived-prompt-nominal_pipe_size')).toBe(true)
+    expect(outputs.some((block) => block.id === durableExplanation.id)).toBe(true)
+    expect(outputs.some((block) => block.id === previewEquation.id)).toBe(false)
+    expect(outputs.some((block) => block.id === 'archived-prompt-nominal_pipe_size')).toBe(false)
   })
 
-  it('refreshActiveTask preserves transcript blocks when backend snapshot shrinks', async () => {
+  it('refreshActiveTask preserves durable transcript blocks when backend snapshot shrinks', async () => {
     const { createTaskState, jsonResponse } = await import('../helpers/apiMocks')
 
-    const equationBlock = {
-      id: 'path-preview-equation-B313-304.1.2',
-      type: 'equation' as const,
-      content: 't = PD / 2(SEW + PY)',
-      display: 't = PD / 2(SEW + PY)',
+    const durableExplanation = {
+      id: 'preview-intro',
+      type: 'text' as const,
+      lifecycle: 'durable' as const,
+      content: 'The minimum required wall thickness shall be computed.',
     }
 
     const currentTask = createTaskState({
-      display_outputs: [equationBlock],
+      display_outputs: [durableExplanation],
     })
 
     vi.stubGlobal(
@@ -450,6 +530,6 @@ describe('engineering workflow integration', () => {
     await useTaskStore.getState().refreshActiveTask()
 
     const outputs = useTaskStore.getState().activeTaskState?.display_outputs ?? []
-    expect(outputs.some((block) => block.id === equationBlock.id)).toBe(true)
+    expect(outputs.some((block) => block.id === durableExplanation.id)).toBe(true)
   })
 })

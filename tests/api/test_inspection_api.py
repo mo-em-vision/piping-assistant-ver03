@@ -51,6 +51,9 @@ def test_inspection_enabled_returns_payload(tmp_path: Path, project_root: Path) 
         assert "integrity_checks" in payload
         assert "performance" in payload
         assert "task_state_views" in payload
+        assert isinstance(payload.get("engineering_plan"), dict)
+        assert isinstance(payload.get("legacy_goal_map"), dict)
+        assert isinstance(payload.get("canonical_task_state"), dict)
         summary = payload.get("planner_inspector_summary") or {}
         assert "header" in summary
         assert "traversal_path" in summary

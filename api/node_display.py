@@ -8,8 +8,14 @@ from typing import Any
 
 import yaml
 
+from api.display_block_metadata import (
+    DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
+    DISPLAY_ROLE_ACTIVATION,
+    tag_display_block,
+)
 from engine.reference.formula_display import (
     _resolve_equation_display_from_data,
+    _resolve_equation_node_id,
     load_equation_context,
     resolve_equation_display_variables,
 )
@@ -62,6 +68,13 @@ def build_activated_node_blocks(
                     "label": f"§{paragraph}(b)",
                     "paragraph": paragraph,
                 }
+            tag_display_block(
+                block,
+                display_role=DISPLAY_ROLE_ACTIVATION,
+                equation_node_id=ref_id,
+                source_node_id=node_id,
+                display_channel=DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
+            )
             blocks.append(block)
         blocks.extend(_equation_blocks(reader, record, metadata, node_id))
         return blocks
@@ -231,6 +244,9 @@ def _equation_blocks(
 
         name = str(data.get("name") or equation.get("description") or "Governing equation").strip()
         resolved = _resolve_equation_display_from_data(reader, data, metadata)
+        equation_node_id = str(data.get("id") or "").strip() or _resolve_equation_node_id(
+            reader, str(data.get("key") or node_id)
+        )
         equation_block: dict[str, Any] = {
             "id": f"node-activation-equation-{node_id}-{index}",
             "type": "equation",
@@ -242,6 +258,13 @@ def _equation_blocks(
         nomenclature_reference = resolved.get("nomenclature_reference")
         if nomenclature_reference:
             equation_block["nomenclature_reference"] = nomenclature_reference
+        tag_display_block(
+            equation_block,
+            display_role=DISPLAY_ROLE_ACTIVATION,
+            equation_node_id=equation_node_id or None,
+            source_node_id=node_id,
+            display_channel=DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
+        )
         blocks.append(equation_block)
 
     if not blocks:
@@ -249,6 +272,7 @@ def _equation_blocks(
         display = context.get("display")
         if display:
             resolved = resolve_equation_display_variables(reader, node_id)
+            equation_node_id = _resolve_equation_node_id(reader, node_id)
             equation_block: dict[str, Any] = {
                 "id": f"node-activation-equation-{node_id}-fallback",
                 "type": "equation",
@@ -260,6 +284,13 @@ def _equation_blocks(
             nomenclature_reference = resolved.get("nomenclature_reference")
             if nomenclature_reference:
                 equation_block["nomenclature_reference"] = nomenclature_reference
+            tag_display_block(
+                equation_block,
+                display_role=DISPLAY_ROLE_ACTIVATION,
+                equation_node_id=equation_node_id,
+                source_node_id=node_id,
+                display_channel=DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
+            )
             blocks.append(equation_block)
 
     return blocks

@@ -12,7 +12,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Mapping, Sequence
 
-from engine.graph.assumption_checker import field_value, normalize_assumption_value
+from engine.graph.assumption_checker import normalize_assumption_value
+from engine.reference.parameter_keys import parameter_display_label
 from engine.reference.paragraph_sidecar import (
     merge_paragraph_sidecar_metadata,
     parse_applicability_as_assumptions,
@@ -515,51 +516,59 @@ def question_for_interaction(
     spec: NodeInteractionSpec,
     existing_inputs: Mapping[str, Fact | Any] | None = None,
 ) -> str:
-    label = spec.symbol or spec.variable
+    label = spec.symbol or parameter_display_label(spec.variable)
     condition_text = spec.default_condition or (
         getattr(existing_inputs.get(spec.variable), "default_condition", None)
         if existing_inputs and spec.variable in existing_inputs
         else None
     )
 
+    def _format_unit(unit: str | None) -> str:
+        text = str(unit or "").strip()
+        if not text or text.lower() == "dimensionless":
+            return ""
+        return f" {text}"
+
     if existing_inputs and spec.variable in existing_inputs:
         raw = existing_inputs[spec.variable]
         if isinstance(raw, Fact) and raw.fact_class == FactClass.DEFAULT_CONFIRMED and raw.validation.status == ValidationStatus.PENDING:
             condition = raw.default_condition or spec.default_condition
             value = fact_scalar_value(raw)
-            unit = fact_unit(raw)
+            unit = _format_unit(fact_unit(raw))
             if condition:
                 return (
-                    f"For {label}: the default is {value} {unit} when "
+                    f"For {label}: the default is {value}{unit} when "
                     f"{condition}. Confirm or enter another value."
                 )
             return (
-                f"The default value for {label} is {value} {unit}. "
+                f"The default value for {label} is {value}{unit}. "
                 f"Confirm or provide another value."
             )
     if spec.question:
         if spec.default is not None and condition_text:
+            unit = _format_unit(spec.unit)
             return (
-                f"For {label}: the default is {spec.default} {spec.unit} when "
+                f"For {label}: the default is {spec.default}{unit} when "
                 f"{condition_text}. Confirm or enter another value."
             )
         return spec.question
     if spec.mode == InteractionMode.DECISION and spec.options:
         return (
-            f"Please select a value for {spec.variable}. "
+            f"Please select a value for {label}. "
             f"Options: {', '.join(spec.options)}."
         )
     if spec.default is not None:
+        unit = _format_unit(spec.unit)
         if condition_text:
             return (
-                f"For {label}: the default is {spec.default} {spec.unit} when "
+                f"For {label}: the default is {spec.default}{unit} when "
                 f"{condition_text}. Confirm or enter another value."
             )
         return (
-            f"The default value for {label} is {spec.default} {spec.unit}. "
+            f"The default value for {label} is {spec.default}{unit}. "
             f"Confirm or provide another value."
         )
-    return f"Please provide a value for {spec.variable}."
+    return f"Please provide a value for {label}."
 
 
 def is_interaction_satisfied(

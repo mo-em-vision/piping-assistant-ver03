@@ -1,6 +1,7 @@
 import { backendClient } from './backendClient'
 import { requestManager } from './requestManager'
 import { parseTaskList, parseTaskState, parseWorkflows } from './responseParser'
+import { tracedRequest } from '@/services/performance/tracedRequest'
 
 import type { RecentTasksResponse, TaskListResponse, TaskStateDto, WorkflowDto } from '@/types/backend/api'
 
@@ -23,6 +24,17 @@ export const taskApi = {
     const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''
     return requestManager.run(`tasks:create:${workflowId}`, () =>
       backendClient.post<TaskStateDto>(`/api/v1/tasks${query}`, { workflow_id: workflowId }).then(parseTaskState),
+    )
+  },
+
+  createTraced(workflowId: string, traceId: string, sessionId?: string) {
+    const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : ''
+    return requestManager.run(`tasks:create:${workflowId}`, () =>
+      tracedRequest<TaskStateDto>(
+        `/api/v1/tasks${query}`,
+        { method: 'POST', body: { workflow_id: workflowId } },
+        { traceId, trigger: 'create_task' },
+      ).then(parseTaskState),
     )
   },
 

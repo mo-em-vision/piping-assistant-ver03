@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
+import { durableDisplayBlocks } from '@/utils/displayBlockLifecycle'
 import {
   clearTranscriptCache,
   loadTranscriptCache,
@@ -25,6 +26,39 @@ describe('transcriptCache', () => {
 
     expect(loadTranscriptCache('task-1')).toEqual([sampleBlock])
     expect(loadTranscriptCache('task-2')).toEqual([])
+  })
+
+  it('stores durable equation traces and drops preview-only blocks', () => {
+    const trace: DisplayOutputBlock = {
+      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
+      type: 'equation',
+      lifecycle: 'durable',
+      display_role: 'equation_trace',
+      equation_node_id: 'asme-b313-304-1-1-eq-2',
+      source_node_id: '304.1.1-a',
+      content: 't_m = t + c',
+      display: 't_m = t + c',
+      input_table: {
+        columns: [
+          { key: 'symbol', label: 'Symbol', sortable: false },
+          { key: 'definition', label: 'Definition', sortable: false },
+          { key: 'value', label: 'Value', sortable: false },
+        ],
+        rows: [{ symbol: 't', definition: 'Required thickness', value: '2.000 mm' }],
+      },
+    }
+    const preview: DisplayOutputBlock = {
+      id: 'path-preview-equation-304.1.1-a',
+      type: 'equation',
+      lifecycle: 'preview',
+      display_role: 'preview',
+      display_channel: 'current_equation_preview',
+      content: 't_m = t + c',
+      display: 't_m = t + c',
+    }
+
+    saveTranscriptCache('task-trace', durableDisplayBlocks([trace, preview]))
+    expect(loadTranscriptCache('task-trace')).toEqual([trace])
   })
 
   it('clears one task without affecting others', () => {

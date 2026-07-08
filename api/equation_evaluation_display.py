@@ -4,6 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from api.display_block_metadata import (
+    DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
+    DISPLAY_ROLE_EQUATION_TRACE,
+    DISPLAY_ROLE_PREVIEW,
+    equation_trace_block_id,
+    tag_display_block,
+)
 from api.equation_inputs_display import AWAITING_USER_INPUT, _input_display_value
 from engine.graph.assumption_checker import field_value
 from engine.graph.param_priority import require_target_id
@@ -109,6 +116,8 @@ def build_equation_evaluation_block(
     focus_node_id: str,
     *,
     block_id_prefix: str = "path-preview-equation",
+    display_role: str = DISPLAY_ROLE_PREVIEW,
+    display_channel: str | None = DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
 ) -> dict[str, Any] | None:
     """Build a desktop equation block with live symbol table and definition links."""
     equation_id = resolve_equation_node_for_display(reader, focus_node_id, task)
@@ -131,8 +140,14 @@ def build_equation_evaluation_block(
         resolved = resolve_equation_display_variables(reader, equation_id)
         rows = _legacy_variable_rows(reader, resolved.get("variables") or [], task)
 
+    block_id = (
+        equation_trace_block_id(focus_node_id, equation_id)
+        if display_role == DISPLAY_ROLE_EQUATION_TRACE
+        else f"{block_id_prefix}-{focus_node_id}"
+    )
+
     block: dict[str, Any] = {
-        "id": f"{block_id_prefix}-{focus_node_id}",
+        "id": block_id,
         "type": "equation",
         "title": None,
         "content": _display_to_latex(display),
@@ -149,7 +164,33 @@ def build_equation_evaluation_block(
     if nomenclature_reference:
         block["nomenclature_reference"] = nomenclature_reference
 
-    return block
+    tagged = tag_display_block(
+        block,
+        display_role=display_role,
+        equation_node_id=equation_id,
+        source_node_id=focus_node_id,
+        display_channel=display_channel,
+    )
+    if display_role == DISPLAY_ROLE_EQUATION_TRACE:
+        tagged.pop("display_channel", None)
+    if tagged.get("input_table") and tagged.get("variables"):
+        tagged.pop("variables", None)
+    return tagged
+
+
+def build_equation_trace_block(
+    task: Task,
+    reader: StandardsReader,
+    source_node_id: str,
+) -> dict[str, Any] | None:
+    """Build a durable equation trace block rebuilt from current task state."""
+    return build_equation_evaluation_block(
+        task,
+        reader,
+        source_node_id,
+        display_role=DISPLAY_ROLE_EQUATION_TRACE,
+        display_channel=None,
+    )
 
 
 def resolve_equation_node_for_display(
@@ -219,6 +260,25 @@ def _edge_when_applies(when: dict[str, Any], facts: dict[str, Any]) -> bool:
     return True
 
 
+def _dedupe_equation_input_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    seen: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for row in rows:
+        param_id = str(row.get("parameter_id") or "").strip()
+        symbol = str(row.get("symbol") or "").strip()
+        key = param_id or symbol
+        if not key:
+            continue
+        existing = seen.get(key)
+        if existing is None:
+            seen[key] = row
+            order.append(key)
+            continue
+        if len(str(row.get("definition") or "")) > len(str(existing.get("definition") or "")):
+            seen[key] = row
+    return [seen[key] for key in order]
+
+
 def _equation_input_rows(
     reader: StandardsReader,
     equation_metadata: dict[str, Any],
@@ -235,22 +295,33 @@ def _equation_input_rows(
         display = None
         if input_id:
             display = _input_display_value(task, input_id) or _output_display_value(task, input_id)
+        value_reference = resolve_parameter_value_reference(reader, param_id, task) if param_id else None
         row: dict[str, Any] = {
             "symbol": symbol,
             "definition": definition,
             "value": display or "",
+            "parameter_id": param_id or None,
         }
-        if not display:
-            value_reference = resolve_parameter_value_reference(reader, param_id, task)
-            if value_reference is not None:
-                row["value_reference"] = value_reference
-            else:
-                row["value"] = AWAITING_USER_INPUT
+        if value_reference is not None:
+            row["value_reference"] = value_reference
+            row["value_status"] = _value_status_for_row(
+                reader,
+                param_id,
+                display,
+                value_reference,
+            )
+            if not display:
+                row["value"] = ""
+        elif display:
+            row["value_status"] = "user_supplied"
+        else:
+            row["value"] = AWAITING_USER_INPUT
+            row["value_status"] = "unresolved_user_input"
         definition_reference = _definition_reference_for_parameter(reader, param_id)
         if definition_reference is not None:
             row["definition_reference"] = definition_reference
         rows.append(row)
-    return rows
+    return _dedupe_equation_input_rows(rows)
 
 
 def _legacy_variable_rows(
@@ -277,25 +348,38 @@ def _legacy_variable_rows(
             display = _input_display_value(task, input_id) or _output_display_value(task, input_id)
         if display is None and variable.get("value"):
             display = str(variable["value"])
+        value_reference = (
+            resolve_parameter_value_reference(reader, param_id, task) if param_id else None
+        )
         row: dict[str, Any] = {
             "symbol": symbol,
             "definition": definition,
             "value": display or "",
         }
-        if not display and param_id:
-            value_reference = resolve_parameter_value_reference(reader, param_id, task)
-            if value_reference is not None:
-                row["value_reference"] = value_reference
-            else:
-                row["value"] = AWAITING_USER_INPUT
-        elif not display:
+        if value_reference is not None:
+            row["value_reference"] = value_reference
+            row["value_status"] = _value_status_for_row(
+                reader,
+                param_id,
+                display,
+                value_reference,
+            )
+            if not display:
+                row["value"] = ""
+        elif display:
+            row["value_status"] = "user_supplied"
+        elif param_id:
             row["value"] = AWAITING_USER_INPUT
+            row["value_status"] = "unresolved_user_input"
+        else:
+            row["value"] = AWAITING_USER_INPUT
+            row["value_status"] = "unresolved_user_input"
         if param_id:
             definition_reference = _definition_reference_for_parameter(reader, param_id)
             if definition_reference is not None:
                 row["definition_reference"] = definition_reference
         rows.append(row)
-    return rows
+    return _dedupe_equation_input_rows(rows)
 
 
 def _definition_reference_for_parameter(
@@ -345,14 +429,31 @@ def _param_input_id(reader: StandardsReader, param_id: str) -> str | None:
     return key or None
 
 
+def _value_status_for_row(
+    reader: StandardsReader,
+    param_id: str,
+    display: str | None,
+    value_reference: dict[str, str],
+) -> str:
+    if value_reference.get("reference_kind") == "table":
+        return "lookup_derived" if display else "unresolved_derived"
+    return "equation_derived" if display else "unresolved_derived"
+
+
 def _output_display_value(task: Task, input_id: str) -> str | None:
-    if input_id == "allowable_stress":
-        value = task.outputs.get("allowable_stress") or task.outputs.get("S")
+    from api.equation_inputs_display import format_thickness_result_display
+
+    if input_id in {"required_wall_thickness", "pressure_design_thickness"}:
+        value = (
+            task.outputs.get("t")
+            or task.outputs.get("required_thickness")
+            or task.outputs.get("pressure_design_thickness")
+        )
         if value is None:
             return None
-        return _input_display_value(task, input_id)
-    if input_id == "pressure_design_thickness":
-        value = task.outputs.get("pressure_design_thickness") or task.outputs.get("t")
+        return format_thickness_result_display(float(value), "mm")
+    if input_id == "allowable_stress":
+        value = task.outputs.get("allowable_stress") or task.outputs.get("S")
         if value is None:
             return None
         return _input_display_value(task, input_id)

@@ -16,6 +16,7 @@ from engine.graph.definition_equations import (
 )
 from engine.inspection.dev_guard import inspection_enabled
 from engine.inspection.operation_tracker import track_operation
+from engine.inspection.performance_trace import add_summary_span, perf_span
 from engine.inspection.models import GraphEdgeRef
 from engine.inspection.trace import enrich_execution_result_trace, persist_plan_metadata
 from engine.reference.standards_reader import StandardsReader
@@ -58,6 +59,15 @@ class Executor:
         *,
         state: TaskStateManager,
     ) -> ExecutionResult:
+        with perf_span("execute_plan", "execution", notes=f"nodes={len(plan.execution_order)}"):
+            return self._execute_plan_impl(plan, state=state)
+
+    def _execute_plan_impl(
+        self,
+        plan: ExecutionPlan,
+        *,
+        state: TaskStateManager,
+    ) -> ExecutionResult:
         task = state.get_task(plan.task_id)
         node_results: list[NodeExecutionResult] = []
         dependency_outputs: dict[str, Any] = {}
@@ -74,7 +84,8 @@ class Executor:
             state.store_output(plan.task_id, "_lifecycle_events", payload)
             return payload
 
-        plan_validation = self._validation.validate_plan(plan, task)
+        with perf_span("validate_plan", "validation", notes=f"nodes={len(plan.execution_order)}"):
+            plan_validation = self._validation.validate_plan(plan, task)
         validation_trace.append(
             {"scope": "plan", **self._validation.to_trace_entry(plan_validation)}
         )
@@ -293,6 +304,8 @@ class Executor:
             elif result.status == NodeExecutionStatus.SKIPPED:
                 prior_completed.add(node_id)
 
+        _record_node_execution_aggregates(self._reader, step_durations)
+
         trace_payload = []
         for item in node_results:
             payload = asdict(item)
@@ -364,15 +377,16 @@ def execute_workflow(
         task_id=task_id,
         root_id=root_id,
     ):
-        task = state.get_task(task_id)
-        plan = GraphEngine().build_plan(
-            task_id=task_id,
-            root_id=root_id,
-            inputs=dict(task.fact_store.active_facts()),
-            reader=reader,
-        )
-        executor = Executor(reader, events=events)
-        return executor.execute_plan(plan, state=state)
+        with perf_span("execute_workflow", "execution", notes=f"root_id={root_id}"):
+            task = state.get_task(task_id)
+            plan = GraphEngine().build_plan(
+                task_id=task_id,
+                root_id=root_id,
+                inputs=dict(task.fact_store.active_facts()),
+                reader=reader,
+            )
+            executor = Executor(reader, events=events)
+            return executor.execute_plan(plan, state=state)
 
 
 def _plan_edge_refs(plan: ExecutionPlan) -> list[GraphEdgeRef]:
@@ -390,6 +404,38 @@ def _plan_edge_refs(plan: ExecutionPlan) -> list[GraphEdgeRef]:
             )
         )
     return edges
+
+
+def _record_node_execution_aggregates(
+    reader: StandardsReader,
+    step_durations: dict[str, float],
+) -> None:
+    equation_count = 0
+    equation_ms = 0.0
+    lookup_count = 0
+    lookup_ms = 0.0
+    for node_id, duration_ms in step_durations.items():
+        node_type = _node_type_for(reader, node_id)
+        if node_type == "equation":
+            equation_count += 1
+            equation_ms += duration_ms
+        elif node_type == "lookup":
+            lookup_count += 1
+            lookup_ms += duration_ms
+    if equation_count:
+        add_summary_span(
+            "equation_evaluations",
+            "equation",
+            equation_ms,
+            notes=f"count={equation_count}",
+        )
+    if lookup_count:
+        add_summary_span(
+            "lookup_resolutions",
+            "lookup",
+            lookup_ms,
+            notes=f"count={lookup_count}",
+        )
 
 
 def _edges_for_node(

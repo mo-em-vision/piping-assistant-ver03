@@ -57,3 +57,37 @@ def test_unknown_material_raises() -> None:
             lookup_config={"table_id": "A-1"},
             inputs={"material": "UNKNOWN", "design_temperature": 200},
         )
+
+
+def test_y_coefficient_lookup_accepts_graph_node_table_id() -> None:
+    engine = _lookup_engine()
+    result = engine.lookup(
+        "asme-b313-table-304-1-1-1",
+        {
+            "design_temperature": 900.0,
+            "design_temperature_unit": "F",
+            "metallurgical_group": "ferritic_steels",
+        },
+    )
+    assert 0.0 < result.value <= 1.0
+
+
+def test_y_coefficient_lookup_uses_metallurgical_group() -> None:
+    engine = _lookup_engine()
+    ferritic = engine.lookup(
+        "asme_b31.3_table_304_1_1_1",
+        {
+            "design_temperature": 1000.0,
+            "design_temperature_unit": "F",
+            "metallurgical_group": "ferritic_steels",
+        },
+    )
+    austenitic = engine.lookup(
+        "asme-b313-table-304-1-1-1",
+        {
+            "design_temperature": 1000.0,
+            "design_temperature_unit": "F",
+            "metallurgical_group": "austenitic_steels",
+        },
+    )
+    assert ferritic.value != austenitic.value

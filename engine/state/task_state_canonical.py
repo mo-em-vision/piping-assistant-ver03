@@ -9,6 +9,7 @@ from api.workflow_timeline import (
     collect_all_missing,
     submittable_parameter_ids,
 )
+from engine.inspection.value_classification import is_inspection_excluded_output_key
 from engine.planner.goal_navigation import build_current_ask, next_actionable_goal
 from engine.reference.parameter_keys import param_node_id_for_input
 from engine.reference.standards_reader import StandardsReader
@@ -321,7 +322,12 @@ def _task_display_name(task: Task) -> str:
     custom = task.outputs.get("display_name")
     if isinstance(custom, str) and custom.strip():
         return custom.strip()
-    return _task_workflow_id(task) or task.task_id
+    workflow_id = _task_workflow_id(task)
+    if not workflow_id:
+        return task.task_id
+    from api.workflow_display import task_display_title
+
+    return task_display_title(workflow_id)
 
 
 def _build_current_blocker(
@@ -566,7 +572,7 @@ def _build_engineering_values(
     if reader is not None:
         parameters = build_workflow_parameters(task, reader=reader, active_nodes=set(task.active_nodes))
         for name, param in parameters.items():
-            if name in _GRAPH_METADATA_KEYS or name in _CONTROL_OUTPUT_KEYS:
+            if name in _GRAPH_METADATA_KEYS or is_inspection_excluded_output_key(name):
                 continue
             if name in _EQUATION_SYMBOL_ALIASES and name not in fact_keys:
                 continue
@@ -591,7 +597,7 @@ def _build_engineering_values(
         values[name] = _engineering_value_from_fact(name, fact)
 
     for key, value in task.outputs.items():
-        if key in _CONTROL_OUTPUT_KEYS or key in _GRAPH_METADATA_KEYS:
+        if is_inspection_excluded_output_key(key) or key in _GRAPH_METADATA_KEYS:
             continue
         if key.endswith("_lookup") or key.endswith("_unit"):
             continue

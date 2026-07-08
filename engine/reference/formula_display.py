@@ -310,8 +310,17 @@ def _resolve_equation_display_from_data(
             row["unit"] = unit
         rows.append(row)
 
+    deduped_rows: list[dict[str, str]] = []
+    seen_symbols: set[str] = set()
+    for row in rows:
+        symbol = str(row.get("symbol") or "").strip()
+        if not symbol or symbol in seen_symbols:
+            continue
+        seen_symbols.add(symbol)
+        deduped_rows.append(row)
+
     return {
-        "variables": rows,
+        "variables": deduped_rows,
         "nomenclature_reference": _nomenclature_reference_link(reader, nomenclature_ref),
     }
 

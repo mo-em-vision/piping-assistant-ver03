@@ -3,145 +3,155 @@ import { describe, expect, it } from 'vitest'
 import { mergeDisplayOutputs } from '@/utils/mergeDisplayOutputs'
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
 
+const legacyEq2Activation: DisplayOutputBlock = {
+  id: 'node-activation-equation-B313-304.1.1-0',
+  type: 'equation',
+  title: 'eq-2',
+  content: 't_m = t + c',
+  display: 't_m = t + c',
+  variables: [
+    { symbol: 't', name: 'Required thickness' },
+    { symbol: 'c', name: 'Corrosion allowance' },
+  ],
+}
+
+const legacyEq2Preview: DisplayOutputBlock = {
+  id: 'path-preview-equation-304.1.1-a',
+  type: 'equation',
+  content: 't_m = t + c',
+  display: 't_m = t + c',
+  input_table: {
+    columns: [
+      { key: 'symbol', label: 'Symbol', sortable: false },
+      { key: 'definition', label: 'Definition', sortable: false },
+      { key: 'value', label: 'Value', sortable: false },
+    ],
+    rows: [
+      { symbol: 't', definition: 'Required thickness', value: 'Awaiting user input' },
+      { symbol: 'c', definition: 'Corrosion allowance', value: 'Awaiting user input' },
+    ],
+  },
+}
+
+const incomingEq3Preview: DisplayOutputBlock = {
+  id: 'path-preview-equation-304.1.2-a',
+  type: 'equation',
+  lifecycle: 'preview',
+  display_role: 'preview',
+  display_channel: 'current_equation_preview',
+  equation_node_id: 'asme-b313-304-1-2-eq-3a',
+  content: 't = PD / 2(SEW + PY)',
+  display: 't = PD / 2(SEW + PY)',
+  input_table: {
+    columns: [
+      { key: 'symbol', label: 'Symbol', sortable: false },
+      { key: 'definition', label: 'Definition', sortable: false },
+      { key: 'value', label: 'Value', sortable: false },
+    ],
+    rows: [{ symbol: 'P', definition: 'Design pressure', value: '8 bar' }],
+  },
+}
+
 describe('mergeDisplayOutputs', () => {
-  it('appends new blocks while keeping previous ones', () => {
-    const previous: DisplayOutputBlock = {
-      id: 'node-activation-equation-B313-304.1.1-0',
+  it('replaces legacy preview blocks with incoming preview by channel', () => {
+    const eq2Trace: DisplayOutputBlock = {
+      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
       type: 'equation',
-      title: 'Required thickness',
+      lifecycle: 'durable',
+      display_role: 'equation_trace',
+      equation_node_id: 'asme-b313-304-1-1-eq-2',
+      source_node_id: '304.1.1-a',
       content: 't_m = t + c',
       display: 't_m = t + c',
+      input_table: legacyEq2Preview.input_table,
+    }
+
+    const merged = mergeDisplayOutputs(
+      [legacyEq2Activation, legacyEq2Preview, eq2Trace],
+      [incomingEq3Preview],
+    )
+
+    expect(merged.map((block) => block.id)).toEqual([
+      'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
+      'path-preview-equation-304.1.2-a',
+    ])
+  })
+
+  it('preserves durable blocks while replacing preview context', () => {
+    const durableExplanation: DisplayOutputBlock = {
+      id: 'preview-intro',
+      type: 'text',
+      lifecycle: 'durable',
+      content: 'The minimum required wall thickness shall be computed.',
+    }
+    const derivedResult: DisplayOutputBlock = {
+      id: 'minimum-thickness-equation',
+      type: 'equation',
+      lifecycle: 'durable',
+      display_role: 'derived',
+      equation_node_id: 'asme-b313-304-1-1-eq-2',
+      content: 't_m = 2.252',
+      display: 't_m = 2.252',
+    }
+
+    const merged = mergeDisplayOutputs(
+      [legacyEq2Preview, durableExplanation, derivedResult],
+      [incomingEq3Preview, derivedResult],
+    )
+
+    expect(merged.map((block) => block.id)).toEqual([
+      'preview-intro',
+      'minimum-thickness-equation',
+      'path-preview-equation-304.1.2-a',
+    ])
+  })
+
+  it('updates durable equation blocks in place by id', () => {
+    const previous: DisplayOutputBlock = {
+      id: 'minimum-thickness-equation',
+      type: 'equation',
+      lifecycle: 'durable',
+      display_role: 'derived',
+      content: 't_m = 2.000 + c',
+      display: 't_m = 2.000 + c',
     }
     const incoming: DisplayOutputBlock = {
-      id: 'path-preview-equation-B313-304.1.2',
-      type: 'equation',
-      title: null,
-      content: 't = PD / 2(SEW + PY)',
-      display: 't = PD / 2(SEW + PY)',
+      ...previous,
+      display: 't_m = 2.252',
     }
 
     const merged = mergeDisplayOutputs([previous], [incoming])
 
-    expect(merged).toEqual([previous, incoming])
+    expect(merged).toHaveLength(1)
+    if (merged[0]?.type === 'equation') {
+      expect(merged[0].display).toBe('t_m = 2.252')
+    }
   })
 
-  it('updates overlapping ids in place without removing other blocks', () => {
-    const previous: DisplayOutputBlock = {
-      id: 'path-preview-equation-B313-304.1.2',
-      type: 'equation',
-      title: null,
-      content: 't = PD / 2(SEW + PY)',
-      display: 't = PD / 2(SEW + PY)',
-    }
-    const retained: DisplayOutputBlock = {
-      id: 'node-activation-equation-B313-304.1.1-0',
-      type: 'equation',
-      title: 'Required thickness',
-      content: 't_m = t + c',
-      display: 't_m = t + c',
-    }
-    const incoming: DisplayOutputBlock = {
-      ...previous,
-      display: '0.259 mm  t = (900000)(114.3) / 2(...)',
-    }
-
-    const merged = mergeDisplayOutputs([retained, previous], [incoming])
-
-    expect(merged).toHaveLength(2)
-    expect(merged[0]).toEqual(retained)
-    expect(merged[1]?.display).toBe('0.259 mm  t = (900000)(114.3) / 2(...)')
-  })
-
-  it('keeps previous blocks when the backend snapshot is empty', () => {
+  it('drops volatile blocks from durable history', () => {
     const previous: DisplayOutputBlock = {
       id: 'planning-status',
       type: 'text',
       content: 'Awaiting input',
     }
 
-    const merged = mergeDisplayOutputs([previous], [])
-
-    expect(merged).toEqual([previous])
+    expect(mergeDisplayOutputs([previous], [])).toEqual([])
   })
 
-  it('appends multiple new blocks in backend order', () => {
-    const blockA: DisplayOutputBlock = {
-      id: 'explanation-a',
-      type: 'text',
-      content: 'First explanation',
-    }
-    const blockB: DisplayOutputBlock = {
-      id: 'equation-b',
-      type: 'equation',
-      content: 't = PD / 2(SEW + PY)',
-      display: 't = PD / 2(SEW + PY)',
-    }
-    const blockC: DisplayOutputBlock = {
-      id: 'warning-c',
-      type: 'text',
-      content: 'Check assumptions',
-      variant: 'warning',
-    }
-    const blockD: DisplayOutputBlock = {
-      id: 'table-d',
-      type: 'table',
-      columns: [{ key: 'symbol', label: 'Symbol' }],
-      rows: [{ symbol: 'P' }],
-    }
+  it('clears stale preview when incoming snapshot has no preview blocks', () => {
+    const merged = mergeDisplayOutputs([legacyEq2Preview], [])
 
-    const merged = mergeDisplayOutputs(
-      [blockA, blockB],
-      [blockC, blockD],
-    )
-
-    expect(merged).toEqual([blockA, blockB, blockC, blockD])
+    expect(merged).toEqual([])
   })
 
-  it('updates equation input_table rows in place by id', () => {
-    const previous: DisplayOutputBlock = {
-      id: 'preview-equation',
+  it('preserves durable blocks when incoming only contains volatile blocks', () => {
+    const durable: DisplayOutputBlock = {
+      id: 'minimum-thickness-equation',
       type: 'equation',
-      content: 't = PD / 2(SEW + PY)',
-      display: 't = PD / 2(SEW + PY)',
-      input_table: {
-        columns: [
-          { key: 'symbol', label: 'Symbol', sortable: false },
-          { key: 'definition', label: 'Definition', sortable: false },
-          { key: 'value', label: 'Value', sortable: false },
-        ],
-        rows: [
-          { symbol: 'D', definition: 'Outside diameter', value: 'Awaiting user input' },
-        ],
-      },
-    }
-    const incoming: DisplayOutputBlock = {
-      ...previous,
-      input_table: {
-        columns: previous.input_table!.columns,
-        rows: [{ symbol: 'D', definition: 'Outside diameter', value: '114.3 mm' }],
-      },
-    }
-
-    const merged = mergeDisplayOutputs([previous], [incoming])
-
-    expect(merged).toHaveLength(1)
-    expect(merged[0]?.type).toBe('equation')
-    if (merged[0]?.type === 'equation') {
-      expect(merged[0].input_table?.rows[0]?.value).toBe('114.3 mm')
-    }
-  })
-
-  it('does not remove block when backend omits it from snapshot', () => {
-    const equation: DisplayOutputBlock = {
-      id: 'path-preview-equation-B313-304.1.2',
-      type: 'equation',
-      content: 't = PD / 2(SEW + PY)',
-      display: 't = PD / 2(SEW + PY)',
-    }
-    const explanation: DisplayOutputBlock = {
-      id: 'preview-intro',
-      type: 'text',
-      content: 'The minimum required wall thickness shall be computed.',
+      lifecycle: 'durable',
+      display_role: 'derived',
+      content: 't_m = 2.252',
+      display: 't_m = 2.252',
     }
     const incoming: DisplayOutputBlock = {
       id: 'planning-status',
@@ -149,33 +159,88 @@ describe('mergeDisplayOutputs', () => {
       content: 'Complete the fields below to continue.',
     }
 
-    const merged = mergeDisplayOutputs([equation, explanation], [incoming])
+    const merged = mergeDisplayOutputs([durable, legacyEq2Preview], [incoming])
 
-    expect(merged).toHaveLength(3)
-    expect(merged[0]).toEqual(equation)
-    expect(merged[1]).toEqual(explanation)
-    expect(merged[2]).toEqual(incoming)
+    expect(merged).toEqual([durable])
   })
 
-  it('returns incoming unchanged when previous is empty', () => {
+  it('replaces preview intro by display channel from incoming snapshot', () => {
+    const previousIntro: DisplayOutputBlock = {
+      id: 'path-preview-intro-304.1.1-a',
+      type: 'text',
+      content: 'Old intro',
+    }
+    const incomingIntro: DisplayOutputBlock = {
+      id: 'path-preview-intro-304.1.2-a',
+      type: 'text',
+      lifecycle: 'preview',
+      display_channel: 'current_node_intro',
+      content: 'Minimum required wall thickness based on',
+    }
+
+    const merged = mergeDisplayOutputs([previousIntro], [incomingIntro, incomingEq3Preview])
+
+    expect(merged.map((block) => block.id)).toEqual([
+      'path-preview-intro-304.1.2-a',
+      'path-preview-equation-304.1.2-a',
+    ])
+  })
+
+  it('returns incoming durable blocks when previous is empty', () => {
     const incoming: DisplayOutputBlock[] = [
       {
-        id: 'planning-status',
+        id: 'minimum-thickness-conclusion',
         type: 'text',
-        content: 'Awaiting input',
+        lifecycle: 'durable',
+        display_role: 'conclusion',
+        content: 'Minimum required pipe wall thickness is 2.252 mm.',
       },
     ]
 
     expect(mergeDisplayOutputs([], incoming)).toEqual(incoming)
   })
 
-  it('empty incoming snapshot retains all prior blocks', () => {
-    const blocks: DisplayOutputBlock[] = [
-      { id: 'a', type: 'text', content: 'One' },
-      { id: 'b', type: 'text', content: 'Two' },
-      { id: 'c', type: 'equation', content: 'x = 1', display: 'x = 1' },
-    ]
+  it('updates durable equation_trace payload when incoming has newer input_table values', () => {
+    const previousTrace: DisplayOutputBlock = {
+      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
+      type: 'equation',
+      lifecycle: 'durable',
+      display_role: 'equation_trace',
+      equation_node_id: 'asme-b313-304-1-1-eq-2',
+      source_node_id: '304.1.1-a',
+      content: 't_m = t + c',
+      display: 't_m = t + c',
+      input_table: {
+        columns: legacyEq2Preview.input_table!.columns,
+        rows: [
+          {
+            symbol: 't',
+            definition: 'Required thickness',
+            value: '',
+            value_reference: { node_id: '304.1.2-a', label: '§304.1.2' },
+          },
+        ],
+      },
+    }
+    const incomingTrace: DisplayOutputBlock = {
+      ...previousTrace,
+      input_table: {
+        columns: legacyEq2Preview.input_table!.columns,
+        rows: [
+          {
+            symbol: 't',
+            definition: 'Required thickness',
+            value: '2.000 mm',
+            value_reference: { node_id: '304.1.2-a', label: '§304.1.2' },
+            value_status: 'equation_derived',
+          },
+        ],
+      },
+    }
 
-    expect(mergeDisplayOutputs(blocks, [])).toEqual(blocks)
+    const merged = mergeDisplayOutputs([previousTrace], [incomingTrace])
+    expect(merged).toHaveLength(1)
+    const row = merged[0]?.type === 'equation' ? merged[0].input_table?.rows[0] : undefined
+    expect(row?.value).toBe('2.000 mm')
   })
 })

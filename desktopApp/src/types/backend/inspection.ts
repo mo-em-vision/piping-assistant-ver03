@@ -543,6 +543,33 @@ export type DevOperationsSnapshotDto = {
   recent: DevOperationDto[]
 }
 
+export type PerformanceSpanDto = {
+  span_id: string
+  parent_span_id: string | null
+  name: string
+  op_type: string
+  duration_ms: number
+  status: string
+  llm: boolean
+  notes: string | null
+}
+
+export type PerformanceTraceDto = {
+  trace_id: string
+  trigger: string
+  task_id: string | null
+  total_duration_ms: number
+  llm_call_occurred: boolean
+  status: string
+  error: string | null
+  spans_omitted: number
+  spans: PerformanceSpanDto[]
+}
+
+export type PerformanceTracesSnapshotDto = {
+  traces: PerformanceTraceDto[]
+}
+
 export type TaskInspectorSummaryDto = {
   status?: string
   phase?: string

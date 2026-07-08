@@ -72,14 +72,7 @@ describe('archiveWorkflowPrompt', () => {
 
     const enriched = injectArchivedPrompt(previous, incoming, 'nominal_pipe_size')
 
-    expect(enriched.display_outputs).toEqual([
-      {
-        id: 'archived-prompt-nominal_pipe_size',
-        type: 'text',
-        content: 'Select the nominal pipe size.',
-        variant: 'body',
-      },
-    ])
+    expect(enriched.display_outputs).toEqual([])
   })
 
   it('does not duplicate archived prompts on subsequent merges', () => {
@@ -115,7 +108,7 @@ describe('archiveWorkflowPrompt', () => {
 })
 
 describe('withPreservedDisplayOutputs prompt archival', () => {
-  it('appends superseded prompt blocks into the merged transcript', () => {
+  it('keeps durable blocks without archiving superseded prompts', () => {
     const previous = {
       ...mockTaskState,
       display_outputs: [
@@ -148,14 +141,7 @@ describe('withPreservedDisplayOutputs prompt archival', () => {
 
     expect(merged.display_outputs.some((block) => block.id === 'preview-equation')).toBe(true)
     expect(merged.display_outputs.some((block) => block.id === 'archived-prompt-nominal_pipe_size')).toBe(
-      true,
+      false,
     )
-    expect(
-      merged.display_outputs.find((block) => block.id === 'archived-prompt-nominal_pipe_size')?.type ===
-        'text' &&
-        (merged.display_outputs.find((block) => block.id === 'archived-prompt-nominal_pipe_size') as {
-          content?: string
-        }).content === 'Select the nominal pipe size.',
-    ).toBe(true)
   })
 })

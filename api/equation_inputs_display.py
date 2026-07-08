@@ -341,7 +341,7 @@ def _temperature_coefficient_Y_display_value(
         return None
     if not _is_table_sourced(task, "temperature_coefficient_Y"):
         return display
-    material = _material_label(task)
+    material = _material_label(task, standards_root=standards_root)
     temp_display = _design_temperature_display(task)
     if not material or not temp_display:
         return None

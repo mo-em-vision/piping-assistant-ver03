@@ -1,5 +1,9 @@
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
-import type { EngineeringPlanDto, EngineeringPlanViewDto } from '@/types/backend/inspection'
+import type {
+  EngineeringPlanDto,
+  EngineeringPlanViewDto,
+  PerformanceTraceDto,
+} from '@/types/backend/inspection'
 import type { ParameterDefinitionDto } from '@/types/backend/parameters'
 import type { TaskStatus } from '@/types/frontend/workspace'
 
@@ -185,10 +189,18 @@ export interface CurrentAskDto {
   prompt?: string | null
 }
 
+export interface WorkflowDisplayDto {
+  workflow_id: string
+  display_title: string
+  subtitle?: string
+  standard_ref?: string
+}
+
 export interface TaskStateDto {
   task_id: string
   name: string
   workflow_id: string
+  workflow_display?: WorkflowDisplayDto
   discipline: string
   description: string
   status: string
@@ -230,6 +242,21 @@ export interface TaskStateDto {
   engineering_plan?: EngineeringPlanDto | null
   /** Human-readable engineering plan for UI panels. */
   engineering_plan_view?: EngineeringPlanViewDto | null
+  /** Dev-only performance trace for the latest interaction (when inspection enabled). */
+  performance_trace?: PerformanceTraceDto
+  /** Flow Guidance Layer payload (presentation blocks + active prompt). */
+  flow_guidance?: {
+    presentation_blocks?: unknown[]
+    transcript_blocks?: unknown[]
+    active_prompt?: {
+      block_id?: string
+      kind?: string
+      source?: string
+      text?: string | null
+      payload?: { parameter_id?: string | null }
+      refs?: Record<string, string>
+    }
+  }
 }
 
 export interface EngineeringValueDto {

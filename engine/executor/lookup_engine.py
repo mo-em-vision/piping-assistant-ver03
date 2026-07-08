@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from engine.reference.asme_b31_3_table_ids import TABLE_304_1_1
+from engine.reference.asme_b31_3_table_ids import TABLE_304_1_1, TABLE_304_1_1_1, TABLE_A_1
 from engine.reference.material_catalog_db import standards_root_from_pack_root
 from engine.reference.material_resolver import canonical_material_id, resolve_material_table_key
 from engine.reference.parameter_keys import MATERIAL_GRADE_KEY, read_parameter_value
@@ -53,12 +53,38 @@ def _lookup_inputs_with_units(inputs: dict[str, Any]) -> dict[str, Any]:
     return normalized
 
 
+_Y_TABLE_REFS = frozenset(
+    {
+        TABLE_304_1_1_1,
+        TABLE_304_1_1,
+        "asme_b31.3_table_304_1_1_1",
+        "asme_b31.3_table_304_1_1",
+        "asme-b313-table-304-1-1-1",
+    }
+)
+
+_GRAPH_NODE_TABLE_IDS: dict[str, str] = {
+    "asme-b313-table-304-1-1-1": TABLE_304_1_1_1,
+    "asme-b313-table-A-1": TABLE_A_1,
+}
+
+
 class LookupEngine:
     """Execute table lookups defined in standards node metadata."""
 
     def __init__(self, standards_pack_root: Path) -> None:
         self._pack_root = standards_pack_root
         self._tables_db = StandardsTablesDatabase(resolve_pack_tables_db(standards_pack_root))
+
+    def _resolve_table_ref(self, table_ref: str) -> str:
+        """Map graph node ids and aliases to canonical pack table ids."""
+        wanted = table_ref.strip()
+        if not wanted:
+            return wanted
+        resolved = self._tables_db.resolve_table_id(wanted)
+        if resolved:
+            return resolved
+        return _GRAPH_NODE_TABLE_IDS.get(wanted, wanted)
 
     def execute_lookup(
         self,
@@ -136,25 +162,34 @@ class LookupEngine:
     def lookup(self, table_id: str, inputs: dict[str, Any]) -> TableLookupValue:
         """Resolve a scalar from a registered standards table."""
         normalized = _lookup_inputs_with_units(inputs)
-        table_ref = table_id.strip()
+        table_ref = self._resolve_table_ref(table_id)
 
-        if table_ref in {"asme_b31.3_A-1", "A-1"}:
+        if table_ref in {TABLE_A_1, "asme_b31.3_A-1", "A-1", "asme-b313-table-A-1"}:
             result = self.execute_lookup(
                 node_id="inline-stress-lookup",
-                lookup_config={"table_id": table_ref, "interpolation": True},
+                lookup_config={"table_id": "A-1", "interpolation": True},
                 inputs=normalized,
             )
             return TableLookupValue(value=float(result.trace.allowable_stress_pa))
 
-        if table_ref in {"asme_b31.3_table_304_1_1_1", "asme_b31.3_table_304_1_1", TABLE_304_1_1}:
+        if table_ref in _Y_TABLE_REFS:
             from engine.reference.coefficient_resolver import lookup_y_coefficient
 
-            temp = float(normalized["design_temperature"])
+            temp_raw = normalized.get("design_temperature", normalized.get("temperature"))
+            if temp_raw is None:
+                raise ValueError("design_temperature is required for coefficient Y lookup")
+            temp = float(temp_raw)
             temp_unit = str(normalized.get("design_temperature_unit", "F"))
+            metallurgical_group = normalized.get("metallurgical_group")
+            material = read_parameter_value(normalized, MATERIAL_GRADE_KEY)
             value, _ = lookup_y_coefficient(
                 self._pack_root,
                 design_temperature=temp,
                 design_temperature_unit=temp_unit,
+                metallurgical_group=(
+                    str(metallurgical_group) if metallurgical_group is not None else None
+                ),
+                material=str(material) if material else None,
             )
             return TableLookupValue(value=float(value))
 

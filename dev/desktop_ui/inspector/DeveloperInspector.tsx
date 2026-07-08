@@ -1,9 +1,10 @@
 import { ExecutionTracePanel } from './ExecutionTracePanel'
 import { InspectorGraphPanel } from './InspectorGraphPanel'
 import { InspectorResizeHandle } from './InspectorResizeHandle'
-import { OperationTrackerPanel } from './OperationTrackerPanel'
+import { PerformanceTracePanel } from './PerformanceTracePanel'
 import { useInspectorStore } from './inspectorStore'
 import { useInspectionPayload } from './useInspectionPayload'
+import { useDevRenderSpan } from './useDevRenderSpan'
 import { formatNavigationPhase } from './workflowInspectorLabels'
 
 import './DeveloperInspector.css'
@@ -13,6 +14,8 @@ export function DeveloperInspector() {
   const height = useInspectorStore((state) => state.height)
   const selectedNodeId = useInspectorStore((state) => state.selectedNodeId)
   const { payload, error, loading, activeTaskId, sessionId } = useInspectionPayload()
+
+  useDevRenderSpan('inspector_panel_render', open, [payload, loading, error])
 
   if (!open) {
     return null
@@ -42,7 +45,7 @@ export function DeveloperInspector() {
       <div className="developer-inspector__body">
         <div className="developer-inspector__layout">
           <aside className="developer-inspector__sidebar">
-            <OperationTrackerPanel />
+            <PerformanceTracePanel />
             {payload ? (
               <section className="inspector-trace-section">
                 <h3 className="inspector-workflow-status__title">Execution steps</h3>

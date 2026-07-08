@@ -119,7 +119,7 @@ def test_task_state_api_includes_canonical_and_inspector_summary(project_root) -
     manager = TaskStateManager()
     task, reader = _pipe_wall_post_calc_task(manager, "canonical-api-shape", project_root=project_root)
 
-    state = task_state(task, manager, reader=reader)
+    state = task_state(task, manager, reader=reader, projection_mode="full")
     canonical = state["canonical"]
     summary = state["inspector_summary"]
 

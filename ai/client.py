@@ -6,6 +6,7 @@ import json
 from typing import Any, Protocol
 
 from config.settings import Settings, settings
+from engine.inspection.performance_trace import perf_span
 
 
 class MissingAPIKeyError(RuntimeError):
@@ -56,17 +57,18 @@ class OpenAIClient:
         )
 
     def complete_json(self, system_prompt: str, user_prompt: str) -> dict[str, Any]:
-        response = self._client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.2,
-        )
-        content = response.choices[0].message.content or "{}"
-        return json.loads(content)
+        with perf_span("llm_completion", "llm", llm=True, notes="mode=complete_json"):
+            response = self._client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.2,
+            )
+            content = response.choices[0].message.content or "{}"
+            return json.loads(content)
 
     def complete_json_messages(
         self,
@@ -80,11 +82,12 @@ class OpenAIClient:
             if role not in {"user", "assistant"} or not content:
                 continue
             api_messages.append({"role": role, "content": content})
-        response = self._client.chat.completions.create(
-            model=self.model,
-            messages=api_messages,
-            response_format={"type": "json_object"},
-            temperature=0.2,
-        )
-        content = response.choices[0].message.content or "{}"
-        return json.loads(content)
+        with perf_span("llm_completion", "llm", llm=True, notes="mode=complete_json_messages"):
+            response = self._client.chat.completions.create(
+                model=self.model,
+                messages=api_messages,
+                response_format={"type": "json_object"},
+                temperature=0.2,
+            )
+            content = response.choices[0].message.content or "{}"
+            return json.loads(content)

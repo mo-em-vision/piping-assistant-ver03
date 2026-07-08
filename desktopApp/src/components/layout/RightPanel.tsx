@@ -39,10 +39,10 @@ const TaskStateDevTab = env.devToolsAvailable
     })
   : null
 
-const OperationsDevTab = env.devToolsAvailable
+const PerformanceDevTab = env.devToolsAvailable
   ? lazy(async () => {
-      const module = await import('@dev-ui/inspector/OperationsDevTab')
-      return { default: module.OperationsDevTab }
+      const module = await import('@dev-ui/inspector/PerformanceDevTab')
+      return { default: module.PerformanceDevTab }
     })
   : null
 
@@ -188,7 +188,7 @@ export function RightPanel() {
     if (tab.kind === 'task' || tab.kind === 'planner' || tab.kind === 'dev-task-state') {
       return Boolean(activeTask)
     }
-    if (tab.kind === 'dev-operations') {
+    if (tab.kind === 'dev-performance') {
       return devUiActive
     }
     return true
@@ -227,11 +227,11 @@ export function RightPanel() {
                       ? 'Planner'
                       : tab.kind === 'dev-task-state'
                         ? 'Task State'
-                        : tab.kind === 'dev-operations'
-                          ? 'Operations'
+                        : tab.kind === 'dev-performance'
+                          ? 'Performance'
                           : undefined
             const isDevTab =
-              tab.kind === 'planner' || tab.kind === 'dev-task-state' || tab.kind === 'dev-operations'
+              tab.kind === 'planner' || tab.kind === 'dev-task-state' || tab.kind === 'dev-performance'
 
             return (
               <div
@@ -313,9 +313,9 @@ export function RightPanel() {
             </Suspense>
           </div>
         ) : null}
-        {devUiActive && activeTab?.kind === 'dev-operations' && OperationsDevTab ? (
-          <Suspense fallback={<p className="side-panel__hint">Loading operations…</p>}>
-            <OperationsDevTab />
+        {devUiActive && activeTab?.kind === 'dev-performance' && PerformanceDevTab ? (
+          <Suspense fallback={<p className="side-panel__hint">Loading performance…</p>}>
+            <PerformanceDevTab />
           </Suspense>
         ) : null}
         {activeTab?.kind === 'chat' ? <ChatTab /> : null}

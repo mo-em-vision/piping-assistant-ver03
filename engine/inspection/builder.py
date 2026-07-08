@@ -6,6 +6,7 @@ from typing import Any
 
 from api.json_encoding import json_safe
 from engine.inspection.operation_tracker import track_operation
+from engine.inspection.performance_trace import perf_span
 from engine.inspection.provenance import build_provenance_index
 from engine.inspection.integrity import run_integrity_checks
 from engine.inspection.models import ExecutionTraceStep
@@ -45,7 +46,8 @@ def build_inspection_payload(
         category="inspection",
         task_id=task.task_id,
     ):
-        return _build_inspection_payload_impl(task, manager=manager, reader=reader)
+        with perf_span("build_inspection_payload", "serializer", notes=f"task_id={task.task_id}"):
+            return _build_inspection_payload_impl(task, manager=manager, reader=reader)
 
 
 def _build_inspection_payload_impl(
@@ -95,11 +97,14 @@ def _build_inspection_payload_impl(
         reader=reader,
     )
     inspector_summary = build_task_inspector_summary(canonical)
+    planner_summary = planner_inspector_summary_for_task(task)
     task_state_views = build_task_state_views(
         task,
         canonical,
         execution_events=outputs.get("_execution_events") or [],
         lifecycle_events=outputs.get("_lifecycle_events") or [],
+        planner_inspector_summary=planner_summary,
+        skipped_trace=outputs.get("_skipped_trace") or [],
     )
 
     return json_safe(

@@ -538,6 +538,8 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
             "asme_table_304_1_1",
 
+            "asme-b313-table-304-1-1-1",
+
         ],
 
         materials=_TABLE_304_1_1_MATERIALS,

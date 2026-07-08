@@ -7,12 +7,13 @@ import { inputApi } from '@/services/api/inputApi'
 import { taskApi } from '@/services/api/taskApi'
 import { toNavTaskSummary, workflowToSummary } from '@/services/api/responseParser'
 import { getActiveSessionId, useProjectStore } from '@/store/projectStore'
+import { usePerformanceTraceStore } from '@/store/performanceTraceStore'
 import { useRightPanelStore } from '@/store/rightPanelStore'
 import { useUiStore } from '@/store/uiStore'
 import { toUserFacingError } from '@/types/backend/errors'
 import { confirmTaskDeletion } from '@/utils/confirmTaskDeletion'
 import { mergeDisplayOutputs } from '@/utils/mergeDisplayOutputs'
-import { injectArchivedPrompt } from '@/utils/archiveWorkflowPrompt'
+import { durableDisplayBlocks } from '@/utils/displayBlockLifecycle'
 import {
   clearTranscriptCache,
   loadTranscriptCache,
@@ -96,20 +97,18 @@ function syncUiForActiveTask(hasTask: boolean) {
 export function withPreservedDisplayOutputs(
   previous: TaskStateDto | null,
   incoming: TaskStateDto,
-  options?: { submittedParameter?: string },
+  _options?: { submittedParameter?: string },
 ): TaskStateDto {
-  const incomingWithArchive = injectArchivedPrompt(previous, incoming, options?.submittedParameter)
-
   const priorBlocks =
     previous && previous.task_id === incoming.task_id
-      ? (previous.display_outputs ?? [])
-      : loadTranscriptCache(incoming.task_id)
+      ? durableDisplayBlocks(previous.display_outputs ?? [])
+      : durableDisplayBlocks(loadTranscriptCache(incoming.task_id))
 
-  const merged = mergeDisplayOutputs(priorBlocks, incomingWithArchive.display_outputs ?? [])
-  saveTranscriptCache(incoming.task_id, merged)
+  const merged = mergeDisplayOutputs(priorBlocks, incoming.display_outputs ?? [])
+  saveTranscriptCache(incoming.task_id, durableDisplayBlocks(merged))
 
   return {
-    ...incomingWithArchive,
+    ...incoming,
     display_outputs: merged,
   }
 }
@@ -319,8 +318,10 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     }
 
     set({ loading: true, userError: null })
+    const traceId = usePerformanceTraceStore.getState().beginInteraction('create_task', sessionId)
     try {
-      const state = await taskApi.create(workflowId, sessionId)
+      const state = await taskApi.createTraced(workflowId, traceId, sessionId)
+      const stateUpdateStarted = performance.now()
       const mergedState = withPreservedDisplayOutputs(null, state)
       set({
         activeTask: stateToSummary(mergedState),
@@ -328,10 +329,20 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         loading: false,
         userError: null,
       })
+      usePerformanceTraceStore.getState().recordFrontendSpan(traceId, {
+        name: 'frontend_state_update',
+        duration_ms: performance.now() - stateUpdateStarted,
+      })
+      usePerformanceTraceStore.getState().scheduleFinalize(traceId)
       await get().loadWorkspace()
       await get().loadProjectTasks(sessionId)
       await useProjectStore.getState().loadProjects()
     } catch (error) {
+      usePerformanceTraceStore.getState().finalizeTrace(
+        traceId,
+        'error',
+        error instanceof Error ? error.message : 'create task failed',
+      )
       set({ loading: false, userError: toUserFacingError(error) })
     }
   },
@@ -528,6 +539,7 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     }
 
     const snapshot = get().activeTaskState
+    const traceId = usePerformanceTraceStore.getState().beginInteraction('submit_input', activeTask.id)
     set({ userError: null, submittingParameter: parameter })
 
     if (snapshot) {
@@ -541,12 +553,14 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
     }
 
     try {
-      const state = await inputApi.submit(
+      const state = await inputApi.submitTraced(
         activeTask.id,
         { parameter, value, unit },
+        traceId,
         get().sessionId ?? getActiveSessionId(),
       )
 
+      const stateUpdateStarted = performance.now()
       const mergedState = withPreservedDisplayOutputs(get().activeTaskState, state, {
         submittedParameter: parameter,
       })
@@ -557,16 +571,28 @@ export const useTaskStore = create<TaskStoreState>((set, get) => ({
         userError: null,
       })
 
+      usePerformanceTraceStore.getState().recordFrontendSpan(traceId, {
+        name: 'frontend_state_update',
+        duration_ms: performance.now() - stateUpdateStarted,
+      })
+
       startTransition(() => {
         set({
           activeTask: stateToSummary(mergedState),
           activeTaskState: mergedState,
         })
       })
+
+      usePerformanceTraceStore.getState().scheduleFinalize(traceId)
     } catch (error) {
       if (snapshot) {
         set({ activeTaskState: snapshot })
       }
+      usePerformanceTraceStore.getState().finalizeTrace(
+        traceId,
+        'error',
+        error instanceof Error ? error.message : 'submit failed',
+      )
       set({ userError: toUserFacingError(error) })
     } finally {
       set({ submittingParameter: null })

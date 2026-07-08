@@ -47,10 +47,25 @@ function renderReferenceLink(reference: ReferenceLinkDto) {
 
 function renderValueCell(row: EquationInputTableRowDto) {
   const value = String(row.value ?? '')
-  if (value && value !== AWAITING_USER_INPUT) {
+  const reference = row.value_reference
+  const hasResolvedValue = Boolean(value && value !== AWAITING_USER_INPUT)
+
+  if (hasResolvedValue && reference) {
+    return (
+      <span className="output-equation__value-cell">
+        {renderInputTableCell('value', value)}
+        <span className="output-equation__value-provenance">
+          {' '}
+          derived from {renderReferenceLink(reference)}
+        </span>
+      </span>
+    )
+  }
+
+  if (hasResolvedValue) {
     return renderInputTableCell('value', value)
   }
-  const reference = row.value_reference
+
   if (reference) {
     return (
       <span className="output-equation__value-cell">

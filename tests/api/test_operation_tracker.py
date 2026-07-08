@@ -13,8 +13,13 @@ from engine.inspection.operation_tracker import operations_snapshot, track_opera
 
 @pytest.fixture
 def inspection_env():
+    from engine.inspection.operation_tracker import _tracker
+
     previous = os.environ.get("DEV_INSPECTION_ENABLED")
     os.environ["DEV_INSPECTION_ENABLED"] = "1"
+    with _tracker._lock:
+        _tracker._running.clear()
+        _tracker._recent.clear()
     yield
     if previous is None:
         os.environ.pop("DEV_INSPECTION_ENABLED", None)

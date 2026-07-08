@@ -7,9 +7,14 @@
 
 .workflow-header__top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.workflow-header__titles {
+  min-width: 0;
+  flex: 1;
 }
 
 .workflow-header__title {
@@ -21,6 +26,13 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.workflow-header__subtitle {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.35;
 }
 
 .workflow-header__delete {

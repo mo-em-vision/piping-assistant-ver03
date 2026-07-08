@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.inspection.value_classification import (
+    InspectionValueDestination,
+    classify_inspection_value,
+    inspection_main_fact_row,
+)
 from models.task import Task, TaskStatus
 
 _LIFECYCLE_EVENT_LABELS = {
@@ -35,10 +40,16 @@ def build_task_state_views(
     *,
     execution_events: list[Any] | None = None,
     lifecycle_events: list[Any] | None = None,
+    planner_inspector_summary: dict[str, Any] | None = None,
+    skipped_trace: list[Any] | None = None,
 ) -> dict[str, Any]:
     """Build structured inspector views from canonical task state."""
     return {
-        "state_summary": _build_state_summary(task, canonical),
+        "state_summary": _build_state_summary(
+            task,
+            canonical,
+            planner_inspector_summary=planner_inspector_summary,
+        ),
         "facts_view": _build_facts_view(canonical),
         "decisions_view": _build_decisions_view(task, canonical),
         "outputs_view": _build_outputs_view(task, canonical),
@@ -46,11 +57,17 @@ def build_task_state_views(
         "trace_timeline": _build_trace_timeline(
             execution_events=execution_events or [],
             lifecycle_events=lifecycle_events or [],
+            skipped_trace=skipped_trace or [],
         ),
     }
 
 
-def _build_state_summary(task: Task, canonical: dict[str, Any]) -> dict[str, Any]:
+def _build_state_summary(
+    task: Task,
+    canonical: dict[str, Any],
+    *,
+    planner_inspector_summary: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     task_info = canonical.get("task") or {}
     execution = canonical.get("execution") or {}
     progress = canonical.get("progress") or {}
@@ -64,6 +81,15 @@ def _build_state_summary(task: Task, canonical: dict[str, Any]) -> dict[str, Any
     )
     status = str(task_info.get("status") or "unknown")
     phase = str(execution.get("phase") or "")
+    missing_input_count = len(progress.get("missing_inputs") or [])
+
+    if planner_inspector_summary:
+        planner_phase = planner_inspector_summary.get("current_phase")
+        if isinstance(planner_phase, str) and planner_phase.strip():
+            phase = planner_phase.strip()
+        outstanding = planner_inspector_summary.get("outstanding_required_inputs")
+        if isinstance(outstanding, list):
+            missing_input_count = len(outstanding)
 
     readiness = "in_progress"
     if status == "completed":
@@ -85,7 +111,7 @@ def _build_state_summary(task: Task, canonical: dict[str, Any]) -> dict[str, Any
         "readiness": readiness,
         "current_blocker": execution.get("current_blocker"),
         "expanded_node_count": len(graph.get("expanded_node_ids") or []),
-        "missing_input_count": len(progress.get("missing_inputs") or []),
+        "missing_input_count": missing_input_count,
     }
 
 
@@ -99,6 +125,14 @@ def _build_facts_view(canonical: dict[str, Any]) -> list[dict[str, Any]]:
         entry = values.get(field)
         if not isinstance(entry, dict):
             continue
+        destination = classify_inspection_value(field, entry)
+        if destination not in {
+            InspectionValueDestination.MAIN_FACTS,
+        }:
+            continue
+        display_value = inspection_main_fact_row(entry)
+        if display_value is None:
+            continue
         status = str(entry.get("status") or "unknown")
         if field in missing_inputs and status not in {"confirmed", "validated"}:
             status = "missing"
@@ -107,7 +141,7 @@ def _build_facts_view(canonical: dict[str, Any]) -> list[dict[str, Any]]:
                 "field": field,
                 "label": str(entry.get("name") or field.replace("_", " ").title()),
                 "symbol": entry.get("symbol"),
-                "value": entry.get("display_value") or entry.get("value"),
+                "value": display_value,
                 "unit": entry.get("unit"),
                 "source": entry.get("source") or "unknown",
                 "status": status,
@@ -192,25 +226,21 @@ def _build_outputs_view(task: Task, canonical: dict[str, Any]) -> list[dict[str,
     graph = canonical.get("graph") or {}
     resolved_nodes = set(graph.get("resolved_node_ids") or [])
 
-    derived_sources = {"derived", "lookup", "equation", "calculation", "table_lookup"}
-
     for field, entry in sorted(values.items()):
         if not isinstance(entry, dict):
             continue
-        source = str(entry.get("source") or "")
-        if source not in derived_sources and field not in {
-            "required_thickness",
-            "minimum_required_thickness",
-            "mawp",
-            "allowable_stress",
-        }:
+        destination = classify_inspection_value(field, entry)
+        if destination != InspectionValueDestination.OUTPUTS:
+            continue
+        display_value = inspection_main_fact_row(entry)
+        if display_value is None:
             continue
         status = "produced" if entry.get("status") in {"confirmed", "validated"} else "pending"
         rows.append(
             {
                 "field": field,
                 "label": str(entry.get("name") or field.replace("_", " ").title()),
-                "value": entry.get("display_value") or entry.get("value"),
+                "value": display_value,
                 "unit": entry.get("unit"),
                 "producing_node": entry.get("parameter_node_id"),
                 "status": status,
@@ -292,6 +322,7 @@ def _build_trace_timeline(
     *,
     execution_events: list[Any],
     lifecycle_events: list[Any],
+    skipped_trace: list[Any] | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
 
@@ -329,6 +360,24 @@ def _build_trace_timeline(
                 "message": message,
                 "timestamp": item.get("timestamp"),
                 "source": "lifecycle",
+            }
+        )
+
+    base_order = len(rows)
+    for index, item in enumerate(skipped_trace or []):
+        if not isinstance(item, dict):
+            continue
+        node_id = item.get("node_id")
+        reason = str(item.get("reason") or "skipped")
+        rows.append(
+            {
+                "order": base_order + index + 1,
+                "event_type": "node_skipped",
+                "label": "Node skipped",
+                "node_id": node_id,
+                "message": reason,
+                "timestamp": None,
+                "source": "trace",
             }
         )
 

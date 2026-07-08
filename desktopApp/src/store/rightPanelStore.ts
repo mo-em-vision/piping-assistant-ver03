@@ -18,7 +18,7 @@ export type RightPanelTab =
   | { id: 'task'; kind: 'task'; title: 'Task' }
   | { id: 'planner'; kind: 'planner'; title: 'Planner' }
   | { id: 'dev-task-state'; kind: 'dev-task-state'; title: 'Task State' }
-  | { id: 'dev-operations'; kind: 'dev-operations'; title: 'Operations' }
+  | { id: 'dev-performance'; kind: 'dev-performance'; title: 'Performance' }
   | { id: 'chat'; kind: 'chat'; title: 'Chat' }
   | { id: 'standards'; kind: 'standards'; title: 'Standards' }
   | {
@@ -43,25 +43,25 @@ const DEV_TASK_STATE_TAB: RightPanelTab = {
   kind: 'dev-task-state',
   title: 'Task State',
 }
-const OPERATIONS_TAB: RightPanelTab = {
-  id: 'dev-operations',
-  kind: 'dev-operations',
-  title: 'Operations',
+const PERFORMANCE_TAB: RightPanelTab = {
+  id: 'dev-performance',
+  kind: 'dev-performance',
+  title: 'Performance',
 }
 const CHAT_TAB: RightPanelTab = { id: 'chat', kind: 'chat', title: 'Chat' }
 const STANDARDS_TAB: RightPanelTab = { id: 'standards', kind: 'standards', title: 'Standards' }
 
 const DEV_TASK_TAB_IDS = new Set(['planner', 'dev-task-state'])
-const DEV_TAB_IDS = new Set(['planner', 'dev-task-state', 'dev-operations'])
+const DEV_TAB_IDS = new Set(['planner', 'dev-task-state', 'dev-performance'])
 
 function pinnedTabsForActiveTask(hasTask: boolean, devModeActive = false): RightPanelTab[] {
   const pinned = [CHAT_TAB, STANDARDS_TAB]
   if (!hasTask) {
-    return devModeActive ? [OPERATIONS_TAB, ...pinned] : pinned
+    return devModeActive ? [PERFORMANCE_TAB, ...pinned] : pinned
   }
   const taskTabs: RightPanelTab[] = [TASK_TAB]
   if (devModeActive) {
-    taskTabs.push(PLANNER_TAB, DEV_TASK_STATE_TAB, OPERATIONS_TAB)
+    taskTabs.push(PLANNER_TAB, DEV_TASK_STATE_TAB, PERFORMANCE_TAB)
   }
   return [...taskTabs, ...pinned]
 }

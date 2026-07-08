@@ -541,7 +541,7 @@ def test_task_state_exposes_canonical_engineering_plan() -> None:
     build_goal_tree(task, reader)
     state.replace_task(task.task_id, task)
 
-    payload = task_state(task, state, reader=reader)
+    payload = task_state(task, state, reader=reader, projection_mode="full")
     plan = payload.get("engineering_plan")
     assert isinstance(plan, dict)
     assert "plan_id" in plan

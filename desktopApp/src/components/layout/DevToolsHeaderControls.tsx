@@ -24,7 +24,7 @@ export function DevToolsHeaderControls() {
 
         className="dev-tools-header__toggle"
 
-        title="Enables Planner, Task State, and Operations tabs in the right panel."
+        title="Enables Planner, Task State, and Performance tabs in the right panel."
 
       >
 

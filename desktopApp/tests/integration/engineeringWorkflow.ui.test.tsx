@@ -2,6 +2,11 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+async function selectNominalPipeSize(user: ReturnType<typeof userEvent.setup>, label = 'NPS 6') {
+  await user.click(screen.getByRole('button', { name: 'Select pipe size' }))
+  await user.click(screen.getByRole('option', { name: label }))
+}
+
 describe('engineering workflow UI (mock mode)', () => {
   beforeEach(() => {
     vi.resetModules()
@@ -53,17 +58,14 @@ describe('engineering workflow UI (mock mode)', () => {
 
     expect(screen.getByText('Governing equation')).toBeInTheDocument()
 
-    const npsField = screen.getByPlaceholderText('Value…')
-    await user.clear(npsField)
-    await user.type(npsField, '6')
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await selectNominalPipeSize(user)
 
     const { useTaskStore } = await import('@/store/taskStore')
     await waitFor(() => {
       const fact = useTaskStore.getState().activeTaskState?.facts?.nominal_pipe_size as
         | { display_value?: string }
         | undefined
-      expect(fact?.display_value).toBe('6 NPS')
+      expect(fact?.display_value).toBe('6')
     })
 
     expect(screen.getByText('Governing equation')).toBeInTheDocument()
@@ -93,10 +95,7 @@ describe('engineering workflow UI (mock mode)', () => {
       ).toBeInTheDocument()
     })
 
-    const npsField = screen.getByPlaceholderText('Value…')
-    await user.clear(npsField)
-    await user.type(npsField, '6')
-    await user.click(screen.getByRole('button', { name: 'Submit' }))
+    await selectNominalPipeSize(user)
 
     await waitFor(() => {
       expect(
@@ -105,7 +104,7 @@ describe('engineering workflow UI (mock mode)', () => {
     })
 
     expect(
-      screen.getByText(/Select the nominal pipe size|Waiting for nominal pipe size/i),
-    ).toBeInTheDocument()
+      screen.getAllByText(/Select the nominal pipe size|Waiting for nominal pipe size/i).length,
+    ).toBeGreaterThan(0)
   })
 })

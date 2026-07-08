@@ -10,11 +10,27 @@ import {
   saveTranscriptCache,
 } from '@/utils/transcriptCache'
 
-const equationBlock: DisplayOutputBlock = {
+const durableExplanation: DisplayOutputBlock = {
+  id: 'preview-intro',
+  type: 'text',
+  lifecycle: 'durable',
+  content: 'The minimum required wall thickness shall be computed.',
+}
+
+const previewEquation: DisplayOutputBlock = {
   id: 'path-preview-equation-B313-304.1.2',
   type: 'equation',
+  lifecycle: 'preview',
+  display_channel: 'current_equation_preview',
   content: 't = PD / 2(SEW + PY)',
   display: 't = PD / 2(SEW + PY)',
+}
+
+const legacyPreviewEquation: DisplayOutputBlock = {
+  id: 'path-preview-equation-304.1.1-a',
+  type: 'equation',
+  content: 't_m = t + c',
+  display: 't_m = t + c',
 }
 
 describe('withPreservedDisplayOutputs', () => {
@@ -22,9 +38,9 @@ describe('withPreservedDisplayOutputs', () => {
     clearTranscriptCache()
   })
 
-  it('merges in-session blocks for the same task', () => {
+  it('merges durable in-session blocks for the same task', () => {
     const previous = createTaskState({
-      display_outputs: [equationBlock],
+      display_outputs: [durableExplanation],
     })
     const incoming = createTaskState({
       display_outputs: [
@@ -38,29 +54,33 @@ describe('withPreservedDisplayOutputs', () => {
 
     const merged = withPreservedDisplayOutputs(previous, incoming)
 
-    expect(merged.display_outputs).toHaveLength(2)
-    expect(merged.display_outputs[0]).toEqual(equationBlock)
-    expect(loadTranscriptCache(previous.task_id)).toHaveLength(2)
+    expect(merged.display_outputs).toHaveLength(1)
+    expect(merged.display_outputs[0]).toEqual(durableExplanation)
+    expect(loadTranscriptCache(previous.task_id)).toHaveLength(1)
   })
 
-  it('uses cached transcript on cold start for the same task', () => {
+  it('strips legacy preview blocks from cache and uses incoming preview snapshot', () => {
     const taskId = 'pipe-wall-thickness-test01'
-    saveTranscriptCache(taskId, [equationBlock])
+    saveTranscriptCache(taskId, [legacyPreviewEquation, durableExplanation])
 
     const incoming = createTaskState({
       task_id: taskId,
-      display_outputs: [],
+      display_outputs: [previewEquation],
     })
 
     const merged = withPreservedDisplayOutputs(null, incoming)
 
-    expect(merged.display_outputs).toEqual([equationBlock])
+    expect(merged.display_outputs.map((block) => block.id)).toEqual([
+      'preview-intro',
+      'path-preview-equation-B313-304.1.2',
+    ])
+    expect(loadTranscriptCache(taskId).map((block) => block.id)).toEqual(['preview-intro'])
   })
 
   it('does not inherit another task transcript on task switch', () => {
     const taskA = createTaskState({
       task_id: 'task-a',
-      display_outputs: [equationBlock],
+      display_outputs: [durableExplanation],
     })
     const taskB = createTaskState({
       task_id: 'task-b',
@@ -75,8 +95,7 @@ describe('withPreservedDisplayOutputs', () => {
 
     const merged = withPreservedDisplayOutputs(taskA, taskB)
 
-    expect(merged.display_outputs).toHaveLength(1)
-    expect(merged.display_outputs[0]?.id).toBe('planning-status')
+    expect(merged.display_outputs).toHaveLength(0)
   })
 })
 
@@ -89,11 +108,11 @@ describe('taskStore transcript integration', () => {
     sessionStorage.clear()
   })
 
-  it('preserves equation blocks after submitParameter when backend omits them', async () => {
+  it('preserves durable blocks after submitParameter when backend omits them', async () => {
     const { createTaskState, jsonResponse } = await import('../helpers/apiMocks')
 
     let currentTask = createTaskState({
-      display_outputs: [equationBlock],
+      display_outputs: [durableExplanation, previewEquation],
       current_ask: {
         kind: 'input',
         parameter_id: 'nominal_pipe_size',
@@ -102,20 +121,7 @@ describe('taskStore transcript integration', () => {
     })
 
     installFetchMock({
-      '/api/v1/tasks/': () =>
-        jsonResponse({
-          session_id: 'default',
-          active_task_id: currentTask.task_id,
-          tasks: [],
-        }),
-      [`/api/v1/tasks/${currentTask.task_id}`]: (init) => {
-        const method = (init?.method ?? 'GET').toUpperCase()
-        if (method === 'GET') {
-          return jsonResponse(currentTask)
-        }
-        return jsonResponse({ error: { code: 'not_found', message: 'unhandled' } }, 404)
-      },
-      '/inputs': () => {
+      [`/api/v1/tasks/${currentTask.task_id}/inputs`]: () => {
         currentTask = createTaskState({
           ...currentTask,
           inputs: {
@@ -140,6 +146,13 @@ describe('taskStore transcript integration', () => {
         })
         return jsonResponse(currentTask)
       },
+      [`/api/v1/tasks/${currentTask.task_id}`]: (init) => {
+        const method = (init?.method ?? 'GET').toUpperCase()
+        if (method === 'GET') {
+          return jsonResponse(currentTask)
+        }
+        return jsonResponse({ error: { code: 'not_found', message: 'unhandled' } }, 404)
+      },
     })
 
     const { useTaskStore } = await import('@/store/taskStore')
@@ -159,19 +172,20 @@ describe('taskStore transcript integration', () => {
     await useTaskStore.getState().submitParameter('nominal_pipe_size', '6')
 
     const outputs = useTaskStore.getState().activeTaskState?.display_outputs ?? []
-    expect(outputs.some((block) => block.id === equationBlock.id)).toBe(true)
-    expect(outputs.some((block) => block.id === 'planning-status')).toBe(true)
-    expect(outputs.some((block) => block.id === 'archived-prompt-nominal_pipe_size')).toBe(true)
+    expect(outputs.some((block) => block.id === durableExplanation.id)).toBe(true)
+    expect(outputs.some((block) => block.id === previewEquation.id)).toBe(false)
+    expect(outputs.some((block) => block.id === 'planning-status')).toBe(false)
   })
 
-  it('loadWorkspace restores cached transcript on cold Zustand', async () => {
+  it('loadWorkspace restores cached durable transcript on cold Zustand', async () => {
     const { createTaskState, jsonResponse } = await import('../helpers/apiMocks')
 
     const taskState = createTaskState({
       display_outputs: [],
     })
 
-    saveTranscriptCache(taskState.task_id, [equationBlock])
+    saveTranscriptCache(taskState.task_id, [durableExplanation])
+    localStorage.setItem('desktop:activeProjectId', 'default')
 
     installFetchMock({
       '/api/v1/workflows': () =>
@@ -187,16 +201,17 @@ describe('taskStore transcript integration', () => {
           ],
         }),
       '/api/v1/recent-tasks': () => jsonResponse({ recent_tasks: [] }),
-      '/api/v1/tasks': () =>
+      [`/api/v1/tasks/${taskState.task_id}`]: () => jsonResponse(taskState),
+      '/api/v1/tasks?': () =>
         jsonResponse({
           session_id: 'default',
           active_task_id: taskState.task_id,
           tasks: [],
         }),
-      [`/api/v1/tasks/${taskState.task_id}`]: () => jsonResponse(taskState),
     })
 
     const { useTaskStore } = await import('@/store/taskStore')
+    const { useProjectStore } = await import('@/store/projectStore')
     useProjectStore.setState({ activeProjectId: 'default' })
     useTaskStore.setState({
       sessionId: null,
@@ -207,6 +222,6 @@ describe('taskStore transcript integration', () => {
     await useTaskStore.getState().loadWorkspace()
 
     const outputs = useTaskStore.getState().activeTaskState?.display_outputs ?? []
-    expect(outputs.some((block) => block.id === equationBlock.id)).toBe(true)
+    expect(outputs.some((block) => block.id === durableExplanation.id)).toBe(true)
   })
 })

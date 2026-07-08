@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from engine.reference.coefficient_resolver import (
+    _thin_wall_assumed,
     compute_thick_wall_y,
     interpolate_by_temperature,
     list_pipe_construction_type_options,
@@ -202,3 +203,34 @@ def test_propose_coefficient_defaults_with_temperature() -> None:
     assert proposed["temperature_coefficient_Y"][0] == 0.4
     assert "weld_joint_efficiency" not in proposed
     assert "weld_joint_strength_reduction_factor_W" not in proposed
+
+
+def test_thin_wall_assumed_reads_boolean_fact_value() -> None:
+    from models.fact import (
+        FactClass,
+        FactProvenance,
+        FactSource,
+        SourceType,
+        build_boolean_fact,
+    )
+
+    thin_wall_fact = build_boolean_fact(
+        key="thin_wall",
+        parameter="PARAM-thin-wall-applicability",
+        value=True,
+        fact_class=FactClass.ASSUMED,
+        source=FactSource(source_type=SourceType.SYSTEM, source_id="test"),
+        provenance=FactProvenance(task_id="thin-wall-test"),
+    )
+    assert _thin_wall_assumed({"thin_wall": thin_wall_fact}) is True
+    assert _thin_wall_assumed({}) is True
+
+    thick_wall_fact = build_boolean_fact(
+        key="thin_wall",
+        parameter="PARAM-thin-wall-applicability",
+        value=False,
+        fact_class=FactClass.ASSUMED,
+        source=FactSource(source_type=SourceType.SYSTEM, source_id="test"),
+        provenance=FactProvenance(task_id="thin-wall-test"),
+    )
+    assert _thin_wall_assumed({"thin_wall": thick_wall_fact}) is False

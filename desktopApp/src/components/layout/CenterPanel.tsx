@@ -50,7 +50,7 @@ export function CenterPanel() {
     if (!viewModel) {
       return []
     }
-    return buildWorkflowHistory(viewModel.timeline, activeTaskState?.display_outputs ?? [])
+    return buildWorkflowHistory(viewModel.timeline, activeTaskState?.display_outputs ?? [], activeTaskState?.workflow_id)
   }, [viewModel, activeTaskState?.display_outputs])
 
   const showCompletionNextSteps = isTaskCompleted(activeTaskState) && workflowAsk.kind === 'none'
@@ -85,6 +85,13 @@ export function CenterPanel() {
     )
   }
 
+  const workflowTitle =
+    activeTaskState?.workflow_display?.display_title?.trim() ||
+    activeTask.name ||
+    activeTaskState?.workflow_id?.replace(/_/g, ' ') ||
+    'Workflow'
+  const workflowSubtitle = activeTaskState?.workflow_display?.subtitle?.trim() || null
+
   return (
     <main
       ref={panelRef}
@@ -114,7 +121,8 @@ export function CenterPanel() {
       ) : null}
 
       <WorkflowHeader
-        taskName={activeTask.name}
+        taskName={workflowTitle}
+        subtitle={workflowSubtitle}
         deleteDisabled={loading}
         onDelete={() => {
           void deleteTask(activeTask.id)
