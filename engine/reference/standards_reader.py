@@ -351,6 +351,16 @@ class StandardsReader:
             record_path=record.path,
             node_id=record.node_id,
         )
+        if (
+            not metadata.get("presentation")
+            and record.path is not None
+            and record.path.is_file()
+        ):
+            file_meta = self.load_file(record.path).metadata
+            presentation = file_meta.get("presentation")
+            if isinstance(presentation, dict) and presentation:
+                metadata = dict(metadata)
+                metadata["presentation"] = presentation
         if metadata is record.metadata:
             return record
         return NodeRecord(

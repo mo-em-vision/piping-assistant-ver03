@@ -17,29 +17,29 @@ from models.presentation import GuidanceContext
 _GUIDANCE_YAML = Path(__file__).resolve().parents[2] / "presentation" / "guidance" / "workflows" / "pipe_wall_thickness_design.yaml"
 
 
-def _expansion_context() -> GuidanceContext:
+def _pressure_loading_context() -> GuidanceContext:
     return GuidanceContext(
         workflow_id="pipe_wall_thickness_design",
-        current_phase="expansion_assumptions",
+        current_phase="path_decisions",
         active_node_id="304.1.2-a",
         node_role="paragraph",
         traversal_event="branch_decision_required",
-        edge_reason="straight_pipe_section",
+        edge_reason="pressure_loading",
         task_facts={},
     )
 
 
 def test_guidance_resolver_returns_traversal_narration_for_matching_context() -> None:
     resolver = GuidanceResolver()
-    context = _expansion_context()
+    context = _pressure_loading_context()
 
     blocks = resolver.resolve(context)
 
     assert blocks
     assert blocks[0].source == "guidance"
     assert blocks[0].kind == "guidance"
-    assert "straight pipe section" in blocks[0].text.lower()
-    assert blocks[0].refs.get("node_id") == "304.1.1-a"
+    assert "internal versus external" in blocks[0].text.lower()
+    assert blocks[0].refs.get("node_id") == "304.1.2-a"
 
 
 def test_guidance_yaml_does_not_duplicate_parameter_prompt_copy() -> None:

@@ -194,14 +194,25 @@ def assemble_center_panel_scroll_blocks(
         for block in transcript_blocks
         if isinstance(block, dict) and block.get("block_id")
     }
-    guidance_blocks = transcript_blocks_to_scroll_blocks(transcript_blocks)
+    guidance_blocks = [
+        block
+        for block in transcript_blocks_to_scroll_blocks(transcript_blocks)
+        if str(block.get("display_role") or "") not in {"ask_archive", "answer_archive"}
+    ]
+    workflow_intro = [
+        block for block in guidance_blocks if str(block.get("display_role") or "") == "workflow_intro"
+    ]
+    narration = [
+        block
+        for block in guidance_blocks
+        if str(block.get("display_role") or "") != "workflow_intro"
+    ]
     engineering_blocks = [
         normalize_scroll_block(block)
         for block in display_outputs
         if isinstance(block, dict) and str(block.get("id") or "") not in transcript_ids
     ]
-    merged = dedupe_blocks_by_id([*guidance_blocks, *engineering_blocks])
-    return sort_blocks_by_report_role(merged)
+    return dedupe_blocks_by_id([*workflow_intro, *engineering_blocks, *narration])
 
 
 def presentation_package_from_task_state(state: dict[str, Any]) -> dict[str, Any]:

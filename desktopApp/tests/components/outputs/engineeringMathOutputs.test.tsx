@@ -205,7 +205,7 @@ describe('EquationOutput', () => {
   })
 
   it('does not show raw internal ids as primary provenance text', () => {
-    const { queryByText, getByRole } = render(
+    const { queryByText, getByRole, getByText } = render(
       <EquationOutput
         block={{
           id: 'eq-chip-label',
@@ -223,18 +223,14 @@ describe('EquationOutput', () => {
                 symbol: 't',
                 definition: 'pressure design thickness',
                 value: '',
+                value_reference: {
+                  node_id: '304.1.2-a',
+                  label: 'ASME B31.3 §304.1.2',
+                },
                 value_provenance: {
                   source_type: 'equation_output',
                   status: 'pending_derived',
-                  label: 'Produced by Eq. (3a), §304.1.2',
-                  reference_chips: [
-                    {
-                      ref_type: 'paragraph',
-                      id: '304.1.2-a',
-                      label: '§304.1.2',
-                      target: { paragraph_id: '304.1.2-a', node_id: '304.1.2-a' },
-                    },
-                  ],
+                  label: '',
                 },
               },
             ],
@@ -244,7 +240,8 @@ describe('EquationOutput', () => {
     )
 
     expect(queryByText('304.1.2-a')).toBeNull()
-    expect(getByRole('button', { name: '§304.1.2' })).toBeTruthy()
+    expect(getByText(/defined in/i)).toBeTruthy()
+    expect(getByRole('button', { name: 'ASME B31.3 §304.1.2' })).toBeTruthy()
   })
 
   it('renders derived parameter value references in the value column', () => {
@@ -280,7 +277,7 @@ describe('EquationOutput', () => {
     )
 
     expect(getByRole('button', { name: '§304.1.2' })).toBeTruthy()
-    expect(getByText(/derived from/i)).toBeTruthy()
+    expect(getByText(/defined in/i)).toBeTruthy()
     expect(queryByText('Awaiting user input')).toBeTruthy()
   })
 

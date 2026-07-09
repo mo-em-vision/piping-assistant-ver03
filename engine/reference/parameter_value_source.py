@@ -312,27 +312,9 @@ def _provenance_label(
         return "Resolved from standards table"
 
     if source_type == "equation_output":
-        equation_label = ""
-        paragraph_label = ""
-        if producer_id:
-            try:
-                from engine.reference.equation_metadata import equation_reference
-
-                record = reader.load(producer_id)
-                eq_number = equation_reference(record.metadata)
-                if eq_number:
-                    equation_label = f"Eq. ({eq_number})"
-            except FileNotFoundError:
-                pass
-        if value_reference and value_reference.get("label"):
-            paragraph_label = str(value_reference["label"])
-        if equation_label and paragraph_label:
-            return f"Produced by {equation_label}, {paragraph_label}"
-        if equation_label:
-            return f"Produced by {equation_label}"
-        if paragraph_label:
-            return f"Produced by {paragraph_label}"
-        return "Produced by governing equation"
+        if value_reference and value_reference.get("node_id"):
+            return ""
+        return ""
 
     return AWAITING_USER_INPUT
 
@@ -553,12 +535,14 @@ def _paragraph_reference_link(reader: StandardsReader, node_id: str) -> dict[str
 
     try:
         record = reader.load(node_id)
+        from api.paragraph_display import paragraph_reference_label
+
         paragraph = paragraph_reference(record.metadata) or node_id
+        label = paragraph_reference_label(record.metadata, node_id)
     except FileNotFoundError:
         paragraph = node_id
+        label = node_id
 
-    display_para = _display_paragraph_number(paragraph)
-    label = f"§{display_para}" if display_para else node_id
     return {
         "node_id": node_id,
         "label": label,

@@ -54,11 +54,26 @@ def test_guidance_block_renders_once_in_transcript(tmp_path: Path, project_root:
     created = service.create_task("pipe_wall_thickness_design", session_id)
     task_id = created["task_id"]
 
-    state = service.get_task(task_id, session_id)
+    state = service.submit_input(
+        task_id,
+        parameter="straight_pipe_section",
+        value=True,
+        session_id=session_id,
+    )
+    state = service.submit_input(
+        task_id,
+        parameter="pressure_loading",
+        value="internal_pressure",
+        session_id=session_id,
+    )
     transcript = state["flow_guidance"]["transcript_blocks"]
     guidance = [block for block in transcript if block.get("kind") == "guidance"]
-    assert len(guidance) == 1
-    assert guidance[0]["block_id"].startswith("guidance-pipe_wall_thickness_design-")
+    assert guidance
+    assert len({block["block_id"] for block in guidance}) == len(guidance)
+    assert any(
+        str(block["block_id"]).endswith("pressure-loading-branch")
+        for block in guidance
+    )
 
 
 def test_repeated_get_task_does_not_duplicate_transcript_blocks(
@@ -155,7 +170,18 @@ def test_reload_shows_one_guidance_block_not_zero_or_duplicate(
     created = service.create_task("pipe_wall_thickness_design", session_id)
     task_id = created["task_id"]
 
-    service.get_task(task_id, session_id)
+    service.submit_input(
+        task_id,
+        parameter="straight_pipe_section",
+        value=True,
+        session_id=session_id,
+    )
+    service.submit_input(
+        task_id,
+        parameter="pressure_loading",
+        value="internal_pressure",
+        session_id=session_id,
+    )
     reloaded = service.get_task(task_id, session_id)
 
     guidance = [
@@ -163,7 +189,8 @@ def test_reload_shows_one_guidance_block_not_zero_or_duplicate(
         for block in reloaded["flow_guidance"]["transcript_blocks"]
         if block.get("kind") == "guidance"
     ]
-    assert len(guidance) == 1
+    assert guidance
+    assert len({block["block_id"] for block in guidance}) == len(guidance)
 
 
 def test_display_outputs_still_present_after_transcript_sync(
@@ -194,7 +221,6 @@ def test_flow_guidance_transcript_persisted_on_task_outputs(
     task = manager.get_task(task_id)
     stored = task.outputs.get(FLOW_GUIDANCE_TRANSCRIPT_KEY)
     assert isinstance(stored, list)
-    assert len(stored) >= 2
+    assert len(stored) >= 1
     block_ids = {block.get("block_id") for block in stored}
-    assert any(str(block_id).startswith("guidance-pipe_wall_thickness_design-") for block_id in block_ids)
     assert "workflow-intro-pipe_wall_thickness_design" in block_ids

@@ -47,7 +47,7 @@ def test_runtime_transcript_candidates_include_intro_only_while_active() -> None
         if block.block_id == workflow_intro_block_id("pipe_wall_thickness_design")
     )
     assert intro.payload.get("display_role") == "workflow_intro"
-    assert "Pipe Wall Thickness Design" in (intro.text or "")
+    assert "material properties" in (intro.text or "").lower()
 
 
 def test_runtime_transcript_candidates_include_result_when_completed() -> None:

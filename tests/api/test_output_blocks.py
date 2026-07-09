@@ -299,16 +299,12 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
     )
 
     intro_blocks = [block for block in blocks if block["id"] == "path-preview-intro-304.1.2-a"]
-    assert len(intro_blocks) == 1
-    intro = intro_blocks[0]
-    assert intro["type"] == "text"
-    assert "required wall thickness" in intro["content"].lower() or "internal pressure" in intro["content"].lower()
-    assert intro["content_suffix"] == " with the following equation:"
-    assert intro["reference_links"][0]["node_id"] == "304.1.2-a"
-    assert intro["reference_links"][0]["label"] == "§304.1.2"
-    assert not any(block["type"] == "reference" for block in blocks if block["id"].startswith("path-preview-"))
+    assert len(intro_blocks) == 0
 
     equation = equation_blocks[0]
+    intro_text = str(equation.get("context_intro") or "").lower()
+    assert "thin-wall" in intro_text or "internal pressure" in intro_text or "wall thickness" in intro_text
+    assert equation.get("context_lead") == "with the following equation:"
     assert equation.get("title") is None
     assert equation.get("lifecycle") == "preview"
     assert "variables" not in equation

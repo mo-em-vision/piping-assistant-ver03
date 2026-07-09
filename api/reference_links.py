@@ -320,7 +320,8 @@ def enrich_row_provenance_dict(
         return row
 
     row_copy = dict(row)
-    if task is not None and row_copy.get("parameter_id") and not row_copy.get("value_provenance"):
+    provenance = row_copy.get("value_provenance")
+    if task is not None and row_copy.get("parameter_id") and not provenance:
         row_copy = apply_value_provenance_to_row(
             row_copy,
             reader,
@@ -328,17 +329,24 @@ def enrich_row_provenance_dict(
             task,
             display_value=str(row_copy.get("value") or ""),
         )
-
-    provenance = row_copy.get("value_provenance")
+        provenance = row_copy.get("value_provenance")
     if isinstance(provenance, dict):
         prov_copy = dict(provenance)
+        source_type = str(provenance.get("source_type") or "")
         chips = _chips_from_source_ref(provenance.get("source_ref"), reader)
         if not chips:
             value_reference = row_copy.get("value_reference")
             if isinstance(value_reference, dict):
                 chips = resolve_reference_chips_from_legacy_links([value_reference], reader)
+        if source_type == "equation_output" and chips:
+            paragraph_chips = [
+                chip for chip in chips if str(chip.get("ref_type") or "") == "paragraph"
+            ]
+            chips = paragraph_chips or select_primary_reference_chip(chips)
+        elif chips:
+            chips = select_primary_reference_chip(chips)
         if chips:
-            prov_copy["reference_chips"] = select_primary_reference_chip(chips)
+            prov_copy["reference_chips"] = chips
         row_copy["value_provenance"] = prov_copy
 
     nested = row_copy.get("value_provenance")
@@ -371,7 +379,10 @@ def enrich_display_output_dict(
 
     block_type = str(block.get("type") or "")
     equation_node_id = str(block.get("equation_node_id") or "").strip()
-    if block_type == "equation" and equation_node_id:
+    input_table = block.get("input_table")
+    has_input_table = isinstance(input_table, dict) and bool(input_table.get("rows"))
+
+    if block_type == "equation" and equation_node_id and not has_input_table:
         chips = [_chip_for_equation(reader, equation_node_id)]
     else:
         refs = block.get("refs")
@@ -386,16 +397,6 @@ def enrich_display_output_dict(
             ref = block.get(key)
             if isinstance(ref, dict):
                 chips.extend(resolve_reference_chips_from_legacy_links([ref], reader))
-
-    inputs = block.get("inputs")
-    if isinstance(inputs, list):
-        new_inputs: list[dict[str, Any]] = []
-        for row in inputs:
-            if not isinstance(row, dict):
-                new_inputs.append(row)
-                continue
-            new_inputs.append(enrich_row_provenance_dict(row, reader, task=task))
-        enriched["inputs"] = new_inputs
 
     input_table = block.get("input_table")
     row_chip_ids: set[tuple[str, str]] = set()

@@ -24,11 +24,18 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
     expect(blocks[0]?.title).toBe('Pipe Wall Thickness Design')
   })
 
-  it('excludes workflow intro from center panel because WorkflowHeader shows the title', () => {
-    const displayOutputs: DisplayOutputBlock[] = []
+  it('includes workflow intro first and appends guidance after engineering blocks', () => {
+    const displayOutputs: DisplayOutputBlock[] = [
+      {
+        id: 'path-preview-equation-304.1.2-a',
+        type: 'equation',
+        content: 't = PD / 2(SEW + PY)',
+        display_role: 'preview',
+      },
+    ]
     const transcript = [
       {
-        block_id: 'guidance-pipe_wall_thickness_design-expansion-gate-intro',
+        block_id: 'guidance-pipe_wall_thickness_design-pressure-loading-branch',
         kind: 'guidance',
         source: 'guidance',
         text: 'Branch narration text.',
@@ -38,14 +45,16 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
         block_id: 'workflow-intro-pipe_wall_thickness_design',
         kind: 'text',
         source: 'runtime',
-        text: 'Workflow intro text.',
+        text: 'Determine minimum required pipe wall thickness from applicable standards.',
         payload: { display_role: 'workflow_intro' },
       },
     ]
 
     const items = buildCenterPanelTranscript(displayOutputs, transcript, 'pipe_wall_thickness_design')
-    expect(items).toHaveLength(1)
-    expect(items[0]?.block.id).toContain('guidance-')
+    expect(items).toHaveLength(3)
+    expect(items[0]?.block.id).toBe('workflow-intro-pipe_wall_thickness_design')
+    expect(items[1]?.block.id).toBe('path-preview-equation-304.1.2-a')
+    expect(items[2]?.block.id).toContain('guidance-')
   })
 
   it('converts guidance transcript blocks to durable text display blocks', () => {
@@ -177,8 +186,8 @@ describe('buildCenterPanelTranscript', () => {
     expect(items).toHaveLength(2)
     const ids = items.map((item) => item.block.id)
     expect(new Set(ids).size).toBe(ids.length)
-    expect(ids[0]).toBe('guidance-pipe_wall_thickness_design-expansion-gate-intro')
-    expect(ids).toContain('equation-trace-1')
+    expect(ids[0]).toBe('equation-trace-1')
+    expect(ids[1]).toContain('guidance-')
   })
 
   it('does not duplicate guidance when transcript already contains the block', () => {
@@ -223,8 +232,8 @@ describe('buildCenterPanelTranscript', () => {
     ]
 
     const items = buildCenterPanelTranscript(displayOutputs, transcript)
-    expect(items[0]?.block.id).toContain('guidance-')
-    expect(items[1]?.block.id).toBe('equation-trace-1')
+    expect(items[0]?.block.id).toBe('equation-trace-1')
+    expect(items[1]?.block.id).toContain('guidance-')
   })
 })
 

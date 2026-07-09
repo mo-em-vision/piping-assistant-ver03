@@ -78,7 +78,7 @@ def test_build_equation_evaluation_block_derived_t_shows_value_reference(standar
     t_row = next(row for row in block["input_table"]["rows"] if row["symbol"] == "t")
     assert t_row.get("value_reference") is not None
     assert t_row["value_reference"]["node_id"] == "304.1.2-a"
-    assert t_row["value_reference"]["label"] == "§304.1.2"
+    assert t_row["value_reference"]["label"] == "ASME B31.3 §304.1.2"
     assert t_row["value"] != AWAITING_USER_INPUT
 
     c_row = next(row for row in block["input_table"]["rows"] if row["symbol"] == "c")

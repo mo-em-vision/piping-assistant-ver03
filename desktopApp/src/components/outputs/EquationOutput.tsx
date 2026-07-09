@@ -60,7 +60,20 @@ function renderRowReferenceChips(chips?: ReferenceChipDto[]) {
   return <ReferenceChipList chips={chips} className="reference-chip-list--inline" />
 }
 
+function renderDefinedInReference(reference: ReferenceLinkDto) {
+  return (
+    <span className="output-equation__value-defined-in">
+      defined in {renderReferenceLink(reference)}
+    </span>
+  )
+}
+
 function renderProvenanceTrail(provenance: ValueProvenanceDto, row: EquationInputTableRowDto) {
+  const reference = row.value_reference
+  if (provenance.source_type === 'equation_output' && reference) {
+    return renderDefinedInReference(reference)
+  }
+
   const chips = provenanceChips(row)
   return (
     <span className="output-equation__value-provenance">
@@ -174,8 +187,7 @@ function renderValueCell(row: EquationInputTableRowDto) {
   if (reference) {
     return (
       <span className="output-equation__value-cell">
-        derived from{' '}
-        {chips?.length ? renderRowReferenceChips(chips) : renderReferenceLink(reference)}
+        {renderDefinedInReference(reference)}
       </span>
     )
   }
@@ -239,6 +251,12 @@ export function EquationOutput({ block }: EquationOutputProps) {
   return (
     <article className="output-block output-equation">
       {block.title ? <h4 className="output-block__title">{block.title}</h4> : null}
+      {block.context_intro ? (
+        <p className="output-equation__context-intro">{block.context_intro}</p>
+      ) : null}
+      {block.context_lead ? (
+        <p className="output-equation__context-lead">{block.context_lead}</p>
+      ) : null}
       <div className="output-equation__math-row">
         {mathExpressions.map((expression, index) => (
           <DisplayMath
@@ -297,9 +315,10 @@ export function EquationOutput({ block }: EquationOutputProps) {
           ))}
         </dl>
       ) : null}
-      {footerChips.length ? <ReferenceChipList chips={footerChips} /> : null}
-      {block.nomenclature_reference &&
-      !block.input_table?.rows.some((row) => row.definition_reference) ? (
+      {!block.input_table && footerChips.length ? (
+        <ReferenceChipList chips={footerChips} />
+      ) : null}
+      {!block.input_table && block.nomenclature_reference ? (
         <p className="output-equation__nomenclature-ref">
           Symbols defined in{' '}
           <StandardReferenceLink

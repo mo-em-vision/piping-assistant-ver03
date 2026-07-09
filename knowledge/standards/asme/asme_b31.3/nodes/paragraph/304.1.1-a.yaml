@@ -10,8 +10,9 @@ text:
   original: >
     The required thickness of straight sections of pipe shall be determined in accordance
     with eq. (2):
-
+    $$
     t_m = t + c
+    $$
 
     The minimum thickness, T, for the pipe selected, considering manufacturer's minus
     tolerance, shall be not less than t_m.

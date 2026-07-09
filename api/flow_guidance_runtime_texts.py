@@ -58,6 +58,23 @@ def _format_runtime_text(entry: dict[str, Any]) -> str:
     return title or body
 
 
+def load_runtime_documentation_summary(workflow_id: str) -> str:
+    """Load workflow initiation summary from runtime.yaml documentation block."""
+    for folder in _runtime_workflow_dirs(workflow_id):
+        path = _WORKFLOWS_ROOT / folder / "runtime.yaml"
+        if not path.is_file():
+            continue
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if not isinstance(loaded, dict):
+            return ""
+        documentation = loaded.get("documentation")
+        if isinstance(documentation, dict):
+            summary = str(documentation.get("summary") or "").strip()
+            if summary:
+                return summary
+    return ""
+
+
 def runtime_text_to_presentation_block(
     entry: dict[str, Any],
     workflow_id: str,
@@ -66,16 +83,21 @@ def runtime_text_to_presentation_block(
     display_role = _RUNTIME_ROLE_TO_DISPLAY.get(role)
     if not display_role:
         return None
-    text = _format_runtime_text(entry)
+
+    title = str(entry.get("title") or "").strip() or None
+    if display_role == "workflow_intro":
+        text = load_runtime_documentation_summary(workflow_id) or _format_runtime_text(entry)
+    else:
+        text = _format_runtime_text(entry)
     if not text:
         return None
 
+    title = str(entry.get("title") or "").strip() or None
     if display_role == "workflow_intro":
         block_id = workflow_intro_block_id(workflow_id)
     else:
         block_id = result_summary_block_id(workflow_id)
 
-    title = str(entry.get("title") or "").strip() or None
     payload: dict[str, Any] = {
         "display_role": display_role,
         "runtime_text_id": str(entry.get("id") or "").strip() or None,

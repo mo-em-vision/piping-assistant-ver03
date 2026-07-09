@@ -31,6 +31,8 @@ def test_paragraph_presentation_from_yaml_file(project_root: Path) -> None:
     block = build_paragraph_display_block(reader, "304.1.1-a")
     assert block is not None
     content = str(block.get("content") or "")
-    assert "eq. (2)" in content.lower() or "t_m = t + c" in content.lower()
+    assert "design thickness" in content.lower()
+    assert "corrosion" in content.lower()
+    assert "manufacturer" not in content.lower()
     title = str(block.get("title") or "")
-    assert "required thickness" in title.lower() or "§304.1.1" in title
+    assert "required thickness" in title.lower()

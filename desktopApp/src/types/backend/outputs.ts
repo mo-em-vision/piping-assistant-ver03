@@ -162,6 +162,8 @@ export interface EquationOutputBlock extends OutputBlockBase {
   type: 'equation'
   content: string
   display?: string
+  context_intro?: string
+  context_lead?: string
   variables?: EquationVariableDto[]
   input_table?: EquationInputTableDto
   result?: EquationResultDto | null

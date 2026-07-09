@@ -5,18 +5,6 @@
 workflow_id: pipe_wall_thickness_design
 
 entries:
-  - id: expansion-gate-intro
-    match:
-      current_phase: expansion_assumptions
-      traversal_event: branch_decision_required
-      edge_reason: straight_pipe_section
-    text: >-
-      Before expanding ASME B31.3 paragraph 304.1.1, the workflow confirms
-      whether this analysis applies to a straight pipe section. This gate
-      controls which standard paragraphs enter the active path.
-    refs:
-      node_id: "304.1.1-a"
-
   - id: pressure-loading-branch
     match:
       current_phase: path_decisions

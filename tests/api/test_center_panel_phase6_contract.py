@@ -50,7 +50,7 @@ def test_shared_contract_file_is_canonical() -> None:
     assert list(REPORT_ROLE_ORDER) == payload
 
 
-def test_presentation_package_orders_by_report_role_order() -> None:
+def test_presentation_package_keeps_workflow_intro_before_narration() -> None:
     package = presentation_package_from_task_state(
         {
             "flow_guidance": {
@@ -77,7 +77,6 @@ def test_presentation_package_orders_by_report_role_order() -> None:
     ordered = package["ordered_scroll_blocks"]
     roles = [block["display_role"] for block in ordered]
     assert roles.index("workflow_intro") < roles.index("result_summary")
-    assert roles == sorted(roles, key=report_role_index)
 
 
 def test_display_outputs_remain_separate_engineering_snapshot(

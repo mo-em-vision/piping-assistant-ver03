@@ -121,6 +121,7 @@ def build_equation_evaluation_block(
     block_id_prefix: str = "path-preview-equation",
     display_role: str = DISPLAY_ROLE_PREVIEW,
     display_channel: str | None = DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
+    attach_paragraph_context: bool = True,
 ) -> dict[str, Any] | None:
     """Build a desktop equation block with live symbol table and definition links."""
     equation_id = resolve_equation_node_for_display(reader, focus_node_id, task)
@@ -164,7 +165,7 @@ def build_equation_evaluation_block(
     nomenclature_reference = resolve_equation_display_variables(reader, equation_id).get(
         "nomenclature_reference"
     )
-    if nomenclature_reference:
+    if nomenclature_reference and not rows:
         block["nomenclature_reference"] = nomenclature_reference
 
     tagged = tag_display_block(
@@ -192,6 +193,13 @@ def build_equation_evaluation_block(
         )
     if execution_trace is not None:
         tagged = enrich_equation_block(tagged, execution_trace, reader=reader, task=task)
+
+    if attach_paragraph_context and display_role in {DISPLAY_ROLE_PREVIEW, DISPLAY_ROLE_EQUATION_TRACE}:
+        from api.paragraph_display import build_equation_context_from_paragraph
+
+        context = build_equation_context_from_paragraph(reader, focus_node_id)
+        if context:
+            tagged.update(context)
 
     return tagged
 

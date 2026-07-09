@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from api.display_block_metadata import (
-    DISPLAY_CHANNEL_CURRENT_NODE_INTRO,
     DISPLAY_ROLE_APPLICABILITY,
     DISPLAY_ROLE_RECOMMENDATION,
     DISPLAY_ROLE_WARNING,
@@ -24,7 +23,7 @@ from api.equation_evaluation_display import (
 )
 from api.node_display import build_activated_node_blocks
 from api.node_provenance import definition_node_id_for_task, enrich_display_blocks_provenance
-from api.paragraph_display import build_paragraph_display_block, paragraph_blocks_from_trace
+from api.paragraph_display import paragraph_blocks_from_trace
 from api.workflow_bootstrap import resolve_activated_definition_node
 from engine.reference.formula_display import load_equation_context
 from engine.reference.standards_reader import StandardsReader
@@ -172,16 +171,6 @@ def _path_calculation_preview_blocks(
         return []
 
     blocks: list[dict[str, Any]] = []
-    intro = build_paragraph_display_block(
-        reader,
-        str(selected_node),
-        display_role="intro",
-        block_id=f"path-preview-intro-{selected_node}",
-        content_suffix=" with the following equation:",
-        display_channel=DISPLAY_CHANNEL_CURRENT_NODE_INTRO,
-    )
-    if intro is not None:
-        blocks.append(intro)
 
     equation_block = build_equation_evaluation_block(
         task,

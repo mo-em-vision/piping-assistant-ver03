@@ -28,6 +28,19 @@ def test_guidance_transcript_blocks_include_reference_chips(tmp_path: Path, proj
     service = _service(tmp_path, project_root)
     session_id = api_session_id(service)
     state = service.create_task("pipe_wall_thickness_design", session_id)
+    task_id = state["task_id"]
+    state = service.submit_input(
+        task_id,
+        parameter="straight_pipe_section",
+        value=True,
+        session_id=session_id,
+    )
+    state = service.submit_input(
+        task_id,
+        parameter="pressure_loading",
+        value="internal_pressure",
+        session_id=session_id,
+    )
 
     transcript = state["flow_guidance"]["transcript_blocks"]
     guidance = [

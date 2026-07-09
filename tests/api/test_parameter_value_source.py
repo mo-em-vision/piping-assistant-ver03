@@ -24,7 +24,7 @@ def test_build_value_provenance_equation_output_pending(standards_reader) -> Non
     )
     assert provenance["source_type"] == "equation_output"
     assert provenance["status"] == "pending_derived"
-    assert "Eq." in provenance["label"] or "§" in provenance["label"]
+    assert provenance["label"] == ""
 
 
 def test_required_wall_thickness_references_internal_pressure_paragraph(standards_reader) -> None:
@@ -39,7 +39,7 @@ def test_required_wall_thickness_references_internal_pressure_paragraph(standard
     )
     assert reference is not None
     assert reference["node_id"] == "304.1.2-a"
-    assert reference["label"] == "§304.1.2"
+    assert reference["label"] == "ASME B31.3 §304.1.2"
 
 
 def test_corrosion_allowance_has_no_value_reference(standards_reader) -> None:
@@ -65,7 +65,7 @@ def test_resolve_input_value_reference_for_required_wall_thickness(standards_rea
         task,
     )
     assert reference is not None
-    assert reference["label"] == "§304.1.2"
+    assert reference["label"] == "ASME B31.3 §304.1.2"
     assert reference.get("reference_kind") != "table"
 
 
