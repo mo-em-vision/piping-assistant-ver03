@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.goal_builder import build_goal_tree
 from engine.planner.legacy_goal_adapter import enrich_plan_requirements
 from engine.planner.plan_validation import validate_engineering_plan
@@ -56,7 +56,7 @@ def test_initial_internal_pressure_requirement_is_missing_not_ready() -> None:
         root_id="pipe_wall_thickness_design",
         inputs=dict(task.fact_store.active_facts()),
     )
-    plan = build_pipe_wall_engineering_plan(task, preview=preview)
+    plan = build_engineering_plan(task, _reader(), preview=preview)
     validation = validate_engineering_plan(plan)
     assert validation.valid, validation.errors
 
@@ -68,7 +68,7 @@ def test_initial_internal_pressure_requirement_is_missing_not_ready() -> None:
 
 def test_pressure_loading_is_branch_decision_with_select_key() -> None:
     _, task = _gates_satisfied_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     pressure = plan.requirements["REQ-pressure_loading"]
     assert pressure.requirement_class == "branch_decision"
     assert pressure.key == requirement_key_for_class("branch_decision", "pressure_loading")
@@ -77,7 +77,7 @@ def test_pressure_loading_is_branch_decision_with_select_key() -> None:
 
 def test_diameter_resolution_has_top_level_alternatives_and_question_spec() -> None:
     _, task = _gates_satisfied_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     diameter = plan.requirements["REQ-diameter_resolution"]
     assert diameter.alternatives
     assert len(diameter.alternatives) == 2
@@ -105,7 +105,7 @@ def test_diameter_resolution_has_top_level_alternatives_and_question_spec() -> N
 
 def test_canonical_requirements_exclude_legacy_goal_fields() -> None:
     _, task = _gates_satisfied_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     for req_id, req in plan.requirements.items():
         payload = req.to_dict()
         overlap = _LEGACY_GOAL_KEYS.intersection(payload.keys())
@@ -114,7 +114,7 @@ def test_canonical_requirements_exclude_legacy_goal_fields() -> None:
 
 def test_internal_design_gage_pressure_normalized_mapping() -> None:
     _, task = _gates_satisfied_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     req = plan.requirements["REQ-internal_design_gage_pressure"]
     enrich_plan_requirements(plan.requirements)
 

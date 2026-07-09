@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.plan_validation import (
     validate_engineering_plan,
     validate_engineering_plan_dict,
@@ -11,6 +11,12 @@ from engine.reference.parameter_keys import param_node_id_for_input
 from engine.state.goal_projection import goals_to_api_dict
 from engine.state.state_manager import TaskStateManager
 from models.task import TaskStatus
+from tests.planner.helpers import _reader
+from tests.planner.plan_contract import (
+    PIPE_WALL_LOOKUP_IDS,
+    REQ_MINIMUM_REQUIRED_THICKNESS_EQ,
+    REQ_REQUIRED_WALL_THICKNESS,
+)
 
 _CANONICAL_PLAN_KEYS = (
     "plan_id",
@@ -43,7 +49,7 @@ def _fresh_pipe_wall_task():
 def test_fresh_pipe_wall_canonical_plan_contract() -> None:
     """Fresh initiation must return nested EngineeringPlan, not a flat GOAL/REQ map."""
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     validation = validate_engineering_plan(plan)
     assert validation.valid, validation.errors
 
@@ -86,7 +92,7 @@ def test_fresh_pipe_wall_canonical_plan_contract() -> None:
 
 def test_fresh_pipe_wall_normalized_engineering_plan() -> None:
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     validation = validate_engineering_plan(plan)
 
     assert validation.valid, validation.errors
@@ -133,16 +139,10 @@ def test_fresh_pipe_wall_normalized_engineering_plan() -> None:
     internal_pressure = plan.requirements["REQ-internal_design_gage_pressure"]
     assert internal_pressure.activation_status == "conditional"
 
-    for lookup_id in (
-        "REQ-allowable_stress_lookup",
-        "REQ-weld_joint_efficiency_lookup",
-        "REQ-temperature_coefficient_Y_lookup",
-        "REQ-weld_strength_reduction_factor_W_lookup",
-        "REQ-metallurgical_group_lookup",
-    ):
+    for lookup_id in PIPE_WALL_LOOKUP_IDS:
         assert lookup_id in plan.requirements
 
-    for equation_id in ("REQ-required_wall_thickness", "REQ-minimum_required_thickness_eq"):
+    for equation_id in (REQ_REQUIRED_WALL_THICKNESS, REQ_MINIMUM_REQUIRED_THICKNESS_EQ):
         assert equation_id in plan.requirements
 
     serialized = plan.to_dict()
@@ -154,7 +154,7 @@ def test_fresh_pipe_wall_normalized_engineering_plan() -> None:
 
 def test_flat_legacy_goal_map_fails_canonical_validation() -> None:
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     flat_legacy = dict(plan.legacy_goal_map or {})
 
     result = validate_engineering_plan_dict(flat_legacy)

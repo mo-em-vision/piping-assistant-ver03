@@ -7,6 +7,9 @@ parameter_class: selection
 description: >
   Standard nominal pipe size (NPS) used to look up outside diameter and wall
   thickness from ASME B36.10 tables.
+question: >
+  Please provide the nominal pipe size (NPS) so outside diameter D can be
+  looked up per ASME B36.10.
 canonical_symbol: NPS
 aliases:
   - nominal pipe size
@@ -24,4 +27,5 @@ metadata:
   edited_by: admin
   composer_input: dropdown
   canonical_unit: NPS
+  short_question: Enter nominal pipe size (NPS).
 ---

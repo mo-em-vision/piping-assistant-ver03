@@ -27,10 +27,11 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
   it('includes workflow intro first and appends guidance after engineering blocks', () => {
     const displayOutputs: DisplayOutputBlock[] = [
       {
-        id: 'path-preview-equation-304.1.2-a',
+        id: 'equation-asme-b313-304-1-2-eq-3a',
         type: 'equation',
         content: 't = PD / 2(SEW + PY)',
-        display_role: 'preview',
+        display_role: 'calculation_trace',
+        lifecycle: 'durable',
       },
     ]
     const transcript = [
@@ -53,8 +54,19 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
     const items = buildCenterPanelTranscript(displayOutputs, transcript, 'pipe_wall_thickness_design')
     expect(items).toHaveLength(3)
     expect(items[0]?.block.id).toBe('workflow-intro-pipe_wall_thickness_design')
-    expect(items[1]?.block.id).toBe('path-preview-equation-304.1.2-a')
-    expect(items[2]?.block.id).toContain('guidance-')
+    expect(items[1]?.block.id).toContain('guidance-')
+    expect(items[2]?.block.id).toBe('equation-asme-b313-304-1-2-eq-3a')
+  })
+
+  it('rejects internal leak text in merged transcript output', () => {
+    const leaked = '{"GOAL-1": "internal"}'
+    expect(assertUserVisibleText(leaked)).toBe(false)
+    const merged = buildCenterPanelTranscript(
+      [{ id: 'paragraph-304.1.1-a', type: 'text', content: 'Visible summary.', display_role: 'paragraph_context', lifecycle: 'durable' }],
+      [],
+    )
+    const visible = merged.map((item) => item.block.content ?? '').join(' ')
+    expect(assertUserVisibleText(visible)).toBe(true)
   })
 
   it('converts guidance transcript blocks to durable text display blocks', () => {
@@ -186,8 +198,8 @@ describe('buildCenterPanelTranscript', () => {
     expect(items).toHaveLength(2)
     const ids = items.map((item) => item.block.id)
     expect(new Set(ids).size).toBe(ids.length)
-    expect(ids[0]).toBe('equation-trace-1')
-    expect(ids[1]).toContain('guidance-')
+    expect(ids[0]).toContain('guidance-')
+    expect(ids[1]).toBe('equation-trace-1')
   })
 
   it('does not duplicate guidance when transcript already contains the block', () => {
@@ -232,8 +244,8 @@ describe('buildCenterPanelTranscript', () => {
     ]
 
     const items = buildCenterPanelTranscript(displayOutputs, transcript)
-    expect(items[0]?.block.id).toBe('equation-trace-1')
-    expect(items[1]?.block.id).toContain('guidance-')
+    expect(items[0]?.block.id).toContain('guidance-')
+    expect(items[1]?.block.id).toBe('equation-trace-1')
   })
 })
 

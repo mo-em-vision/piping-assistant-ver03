@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.legacy_goal_adapter import enrich_plan_requirements, finalize_engineering_plan
 from engine.planner.plan_inspector import build_planner_inspector_summary
 from engine.planner.plan_validation import validate_engineering_plan
@@ -10,34 +10,21 @@ from engine.state.state_manager import TaskStateManager
 from models.engineering_plan import requirement_key_for_class
 from models.task import TaskStatus
 from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
-
-_LOOKUP_IDS = (
-    "REQ-allowable_stress_lookup",
-    "REQ-metallurgical_group_lookup",
-    "REQ-temperature_coefficient_Y_lookup",
-    "REQ-weld_joint_efficiency_lookup",
-    "REQ-weld_strength_reduction_factor_W_lookup",
+from tests.planner.helpers import _reader
+from tests.planner.plan_contract import (
+    EQUATION_SOURCES,
+    LOOKUP_SOURCES,
+    PIPE_WALL_LOOKUP_IDS,
+    REQ_MINIMUM_REQUIRED_THICKNESS_EQ,
+    REQ_REQUIRED_WALL_THICKNESS,
 )
 
-_EQUATION_IDS = (
-    "REQ-required_wall_thickness",
-    "REQ-minimum_required_thickness_eq",
-)
-
+_LOOKUP_IDS = PIPE_WALL_LOOKUP_IDS
+_EQUATION_IDS = (REQ_REQUIRED_WALL_THICKNESS, REQ_MINIMUM_REQUIRED_THICKNESS_EQ)
 _REPORT_ID = "REQ-calculation_report"
 
-_LOOKUP_SOURCES = {
-    "REQ-allowable_stress_lookup": "asme-b313-table-A-1",
-    "REQ-metallurgical_group_lookup": "MAT-catalog",
-    "REQ-temperature_coefficient_Y_lookup": "asme-b313-table-304-1-1-1",
-    "REQ-weld_joint_efficiency_lookup": "asme-b313-table-A-2",
-    "REQ-weld_strength_reduction_factor_W_lookup": "asme-b313-table-302-3-5-1",
-}
-
-_EQUATION_SOURCES = {
-    "REQ-required_wall_thickness": "asme-b313-304-1-2-eq-3a",
-    "REQ-minimum_required_thickness_eq": "asme-b313-304-1-1-eq-2",
-}
+_LOOKUP_SOURCES = LOOKUP_SOURCES
+_EQUATION_SOURCES = EQUATION_SOURCES
 
 
 def _gates_satisfied_task():
@@ -60,7 +47,7 @@ def _gates_satisfied_task():
 
 def test_plan_includes_lookup_equation_and_report_requirements() -> None:
     task = _gates_satisfied_task()
-    plan = finalize_engineering_plan(build_pipe_wall_engineering_plan(task))
+    plan = finalize_engineering_plan(build_engineering_plan(task, _reader()))
     validation = validate_engineering_plan(plan)
     assert validation.valid, validation.errors
 
@@ -92,14 +79,14 @@ def test_plan_includes_lookup_equation_and_report_requirements() -> None:
     assert report.status == "blocked"
     assert report.question_spec is None
     assert report.phase == "reporting"
-    assert report.depends_on == ["REQ-minimum_required_thickness_eq"]
+    assert report.depends_on == [REQ_MINIMUM_REQUIRED_THICKNESS_EQ]
     assert report.resolution == {"method": "report", "output_field": "calculation_report"}
     assert report.key == "report-calculation_report"
 
 
 def test_allowable_stress_lookup_shape_matches_canonical_contract() -> None:
     task = _gates_satisfied_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     enrich_plan_requirements(plan.requirements)
     req = plan.requirements["REQ-allowable_stress_lookup"]
 
@@ -120,7 +107,7 @@ def test_allowable_stress_lookup_shape_matches_canonical_contract() -> None:
 
 def test_system_resolved_requirements_visible_in_planner_inspector() -> None:
     task = _gates_satisfied_task()
-    plan = finalize_engineering_plan(build_pipe_wall_engineering_plan(task))
+    plan = finalize_engineering_plan(build_engineering_plan(task, _reader()))
     summary = build_planner_inspector_summary(plan)
 
     system_ids = {item["id"] for item in summary["system_resolved_requirements"]}
@@ -144,7 +131,7 @@ def test_fresh_plan_includes_conditional_system_requirements() -> None:
     manager = TaskStateManager()
     task = manager.create_task("system-reqs-fresh", status=TaskStatus.AWAITING_INPUT)
     task.outputs["workflow"] = "pipe_wall_thickness_design"
-    plan = finalize_engineering_plan(build_pipe_wall_engineering_plan(task))
+    plan = finalize_engineering_plan(build_engineering_plan(task, _reader()))
 
     for req_id in (*_LOOKUP_IDS, *_EQUATION_IDS, _REPORT_ID):
         assert req_id in plan.requirements

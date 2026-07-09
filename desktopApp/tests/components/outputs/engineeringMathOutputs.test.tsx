@@ -227,11 +227,6 @@ describe('EquationOutput', () => {
                   node_id: '304.1.2-a',
                   label: 'ASME B31.3 §304.1.2',
                 },
-                value_provenance: {
-                  source_type: 'equation_output',
-                  status: 'pending_derived',
-                  label: '',
-                },
               },
             ],
           },
@@ -240,7 +235,6 @@ describe('EquationOutput', () => {
     )
 
     expect(queryByText('304.1.2-a')).toBeNull()
-    expect(getByText(/defined in/i)).toBeTruthy()
     expect(getByRole('button', { name: 'ASME B31.3 §304.1.2' })).toBeTruthy()
   })
 
@@ -277,7 +271,6 @@ describe('EquationOutput', () => {
     )
 
     expect(getByRole('button', { name: '§304.1.2' })).toBeTruthy()
-    expect(getByText(/defined in/i)).toBeTruthy()
     expect(queryByText('Awaiting user input')).toBeTruthy()
   })
 
@@ -309,7 +302,6 @@ describe('EquationOutput', () => {
     )
 
     expect(getByText(/Outside diameter of pipe/)).toBeTruthy()
-    expect(getByText(/as defined in/)).toBeTruthy()
     expect(getByRole('button', { name: '§304.1.1' })).toBeTruthy()
     expect(queryByText('Symbol definitions:')).toBeNull()
   })

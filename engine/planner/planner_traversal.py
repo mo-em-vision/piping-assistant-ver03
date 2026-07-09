@@ -4,9 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from engine.graph.assumption_checker import field_value
-from engine.planner.pipe_wall_plan import PIPE_WALL_WORKFLOW, req_id
+from engine.graph.assumption_checker import _field_from_param_ref, field_value
+from engine.graph.graph_engine import normalize_root_id
+from engine.graph.path_decision import _applies_when_matches_field
+from engine.planner.plan_phases import strategy_field
 from engine.reference.parameter_keys import load_parameter_node_metadata, param_node_id_for_input
+from engine.reference.standards_reader import StandardsReader
+from models.planning import NavigationPhase
 from models.engineering_plan import (
     EngineeringPlan,
     InputStrategy,
@@ -21,106 +25,157 @@ from models.engineering_plan import (
     TraversalPendingNode,
 )
 
-PIPE_WALL_WORKFLOW_NODE = "WF-PIPE-WALL-THICKNESS"
-
-_PRESSURE_BRANCH_CANDIDATES = ("304.1.2-a", "304.1.3")
-_PRESSURE_BRANCH_BY_VALUE = {
-    "internal_pressure": "304.1.2-a",
-    "external_pressure": "304.1.3",
-}
-
-_PARAGRAPH_TITLES: dict[str, str] = {
-    "304.1.2-a": "Straight Pipe Under Internal Pressure",
-    "304.1.3": "Straight Pipe Under External Pressure",
-}
-
-_WORKFLOW_TITLES: dict[str, str] = {
-    PIPE_WALL_WORKFLOW_NODE: "Pipe Wall Thickness Workflow",
-}
-
-_ACTIVE_REASONS: dict[str, str] = {
-    "straight_pipe_section": (
-        "Required to confirm whether straight pipe thickness rules apply."
-    ),
-    "pressure_loading": "Select internal or external pressure to determine the design path.",
-}
-
-_PENDING_REASONS: dict[str, str] = {
-    "pressure_loading": (
-        "Pressure branch cannot be selected until expansion assumptions are resolved."
-    ),
-    "304.1.2-a": (
-        "Internal pressure branch is conditional until pressure loading is selected."
-    ),
-    "304.1.3": (
-        "External pressure branch is conditional until pressure loading is selected."
-    ),
-}
-
-_EARLY_PHASES = frozenset(
-    {
-        "expansion_assumptions",
-        "path_decisions",
-        "parameter_gathering",
-    }
-)
+_COEFFICIENT_PHASE = NavigationPhase.COEFFICIENT_RESOLUTION.value
 
 
-def _req_for_field(requirements: dict[str, PlanRequirement], field: str) -> PlanRequirement | None:
-    return requirements.get(req_id(field))
+def _graph_store(reader: StandardsReader | None):
+    if reader is None:
+        return None
+    return reader.graph_store
 
 
-def _field_resolved(requirements: dict[str, PlanRequirement], field: str) -> bool:
-    req = _req_for_field(requirements, field)
-    return req is not None and req.status == "resolved"
+def _canonical_workflow_node_id(reader: StandardsReader | None, workflow_id: str) -> str:
+    store = _graph_store(reader)
+    slug = normalize_root_id(workflow_id)
+    if store is not None:
+        resolved = store.resolve_node_id(slug)
+        if resolved:
+            return resolved
+    return slug
 
 
-def _node_title(node_id: str, node_type: str) -> str | None:
-    if node_type == "parameter":
-        meta = load_parameter_node_metadata(node_id)
-        if meta:
-            return str(meta.get("name") or meta.get("title") or node_id)
-    if node_type == "workflow":
-        return _WORKFLOW_TITLES.get(node_id, node_id)
-    if node_type == "paragraph":
-        return _PARAGRAPH_TITLES.get(node_id, node_id)
-    return node_id
-
-
-def _node_type_for_id(node_id: str) -> str:
+def _infer_node_type(reader: StandardsReader | None, node_id: str) -> str:
     if node_id.startswith("PARAM-"):
         return "parameter"
-    if node_id.startswith("WF-"):
+    store = _graph_store(reader)
+    if store is not None:
+        node = store.get_node(node_id)
+        if node is not None:
+            node_type = str(node.node_type or "").strip()
+            if node_type:
+                return node_type
+    if node_id.startswith("WF-") or node_id.startswith("B313-WF-"):
         return "workflow"
+    if node_id.startswith("asme-b313-"):
+        if "eq-" in node_id:
+            return "equation"
+        if "table-" in node_id:
+            return "table"
+        if "valrule-" in node_id:
+            return "validation_rule"
     return "paragraph"
 
 
-def _pressure_value(
+def _node_title(
+    reader: StandardsReader | None,
+    node_id: str,
     *,
-    path_decision: dict[str, str] | None,
-    existing_inputs: dict[str, Any],
-) -> str | None:
-    if path_decision and path_decision.get("field") == "pressure_loading":
-        value = path_decision.get("value")
-        if value:
-            return str(value)
-    return field_value("pressure_loading", existing_inputs)
+    node_type: str,
+    title: str | None = None,
+) -> str:
+    if title and str(title).strip():
+        return str(title).strip()
+    if node_type == "parameter" or node_id.startswith("PARAM-"):
+        meta = load_parameter_node_metadata(node_id)
+        if meta:
+            name = str(meta.get("name") or meta.get("title") or "").strip()
+            if name:
+                return name
+    store = _graph_store(reader)
+    if store is not None:
+        node = store.get_node(node_id)
+        if node is not None:
+            metadata = node.metadata if isinstance(node.metadata, dict) else {}
+            presentation = metadata.get("presentation")
+            if isinstance(presentation, dict):
+                display_label = str(presentation.get("display_label") or "").strip()
+                if display_label:
+                    return display_label.title()
+            for key in ("title", "name", "purpose"):
+                value = str(metadata.get(key) or "").strip()
+                if value:
+                    return value
+    return node_id
 
 
-def _selected_branch_node(
-    *,
-    path_decision: dict[str, str] | None,
-    pressure_value: str | None,
-) -> str | None:
-    if path_decision and path_decision.get("selected_node"):
-        return str(path_decision["selected_node"])
-    if pressure_value:
-        return _PRESSURE_BRANCH_BY_VALUE.get(pressure_value)
+def _execution_order(preview: Any | None, graph: PlanGraph) -> list[str]:
+    order = list(getattr(preview, "execution_order", ()) or [])
+    if order:
+        return order
+    return list(graph.selected_subgraph_node_ids or graph.expanded_node_ids)
+
+
+def _req_for_field(requirements: dict[str, PlanRequirement], field: str) -> PlanRequirement | None:
+    for req in requirements.values():
+        if strategy_field(req) == field or req.field == field:
+            return req
     return None
+
+
+def _default_branch_value(field: str) -> Any:
+    param_node_id = param_node_id_for_input(field)
+    meta = load_parameter_node_metadata(param_node_id)
+    if not meta:
+        return None
+    nested = meta.get("metadata")
+    options_source = nested if isinstance(nested, dict) else meta
+    if "default_value" in options_source:
+        return options_source.get("default_value")
+    options = options_source.get("composer_options") or []
+    if not options:
+        return None
+    first = options[0]
+    if isinstance(first, dict):
+        value = str(first.get("value") or "").strip()
+        return value or None
+    return None
+
+
+def _paragraph_applies_to_field(metadata: dict[str, Any], field: str) -> bool:
+    applicability = metadata.get("applicability") or {}
+    if not isinstance(applicability, dict):
+        return False
+    for item in applicability.get("applies_when") or []:
+        if not isinstance(item, dict):
+            continue
+        clause_field = _field_from_param_ref(str(item.get("parameter") or ""))
+        if clause_field == field:
+            return True
+    return False
+
+
+def _branch_candidates_for_field(
+    reader: StandardsReader | None,
+    execution_order: list[str],
+    field: str,
+) -> list[str]:
+    store = _graph_store(reader)
+    if store is None:
+        return []
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    def _maybe_add(node_id: str) -> None:
+        if node_id in seen:
+            return
+        node = store.get_node(node_id)
+        if node is None or node.node_type != "paragraph":
+            return
+        metadata = node.metadata if isinstance(node.metadata, dict) else {}
+        if _paragraph_applies_to_field(metadata, field):
+            seen.add(node_id)
+            candidates.append(node_id)
+
+    for node_id in execution_order:
+        _maybe_add(node_id)
+    for node in store.list_nodes(node_type="paragraph"):
+        _maybe_add(node.node_id)
+    return candidates
 
 
 def _build_active_node(
     *,
+    reader: StandardsReader | None,
     requirements: dict[str, PlanRequirement],
     input_strategy: InputStrategy | None,
 ) -> tuple[str | None, TraversalActiveNode | None]:
@@ -131,20 +186,22 @@ def _build_active_node(
     node_id = param_node_id_for_input(field)
     phase = input_strategy.current_phase
     req = _req_for_field(requirements, field)
-    reason = _ACTIVE_REASONS.get(field)
-    if not reason and req and req.question_spec:
+    reason = None
+    if req and req.question_spec and req.question_spec.reason_code:
+        reason = req.question_spec.reason_code
+    elif req:
         reason = f"Next required input for {phase.replace('_', ' ')}."
-    if not reason:
+    else:
         reason = f"Active traversal node for phase {phase}."
 
-    # Coefficient/equation phases must not activate lookup PARAM nodes before early phases complete.
-    if phase not in _EARLY_PHASES and req and req.requirement_class == "table_lookup":
+    if req and req.requirement_class == "table_lookup" and phase != _COEFFICIENT_PHASE:
         return None, None
 
+    node_type = _infer_node_type(reader, node_id)
     active = TraversalActiveNode(
         node_id=node_id,
-        node_type="parameter",
-        title=_node_title(node_id, "parameter"),
+        node_type=node_type,
+        title=_node_title(reader, node_id, node_type=node_type),
         phase=phase,
         reason=reason,
     )
@@ -154,21 +211,23 @@ def _build_active_node(
 def _append_pending(
     pending: list[TraversalPendingNode],
     *,
+    reader: StandardsReader | None,
     node_id: str,
     waiting_on: list[str],
     phase: str,
     reason: str,
     seen: set[str],
+    title: str | None = None,
 ) -> None:
     if node_id in seen:
         return
     seen.add(node_id)
-    node_type = _node_type_for_id(node_id)
+    node_type = _infer_node_type(reader, node_id)
     pending.append(
         TraversalPendingNode(
             node_id=node_id,
             node_type=node_type,
-            title=_node_title(node_id, node_type),
+            title=_node_title(reader, node_id, node_type=node_type, title=title),
             phase=phase,
             waiting_on=list(waiting_on),
             reason=reason,
@@ -176,90 +235,262 @@ def _append_pending(
     )
 
 
+def _infer_waiting_on_for_missing(
+    req: PlanRequirement,
+    requirements: dict[str, PlanRequirement],
+    input_strategy: InputStrategy | None,
+) -> list[str]:
+    waiting_on = _waiting_on_param_nodes(req, requirements)
+    if waiting_on:
+        return waiting_on
+    if input_strategy is None:
+        return []
+    field = strategy_field(req)
+    if field not in input_strategy.blocked_fields:
+        return []
+    if not input_strategy.next_fields:
+        return []
+    return [param_node_id_for_input(input_strategy.next_fields[0])]
+
+
+def _waiting_on_param_nodes(
+    req: PlanRequirement,
+    requirements: dict[str, PlanRequirement],
+) -> list[str]:
+    waiting_on: list[str] = []
+    for dep_id in req.depends_on:
+        dep = requirements.get(dep_id)
+        if dep is None:
+            continue
+        if dep.status in {"resolved", "not_applicable"}:
+            continue
+        dep_node = dep.parameter_node_id or param_node_id_for_input(dep.field)
+        if dep_node:
+            waiting_on.append(dep_node)
+    return waiting_on
+
+
+def _build_branch_decisions(
+    *,
+    reader: StandardsReader | None,
+    requirements: dict[str, PlanRequirement],
+    path_decision: dict[str, str] | None,
+    existing_inputs: dict[str, Any],
+    execution_order: list[str],
+) -> list[TraversalBranchDecision]:
+    decisions: list[TraversalBranchDecision] = []
+    seen_fields: set[str] = set()
+
+    if path_decision and path_decision.get("field"):
+        field = str(path_decision["field"])
+        value = path_decision.get("value")
+        value_text = str(value).strip() if value is not None else None
+        selected_node = path_decision.get("selected_node")
+        candidates = _branch_candidates_for_field(reader, execution_order, field)
+        decisions.append(
+            TraversalBranchDecision(
+                field=field,
+                value=value_text,
+                selected_node=str(selected_node) if selected_node else None,
+                candidate_nodes=candidates,
+                status="resolved" if value_text else "unresolved",
+            )
+        )
+        seen_fields.add(field)
+
+    for req in requirements.values():
+        if req.requirement_class != "branch_decision":
+            continue
+        field = strategy_field(req)
+        if field in seen_fields:
+            continue
+        value_text = field_value(field, existing_inputs)
+        value_text = str(value_text).strip() if value_text is not None else None
+        selected = None
+        if value_text and reader is not None:
+            store = _graph_store(reader)
+            if store is not None:
+                for node_id in execution_order:
+                    node = store.get_node(node_id)
+                    if node is None:
+                        continue
+                    metadata = node.metadata if isinstance(node.metadata, dict) else {}
+                    if _applies_when_matches_field(
+                        metadata,
+                        field_name=field,
+                        field_value_text=value_text,
+                    ):
+                        selected = node_id
+                        break
+        candidates = _branch_candidates_for_field(reader, execution_order, field)
+        decisions.append(
+            TraversalBranchDecision(
+                field=field,
+                value=value_text,
+                selected_node=selected,
+                candidate_nodes=candidates,
+                status="resolved" if value_text else "unresolved",
+            )
+        )
+        seen_fields.add(field)
+
+    return decisions
+
+
 def _build_pending_nodes(
     *,
+    reader: StandardsReader | None,
     requirements: dict[str, PlanRequirement],
+    input_strategy: InputStrategy | None,
     active_node_id: str | None,
-    straight_resolved: bool,
-    pressure_resolved: bool,
-    pressure_value: str | None,
+    branch_decisions: list[TraversalBranchDecision],
+    existing_inputs: dict[str, Any],
 ) -> list[TraversalPendingNode]:
     pending: list[TraversalPendingNode] = []
     seen: set[str] = set()
-    straight_param = param_node_id_for_input("straight_pipe_section")
-    pressure_param = param_node_id_for_input("pressure_loading")
 
-    if not straight_resolved and pressure_param != active_node_id:
+    for req in requirements.values():
+        if req.status not in {"missing", "blocked"}:
+            continue
+        if req.activation_status != "active":
+            continue
+        node_id = req.parameter_node_id or param_node_id_for_input(req.field)
+        if not node_id or node_id == active_node_id:
+            continue
+        waiting_on = _waiting_on_param_nodes(req, requirements)
+        if not waiting_on and req.status == "missing":
+            waiting_on = _infer_waiting_on_for_missing(req, requirements, input_strategy)
+        if req.status == "missing" and not waiting_on:
+            continue
         _append_pending(
             pending,
-            node_id=pressure_param,
-            waiting_on=[straight_param],
-            phase="path_decisions",
-            reason=_PENDING_REASONS["pressure_loading"],
+            reader=reader,
+            node_id=node_id,
+            waiting_on=waiting_on,
+            phase=req.phase,
+            reason=f"Waiting on dependencies for {req.resolved_title()}.",
             seen=seen,
         )
 
-    if not pressure_resolved:
-        internal_branch = _PRESSURE_BRANCH_BY_VALUE["internal_pressure"]
-        if internal_branch != active_node_id:
+    for decision in branch_decisions:
+        if decision.status == "resolved":
+            continue
+        default_value = _default_branch_value(decision.field)
+        branch_param = param_node_id_for_input(decision.field)
+        for candidate_id in decision.candidate_nodes:
+            if candidate_id == active_node_id:
+                continue
+            store = _graph_store(reader)
+            if store is None:
+                continue
+            node = store.get_node(candidate_id)
+            if node is None:
+                continue
+            metadata = node.metadata if isinstance(node.metadata, dict) else {}
+            applicability = metadata.get("applicability") or {}
+            applies_when = applicability.get("applies_when") if isinstance(applicability, dict) else None
+            if not applies_when:
+                continue
+            include = False
+            for item in applies_when:
+                if not isinstance(item, dict):
+                    continue
+                clause_field = _field_from_param_ref(str(item.get("parameter") or ""))
+                if clause_field != decision.field:
+                    continue
+                clause_value = str(item.get("value") or "").strip()
+                if default_value and clause_value == default_value:
+                    include = True
+                    break
+            if not include:
+                continue
             _append_pending(
                 pending,
-                node_id=internal_branch,
-                waiting_on=[pressure_param],
+                reader=reader,
+                node_id=candidate_id,
+                waiting_on=[branch_param] if branch_param else [],
                 phase="parameter_gathering",
-                reason=_PENDING_REASONS[internal_branch],
+                reason=f"Branch paragraph pending {decision.field} selection.",
                 seen=seen,
             )
-        external_branch = _PRESSURE_BRANCH_BY_VALUE["external_pressure"]
-        if pressure_value == "external_pressure" and external_branch != active_node_id:
-            _append_pending(
-                pending,
-                node_id=external_branch,
-                waiting_on=[pressure_param],
-                phase="parameter_gathering",
-                reason=_PENDING_REASONS[external_branch],
-                seen=seen,
-            )
+
+        branch_value = field_value(decision.field, existing_inputs)
+        branch_value = str(branch_value).strip() if branch_value is not None else None
+        if branch_value:
+            for candidate_id in decision.candidate_nodes:
+                if candidate_id == active_node_id:
+                    continue
+                store = _graph_store(reader)
+                if store is None:
+                    continue
+                node = store.get_node(candidate_id)
+                if node is None:
+                    continue
+                metadata = node.metadata if isinstance(node.metadata, dict) else {}
+                if not _applies_when_matches_field(
+                    metadata,
+                    field_name=decision.field,
+                    field_value_text=branch_value,
+                ):
+                    continue
+                _append_pending(
+                    pending,
+                    reader=reader,
+                    node_id=candidate_id,
+                    waiting_on=[branch_param] if branch_param else [],
+                    phase="parameter_gathering",
+                    reason=f"Branch paragraph pending {decision.field} resolution.",
+                    seen=seen,
+                )
 
     return pending
 
 
 def _build_expanded_nodes(
     *,
-    requirements: dict[str, PlanRequirement],
-    graph: PlanGraph,
+    reader: StandardsReader | None,
     workflow_id: str,
+    graph: PlanGraph,
+    requirements: dict[str, PlanRequirement],
 ) -> list[TraversalExpandedNode]:
-    if workflow_id.replace("-", "_") not in {
-        PIPE_WALL_WORKFLOW,
-        "pipe_wall_thickness_design",
-    }:
-        return []
-
-    gate_req_ids = [req_id("straight_pipe_section"), req_id("pressure_loading")]
-    expanded: list[TraversalExpandedNode] = [
-        TraversalExpandedNode(
-            node_id=PIPE_WALL_WORKFLOW_NODE,
-            node_type="workflow",
-            title=_node_title(PIPE_WALL_WORKFLOW_NODE, "workflow"),
-            expanded_at_order=1,
-            produced_requirements=[rid for rid in gate_req_ids if rid in requirements],
-            produced_edges=[],
-        )
+    workflow_node_id = _canonical_workflow_node_id(reader, workflow_id)
+    gate_req_ids = [
+        req.id
+        for req in requirements.values()
+        if req.phase in {"expansion_assumptions", "path_decisions"}
+        and req.requirement_class in {"user_input", "branch_decision"}
     ]
 
-    order = 2
-    skip = {PIPE_WALL_WORKFLOW_NODE}
+    order = 1
+    expanded: list[TraversalExpandedNode] = []
+    seen: set[str] = set()
+
+    if workflow_node_id:
+        expanded.append(
+            TraversalExpandedNode(
+                node_id=workflow_node_id,
+                node_type="workflow",
+                title=_node_title(reader, workflow_node_id, node_type="workflow"),
+                expanded_at_order=order,
+                produced_requirements=[rid for rid in gate_req_ids if rid in requirements],
+                produced_edges=[],
+            )
+        )
+        seen.add(workflow_node_id)
+        order += 1
+
     for node_id in graph.expanded_node_ids:
-        if node_id in skip:
+        if node_id in seen:
             continue
-        skip.add(node_id)
-        node_type = _node_type_for_id(node_id)
+        node_type = _infer_node_type(reader, node_id)
+        if node_type == "parameter":
+            continue
+        seen.add(node_id)
         expanded.append(
             TraversalExpandedNode(
                 node_id=node_id,
                 node_type=node_type,
-                title=_node_title(node_id, node_type),
+                title=_node_title(reader, node_id, node_type=node_type),
                 expanded_at_order=order,
                 produced_requirements=[],
                 produced_edges=[],
@@ -272,55 +503,50 @@ def _build_expanded_nodes(
 
 def _build_candidate_next_nodes(
     *,
+    reader: StandardsReader | None,
     active_node_id: str | None,
-    straight_resolved: bool,
-    pressure_resolved: bool,
+    pending_nodes: list[TraversalPendingNode],
+    branch_decisions: list[TraversalBranchDecision],
 ) -> list[TraversalCandidateNode]:
     candidates: list[TraversalCandidateNode] = []
-    if active_node_id is None:
-        return candidates
+    seen: set[str] = set()
 
-    straight_param = param_node_id_for_input("straight_pipe_section")
-    pressure_param = param_node_id_for_input("pressure_loading")
+    if active_node_id:
+        for pending in pending_nodes:
+            if pending.node_id in seen:
+                continue
+            if pending.waiting_on == [active_node_id]:
+                seen.add(pending.node_id)
+                candidates.append(
+                    TraversalCandidateNode(
+                        node_id=pending.node_id,
+                        node_type=pending.node_type,
+                        title=pending.title,
+                        reason="Next node after active gate.",
+                    )
+                )
 
-    if active_node_id == straight_param and not straight_resolved:
-        candidates.append(
-            TraversalCandidateNode(
-                node_id=pressure_param,
-                node_type="parameter",
-                title=_node_title(pressure_param, "parameter"),
-                reason="Next path decision after straight pipe section is confirmed.",
-            )
-        )
-    elif active_node_id == pressure_param and not pressure_resolved:
-        for paragraph_id in _PRESSURE_BRANCH_CANDIDATES:
+    for decision in branch_decisions:
+        if decision.status != "unresolved":
+            continue
+        branch_param = param_node_id_for_input(decision.field)
+        if active_node_id != branch_param:
+            continue
+        for candidate_id in decision.candidate_nodes:
+            if candidate_id in seen:
+                continue
+            seen.add(candidate_id)
+            node_type = _infer_node_type(reader, candidate_id)
             candidates.append(
                 TraversalCandidateNode(
-                    node_id=paragraph_id,
-                    node_type="paragraph",
-                    title=_node_title(paragraph_id, "paragraph"),
-                    reason="Candidate branch paragraph for selected pressure loading.",
+                    node_id=candidate_id,
+                    node_type=node_type,
+                    title=_node_title(reader, candidate_id, node_type=node_type),
+                    reason=f"Candidate branch for {decision.field}.",
                 )
             )
+
     return candidates
-
-
-def _build_branch_decisions(
-    *,
-    path_decision: dict[str, str] | None,
-    pressure_value: str | None,
-    selected_node: str | None,
-) -> list[TraversalBranchDecision]:
-    status = "resolved" if pressure_value else "unresolved"
-    return [
-        TraversalBranchDecision(
-            field="pressure_loading",
-            value=pressure_value,
-            selected_node=selected_node,
-            candidate_nodes=list(_PRESSURE_BRANCH_CANDIDATES),
-            status=status,
-        )
-    ]
 
 
 def _build_traversal_events(
@@ -423,46 +649,47 @@ def build_planner_traversal_state(
     graph: PlanGraph,
     path_decision: dict[str, str] | None = None,
     existing_inputs: dict[str, Any] | None = None,
+    reader: StandardsReader | None = None,
+    preview: Any | None = None,
 ) -> PlannerTraversalState | None:
-    """Derive compact planner traversal snapshot for pipe wall workflows."""
-    slug = workflow_id.replace("-", "_")
-    if slug not in {PIPE_WALL_WORKFLOW, "pipe_wall_thickness_design"}:
+    """Derive compact planner traversal snapshot from plan graph and requirements."""
+    if not workflow_id:
         return None
 
     inputs = dict(existing_inputs or {})
-    straight_resolved = _field_resolved(requirements, "straight_pipe_section")
-    pressure_resolved = _field_resolved(requirements, "pressure_loading")
-    pressure_value = _pressure_value(path_decision=path_decision, existing_inputs=inputs)
-    selected_node = _selected_branch_node(
-        path_decision=path_decision,
-        pressure_value=pressure_value,
-    )
+    execution_order = _execution_order(preview, graph)
 
     active_node_id, active_node = _build_active_node(
+        reader=reader,
         requirements=requirements,
         input_strategy=input_strategy,
     )
-    pending_nodes = _build_pending_nodes(
+    branch_decisions = _build_branch_decisions(
+        reader=reader,
         requirements=requirements,
+        path_decision=path_decision,
+        existing_inputs=inputs,
+        execution_order=execution_order,
+    )
+    pending_nodes = _build_pending_nodes(
+        reader=reader,
+        requirements=requirements,
+        input_strategy=input_strategy,
         active_node_id=active_node_id,
-        straight_resolved=straight_resolved,
-        pressure_resolved=pressure_resolved,
-        pressure_value=pressure_value,
+        branch_decisions=branch_decisions,
+        existing_inputs=inputs,
     )
     expanded_nodes = _build_expanded_nodes(
-        requirements=requirements,
-        graph=graph,
+        reader=reader,
         workflow_id=workflow_id,
+        graph=graph,
+        requirements=requirements,
     )
     candidate_next_nodes = _build_candidate_next_nodes(
+        reader=reader,
         active_node_id=active_node_id,
-        straight_resolved=straight_resolved,
-        pressure_resolved=pressure_resolved,
-    )
-    branch_decisions = _build_branch_decisions(
-        path_decision=path_decision,
-        pressure_value=pressure_value,
-        selected_node=selected_node,
+        pending_nodes=pending_nodes,
+        branch_decisions=branch_decisions,
     )
     traversal_events = _build_traversal_events(
         expanded_nodes=expanded_nodes,
@@ -488,6 +715,8 @@ def build_planner_traversal_state_from_plan(
     *,
     path_decision: dict[str, str] | None = None,
     existing_inputs: dict[str, Any] | None = None,
+    reader: StandardsReader | None = None,
+    preview: Any | None = None,
 ) -> PlannerTraversalState | None:
     return build_planner_traversal_state(
         plan_id=plan.plan_id,
@@ -497,6 +726,8 @@ def build_planner_traversal_state_from_plan(
         graph=plan.graph,
         path_decision=path_decision,
         existing_inputs=existing_inputs,
+        reader=reader,
+        preview=preview,
     )
 
 

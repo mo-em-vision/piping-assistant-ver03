@@ -110,6 +110,31 @@ def test_metallurgical_group_infers_material_catalog_resolution() -> None:
     assert prerequisite_input_keys(micro.store, "metallurgical_group") == ["material_grade"]
 
 
+def test_prerequisite_input_keys_returns_lookup_keys_for_table_derived_parameters() -> None:
+    reader = _reader()
+    micro = GraphEngine()._micro_engine(reader)
+    assert micro is not None
+
+    from engine.graph.lookup_parameter_resolution import prerequisite_input_keys
+
+    assert prerequisite_input_keys(micro.store, "allowable_stress") == [
+        "material_grade",
+        "design_temperature",
+    ]
+    assert prerequisite_input_keys(micro.store, "weld_joint_efficiency") == [
+        "material_grade",
+        "pipe_construction_type",
+    ]
+    assert prerequisite_input_keys(micro.store, "weld_joint_strength_reduction_factor_W") == [
+        "material_grade",
+        "design_temperature",
+        "pipe_construction_type",
+    ]
+    assert "design_temperature" in prerequisite_input_keys(
+        micro.store, "temperature_coefficient_Y"
+    )
+
+
 def test_required_user_inputs_do_not_include_metallurgical_group() -> None:
     reader = _reader()
     engine = GraphEngine()

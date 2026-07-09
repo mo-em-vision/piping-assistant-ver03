@@ -85,7 +85,20 @@ Gatherable parameters must declare how the desktop composer renders them. Author
 | `canonical_unit` | Default unit symbol or `UNIT-*` id (`UNIT-mm`, `NPS`) |
 | `default_value` | Proposed default before user confirms |
 
-`engine/reference/parameter_composer_spec.py` reads these fields only — no engine fallbacks. Omit `composer_input` to infer from `parameter_class` + `dimension`. Dynamic option lists (NPS catalog, material tables) are loaded in `api/parameter_definitions.py` after the PARAM node sets type and default unit.
+## Prompt metadata (messaging)
+
+Author user-facing prompt copy on PARAM nodes. Messaging reads these fields via `engine/messaging/parameter_prompt_context.py` (see [`docs/rules.md`](../rules.md) §12).
+
+| Field | Purpose |
+| --- | --- |
+| `question` | Primary user-facing ask (priority over `description` for prompts) |
+| `metadata.short_question` | One-line composer ask; if absent, derived from `name` and `canonical_symbol` |
+| `metadata.input_examples` | Example values shown in prompts, e.g. `["500 psi", "8 bar"]` |
+| `metadata.prompt_use_description` | Set `false` to skip thin `description` as prompt fallback |
+
+`description` remains the stable engineering definition; `question` holds prompt-oriented copy.
+
+`engine/reference/parameter_composer_spec.py` reads composer fields only — no engine fallbacks. Omit `composer_input` to infer from `parameter_class` + `dimension`. Dynamic option lists (NPS catalog, material tables) are loaded in `api/parameter_definitions.py` after the PARAM node sets type and default unit.
 
 Full rule: [`docs/rules.md`](../rules.md) §17, [`.cursor/rules/param-composer-metadata.mdc`](../../.cursor/rules/param-composer-metadata.mdc).
 

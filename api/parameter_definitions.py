@@ -35,7 +35,7 @@ from api.workflow_timeline import (
     submittable_parameter_ids,
 )
 from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
-from engine.messaging.workflow_parameter_prompts import default_workflow_parameter_prompt
+from engine.messaging.parameter_prompt_context import parameter_metadata_context, parameter_prompt_from_metadata
 from engine.reference.coefficient_resolver import list_pipe_construction_type_options
 from engine.reference.parameter_composer_spec import build_composer_parameter_spec
 from engine.reference.parameter_keys import (
@@ -263,7 +263,7 @@ def _parameter_guidance(
     phase_missing = planning.get("phase_missing") or {}
     phase_questions = planning.get("phase_questions") or {}
     if not isinstance(phase_missing, dict) or not isinstance(phase_questions, dict):
-        return default_workflow_parameter_prompt(parameter_id)
+        return _parameter_prompt_from_metadata(parameter_id, reader)
     for phase, fields in phase_missing.items():
         if not isinstance(fields, list):
             continue
@@ -282,7 +282,15 @@ def _parameter_guidance(
                 prompt = questions[index]
                 if isinstance(prompt, str) and prompt.strip():
                     return prompt.strip()
-    return default_workflow_parameter_prompt(parameter_id)
+    return _parameter_prompt_from_metadata(parameter_id, reader)
+
+
+def _parameter_prompt_from_metadata(
+    parameter_id: str,
+    reader: StandardsReader | None,
+) -> str | None:
+    ctx = parameter_metadata_context(reader, parameter_id)
+    return parameter_prompt_from_metadata(ctx)
 
 
 def _task_workflow_id(task: Task) -> str:

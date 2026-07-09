@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.plan_inspector import build_planner_inspector_summary
 from engine.planner.plan_validation import validate_engineering_plan
 from engine.reference.standards_reader import StandardsReader
@@ -76,7 +76,7 @@ def test_planner_header_and_phase_panel_stages(
     elif build_task == "after_pressure":
         task = _task_after_pressure(manager, task)
 
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     assert validate_engineering_plan(plan).valid
     summary = build_planner_inspector_summary(plan)
 
@@ -97,7 +97,7 @@ def test_planner_header_and_phase_panel_stages(
 
 def test_fresh_pipe_wall_traversal_path_and_requirements_panel() -> None:
     _, task = _fresh_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     summary = build_planner_inspector_summary(plan)
 
     assert summary["traversal_path"]
@@ -113,7 +113,7 @@ def test_fresh_pipe_wall_traversal_path_and_requirements_panel() -> None:
 
 def test_planner_header_traversal_support_pipe_wall() -> None:
     _, task = _fresh_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     summary = build_planner_inspector_summary(plan)
     assert summary["header"]["traversal_support_level"] == "full"
 
@@ -163,7 +163,7 @@ def _synthetic_generic_plan_with_traversal():
 
 def test_requirements_panel_resolution_labels() -> None:
     _, task = _fresh_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     summary = build_planner_inspector_summary(plan)
     lookup_rows = [row for row in summary["requirements_panel"] if row["category"] == "lookup_derived"]
     assert lookup_rows
@@ -173,7 +173,7 @@ def test_requirements_panel_resolution_labels() -> None:
 
 def test_planner_inspector_summary_rebuild_includes_new_fields() -> None:
     _, task = _fresh_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     summary = build_planner_inspector_summary(plan)
 
     for key in (

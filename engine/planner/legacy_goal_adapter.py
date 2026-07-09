@@ -319,7 +319,7 @@ def apply_engineering_plan_to_goal_store(task: Task, plan: EngineeringPlan) -> G
                 "allowable_stress",
                 "weld_joint_efficiency",
                 "temperature_coefficient_Y",
-                "weld_strength_reduction_factor_W",
+                "weld_joint_strength_reduction_factor_W",
                 "metallurgical_group",
                 "required_wall_thickness",
                 "minimum_required_thickness",

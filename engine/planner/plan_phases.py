@@ -33,18 +33,6 @@ _PHASE_TITLES = {
     "reporting": "Reporting",
 }
 
-_PHASE_REQUIREMENT_ORDER: dict[str, tuple[str, ...]] = {
-    "coefficient_resolution": (
-        "REQ-pipe_construction_type",
-        "REQ-metallurgical_group_lookup",
-        "REQ-allowable_stress_lookup",
-        "REQ-temperature_coefficient_Y_lookup",
-        "REQ-weld_joint_efficiency_lookup",
-        "REQ-weld_strength_reduction_factor_W_lookup",
-    ),
-}
-
-
 def strategy_field(req: PlanRequirement) -> str:
     """Composer / input-strategy field (may differ from requirement output field)."""
     if req.question_spec and req.question_spec.field:
@@ -109,13 +97,13 @@ def _requirement_ids_for_phase(
         and req.status != "not_applicable"
         and req.activation_status != "not_applicable"
     ]
-    order = _PHASE_REQUIREMENT_ORDER.get(phase_id)
-    if order:
-        rank = {rid: index for index, rid in enumerate(order)}
-        req_ids.sort(key=lambda rid: (rank.get(rid, len(order)), rid))
-    else:
-        req_ids.sort()
+    req_ids.sort(key=lambda rid: _requirement_sort_key(requirements[rid], rid))
     return req_ids
+
+
+def _requirement_sort_key(req: PlanRequirement, requirement_id: str) -> tuple:
+    priority = req.question_spec.priority if req.question_spec else 999
+    return (priority, requirement_id)
 
 
 def _phase_is_complete(requirements: dict[str, PlanRequirement], req_ids: list[str]) -> bool:

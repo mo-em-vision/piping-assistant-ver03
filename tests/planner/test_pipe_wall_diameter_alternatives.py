@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.plan_phases import _askable_fields_for_phase
 from engine.planner.plan_validation import validate_engineering_plan
 from engine.state.fact_migration import fact_from_engineering_input
@@ -11,6 +11,7 @@ from models.engineering_plan import RequirementAlternative
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import TaskStatus
 from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
+from tests.planner.helpers import _reader
 
 _EXPECTED_DIRECT_ALT = RequirementAlternative(
     id="ALT-direct-outside-diameter",
@@ -68,7 +69,7 @@ def _build_plan(*inputs: EngineeringInput):
         )
     task = manager.get_task(task.task_id)
     existing = dict(task.fact_store.active_facts())
-    return build_pipe_wall_engineering_plan(task, existing_inputs=existing)
+    return build_engineering_plan(task, _reader(), existing_inputs=existing)
 
 
 def _alternatives_by_id(plan) -> dict[str, RequirementAlternative]:

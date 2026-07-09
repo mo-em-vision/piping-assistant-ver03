@@ -6,7 +6,9 @@ name: Allowable Stress
 parameter_class: physical_quantity
 dimension: DIM-pressure
 description: >
-  stress value for material
+  Basic allowable stress S for the selected material at the design metal
+  temperature, taken from the applicable material table (e.g. Table A-1) and used
+  in pressure design thickness calculations per ASME B31.3 §304.1.2.
 canonical_symbol: S
 aliases:
   - allowable stress

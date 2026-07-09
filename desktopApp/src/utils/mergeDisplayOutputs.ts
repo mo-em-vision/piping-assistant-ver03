@@ -1,12 +1,8 @@
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
 
 import {
-  equationTraceSemanticKey,
   inferDisplayLifecycle,
-  inferDisplayRole,
   isVolatileDisplayBlock,
-  previewBlocksByChannel,
-  previewEquationSemanticKey,
 } from '@/utils/displayBlockLifecycle'
 
 function withoutVolatileBlocks(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
@@ -25,40 +21,16 @@ function mergeDurableBlocks(
   }
 
   const indexById = new Map(durablePrevious.map((block, index) => [block.id, index]))
-  const indexByTraceKey = new Map<string, number>()
   const merged = [...durablePrevious]
 
-  for (const [index, block] of durablePrevious.entries()) {
-    const traceKey = equationTraceSemanticKey(block)
-    if (traceKey) {
-      indexByTraceKey.set(traceKey, index)
-    }
-  }
-
   for (const block of durableIncoming) {
-    const traceKey = equationTraceSemanticKey(block)
-    if (traceKey) {
-      const existingByKey = indexByTraceKey.get(traceKey)
-      if (existingByKey !== undefined) {
-        merged[existingByKey] = block
-        indexById.set(block.id, existingByKey)
-        continue
-      }
-    }
-
     const existingIndex = indexById.get(block.id)
     if (existingIndex !== undefined) {
       merged[existingIndex] = block
-      if (traceKey) {
-        indexByTraceKey.set(traceKey, existingIndex)
-      }
       continue
     }
 
     indexById.set(block.id, merged.length)
-    if (traceKey) {
-      indexByTraceKey.set(traceKey, merged.length)
-    }
     merged.push(block)
   }
 
@@ -89,8 +61,8 @@ function partitionByLifecycle(blocks: DisplayOutputBlock[]): {
 
 /**
  * Merge display outputs by lifecycle:
- * - durable blocks append/update by stable id (legacy cache may omit lifecycle metadata)
- * - preview blocks are authoritative from the incoming snapshot (replace by display_channel)
+ * - durable blocks update/append by stable block id only
+ * - preview blocks (non-equation) replace by display_channel when present
  * - volatile blocks are dropped
  */
 export function mergeDisplayOutputs(
@@ -104,9 +76,17 @@ export function mergeDisplayOutputs(
   const { durable: durableIncoming, preview: previewIncoming } = partitionByLifecycle(filteredIncoming)
 
   const mergedDurable = mergeDurableBlocks(durablePrevious, durableIncoming)
-  const mergedPreview = previewBlocksByChannel(previewIncoming)
 
-  return [...mergedDurable, ...mergedPreview]
+  const previewByChannel = new Map<string, DisplayOutputBlock>()
+  for (const block of previewIncoming) {
+    if (block.type === 'equation' || block.id.startsWith('equation-')) {
+      continue
+    }
+    const channel = (block as { display_channel?: string }).display_channel ?? block.id
+    previewByChannel.set(channel, block)
+  }
+
+  return [...mergedDurable, ...Array.from(previewByChannel.values())]
 }
 
 export { isVolatileDisplayBlock } from '@/utils/displayBlockLifecycle'

@@ -11,7 +11,7 @@ import pytest
 from api.serializers import task_state
 from api.workflow_bootstrap import bootstrap_new_task
 from config.loader import CLIConfig
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.plan_validation import validate_engineering_plan
 from engine.reference.parameter_keys import param_node_id_for_input
 from engine.reference.standards_reader import StandardsReader
@@ -25,6 +25,8 @@ from tests.acceptance.helpers import (
     straight_section_assumption,
 )
 
+from tests.planner.plan_contract import REQ_MINIMUM_REQUIRED_THICKNESS_EQ, REQ_REQUIRED_WALL_THICKNESS
+
 _INTERNAL_PRESSURE_ACTIVE_REQUIREMENT_IDS = (
     "REQ-internal_design_gage_pressure",
     "REQ-diameter_resolution",
@@ -32,8 +34,8 @@ _INTERNAL_PRESSURE_ACTIVE_REQUIREMENT_IDS = (
     "REQ-design_temperature",
     "REQ-corrosion_allowance",
     "REQ-pipe_construction_type",
-    "REQ-required_wall_thickness",
-    "REQ-minimum_required_thickness_eq",
+    REQ_REQUIRED_WALL_THICKNESS,
+    REQ_MINIMUM_REQUIRED_THICKNESS_EQ,
 )
 
 _EXTERNAL_INTERNAL_NOT_APPLICABLE_REQ_IDS = (
@@ -41,8 +43,8 @@ _EXTERNAL_INTERNAL_NOT_APPLICABLE_REQ_IDS = (
     "REQ-diameter_resolution",
     "REQ-nominal_pipe_size",
     "REQ-outside_diameter_lookup",
-    "REQ-required_wall_thickness",
-    "REQ-minimum_required_thickness_eq",
+    REQ_REQUIRED_WALL_THICKNESS,
+    REQ_MINIMUM_REQUIRED_THICKNESS_EQ,
 )
 
 
@@ -90,7 +92,7 @@ def _build_plan_from_inputs(inputs: list[EngineeringInput]):
     manager, task = _fresh_pipe_wall_task()
     task = _store_inputs(manager, task.task_id, inputs)
     existing = dict(task.fact_store.active_facts())
-    plan = build_pipe_wall_engineering_plan(task, existing_inputs=existing)
+    plan = build_engineering_plan(task, _reader(), existing_inputs=existing)
     return manager, task, plan
 
 

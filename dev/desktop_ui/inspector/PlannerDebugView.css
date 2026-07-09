@@ -1,0 +1,93 @@
+.planner-debug {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: #101828;
+}
+
+.planner-debug__header {
+  margin: 0 0 8px;
+  padding: 0;
+}
+
+.planner-debug__line {
+  margin: 0 0 4px;
+}
+
+.planner-debug__section {
+  margin: 8px 0 0;
+}
+
+.planner-debug__section-title {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.planner-debug__goal-list {
+  margin: 0;
+  padding: 0 0 0 14px;
+  list-style: disc;
+}
+
+.planner-debug__subgoal-list {
+  margin: 2px 0 0;
+  padding: 0 0 0 16px;
+  list-style: circle;
+}
+
+.planner-debug__group {
+  margin: 6px 0 0;
+  border-top: 1px solid #eaecf0;
+  padding-top: 4px;
+}
+
+.planner-debug__group-summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 2px 0;
+  list-style: none;
+}
+
+.planner-debug__group-summary::-webkit-details-marker {
+  display: none;
+}
+
+.planner-debug__group-summary::before {
+  content: '▸ ';
+  display: inline-block;
+  width: 0.9em;
+}
+
+.planner-debug__group[open] > .planner-debug__group-summary::before {
+  content: '▾ ';
+}
+
+.planner-debug__list {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.planner-debug__row {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 2px 4px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.planner-debug__row:hover {
+  background: #f2f4f7;
+}
+
+.planner-debug__empty {
+  margin: 2px 0 0;
+  padding: 2px 4px;
+  color: #667085;
+}

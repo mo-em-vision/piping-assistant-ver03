@@ -30,4 +30,4 @@ def test_generic_pipeline_emits_stable_preview_id_without_workflow_literals(
         block_id in {"minimum-thickness-equation", "pipe-schedule-recommendation"}
         for block_id in ids
     )
-    assert any(block_id.startswith("path-preview-equation-") for block_id in ids)
+    assert any(block_id.startswith("equation-asme-b313-") for block_id in ids)

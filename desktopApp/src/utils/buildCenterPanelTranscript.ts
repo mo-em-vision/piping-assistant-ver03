@@ -4,29 +4,49 @@ import {
   type FlowGuidancePresentationBlock,
 } from '@/utils/flowGuidanceTranscript'
 import { inferDisplayRole, isVolatileDisplayBlock } from '@/utils/displayBlockLifecycle'
+import { REPORT_ROLE_ORDER } from '@/utils/centerPanelContract'
 
 import type { WorkflowHistoryItem } from '@/components/workflow/buildWorkflowHistory'
 
 function dedupeByBlockId(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
-  const seen = new Set<string>()
-  const ordered: DisplayOutputBlock[] = []
+  const winners = new Map<string, DisplayOutputBlock>()
+  const order: string[] = []
   for (const block of blocks) {
-    if (seen.has(block.id)) {
+    if (winners.has(block.id)) {
+      winners.set(block.id, block)
       continue
     }
-    seen.add(block.id)
-    ordered.push(block)
+    winners.set(block.id, block)
+    order.push(block.id)
   }
-  return ordered
+  return order.map((id) => winners.get(id)!)
 }
 
 function blockRole(block: DisplayOutputBlock): string {
-  return (block as { display_role?: string }).display_role ?? inferDisplayRole(block)
+  return (block as { display_role?: string }).display_role ?? inferDisplayRole(block) ?? ''
+}
+
+function reportRoleIndex(displayRole: string): number {
+  const index = REPORT_ROLE_ORDER.indexOf(displayRole as (typeof REPORT_ROLE_ORDER)[number])
+  return index === -1 ? REPORT_ROLE_ORDER.length : index
+}
+
+function sortByReportRole(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
+  return [...blocks]
+    .map((block, index) => ({ block, index, role: blockRole(block) }))
+    .sort((left, right) => {
+      const roleDelta = reportRoleIndex(left.role) - reportRoleIndex(right.role)
+      if (roleDelta !== 0) {
+        return roleDelta
+      }
+      return left.index - right.index
+    })
+    .map((item) => item.block)
 }
 
 /**
  * Merge durable flow_guidance.transcript_blocks with engineering display_outputs.
- * Workflow intro appears first; new guidance narration appends after engineering blocks.
+ * Blocks are ordered by the shared REPORT_ROLE_ORDER contract.
  */
 export function buildCenterPanelTranscript(
   displayOutputs: DisplayOutputBlock[],
@@ -39,15 +59,13 @@ export function buildCenterPanelTranscript(
     return role !== 'ask_archive' && role !== 'answer_archive'
   })
 
-  const workflowIntro = allGuidance.filter((block) => blockRole(block) === 'workflow_intro')
-  const guidanceNarration = allGuidance.filter((block) => blockRole(block) !== 'workflow_intro')
   const guidanceIds = new Set(allGuidance.map((block) => block.id))
 
   const engineering = displayOutputs.filter(
     (block) => !guidanceIds.has(block.id) && !isVolatileDisplayBlock(block),
   )
 
-  const merged = dedupeByBlockId([...workflowIntro, ...engineering, ...guidanceNarration])
+  const merged = sortByReportRole(dedupeByBlockId([...allGuidance, ...engineering]))
 
   return merged.map((block) => ({
     id: `output-${block.id}`,

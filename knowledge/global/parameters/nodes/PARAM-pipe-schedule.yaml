@@ -7,6 +7,9 @@ parameter_class: selection
 description: >
   Pipe schedule designation used with nominal pipe size to look up outside
   diameter and wall thickness from ASME B36.10 tables.
+question: >
+  Enter the pipe schedule so outside diameter and wall thickness can be
+  looked up per ASME B36.10.
 canonical_symbol: pipe_schedule
 aliases:
   - pipe schedule
@@ -22,4 +25,5 @@ metadata:
   last_revision: 2026-07-06
   edited_by: admin
   composer_input: dropdown
+  short_question: Enter pipe schedule.
 ---

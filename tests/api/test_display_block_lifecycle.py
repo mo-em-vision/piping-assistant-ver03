@@ -39,22 +39,21 @@ def test_dedupe_competing_activation_when_path_preview_exists() -> None:
     assert [block["id"] for block in result] == ["path-preview-equation-304.1.2-a"]
 
 
-def test_tag_preview_equation_block_lifecycle() -> None:
+def test_stable_equation_block_lifecycle() -> None:
     block = tag_display_block(
         {
-            "id": "path-preview-equation-304.1.1-a",
+            "id": "equation-asme-b313-304-1-1-eq-2",
             "type": "equation",
             "display": "t_m = t + c",
         },
-        display_role="preview",
+        display_role="equation_trace",
         equation_node_id="asme-b313-304-1-1-eq-2",
         source_node_id="304.1.1-a",
-        display_channel=DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
     )
 
-    assert block["lifecycle"] == LIFECYCLE_PREVIEW
-    assert block["history_eligible"] is False
-    assert block["display_channel"] == DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW
+    assert block["lifecycle"] == LIFECYCLE_DURABLE
+    assert block["history_eligible"] is True
+    assert block.get("display_channel") is None
     assert block["equation_node_id"] == "asme-b313-304-1-1-eq-2"
 
 
@@ -116,31 +115,35 @@ def test_dedupe_preview_vs_activation_keeps_input_table() -> None:
     assert "variables" not in winner
 
 
-def test_dedupe_preserves_substituted_result_for_same_equation_node_id() -> None:
+def test_dedupe_blocks_by_id_prefers_evaluated_equation() -> None:
+    from api.display_block_metadata import dedupe_blocks_by_id_prefer_richer
+
     blocks = [
         {
-            "id": "path-preview-equation-304.1.1-a",
+            "id": "equation-asme-b313-304-1-1-eq-2",
             "type": "equation",
-            "display_role": "preview",
-            "lifecycle": "preview",
+            "display_role": "equation_trace",
+            "lifecycle": "durable",
             "equation_node_id": "asme-b313-304-1-1-eq-2",
             "input_table": {"columns": [], "rows": []},
         },
         {
-            "id": "equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2",
+            "id": "equation-asme-b313-304-1-1-eq-2",
             "type": "equation",
             "display_role": "equation_trace",
             "lifecycle": "durable",
             "equation_node_id": "asme-b313-304-1-1-eq-2",
             "display": "t_m = 2.252",
+            "equation_display_trace": {
+                "status": "evaluated",
+                "result_latex": "2.252\\ \\mathrm{mm}",
+            },
         },
     ]
 
-    deduped = dedupe_preview_tier_equations(blocks)
-    ids = {block["id"] for block in deduped}
-
-    assert "equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2" in ids
-    assert "path-preview-equation-304.1.1-a" in ids
+    deduped = dedupe_blocks_by_id_prefer_richer(blocks)
+    assert len(deduped) == 1
+    assert deduped[0]["display"] == "t_m = 2.252"
 
 
 def test_infer_lifecycle_legacy_preview_ids_without_metadata() -> None:

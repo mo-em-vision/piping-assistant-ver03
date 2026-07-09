@@ -8,6 +8,7 @@ from engine.messaging.parameter_input_prompt import (
     build_parameter_input_prompt,
     build_short_parameter_input_prompt,
 )
+from engine.messaging.parameter_prompt_context import parameter_metadata_context
 from engine.state.state_manager import TaskStateManager
 from models.task import TaskStatus
 
@@ -27,7 +28,7 @@ def test_pressure_loading_prompt_uses_numbered_branch_options() -> None:
 
     prompt = build_parameter_input_prompt(reader, task, "pressure_loading")
     assert prompt is not None
-    assert "pressure case" in prompt.lower() or "internal or external" in prompt.lower()
+    assert "internal or external" in prompt.lower()
     assert "1." in prompt
     assert "2." in prompt
     assert "304.1.2" in prompt
@@ -45,13 +46,13 @@ def test_resolution_prefers_interaction_before_metadata_description() -> None:
     assert "applied to a straight section" not in prompt.lower()
 
 
-def test_design_pressure_catalog_includes_unit_examples_when_used() -> None:
-    from engine.messaging.workflow_parameter_prompts import default_workflow_parameter_prompt
-
-    prompt = default_workflow_parameter_prompt("internal_design_gage_pressure")
-    assert prompt is not None
-    assert "500 psi" in prompt
-    assert "pressure design thickness" in prompt.lower()
+def test_design_pressure_param_includes_unit_examples() -> None:
+    reader = _reader()
+    ctx = parameter_metadata_context(reader, "internal_design_gage_pressure")
+    assert ctx is not None
+    assert ctx.question is not None
+    assert "500 psi" in ctx.question
+    assert "pressure design thickness" in ctx.question.lower()
 
 
 def test_short_pressure_loading_prompt_omits_numbered_choices() -> None:
@@ -71,9 +72,9 @@ def test_short_pressure_loading_prompt_omits_numbered_choices() -> None:
 
 
 def test_short_internal_pressure_prompt_omits_examples() -> None:
-    from engine.messaging.workflow_parameter_prompts import short_workflow_parameter_prompt
-
-    short = short_workflow_parameter_prompt("internal_design_gage_pressure")
-    assert short is not None
-    assert "500 psi" not in short
-    assert short.endswith(".")
+    reader = _reader()
+    ctx = parameter_metadata_context(reader, "internal_design_gage_pressure")
+    assert ctx is not None
+    assert ctx.short_question is not None
+    assert "500 psi" not in ctx.short_question
+    assert ctx.short_question.endswith(".")

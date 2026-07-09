@@ -33,13 +33,25 @@ const legacyEq2Preview: DisplayOutputBlock = {
   },
 }
 
-const incomingEq3Preview: DisplayOutputBlock = {
-  id: 'path-preview-equation-304.1.2-a',
+const stableEq2Block: DisplayOutputBlock = {
+  id: 'equation-asme-b313-304-1-1-eq-2',
   type: 'equation',
-  lifecycle: 'preview',
-  display_role: 'preview',
-  display_channel: 'current_equation_preview',
+  lifecycle: 'durable',
+  display_role: 'calculation_trace',
+  equation_node_id: 'asme-b313-304-1-1-eq-2',
+  source_node_id: '304.1.1-a',
+  content: 't_m = t + c',
+  display: 't_m = t + c',
+  input_table: legacyEq2Preview.input_table,
+}
+
+const incomingEq3Block: DisplayOutputBlock = {
+  id: 'equation-asme-b313-304-1-2-eq-3a',
+  type: 'equation',
+  lifecycle: 'durable',
+  display_role: 'calculation_trace',
   equation_node_id: 'asme-b313-304-1-2-eq-3a',
+  source_node_id: '304.1.2-a',
   content: 't = PD / 2(SEW + PY)',
   display: 't = PD / 2(SEW + PY)',
   input_table: {
@@ -53,66 +65,38 @@ const incomingEq3Preview: DisplayOutputBlock = {
 }
 
 describe('mergeDisplayOutputs', () => {
-  it('replaces legacy preview blocks with incoming preview by channel', () => {
-    const eq2Trace: DisplayOutputBlock = {
-      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
-      type: 'equation',
-      lifecycle: 'durable',
-      display_role: 'equation_trace',
-      equation_node_id: 'asme-b313-304-1-1-eq-2',
-      source_node_id: '304.1.1-a',
-      content: 't_m = t + c',
-      display: 't_m = t + c',
-      input_table: legacyEq2Preview.input_table,
-    }
-
-    const merged = mergeDisplayOutputs(
-      [legacyEq2Activation, legacyEq2Preview, eq2Trace],
-      [incomingEq3Preview],
-    )
+  it('retains prior durable equation blocks when focus advances', () => {
+    const merged = mergeDisplayOutputs([stableEq2Block], [incomingEq3Block])
 
     expect(merged.map((block) => block.id)).toEqual([
-      'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
-      'path-preview-equation-304.1.2-a',
+      'equation-asme-b313-304-1-1-eq-2',
+      'equation-asme-b313-304-1-2-eq-3a',
     ])
   })
 
-  it('preserves durable blocks while replacing preview context', () => {
+  it('preserves durable blocks while merging incoming focus equation', () => {
     const durableExplanation: DisplayOutputBlock = {
       id: 'preview-intro',
       type: 'text',
       lifecycle: 'durable',
       content: 'The minimum required wall thickness shall be computed.',
     }
-    const derivedResult: DisplayOutputBlock = {
-      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
-      type: 'equation',
-      lifecycle: 'durable',
-      display_role: 'equation_trace',
-      equation_node_id: 'asme-b313-304-1-1-eq-2',
-      content: 't_m = 2.252',
-      display: 't_m = 2.252',
-    }
 
     const merged = mergeDisplayOutputs(
-      [legacyEq2Preview, durableExplanation, derivedResult],
-      [incomingEq3Preview, derivedResult],
+      [stableEq2Block, durableExplanation],
+      [incomingEq3Block, stableEq2Block],
     )
 
     expect(merged.map((block) => block.id)).toEqual([
+      'equation-asme-b313-304-1-1-eq-2',
       'preview-intro',
-      'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
-      'path-preview-equation-304.1.2-a',
+      'equation-asme-b313-304-1-2-eq-3a',
     ])
   })
 
   it('updates durable equation blocks in place by id', () => {
     const previous: DisplayOutputBlock = {
-      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
-      type: 'equation',
-      lifecycle: 'durable',
-      display_role: 'equation_trace',
-      content: 't_m = 2.000 + c',
+      ...stableEq2Block,
       display: 't_m = 2.000 + c',
     }
     const incoming: DisplayOutputBlock = {
@@ -145,23 +129,15 @@ describe('mergeDisplayOutputs', () => {
   })
 
   it('preserves durable blocks when incoming only contains volatile blocks', () => {
-    const durable: DisplayOutputBlock = {
-      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
-      type: 'equation',
-      lifecycle: 'durable',
-      display_role: 'equation_trace',
-      content: 't_m = 2.252',
-      display: 't_m = 2.252',
-    }
     const incoming: DisplayOutputBlock = {
       id: 'planning-status',
       type: 'text',
       content: 'Complete the fields below to continue.',
     }
 
-    const merged = mergeDisplayOutputs([durable, legacyEq2Preview], [incoming])
+    const merged = mergeDisplayOutputs([stableEq2Block, legacyEq2Preview], [incoming])
 
-    expect(merged).toEqual([durable])
+    expect(merged).toEqual([stableEq2Block])
   })
 
   it('replaces preview intro by display channel from incoming snapshot', () => {
@@ -178,11 +154,11 @@ describe('mergeDisplayOutputs', () => {
       content: 'Minimum required wall thickness based on',
     }
 
-    const merged = mergeDisplayOutputs([previousIntro], [incomingIntro, incomingEq3Preview])
+    const merged = mergeDisplayOutputs([previousIntro], [incomingIntro, incomingEq3Block])
 
     expect(merged.map((block) => block.id)).toEqual([
+      'equation-asme-b313-304-1-2-eq-3a',
       'path-preview-intro-304.1.2-a',
-      'path-preview-equation-304.1.2-a',
     ])
   })
 
@@ -200,16 +176,9 @@ describe('mergeDisplayOutputs', () => {
     expect(mergeDisplayOutputs([], incoming)).toEqual(incoming)
   })
 
-  it('updates durable equation_trace payload when incoming has newer input_table values', () => {
+  it('updates durable equation payload when incoming has newer input_table values', () => {
     const previousTrace: DisplayOutputBlock = {
-      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
-      type: 'equation',
-      lifecycle: 'durable',
-      display_role: 'equation_trace',
-      equation_node_id: 'asme-b313-304-1-1-eq-2',
-      source_node_id: '304.1.1-a',
-      content: 't_m = t + c',
-      display: 't_m = t + c',
+      ...stableEq2Block,
       input_table: {
         columns: legacyEq2Preview.input_table!.columns,
         rows: [
@@ -244,16 +213,9 @@ describe('mergeDisplayOutputs', () => {
     expect(row?.value).toBe('2.000 mm')
   })
 
-  it('updates durable equation_trace when equation_display_trace payload changes', () => {
+  it('updates durable equation when equation_display_trace payload changes', () => {
     const previousTrace: DisplayOutputBlock = {
-      id: 'equation-trace-304.1.2-a-asme-b313-304-1-2-eq-3a',
-      type: 'equation',
-      lifecycle: 'durable',
-      display_role: 'equation_trace',
-      equation_node_id: 'asme-b313-304-1-2-eq-3a',
-      source_node_id: '304.1.2-a',
-      content: 't = PD / 2(SEW + PY)',
-      display: 't = PD / 2(SEW + PY)',
+      ...incomingEq3Block,
       equation_display_trace: {
         equation_id: 'asme-b313-304-1-2-eq-3a',
         node_id: '304.1.2-a',
@@ -295,5 +257,14 @@ describe('mergeDisplayOutputs', () => {
       expect(merged[0].equation_display_trace?.status).toBe('evaluated')
       expect(merged[0].equation_display_trace?.substituted_latex).toContain('7')
     }
+  })
+
+  it('does not replace durable equations by display_channel', () => {
+    const merged = mergeDisplayOutputs(
+      [legacyEq2Activation, legacyEq2Preview],
+      [incomingEq3Block],
+    )
+
+    expect(merged.map((block) => block.id)).toEqual(['equation-asme-b313-304-1-2-eq-3a'])
   })
 })

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.plan_phases import derive_input_strategy, derive_plan_phases
 from engine.state.state_manager import TaskStateManager
 from models.task import TaskStatus
+from tests.planner.helpers import _reader
+from tests.planner.plan_contract import PIPE_WALL_LOOKUP_IDS, WELD_W_FIELD
+from engine.planner.graph_requirements import lookup_requirement_id
 
 
 def _fresh_task():
@@ -16,17 +19,18 @@ def _fresh_task():
 
 
 def test_fresh_plan_phases_and_input_strategy() -> None:
-    plan = build_pipe_wall_engineering_plan(_fresh_task())
+    plan = build_engineering_plan(_fresh_task(), _reader())
 
     assert [phase.id for phase in plan.phases] == [
         "expansion_assumptions",
         "path_decisions",
         "parameter_gathering",
         "coefficient_resolution",
+        "definition_equation_completion",
         "equation_execution",
         "reporting",
     ]
-    assert [phase.order for phase in plan.phases] == [0, 1, 2, 3, 4, 5]
+    assert [phase.order for phase in plan.phases] == [0, 1, 2, 3, 4, 5, 6]
 
     expansion = plan.phases[0]
     assert expansion.status == "active"
@@ -40,7 +44,7 @@ def test_fresh_plan_phases_and_input_strategy() -> None:
         "REQ-allowable_stress_lookup",
         "REQ-temperature_coefficient_Y_lookup",
         "REQ-weld_joint_efficiency_lookup",
-        "REQ-weld_strength_reduction_factor_W_lookup",
+        lookup_requirement_id(WELD_W_FIELD),
     ]
 
     strategy = plan.input_strategy
@@ -58,16 +62,13 @@ def test_fresh_plan_phases_and_input_strategy() -> None:
 
 
 def test_derive_input_strategy_from_plan() -> None:
-    plan = build_pipe_wall_engineering_plan(_fresh_task())
+    plan = build_engineering_plan(_fresh_task(), _reader())
     derived = derive_input_strategy(plan)
     assert derived.next_fields == plan.input_strategy.next_fields
     assert derived.blocked_fields == plan.input_strategy.blocked_fields
 
 
 def test_derive_plan_phases_skips_empty_validation() -> None:
-    from engine.planner.pipe_wall_plan import build_pipe_wall_requirements
-    from tests.helpers.goals import PIPE_WALL_ROOT_GOAL_ID
-
-    requirements = build_pipe_wall_requirements(root_goal_id=PIPE_WALL_ROOT_GOAL_ID)
-    phases = derive_plan_phases(requirements)
+    plan = build_engineering_plan(_fresh_task(), _reader())
+    phases = derive_plan_phases(plan.requirements)
     assert all(phase.id != "validation" for phase in phases)

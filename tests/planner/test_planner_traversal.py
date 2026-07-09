@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.plan_inspector import build_planner_inspector_summary
 from engine.planner.plan_validation import validate_engineering_plan
 from engine.planner.planner_traversal import build_planner_traversal_inspector_view
@@ -11,6 +11,8 @@ from engine.state.fact_migration import fact_from_engineering_input
 from engine.state.state_manager import TaskStateManager
 from models.task import TaskStatus
 from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
+from tests.planner.helpers import _reader
+from tests.planner.plan_contract import WELD_W_FIELD
 
 
 def _fresh_pipe_wall_task():
@@ -23,7 +25,7 @@ def _fresh_pipe_wall_task():
 
 def test_fresh_pipe_wall_traversal_state() -> None:
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     validation = validate_engineering_plan(plan)
 
     assert validation.valid, validation.errors
@@ -64,7 +66,10 @@ def test_fresh_pipe_wall_traversal_state() -> None:
     workflow_expanded = next(
         item for item in traversal.expanded_nodes if item.node_id == "WF-PIPE-WALL-THICKNESS"
     )
-    assert workflow_expanded.title == "Pipe Wall Thickness Workflow"
+    assert workflow_expanded.title in {
+        "Pipe Wall Thickness Workflow",
+        "Pipe Wall Thickness Design",
+    }
 
     pressure_decision = next(item for item in traversal.branch_decisions if item.field == "pressure_loading")
     assert pressure_decision.field == "pressure_loading"
@@ -94,7 +99,7 @@ def test_traversal_active_node_follows_phase_order_after_straight_pipe() -> None
         ),
     )
     task = manager.get_task(task.task_id)
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
 
     assert plan.traversal is not None
     pressure_param = param_node_id_for_input("pressure_loading")
@@ -109,7 +114,7 @@ def test_traversal_active_node_follows_phase_order_after_straight_pipe() -> None
             "allowable_stress",
             "weld_joint_efficiency",
             "temperature_coefficient_Y",
-            "weld_strength_reduction_factor_W",
+            WELD_W_FIELD,
             "metallurgical_group",
         )
     }
@@ -128,7 +133,7 @@ def test_traversal_after_pressure_branch_resolved() -> None:
             ),
         )
     task = manager.get_task(task.task_id)
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
 
     assert plan.traversal is not None
     assert plan.traversal.current_active_node is not None

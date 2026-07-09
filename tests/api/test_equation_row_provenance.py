@@ -41,7 +41,7 @@ def _eq2_trace_block(blocks: list[dict]) -> dict:
     return next(
         block
         for block in blocks
-        if block.get("id") == "equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2"
+        if block.get("id") == "equation-asme-b313-304-1-1-eq-2"
     )
 
 

@@ -7,6 +7,10 @@ parameter_class: selection
 description: >
   Pipe product or longitudinal joint construction type used to resolve weld
   joint quality factor E from Tables A-2 and A-3 (e.g. seamless, welded, ERW).
+question: >
+  Select the pipe construction or longitudinal joint type.
+  This is used as a lookup key to resolve quality factor E from Tables A-2 and A-3 —
+  do not enter E directly.
 canonical_symbol: joint_category
 aliases:
   - pipe construction type
@@ -25,4 +29,5 @@ metadata:
   version: 1
   last_revision: 2026-07-04
   edited_by: admin
+  short_question: Select pipe construction or longitudinal joint type.
 ---

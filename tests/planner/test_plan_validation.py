@@ -4,18 +4,19 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.plan_validation import validate_engineering_plan
 from engine.state.state_manager import TaskStateManager
 from models.engineering_plan import PlanDependency, TraversalExpandedNode
 from models.task import TaskStatus
+from tests.planner.helpers import _reader
 
 
 def _fresh_plan():
     state = TaskStateManager()
     task = state.create_task("plan-validation", status=TaskStatus.AWAITING_INPUT)
     task.outputs["workflow"] = "pipe_wall_thickness_design"
-    return build_pipe_wall_engineering_plan(task)
+    return build_engineering_plan(task, _reader())
 
 
 def test_validate_rejects_diameter_resolution_as_lookup_input_source() -> None:

@@ -11,8 +11,7 @@ from engine.graph.path_decision import resolve_path_decision
 from engine.graph.navigation_phases import build_workflow_phased_navigation
 from engine.graph.workflow_navigation import load_workflow_navigation
 from engine.graph.assumption_checker import field_value
-from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
-from engine.messaging.workflow_parameter_prompts import resolve_workflow_parameter_prompt
+from engine.messaging.parameter_input_prompt import build_parameter_input_prompt, resolve_parameter_prompt_text
 from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskNotFoundError, TaskStateManager
 from models.agent import AgentAction, IntentResult
@@ -192,12 +191,13 @@ class Planner:
                     question_map[field_id] = prompt
         else:
             for field_id in field_ids:
-                question_map[field_id] = resolve_workflow_parameter_prompt(field_id)
+                question_map[field_id] = resolve_parameter_prompt_text(field_id, reader=self._reader)
         for eval_obj in (assumption_eval, expansion_eval, execution_eval):
             for field_id, question in eval_obj.field_questions.items():
-                question_map[field_id] = resolve_workflow_parameter_prompt(
+                question_map[field_id] = resolve_parameter_prompt_text(
                     field_id,
                     field_question=question,
+                    reader=self._reader,
                 )
 
         nav_config = load_workflow_navigation(self._reader, root_slug)

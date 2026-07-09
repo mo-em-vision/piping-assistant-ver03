@@ -8,6 +8,8 @@ from api.display_block_metadata import (
     DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
     DISPLAY_ROLE_EQUATION_TRACE,
     DISPLAY_ROLE_PREVIEW,
+    _all_equation_trace_entries,
+    equation_display_block_id,
     equation_trace_block_id,
     tag_display_block,
 )
@@ -118,9 +120,9 @@ def build_equation_evaluation_block(
     reader: StandardsReader,
     focus_node_id: str,
     *,
-    block_id_prefix: str = "path-preview-equation",
-    display_role: str = DISPLAY_ROLE_PREVIEW,
-    display_channel: str | None = DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
+    block_id: str | None = None,
+    display_role: str = DISPLAY_ROLE_EQUATION_TRACE,
+    display_channel: str | None = None,
     attach_paragraph_context: bool = True,
 ) -> dict[str, Any] | None:
     """Build a desktop equation block with live symbol table and definition links."""
@@ -144,14 +146,10 @@ def build_equation_evaluation_block(
         resolved = resolve_equation_display_variables(reader, equation_id)
         rows = _legacy_variable_rows(reader, resolved.get("variables") or [], task)
 
-    block_id = (
-        equation_trace_block_id(focus_node_id, equation_id)
-        if display_role == DISPLAY_ROLE_EQUATION_TRACE
-        else f"{block_id_prefix}-{focus_node_id}"
-    )
+    resolved_block_id = block_id or equation_display_block_id(equation_id)
 
     block: dict[str, Any] = {
-        "id": block_id,
+        "id": resolved_block_id,
         "type": "equation",
         "title": None,
         "content": _display_to_latex(display),
@@ -174,9 +172,9 @@ def build_equation_evaluation_block(
         equation_node_id=equation_id,
         source_node_id=focus_node_id,
         display_channel=display_channel,
+        history_eligible=True,
     )
-    if display_role == DISPLAY_ROLE_EQUATION_TRACE:
-        tagged.pop("display_channel", None)
+    tagged.pop("display_channel", None)
     if tagged.get("input_table") and tagged.get("variables"):
         tagged.pop("variables", None)
 
@@ -194,7 +192,7 @@ def build_equation_evaluation_block(
     if execution_trace is not None:
         tagged = enrich_equation_block(tagged, execution_trace, reader=reader, task=task)
 
-    if attach_paragraph_context and display_role in {DISPLAY_ROLE_PREVIEW, DISPLAY_ROLE_EQUATION_TRACE}:
+    if attach_paragraph_context:
         from api.paragraph_display import build_equation_context_from_paragraph
 
         context = build_equation_context_from_paragraph(reader, focus_node_id)
@@ -259,14 +257,69 @@ def build_equation_trace_block(
     reader: StandardsReader,
     source_node_id: str,
 ) -> dict[str, Any] | None:
-    """Build a durable equation trace block rebuilt from current task state."""
+    """Build a durable equation block rebuilt from current task state."""
     return build_equation_evaluation_block(
         task,
         reader,
         source_node_id,
         display_role=DISPLAY_ROLE_EQUATION_TRACE,
-        display_channel=None,
     )
+
+
+def equation_display_blocks_from_trace(
+    task: Task,
+    reader: StandardsReader,
+) -> list[dict[str, Any]]:
+    """Canonical equation blocks from evaluated execution trace entries."""
+    blocks: list[dict[str, Any]] = []
+    built: set[str] = set()
+    for item in _all_equation_trace_entries(task):
+        equation_node_id = item["equation_node_id"]
+        if equation_node_id in built:
+            continue
+        block = build_equation_evaluation_block(
+            task,
+            reader,
+            item["source_node_id"],
+            attach_paragraph_context=False,
+        )
+        if block is not None and str(block.get("equation_node_id") or "") == equation_node_id:
+            blocks.append(block)
+            built.add(equation_node_id)
+    return blocks
+
+
+def equation_display_blocks_for_task(
+    task: Task,
+    planning: dict[str, Any],
+    reader: StandardsReader,
+    *,
+    paragraph_node_ids: set[str] | frozenset[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Emit evaluated trace equations plus the current focus equation."""
+    entries: dict[str, str] = {}
+    for item in _all_equation_trace_entries(task):
+        entries[item["equation_node_id"]] = item["source_node_id"]
+
+    focus_node = resolve_focus_node_for_equation_display(task, planning, reader)
+    if focus_node:
+        equation_id = resolve_equation_node_for_display(reader, focus_node, task)
+        if equation_id:
+            entries[equation_id] = focus_node
+
+    paragraph_ids = set(paragraph_node_ids or ())
+    blocks: list[dict[str, Any]] = []
+    for equation_id, source_node_id in entries.items():
+        attach_context = source_node_id not in paragraph_ids
+        block = build_equation_evaluation_block(
+            task,
+            reader,
+            source_node_id,
+            attach_paragraph_context=attach_context,
+        )
+        if block is not None and str(block.get("equation_node_id") or "") == equation_id:
+            blocks.append(block)
+    return blocks
 
 
 def resolve_equation_node_for_display(

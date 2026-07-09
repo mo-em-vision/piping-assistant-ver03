@@ -210,5 +210,10 @@ def prerequisite_input_keys(
         ]
         return keys or [canonical]
     if method == "table_lookup":
-        return [canonical]
+        keys = [
+            _resolve_lookup_key(store, str(key))
+            for key in (resolution.get("keys") or [])
+            if str(key).strip()
+        ]
+        return keys or [canonical]
     return [canonical]

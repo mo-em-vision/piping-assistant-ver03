@@ -28,6 +28,7 @@ INTERNAL_TO_CONTRACT_DISPLAY_ROLE: dict[str, str] = {
     "substituted": "calculation_trace",
     "derived": "result_summary",
     "intro": "engineering_reference",
+    "paragraph_context": "paragraph_context",
     "conclusion": "result_summary",
     "applicability": "validation_check",
     "recommendation": "recommendation",
@@ -98,6 +99,8 @@ def infer_block_display_role(block: dict[str, Any]) -> str:
         return "next_workflows"
     if block_id.startswith("guidance-"):
         return "branch_narration"
+    if block_id.startswith("equation-"):
+        return "calculation_trace"
     if block_id.startswith("equation-trace-"):
         return "calculation_trace"
     if block_id.startswith("path-preview-equation-"):
@@ -136,6 +139,20 @@ def dedupe_blocks_by_id(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
         seen.add(block_id)
         ordered.append(block)
     return ordered
+
+
+def dedupe_blocks_by_id_inplace(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep the last block for each id (update-in-place semantics)."""
+    winners: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for block in blocks:
+        block_id = str(block.get("id") or block.get("block_id") or "").strip()
+        if not block_id:
+            continue
+        if block_id not in winners:
+            order.append(block_id)
+        winners[block_id] = block
+    return [winners[block_id] for block_id in order if block_id in winners]
 
 
 def transcript_blocks_to_scroll_blocks(transcript_blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -212,7 +229,8 @@ def assemble_center_panel_scroll_blocks(
         for block in display_outputs
         if isinstance(block, dict) and str(block.get("id") or "") not in transcript_ids
     ]
-    return dedupe_blocks_by_id([*workflow_intro, *engineering_blocks, *narration])
+    merged = dedupe_blocks_by_id([*workflow_intro, *engineering_blocks, *narration])
+    return sort_blocks_by_report_role(merged)
 
 
 def presentation_package_from_task_state(state: dict[str, Any]) -> dict[str, Any]:

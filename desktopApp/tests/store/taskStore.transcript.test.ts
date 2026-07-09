@@ -17,6 +17,26 @@ const durableExplanation: DisplayOutputBlock = {
   content: 'The minimum required wall thickness shall be computed.',
 }
 
+const stableEq2Block: DisplayOutputBlock = {
+  id: 'equation-asme-b313-304-1-1-eq-2',
+  type: 'equation',
+  lifecycle: 'durable',
+  display_role: 'calculation_trace',
+  equation_node_id: 'asme-b313-304-1-1-eq-2',
+  content: 't_m = t + c',
+  display: 't_m = t + c',
+}
+
+const stableEq3Block: DisplayOutputBlock = {
+  id: 'equation-asme-b313-304-1-2-eq-3a',
+  type: 'equation',
+  lifecycle: 'durable',
+  display_role: 'calculation_trace',
+  equation_node_id: 'asme-b313-304-1-2-eq-3a',
+  content: 't = PD / 2(SEW + PY)',
+  display: 't = PD / 2(SEW + PY)',
+}
+
 const previewEquation: DisplayOutputBlock = {
   id: 'path-preview-equation-B313-304.1.2',
   type: 'equation',
@@ -59,22 +79,48 @@ describe('withPreservedDisplayOutputs', () => {
     expect(loadTranscriptCache(previous.task_id)).toHaveLength(1)
   })
 
-  it('strips legacy preview blocks from cache and uses incoming preview snapshot', () => {
+  it('retains durable equation blocks when focus advances', () => {
+    const taskId = 'pipe-wall-thickness-focus-advance'
+    saveTranscriptCache(taskId, [stableEq2Block, durableExplanation])
+
+    const incoming = createTaskState({
+      task_id: taskId,
+      display_outputs: [stableEq3Block],
+    })
+
+    const merged = withPreservedDisplayOutputs(null, incoming)
+
+    expect(merged.display_outputs.map((block) => block.id)).toEqual([
+      'equation-asme-b313-304-1-1-eq-2',
+      'preview-intro',
+      'equation-asme-b313-304-1-2-eq-3a',
+    ])
+    expect(loadTranscriptCache(taskId).map((block) => block.id)).toEqual([
+      'equation-asme-b313-304-1-1-eq-2',
+      'preview-intro',
+      'equation-asme-b313-304-1-2-eq-3a',
+    ])
+  })
+
+  it('strips legacy preview equations from cache and merges durable incoming blocks', () => {
     const taskId = 'pipe-wall-thickness-test01'
     saveTranscriptCache(taskId, [legacyPreviewEquation, durableExplanation])
 
     const incoming = createTaskState({
       task_id: taskId,
-      display_outputs: [previewEquation],
+      display_outputs: [stableEq3Block],
     })
 
     const merged = withPreservedDisplayOutputs(null, incoming)
 
     expect(merged.display_outputs.map((block) => block.id)).toEqual([
       'preview-intro',
-      'path-preview-equation-B313-304.1.2',
+      'equation-asme-b313-304-1-2-eq-3a',
     ])
-    expect(loadTranscriptCache(taskId).map((block) => block.id)).toEqual(['preview-intro'])
+    expect(loadTranscriptCache(taskId).map((block) => block.id)).toEqual([
+      'preview-intro',
+      'equation-asme-b313-304-1-2-eq-3a',
+    ])
   })
 
   it('does not inherit another task transcript on task switch', () => {

@@ -6,7 +6,9 @@ name: Temperature Coefficient Y
 parameter_class: coefficient
 dimension: DIM-dimensionless
 description: >
-  coefficient from Table 304.1.1-1.
+  Temperature-dependent coefficient Y used in internal pressure design thickness
+  equations. Resolved from Table 304.1.1-1 by design metal temperature, with
+  interpolation for intermediate temperatures per ASME B31.3 §304.1.2.
 canonical_symbol: Y
 aliases:
   - temperature coefficient Y

@@ -22,6 +22,7 @@ const DURABLE_ROLES = new Set([
   'result',
   'warning',
   'engineering_reference',
+  'paragraph_context',
 ])
 
 const PREVIEW_ROLES = new Set(['activation', 'preview', 'equation_preview'])
@@ -42,6 +43,9 @@ export function inferDisplayRole(block: DisplayOutputBlock): string | undefined 
   if (id.startsWith('equation-trace-')) {
     return 'equation_trace'
   }
+  if (id.startsWith('equation-') && !id.startsWith('equation-trace-')) {
+    return 'calculation_trace'
+  }
   if (id.startsWith('path-preview-equation-')) {
     return 'preview'
   }
@@ -52,6 +56,10 @@ export function inferDisplayRole(block: DisplayOutputBlock): string | undefined 
     return 'recommendation'
   }
   if (id.startsWith('paragraph-')) {
+    const role = (block as DisplayBlockWithLifecycle).display_role
+    if (role === 'paragraph_context') {
+      return 'paragraph_context'
+    }
     return 'engineering_reference'
   }
   if (id.startsWith('validation-')) {
@@ -104,6 +112,9 @@ export function inferDisplayLifecycle(block: DisplayOutputBlock): DisplayLifecyc
   }
 
   if (id.startsWith('equation-trace-')) {
+    return 'durable'
+  }
+  if (id.startsWith('equation-') && !id.startsWith('equation-trace-')) {
     return 'durable'
   }
   if (id.startsWith('path-preview-equation-') || id.startsWith('node-activation-equation-')) {

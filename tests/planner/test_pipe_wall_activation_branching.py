@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
-from engine.planner.pipe_wall_plan import INTERNAL_PRESSURE_BRANCH_CONDITION
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.plan_phases import _askable_fields_for_phase
 from engine.planner.plan_validation import validate_engineering_plan
 from engine.state.fact_migration import fact_from_engineering_input
@@ -14,6 +13,11 @@ from tests.acceptance.helpers import (
     internal_pressure_assumption,
     straight_section_assumption,
 )
+from tests.planner.helpers import _reader
+from tests.planner.plan_contract import (
+    REQ_MINIMUM_REQUIRED_THICKNESS_EQ,
+    REQ_REQUIRED_WALL_THICKNESS,
+)
 
 _INTERNAL_PRESSURE_CONDITIONAL_REQUIREMENT_IDS = (
     "REQ-internal_design_gage_pressure",
@@ -22,13 +26,13 @@ _INTERNAL_PRESSURE_CONDITIONAL_REQUIREMENT_IDS = (
     "REQ-design_temperature",
     "REQ-corrosion_allowance",
     "REQ-pipe_construction_type",
-    "REQ-required_wall_thickness",
-    "REQ-minimum_required_thickness_eq",
+    REQ_REQUIRED_WALL_THICKNESS,
+    REQ_MINIMUM_REQUIRED_THICKNESS_EQ,
 )
 
 _EXTERNAL_INTERNAL_EQUATION_REQUIREMENT_IDS = (
-    "REQ-required_wall_thickness",
-    "REQ-minimum_required_thickness_eq",
+    REQ_REQUIRED_WALL_THICKNESS,
+    REQ_MINIMUM_REQUIRED_THICKNESS_EQ,
 )
 
 
@@ -53,16 +57,16 @@ def _build_plan(*inputs):
         )
     task = manager.get_task(task.task_id)
     existing = dict(task.fact_store.active_facts())
-    plan = build_pipe_wall_engineering_plan(task, existing_inputs=existing)
+    plan = build_engineering_plan(task, _reader(), existing_inputs=existing)
     return plan
 
 
 def _assert_internal_pressure_branch_condition(req) -> None:
-    assert req.activation_condition is not None
-    assert req.activation_condition == INTERNAL_PRESSURE_BRANCH_CONDITION
-    assert req.activation_condition.field == "pressure_loading"
-    assert req.activation_condition.operator == "equals"
-    assert req.activation_condition.value == "internal_pressure"
+    condition = req.activation_condition
+    assert condition is not None
+    assert condition.field == "pressure_loading"
+    assert condition.operator == "equals"
+    assert condition.value == "internal_pressure"
 
 
 def _parameter_gathering_askable_fields(plan) -> list[str]:

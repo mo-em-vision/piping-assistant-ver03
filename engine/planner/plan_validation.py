@@ -5,16 +5,19 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from engine.planner.pipe_wall_plan import PIPE_WALL_WORKFLOW, req_id as requirement_id
-from models.engineering_plan import EngineeringPlan, LEGACY_REQUIREMENT_FIELD_NAMES
+from engine.planner.graph_requirements import requirement_id
 from engine.planner.plan_phases import strategy_field
+from models.engineering_plan import EngineeringPlan, LEGACY_REQUIREMENT_FIELD_NAMES
 
 _MAX_GOAL_TITLE_LENGTH = 80
 _MUTUALLY_EXCLUSIVE_DIAMETER_REQS = frozenset(
-    {f"REQ-{key}" for key in ("outside_diameter", "nominal_pipe_size")}
+    {requirement_id(key) for key in ("outside_diameter", "nominal_pipe_size")}
 )
 
 _LOOKUP_INPUT_SOURCE_CLASSES = frozenset({"user_input", "derived_value"})
+_LOOKUP_RESOLUTION_METHODS = frozenset({"lookup", "material_catalog", "table_lookup"})
+_DIAMETER_ALT_METHODS = frozenset({"direct_input", "lookup"})
+_GATE_PHASES = frozenset({"expansion_assumptions", "path_decisions"})
 
 _CANONICAL_TOP_LEVEL_KEYS = frozenset(
     {
@@ -32,44 +35,6 @@ _CANONICAL_TOP_LEVEL_KEYS = frozenset(
         "debug",
     }
 )
-
-_PIPE_WALL_LOOKUP_IDS = frozenset(
-    {
-        "REQ-allowable_stress_lookup",
-        "REQ-weld_joint_efficiency_lookup",
-        "REQ-temperature_coefficient_Y_lookup",
-        "REQ-weld_strength_reduction_factor_W_lookup",
-        "REQ-metallurgical_group_lookup",
-    }
-)
-
-_PIPE_WALL_EQUATION_IDS = frozenset(
-    {
-        "REQ-required_wall_thickness",
-        "REQ-minimum_required_thickness_eq",
-    }
-)
-
-_FRESH_PIPE_WALL_HARD_BLOCKED = frozenset(
-    {
-        "REQ-straight_pipe_section",
-        "REQ-pressure_loading",
-    }
-)
-
-_INTERNAL_PRESSURE_CONDITIONAL_IDS = frozenset(
-    {
-        "REQ-internal_design_gage_pressure",
-        "REQ-allowable_stress_lookup",
-        "REQ-weld_joint_efficiency_lookup",
-        "REQ-temperature_coefficient_Y_lookup",
-        "REQ-weld_strength_reduction_factor_W_lookup",
-        "REQ-required_wall_thickness",
-        "REQ-minimum_required_thickness_eq",
-    }
-)
-
-_DIAMETER_ALT_METHODS = frozenset({"direct_input", "lookup"})
 
 
 @dataclass
@@ -93,11 +58,6 @@ def _is_long_prompt_title(title: str) -> bool:
         return True
     lowered = text.lower()
     return lowered.startswith("to continue") or lowered.startswith("please provide")
-
-
-def _is_pipe_wall_workflow(workflow_id: str) -> bool:
-    slug = workflow_id.replace("-", "_")
-    return slug in {"pipe_wall_thickness", PIPE_WALL_WORKFLOW.replace("-", "_")}
 
 
 def _validate_canonical_structure(plan: EngineeringPlan, result: PlannerValidationResult) -> None:
@@ -222,123 +182,115 @@ def _validate_dependency_edge(
         result.valid = False
 
 
-def _validate_diameter_resolution_alternatives(
+def _validate_alternative_groups(requirements: dict, result: PlannerValidationResult) -> None:
+    for req_id, req in requirements.items():
+        alternatives = req.alternatives or []
+        if not alternatives:
+            continue
+        if len(alternatives) < 2:
+            result.warnings.append(
+                f"{req_id} exposes alternatives but fewer than two paths are defined."
+            )
+        methods = {alt.method for alt in alternatives if alt.method}
+        if methods and not methods.issubset(_DIAMETER_ALT_METHODS | {"selection"}):
+            result.warnings.append(
+                f"{req_id} alternatives use uncommon methods: {sorted(methods)}."
+            )
+        if methods == _DIAMETER_ALT_METHODS:
+            for expected in _DIAMETER_ALT_METHODS:
+                if expected not in methods:
+                    result.errors.append(
+                        f"{req_id} alternatives must include both direct_input and lookup methods."
+                    )
+                    result.valid = False
+
+
+def _validate_requirement_resolution_metadata(
     requirements: dict,
     result: PlannerValidationResult,
 ) -> None:
-    diameter = requirements.get("REQ-diameter_resolution")
-    if diameter is None:
-        return
-    alternatives = diameter.alternatives or []
-    if len(alternatives) != 2:
-        result.errors.append(
-            "REQ-diameter_resolution must expose exactly two alternatives "
-            "(direct outside diameter and NPS lookup)."
-        )
-        result.valid = False
-        return
+    lookup_fields = {
+        req.field
+        for req in requirements.values()
+        if req.requirement_class == "table_lookup" and req.field
+    }
 
-    methods = {alt.method for alt in alternatives}
-    if methods != _DIAMETER_ALT_METHODS:
-        result.errors.append(
-            "REQ-diameter_resolution alternatives must include direct_input and lookup methods."
-        )
-        result.valid = False
+    for req_id, req in requirements.items():
+        resolution = req.resolution or {}
+        if req.requirement_class == "table_lookup":
+            method = str(resolution.get("method") or "")
+            if method not in _LOOKUP_RESOLUTION_METHODS:
+                result.errors.append(
+                    f"{req_id} table_lookup must declare lookup resolution metadata."
+                )
+                result.valid = False
+        if req.requirement_class == "equation_result":
+            if not str(resolution.get("source_node_id") or "").strip():
+                result.warnings.append(
+                    f"{req_id} equation_result is missing resolution.source_node_id."
+                )
+        if req.requirement_class == "user_input" and req.field in lookup_fields:
+            result.warnings.append(
+                f"{req_id} duplicates a lookup-derived field as user_input: {req.field!r}."
+            )
 
-    alt_ids = {alt.id for alt in alternatives}
-    if "ALT-direct-outside-diameter" not in alt_ids or "ALT-nps-lookup" not in alt_ids:
-        result.errors.append(
-            "REQ-diameter_resolution must include ALT-direct-outside-diameter and ALT-nps-lookup."
-        )
-        result.valid = False
+
+def _req_for_field(requirements: dict, field: str):
+    for req in requirements.values():
+        if strategy_field(req) == field or req.field == field:
+            return req
+    return None
 
 
-def _validate_pipe_wall_workflow_invariants(
+def _validate_conditional_activation(
     plan: EngineeringPlan,
     result: PlannerValidationResult,
 ) -> None:
-    if not _is_pipe_wall_workflow(plan.workflow_id):
-        return
-
     requirements = plan.requirements
-    missing_lookups = sorted(_PIPE_WALL_LOOKUP_IDS - set(requirements.keys()))
-    if missing_lookups:
-        result.errors.append(
-            "Pipe wall plan missing lookup requirements: " + ", ".join(missing_lookups)
-        )
-        result.valid = False
+    for req_id, req in requirements.items():
+        if req.activation_status != "conditional":
+            continue
+        condition = req.activation_condition
+        if condition is None:
+            result.warnings.append(f"{req_id} is conditional without activation_condition.")
+            continue
+        branch_req = _req_for_field(requirements, condition.field)
+        if branch_req is None:
+            result.warnings.append(
+                f"{req_id} conditional activation references unknown field {condition.field!r}."
+            )
+            continue
+        if branch_req.status in {"missing", "ready"} and req.status not in {
+            "not_applicable",
+            "blocked",
+        }:
+            continue
+        if branch_req.status == "resolved" and req.activation_status == "conditional":
+            result.warnings.append(
+                f"{req_id} remains conditional after branch field {condition.field!r} is resolved."
+            )
 
-    missing_equations = sorted(_PIPE_WALL_EQUATION_IDS - set(requirements.keys()))
-    if missing_equations:
-        result.errors.append(
-            "Pipe wall plan missing equation requirements: " + ", ".join(missing_equations)
-        )
-        result.valid = False
 
-    straight_req = requirements.get("REQ-straight_pipe_section")
-    pressure_req = requirements.get("REQ-pressure_loading")
-    straight_unresolved = (
-        straight_req is not None and straight_req.status in {"missing", "ready"}
-    )
-    pressure_unresolved = (
-        pressure_req is not None and pressure_req.status in {"missing", "ready"}
-    )
-
-    if pressure_unresolved:
-        for req_id in _INTERNAL_PRESSURE_CONDITIONAL_IDS:
-            req = requirements.get(req_id)
-            if req is None:
-                continue
-            if req.activation_status != "conditional":
-                result.errors.append(
-                    f"{req_id} must be conditional before pressure_loading is resolved."
-                )
-                result.valid = False
-
+def _validate_gate_next_field(plan: EngineeringPlan, result: PlannerValidationResult) -> None:
     strategy = plan.input_strategy
-    if straight_unresolved and pressure_unresolved:
-        hard_blocked = set(plan.root_goal.blocked_by)
-        if hard_blocked != _FRESH_PIPE_WALL_HARD_BLOCKED:
-            result.errors.append(
-                "Fresh pipe wall plan must hard-block only "
-                "REQ-straight_pipe_section and REQ-pressure_loading; "
-                f"got {sorted(hard_blocked)}."
-            )
-            result.valid = False
-
-        if strategy is not None:
-            if strategy.next_fields != ["straight_pipe_section"]:
-                result.errors.append(
-                    "Fresh pipe wall plan next field must be straight_pipe_section; "
-                    f"got {strategy.next_fields!r}."
-                )
-                result.valid = False
-            if strategy.current_phase != "expansion_assumptions":
-                result.errors.append(
-                    "Fresh pipe wall plan current_phase must be expansion_assumptions; "
-                    f"got {strategy.current_phase!r}."
-                )
-                result.valid = False
-    elif straight_unresolved is False and pressure_unresolved:
-        if set(plan.root_goal.blocked_by) != {"REQ-pressure_loading"}:
-            result.errors.append(
-                "After straight_pipe_section is resolved, root goal must hard-block only "
-                f"REQ-pressure_loading; got {plan.root_goal.blocked_by!r}."
-            )
-            result.valid = False
-        if strategy is not None:
-            if strategy.next_fields != ["pressure_loading"]:
-                result.errors.append(
-                    "After straight_pipe_section is resolved, next field must be pressure_loading; "
-                    f"got {strategy.next_fields!r}."
-                )
-                result.valid = False
-            if strategy.current_phase != "path_decisions":
-                result.errors.append(
-                    "After straight_pipe_section is resolved, current_phase must be path_decisions; "
-                    f"got {strategy.current_phase!r}."
-                )
-                result.valid = False
+    if strategy is None or not strategy.next_fields:
+        return
+    if strategy.current_phase not in _GATE_PHASES:
+        return
+    gate_fields = {
+        strategy_field(req)
+        for req in plan.requirements.values()
+        if req.phase == strategy.current_phase
+        and req.requirement_class in {"user_input", "branch_decision"}
+        and req.activation_status == "active"
+    }
+    next_field = strategy.next_fields[0]
+    if gate_fields and next_field not in gate_fields:
+        result.errors.append(
+            f"Gate phase {strategy.current_phase!r} next field {next_field!r} "
+            f"is not an active gate requirement."
+        )
+        result.valid = False
 
 
 def _validate_traversal_state(plan: EngineeringPlan, result: PlannerValidationResult) -> None:
@@ -498,7 +450,18 @@ def validate_engineering_plan(plan: EngineeringPlan) -> PlannerValidationResult:
             )
             result.valid = False
 
-    _validate_diameter_resolution_alternatives(requirements, result)
+    _validate_alternative_groups(requirements, result)
+    _validate_requirement_resolution_metadata(requirements, result)
+    _validate_conditional_activation(plan, result)
+    _validate_gate_next_field(plan, result)
+
+    has_derived_edges = any(
+        req.requirement_class in {"table_lookup", "equation_result", "report_output"}
+        for req in requirements.values()
+    )
+    if has_derived_edges and not plan.dependencies:
+        result.errors.append("engineering_plan.dependencies must not be empty.")
+        result.valid = False
 
     alternative_ids = _alternative_ids(requirements)
     for edge in plan.dependencies:
@@ -509,34 +472,6 @@ def validate_engineering_plan(plan: EngineeringPlan) -> PlannerValidationResult:
             known_requirement_ids=set(requirements.keys()),
             alternative_ids=alternative_ids,
             result=result,
-        )
-
-    if not plan.dependencies:
-        result.errors.append("engineering_plan.dependencies must not be empty.")
-        result.valid = False
-
-    if "REQ-corrosion_allowance" not in requirements:
-        result.errors.append(
-            "Corrosion allowance must be present as a requirement for minimum required thickness."
-        )
-        result.valid = False
-
-    user_input_coefficients = [
-        rid
-        for rid, req in requirements.items()
-        if req.field
-        in {
-            "allowable_stress",
-            "weld_joint_efficiency",
-            "temperature_coefficient_Y",
-            "weld_strength_reduction_factor_W",
-        }
-        and req.requirement_class == "user_input"
-    ]
-    if user_input_coefficients:
-        result.warnings.append(
-            "Coefficients should be lookup/derived requirements, not user_input: "
-            + ", ".join(user_input_coefficients)
         )
 
     strategy = plan.input_strategy
@@ -567,7 +502,6 @@ def validate_engineering_plan(plan: EngineeringPlan) -> PlannerValidationResult:
             )
             result.valid = False
 
-    _validate_pipe_wall_workflow_invariants(plan, result)
     _validate_traversal_state(plan, result)
 
     return result

@@ -8,6 +8,9 @@ dimension: DIM-length
 description: >
   Inside diameter of pipe. For pressure design calculation, the inside diameter
   is the maximum value allowable under the purchase specification.
+question: >
+  Please provide the inside diameter d of the pipe (mm or in) so the required
+  wall thickness can be calculated using eq. (3b).
 canonical_symbol: d
 aliases:
   - inside diameter
@@ -26,4 +29,5 @@ metadata:
   version: 1
   last_revision: 2026-07-04
   edited_by: admin
+  short_question: Enter inside diameter d.
 ---

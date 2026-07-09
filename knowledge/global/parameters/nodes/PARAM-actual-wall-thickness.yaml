@@ -9,6 +9,7 @@ description: >
   Pipe wall thickness used as t_actual for MAWP derivation. May be measured or
   ordered actual thickness, nominal schedule thickness from NPS/schedule lookup,
   or minimum thickness after mill tolerance depending on wall_thickness_basis.
+question: Enter the actual or ordered wall thickness of the pipe.
 canonical_symbol: t_actual
 aliases:
   - actual wall thickness
@@ -29,4 +30,5 @@ metadata:
   last_revision: 2026-07-07
   edited_by: admin
   canonical_unit: UNIT-mm
+  short_question: Enter actual or ordered wall thickness.
 ---

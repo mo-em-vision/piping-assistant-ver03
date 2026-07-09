@@ -1,26 +1,25 @@
-"""Tests for read-only planner_debug_projection dev inspection view."""
+"""Tests for read-only planner_debug_projection minimal debugger view."""
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
-from engine.planner.plan_inspector import build_planner_inspector_summary
-from engine.planner.planner_debug_projection import build_planner_debug_projection
-from engine.planner.plan_validation import validate_engineering_plan
-from engine.reference.standards_reader import StandardsReader
+from engine.planner.planner_debug_projection import (
+    _STATUS_REASONS,
+    build_planner_debug_projection,
+    planner_debug_projection_for_task,
+)
 from engine.state.state_manager import TaskStateManager
 from models.engineering_plan import (
     CalculationGoal,
     EngineeringPlan,
     InputStrategy,
     PlanGraph,
+    PlanPhase,
     PlanRequirement,
     PlannerTraversalState,
     QuestionSpec,
     TraversalActiveNode,
+    TraversalCandidateNode,
+    TraversalEvent,
     TraversalExpandedNode,
     TraversalPendingNode,
     new_plan_id,
@@ -28,21 +27,7 @@ from models.engineering_plan import (
 from models.task import TaskStatus
 
 
-def _reader() -> StandardsReader:
-    root = Path(__file__).resolve().parents[2]
-    return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
-
-
-def _fresh_pipe_wall_task():
-    manager = TaskStateManager()
-    task = manager.create_task("debug-projection-pwt", status=TaskStatus.AWAITING_INPUT)
-    task.outputs["workflow"] = "pipe_wall_thickness_design"
-    task.outputs["selected_root"] = "pipe_wall_thickness_design"
-    return manager, task
-
-
 def _synthetic_generic_plan() -> EngineeringPlan:
-    """Non-pipe-wall workflow snapshot with traversal data for generic projection tests."""
     req = PlanRequirement(
         id="REQ-sample_input",
         field="sample_input",
@@ -99,8 +84,31 @@ def _synthetic_generic_plan() -> EngineeringPlan:
             title="Generic Sample Calculation",
             target_field="sample_output",
             status="blocked",
+            required_outputs=["sample_output", "sample_report"],
         ),
-        requirements={"REQ-sample_input": req},
+        requirements={
+            "REQ-sample_input": req,
+            "REQ-sample_output": PlanRequirement(
+                id="REQ-sample_output",
+                field="sample_output",
+                parameter_node_id=None,
+                requirement_class="equation_result",
+                status="missing",
+                phase="calculation",
+                key="equation-sample_output",
+                title="Sample Output",
+            ),
+            "REQ-sample_report": PlanRequirement(
+                id="REQ-sample_report",
+                field="sample_report",
+                parameter_node_id=None,
+                requirement_class="report_output",
+                status="missing",
+                phase="reporting",
+                key="report-sample_report",
+                title="Sample Report",
+            ),
+        },
         input_strategy=InputStrategy(
             mode="sequential",
             current_phase="parameter_gathering",
@@ -115,116 +123,191 @@ def _synthetic_generic_plan() -> EngineeringPlan:
     )
 
 
-def test_projection_top_level_keys_present() -> None:
+def _plan_with_multiple_expansions() -> EngineeringPlan:
     plan = _synthetic_generic_plan()
-    projection = build_planner_debug_projection(plan)
+    assert plan.traversal is not None
+    plan.traversal.expanded_nodes = [
+        TraversalExpandedNode(
+            node_id="WF-GENERIC",
+            node_type="workflow",
+            expanded_at_order=1,
+            title="Generic Workflow",
+        ),
+        TraversalExpandedNode(
+            node_id="NODE-first",
+            node_type="paragraph",
+            expanded_at_order=2,
+            title="First Paragraph",
+        ),
+        TraversalExpandedNode(
+            node_id="NODE-sample",
+            node_type="parameter",
+            expanded_at_order=3,
+            title="Sample Input",
+        ),
+    ]
+    plan.traversal.current_active_node_id = "NODE-next"
+    plan.traversal.current_active_node = TraversalActiveNode(
+        node_id="NODE-next",
+        node_type="paragraph",
+        title="Next Paragraph",
+        phase="calculation",
+        reason="Active after sample input",
+    )
+    return plan
 
-    for key in (
-        "workflow_title",
-        "workflow_slug",
-        "planner_confidence",
-        "planner_reason",
-        "current_step",
-        "active_node",
-        "visited_timeline",
-        "pending_nodes",
-        "pending_calculations",
-        "pending_validations",
-        "pending_lookups",
-        "required_inputs",
-        "blocked_reason",
-        "next_expected_action",
-        "warnings",
-        "raw_planner_state",
-    ):
+
+def _plan_with_excluded_event() -> EngineeringPlan:
+    plan = _synthetic_generic_plan()
+    assert plan.traversal is not None
+    plan.traversal.traversal_events = [
+        TraversalEvent(
+            order=1,
+            event_type="node_marked_not_applicable",
+            node_id="NODE-excluded",
+            message="Branch ruled out",
+        )
+    ]
+    plan.traversal.pending_expansion_nodes.append(
+        TraversalPendingNode(
+            node_id="NODE-excluded",
+            node_type="paragraph",
+            waiting_on=[],
+            reason="Not applicable on this branch",
+            title="Excluded Paragraph",
+        )
+    )
+    return plan
+
+
+def _plan_with_phases_fallback() -> EngineeringPlan:
+    plan = _synthetic_generic_plan()
+    plan.root_goal.required_outputs = []
+    plan.phases = [
+        PlanPhase(id="phase_a", title="Gather Inputs", order=1),
+        PlanPhase(id="phase_b", title="Run Calculation", order=2),
+    ]
+    return plan
+
+
+def test_projection_shape_contract() -> None:
+    projection = build_planner_debug_projection(_synthetic_generic_plan())
+
+    for key in ("current_node", "next_queued_node", "goals", "groups"):
         assert key in projection
 
+    groups = projection["groups"]
+    for key in (
+        "visited_previous_step",
+        "queue_leaf_nodes",
+        "visited_from_beginning",
+        "excluded_blocked",
+    ):
+        assert key in groups
 
-def test_projection_does_not_invent_confidence_or_reason() -> None:
+    legacy_keys = (
+        "workflow_slug",
+        "visited_timeline",
+        "pending_nodes",
+        "required_inputs",
+        "blocked_reason",
+        "raw_planner_state",
+    )
+    for key in legacy_keys:
+        assert key not in projection
+
+
+def test_traversal_populated_groups() -> None:
+    projection = build_planner_debug_projection(_synthetic_generic_plan())
+    groups = projection["groups"]
+
+    assert projection["current_node"]["node_id"] == "NODE-sample"
+    assert projection["current_node"]["display_name"] == "Sample Input"
+    assert projection["next_queued_node"]["node_id"] == "NODE-pending"
+    assert groups["visited_from_beginning"]
+    assert groups["visited_previous_step"]
+    assert groups["queue_leaf_nodes"]
+    assert groups["queue_leaf_nodes"][0]["status_reason"] in _STATUS_REASONS
+    assert groups["queue_leaf_nodes"][0]["status_reason"] == "waiting for dependency"
+
+    queue_ids = {item["node_id"] for item in groups["queue_leaf_nodes"]}
+    excluded_ids = {item["node_id"] for item in groups["excluded_blocked"]}
+    assert queue_ids.isdisjoint(excluded_ids)
+
+
+def test_traversal_null_returns_empty_groups() -> None:
     plan = _synthetic_generic_plan()
-    projection = build_planner_debug_projection(plan)
-    assert projection["planner_confidence"] is None
-    assert projection["planner_reason"] is None
-
-
-def test_synthetic_non_pipe_wall_traversal_timeline() -> None:
-    plan = _synthetic_generic_plan()
-    projection = build_planner_debug_projection(plan)
-
-    assert projection["workflow_slug"] == "generic_sample_workflow"
-    assert projection["workflow_title"] == "Generic Sample Calculation"
-    assert projection["visited_timeline"]
-    statuses = {row["status"] for row in projection["visited_timeline"]}
-    assert "visited" in statuses
-    assert "active" in statuses
-    assert projection["pending_nodes"]
-    assert projection["pending_nodes"][0]["node_id"] == "NODE-pending"
-
-
-def test_blocked_reason_waiting_for_user_input() -> None:
-    plan = _synthetic_generic_plan()
-    projection = build_planner_debug_projection(plan)
-    blocked = projection["blocked_reason"]
-    assert blocked["kind"] == "waiting_for_user_input"
-    assert blocked["missing_item"] == "sample_input"
-    assert projection["required_inputs"]
-    assert projection["required_inputs"][0]["key"] == "sample_input"
-
-
-def test_blocked_reason_not_available_when_unclassifiable() -> None:
-    plan = _synthetic_generic_plan()
-    plan.requirements.clear()
-    plan.input_strategy = None
     plan.traversal = None
     projection = build_planner_debug_projection(plan)
-    assert projection["blocked_reason"]["kind"] == "not_available"
+
+    assert projection["current_node"] is None
+    assert projection["next_queued_node"] is None
+    assert projection["goals"]["main_goal"] == "Generic Sample Calculation"
+    assert all(not projection["groups"][key] for key in projection["groups"])
 
 
-def test_required_inputs_have_no_nested_json_blobs() -> None:
-    _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
-    projection = build_planner_debug_projection(plan)
-    for row in projection["required_inputs"]:
-        for value in row.values():
-            assert not isinstance(value, (dict, list))
+def test_visited_previous_step_picks_prior_expansion_batch() -> None:
+    projection = build_planner_debug_projection(_plan_with_multiple_expansions())
+    previous = projection["groups"]["visited_previous_step"]
+
+    assert len(previous) == 1
+    assert previous[0]["node_id"] == "NODE-sample"
+    assert previous[0]["display_name"] == "Sample Input"
 
 
-def test_raw_planner_state_only_in_advanced_payload() -> None:
+def test_excluded_event_not_in_queue() -> None:
+    projection = build_planner_debug_projection(_plan_with_excluded_event())
+    groups = projection["groups"]
+
+    assert any(item["node_id"] == "NODE-excluded" for item in groups["excluded_blocked"])
+    assert not any(item["node_id"] == "NODE-excluded" for item in groups["queue_leaf_nodes"])
+
+
+def test_goals_from_required_outputs() -> None:
+    projection = build_planner_debug_projection(_synthetic_generic_plan())
+    goals = projection["goals"]
+
+    assert goals["main_goal"] == "Generic Sample Calculation"
+    assert goals["subgoals"] == ["Sample Output", "Sample Report"]
+
+
+def test_goals_fallback_to_phases() -> None:
+    projection = build_planner_debug_projection(_plan_with_phases_fallback())
+    assert projection["goals"]["subgoals"] == ["Gather Inputs", "Run Calculation"]
+
+
+def test_candidate_queue_reason_ready_for_expansion() -> None:
     plan = _synthetic_generic_plan()
+    assert plan.traversal is not None
+    plan.traversal.pending_expansion_nodes = []
+    plan.traversal.candidate_next_nodes = [
+        TraversalCandidateNode(
+            node_id="NODE-candidate",
+            node_type="paragraph",
+            title="Candidate Paragraph",
+            reason="Next expansion candidate",
+        )
+    ]
     projection = build_planner_debug_projection(plan)
-    raw = projection["raw_planner_state"]
-    assert "engineering_plan" in raw
-    assert "planner_inspector_summary" in raw
-    assert projection["workflow_slug"] == plan.workflow_id
-    assert "requirements" not in projection
+    queue = projection["groups"]["queue_leaf_nodes"]
+
+    assert len(queue) == 1
+    assert queue[0]["status_reason"] == "ready for expansion"
 
 
-def test_pipe_wall_integration_projection() -> None:
-    _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
-    assert validate_engineering_plan(plan).valid
-    projection = build_planner_debug_projection(plan, reader=_reader())
-
-    assert projection["workflow_slug"] == "pipe_wall_thickness_design"
-    assert projection["blocked_reason"]["kind"] == "waiting_for_user_input"
-    assert projection["visited_timeline"]
-    assert projection["required_inputs"]
+def test_display_name_uses_traversal_title() -> None:
+    projection = build_planner_debug_projection(_synthetic_generic_plan())
+    visited = projection["groups"]["visited_from_beginning"][0]
+    assert visited["display_name"] == "Generic Workflow"
 
 
-def test_planner_inspector_summary_traversal_support_non_pipe_wall_with_traversal() -> None:
+def test_planner_debug_projection_for_task_from_synthetic_outputs() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("debug-projection-generic", status=TaskStatus.AWAITING_INPUT)
     plan = _synthetic_generic_plan()
-    summary = build_planner_inspector_summary(plan)
-    assert summary["header"]["traversal_support_level"] == "full"
-    assert summary["header"]["traversal_support_note"] is None
-
-
-def test_planner_debug_projection_for_task_from_outputs() -> None:
-    from engine.planner.planner_debug_projection import planner_debug_projection_for_task
-
-    _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
     task.outputs["engineering_plan"] = plan.to_dict()
 
-    projection = planner_debug_projection_for_task(task, reader=_reader())
+    projection = planner_debug_projection_for_task(task)
     assert projection is not None
-    assert projection["workflow_slug"] == "pipe_wall_thickness_design"
+    assert projection["current_node"]["node_id"] == "NODE-sample"
+    assert projection["goals"]["main_goal"] == "Generic Sample Calculation"

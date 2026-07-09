@@ -188,5 +188,5 @@ def test_post_eval_pipe_wall_keeps_minimum_thickness_equation(standards_reader) 
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     ids = {block.get("id") for block in blocks}
-    assert "equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2" in ids
+    assert "equation-asme-b313-304-1-1-eq-2" in ids
     assert "path-calculation-substituted-equation" not in ids

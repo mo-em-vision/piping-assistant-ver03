@@ -5,6 +5,7 @@
   "ask_archive",
   "answer_archive",
   "engineering_reference",
+  "paragraph_context",
   "input_context",
   "calculation_trace",
   "equation_preview",

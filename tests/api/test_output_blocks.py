@@ -145,11 +145,11 @@ def test_new_pipe_wall_task_single_eq_2_preview_block(standards_reader) -> None:
     preview_blocks = [
         block
         for block in eq_blocks
-        if block.get("display_role") in {"preview", "equation_preview", "activation"}
+        if block.get("id") == "equation-asme-b313-304-1-1-eq-2"
     ]
     assert len(preview_blocks) >= 1
     equation = preview_blocks[0]
-    assert equation.get("lifecycle") in {"preview", None}
+    assert equation.get("lifecycle") in {"durable", "preview", None}
     assert "input_table" in equation
     assert "variables" not in equation
     symbols = [row["symbol"] for row in equation["input_table"]["rows"]]
@@ -208,13 +208,10 @@ def test_completed_workflow_outputs_include_results_and_equation(
 
     assert not any(block_id.startswith("node-activation-") for block_id in ids)
     assert types.count("equation") >= 1
-    assert any(block_id.startswith("equation-trace-") for block_id in ids)
+    assert any(block_id.startswith("equation-asme-b313-") for block_id in ids)
     assert any(block_id.startswith("table-lookup-") for block_id in ids)
+    assert any(block_id.startswith("result-summary-") for block_id in ids)
     assert "planning-status" not in ids
-
-    assert any("path-preview-equation" in block_id for block_id in ids) or any(
-        block_id.startswith("equation-trace-") for block_id in ids
-    )
 
 
 def test_completed_workflow_with_nps_includes_schedule_recommendation(
@@ -290,23 +287,21 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
     equation_blocks = [
         block
         for block in blocks
-        if block["type"] == "equation" and block["id"].startswith("path-preview-equation-")
+        if block["type"] == "equation" and block.get("equation_node_id") == "asme-b313-304-1-2-eq-3a"
     ]
     assert len(equation_blocks) == 1
-    assert equation_blocks[0]["id"] == "path-preview-equation-304.1.2-a"
+    assert equation_blocks[0]["id"] == "equation-asme-b313-304-1-2-eq-3a"
     assert not any(
         block.get("equation_node_id") == "asme-b313-304-1-1-eq-2" for block in equation_blocks
     )
 
-    intro_blocks = [block for block in blocks if block["id"] == "path-preview-intro-304.1.2-a"]
-    assert len(intro_blocks) == 0
+    paragraph_blocks = [block for block in blocks if block["id"] == "paragraph-304.1.2-a"]
+    assert len(paragraph_blocks) == 1
 
     equation = equation_blocks[0]
-    intro_text = str(equation.get("context_intro") or "").lower()
-    assert "thin-wall" in intro_text or "internal pressure" in intro_text or "wall thickness" in intro_text
-    assert equation.get("context_lead") == "with the following equation:"
+    assert not str(equation.get("context_intro") or "").strip()
     assert equation.get("title") is None
-    assert equation.get("lifecycle") == "preview"
+    assert equation.get("lifecycle") == "durable"
     assert "variables" not in equation
     assert "input_table" in equation
     pressure_row = next(row for row in equation["input_table"]["rows"] if row["symbol"] == "P")
@@ -333,9 +328,7 @@ def test_post_calculation_outputs_before_corrosion_allowance(standards_reader, s
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     ids = [block["id"] for block in blocks]
 
-    assert "path-preview-equation-304.1.2-a" in ids or any(
-        block_id.startswith("equation-trace-") for block_id in ids
-    )
+    assert "equation-asme-b313-304-1-2-eq-3a" in ids
     assert not any(block_id.startswith("node-activation-") for block_id in ids)
 
 
@@ -355,8 +348,7 @@ def test_execution_trace_keeps_definition_node_outputs(standards_reader) -> None
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     ids = [block["id"] for block in blocks]
 
-    assert any(block_id.startswith("path-preview-equation-") for block_id in ids)
-    assert "equation-304.1.2-a" not in ids
+    assert any(block_id.startswith("equation-asme-b313-") for block_id in ids)
 
 
 def test_thin_wall_applicability_block_when_check_fails(state_manager, standards_reader) -> None:
@@ -401,7 +393,7 @@ def _eq2_trace_block(blocks: list[dict]) -> dict:
     return next(
         block
         for block in blocks
-        if block.get("id") == "equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2"
+        if block.get("id") == "equation-asme-b313-304-1-1-eq-2"
     )
 
 
@@ -474,13 +466,13 @@ def test_equation_trace_not_duplicated_on_repeated_task_state(standards_reader) 
     first_traces = [
         block
         for block in state["display_outputs"]
-        if block.get("display_role") == "equation_trace"
+        if str(block.get("id", "")).startswith("equation-asme-b313-")
     ]
     second = service.get_task(state["task_id"], session_id=session_id)
     second_traces = [
         block
         for block in second["display_outputs"]
-        if block.get("display_role") == "equation_trace"
+        if str(block.get("id", "")).startswith("equation-asme-b313-")
     ]
     assert len(first_traces) == len(second_traces)
 
@@ -504,11 +496,10 @@ def test_pressure_loading_internal_keeps_eq2_trace_and_adds_eq3a_preview(standar
         session_id=session_id,
     )
 
-    eq3a_previews = [
+    eq3a_blocks = [
         block
         for block in state["display_outputs"]
         if block.get("equation_node_id") == "asme-b313-304-1-2-eq-3a"
-        and block.get("display_role") in {"preview", "equation_preview"}
     ]
-    assert len(eq3a_previews) == 1
+    assert len(eq3a_blocks) == 1
     assert "planning-status" not in {block["id"] for block in state["display_outputs"]}

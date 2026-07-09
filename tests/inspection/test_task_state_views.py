@@ -8,7 +8,7 @@ from pathlib import Path
 from api.desktop_service import DesktopApiService
 from config.loader import CLIConfig
 from engine.inspection.task_state_views import build_task_state_views
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.legacy_goal_adapter import store_engineering_plan_on_task
 from engine.planner.plan_inspector import build_planner_inspector_summary
 from engine.state.state_manager import TaskStateManager
@@ -16,6 +16,7 @@ from engine.state.task_state_canonical import build_canonical_task_state
 from engine.reference.standards_reader import StandardsReader
 from models.task import TaskStatus
 from tests.api.conftest import api_session_id
+from tests.planner.helpers import _reader
 
 _DEBUG_FACT_KEYS = frozenset(
     {
@@ -113,7 +114,7 @@ def test_facts_and_outputs_views_exclude_planner_debug_objects(project_root: Pat
     task.outputs["workflow"] = "pipe_wall_thickness_design"
     task.outputs["selected_root"] = "pipe_wall_thickness_design"
 
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     store_engineering_plan_on_task(task, plan)
     task.outputs["_plan_edges"] = [{"from_node": "a", "to_node": "b", "edge_type": "next"}]
     task.outputs["_planner_decisions"] = {"304.1.2-a": {"why_selected": "test", "rejected_candidates": []}}

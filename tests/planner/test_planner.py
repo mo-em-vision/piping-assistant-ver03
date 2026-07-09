@@ -151,15 +151,14 @@ def test_planner_requests_default_confirmations_for_internal_path() -> None:
 
     plan = planner.plan(intent, task)
 
-    assert plan.missing_execution_assumptions
-    assert any(
-        field in plan.missing_execution_assumptions
-        for field in (
-            "weld_joint_efficiency",
-            "weld_joint_strength_reduction_factor_W",
-        )
-    )
     assert plan.action == AgentAction.REQUEST_INPUT
+    assert plan.questions
+    assert any(
+        "pipe construction" in question.lower()
+        or "joint" in question.lower()
+        or "joint category" in question.lower()
+        for question in plan.questions
+    )
 
 
 def test_planner_proposes_path_when_defaults_confirmed() -> None:

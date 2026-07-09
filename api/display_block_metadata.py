@@ -48,6 +48,8 @@ def infer_display_channel(block: dict[str, Any]) -> str | None:
         return explicit.strip()
 
     block_id = str(block.get("id") or "")
+    if is_stable_equation_display_block_id(block_id):
+        return None
     if block_id.startswith("path-preview-equation-") or block_id.startswith(
         "node-activation-equation-"
     ):
@@ -70,6 +72,8 @@ def infer_lifecycle(block: dict[str, Any]) -> str:
         return LIFECYCLE_DURABLE
 
     block_id = str(block.get("id") or "")
+    if is_stable_equation_display_block_id(block_id):
+        return LIFECYCLE_DURABLE
     if block_id.startswith("path-preview-equation-") or block_id.startswith(
         "node-activation-equation-"
     ):
@@ -155,6 +159,8 @@ def infer_display_role(block: dict[str, Any]) -> str | None:
     block_id = str(block.get("id") or "")
     if block_id.startswith("node-activation-equation-"):
         return DISPLAY_ROLE_ACTIVATION
+    if is_stable_equation_display_block_id(block_id):
+        return DISPLAY_ROLE_EQUATION_TRACE
     if block_id.startswith("equation-trace-"):
         return DISPLAY_ROLE_EQUATION_TRACE
     if block_id.startswith("path-preview-equation-"):
@@ -166,6 +172,9 @@ def infer_display_role(block: dict[str, Any]) -> str | None:
             return DISPLAY_ROLE_RECOMMENDATION
         return "engineering_reference"
     if block_id.startswith("paragraph-"):
+        role = str(block.get("display_role") or block.get("internal_display_role") or "")
+        if role == "paragraph_context":
+            return "paragraph_context"
         return "engineering_reference"
     if block_id.startswith("validation-"):
         return DISPLAY_ROLE_APPLICABILITY
@@ -239,8 +248,23 @@ def dedupe_preview_tier_equations(blocks: list[dict[str, Any]]) -> list[dict[str
     return result
 
 
+def equation_display_block_id(equation_node_id: str) -> str:
+    """Stable center-panel id for an equation across preview and evaluated states."""
+    return f"equation-{equation_node_id}"
+
+
 def equation_trace_block_id(source_node_id: str, equation_node_id: str) -> str:
+    """Legacy trace id; prefer equation_display_block_id for new blocks."""
     return f"equation-trace-{source_node_id}-{equation_node_id}"
+
+
+def is_stable_equation_display_block_id(block_id: str) -> bool:
+    block_id = str(block_id or "").strip()
+    if not block_id.startswith("equation-"):
+        return False
+    if block_id.startswith("equation-trace-"):
+        return False
+    return True
 
 
 def equation_trace_semantic_key(
@@ -408,8 +432,8 @@ def append_equation_trace_blocks(
     task: Any,
     reader: Any,
 ) -> list[dict[str, Any]]:
-    """Rebuild durable equation traces from execution trace and current task state."""
-    from api.equation_evaluation_display import build_equation_trace_block
+    """Legacy helper: merge canonical equation blocks from execution trace."""
+    from api.equation_evaluation_display import equation_display_blocks_from_trace
 
     if task is None:
         return blocks
@@ -420,23 +444,46 @@ def append_equation_trace_blocks(
     refreshed = [
         block
         for block in blocks
-        if infer_display_role(block) != DISPLAY_ROLE_EQUATION_TRACE
+        if str(block.get("type") or "") != "equation"
+        or not str(block.get("equation_node_id") or "").strip()
     ]
-
-    trace_blocks: list[dict[str, Any]] = []
-    built_ids: set[str] = set()
-    for item in _all_equation_trace_entries(task):
-        equation_node_id = item["equation_node_id"]
-        if equation_node_id in built_ids:
-            continue
-        trace = build_equation_trace_block(task, reader, item["source_node_id"])
-        if trace is not None and str(trace.get("equation_node_id") or "") == equation_node_id:
-            trace_blocks.append(trace)
-            built_ids.add(equation_node_id)
-
+    trace_blocks = equation_display_blocks_from_trace(task, reader)
     if not trace_blocks:
         return refreshed
     return refreshed + trace_blocks
+
+
+def dedupe_blocks_by_id_prefer_richer(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collapse by block id; keep the richer equation/table payload."""
+    winners: dict[str, tuple[int, dict[str, Any]]] = {}
+    order: list[str] = []
+
+    def score(block: dict[str, Any]) -> int:
+        value = 0
+        if block.get("equation_display_trace"):
+            value += 200
+            trace = block.get("equation_display_trace") or {}
+            if trace.get("status") == "evaluated":
+                value += 100
+        if block.get("input_table"):
+            value += 50
+        if block.get("content"):
+            value += 10
+        return value
+
+    for block in blocks:
+        block_id = str(block.get("id") or "").strip()
+        if not block_id:
+            continue
+        existing = winners.get(block_id)
+        if existing is None:
+            winners[block_id] = (score(block), block)
+            order.append(block_id)
+            continue
+        if score(block) >= existing[0]:
+            winners[block_id] = (score(block), block)
+
+    return [winners[block_id][1] for block_id in order if block_id in winners]
 
 
 def is_volatile_block(block: dict[str, Any]) -> bool:

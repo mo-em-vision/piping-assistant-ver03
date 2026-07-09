@@ -12,6 +12,11 @@ from engine.graph.node_interaction import (
     find_interaction,
     question_for_interaction,
 )
+from engine.messaging.parameter_prompt_context import (
+    composer_option_label,
+    parameter_metadata_context,
+    parameter_prompt_from_metadata,
+)
 from engine.messaging.prompt_format import format_numbered_choices, format_reply_hint
 from engine.reference.parameter_keys import parameter_display_label
 from engine.reference.standards_reader import StandardsReader
@@ -26,11 +31,6 @@ _DETERMINISTIC_PHASES = frozenset(
         NavigationPhase.COEFFICIENT_RESOLUTION,
         NavigationPhase.EXECUTION_ASSUMPTIONS,
     }
-)
-
-_YES_NO_OPTIONS = (
-    "Yes — straight pipe section",
-    "No — fitting, bend, or other non-straight component",
 )
 
 
@@ -74,15 +74,12 @@ def build_interaction_step_prompt(
     spec: NodeInteractionSpec | None = None,
 ) -> str | None:
     """Return a numbered or structured prompt for a single interaction field."""
-    navigation_plan = _navigation_plan_from_planning(planning)
     if spec is None:
         specs = _interaction_specs_for_task(reader, task)
         spec = find_interaction(specs, parameter_id)
 
-    if parameter_id == "straight_pipe_section":
-        return _format_yes_no_assumption_prompt(parameter_id, spec, navigation_plan)
     if spec is not None and spec.mode == InteractionMode.DECISION and spec.options:
-        return _format_decision_prompt(parameter_id, spec, navigation_plan)
+        return _format_decision_prompt(reader, parameter_id, spec, planning)
     if spec is not None and spec.confirmation_required and spec.default is not None:
         return _format_confirm_default_prompt(parameter_id, spec, task)
     if spec is not None:
@@ -94,8 +91,11 @@ def build_interaction_step_prompt(
 def _interaction_specs_for_task(reader: StandardsReader, task: Task) -> list[NodeInteractionSpec]:
     from engine.graph.graph_engine import GraphEngine, normalize_root_id, resolve_workflow_node_id
 
-    root = task.outputs.get("selected_root") or task.outputs.get("workflow") or "pipe_wall_thickness_design"
-    slug = normalize_root_id(str(root))
+    root = str(task.outputs.get("selected_root") or task.outputs.get("workflow") or "").strip()
+    if not root:
+        return []
+
+    slug = normalize_root_id(root)
     engine = GraphEngine()
     plan = engine.build_plan(
         task_id=task.task_id,
@@ -123,39 +123,13 @@ def _interaction_specs_for_task(reader: StandardsReader, task: Task) -> list[Nod
     return merged
 
 
-def _format_yes_no_assumption_prompt(
-    field_id: str,
-    spec: NodeInteractionSpec | None,
-    navigation_plan: NavigationPlan | None,
-) -> str:
-    question = (
-        "This workflow currently supports straight pipe sections only. "
-        "Is the wall thickness calculation for a straight pipe section?"
-    )
-    if spec and spec.question and spec.question.strip():
-        question = spec.question.strip()
-    elif navigation_plan and navigation_plan.questions:
-        question = navigation_plan.questions[0].strip()
-
-    node_ref = spec.node_id if spec else "304.1.1-a"
-    lines = [
-        f"Before expanding ASME B31.3 §304.1.1 ({node_ref}), confirm the following assumption:",
-        "",
-        question,
-        "",
-    ]
-    lines.extend(format_numbered_choices(_YES_NO_OPTIONS))
-    lines.append("")
-    lines.append(format_reply_hint(len(_YES_NO_OPTIONS), examples=("yes", "no")))
-    return "\n".join(lines)
-
-
 def _format_confirm_default_prompt(
     field_id: str,
     spec: NodeInteractionSpec,
     task: Task,
 ) -> str:
-    label = spec.symbol or parameter_display_label(field_id)
+    metadata_ctx = parameter_metadata_context(None, field_id)
+    label = spec.symbol or (metadata_ctx.name if metadata_ctx else parameter_display_label(field_id))
     default_val = spec.default
     stored = task.fact_store.active_fact(field_id)
     if stored is not None and stored.default is not None:
@@ -166,7 +140,7 @@ def _format_confirm_default_prompt(
     question = (
         spec.question.strip()
         if spec.question
-        else f"Confirm the value for {label}."
+        else (parameter_prompt_from_metadata(metadata_ctx) or f"Confirm the value for {label}.")
     )
     options = (
         f"Confirm default ({label} = {default_val})",
@@ -188,32 +162,27 @@ def _format_confirm_default_prompt(
 
 
 def _format_decision_prompt(
+    reader: StandardsReader,
     field_id: str,
     spec: NodeInteractionSpec | None,
-    navigation_plan: NavigationPlan | None,
+    planning: dict[str, Any] | None,
 ) -> str:
-    if field_id == "pressure_loading":
-        question = (
-            "Which pressure case applies to this pipe section? "
-            "This determines the ASME B31.3 pressure design branch."
-        )
-    else:
-        display_label = parameter_display_label(field_id)
+    metadata_ctx = parameter_metadata_context(reader, field_id)
+    navigation_plan = _navigation_plan_from_planning(planning)
+    question = parameter_prompt_from_metadata(metadata_ctx)
+    if not question:
         question = (
             spec.question.strip()
             if spec and spec.question
             else (
                 navigation_plan.questions[0].strip()
                 if navigation_plan and navigation_plan.questions
-                else f"Select a value for {display_label}."
+                else f"Select a value for {parameter_display_label(field_id, reader=reader)}."
             )
         )
 
-    options = tuple(spec.options) if spec and spec.options else (
-        "internal_pressure",
-        "external_pressure",
-    )
-    labels = [_option_label(value) for value in options]
+    options = tuple(spec.options) if spec and spec.options else ()
+    labels = tuple(composer_option_label(metadata_ctx, value) for value in options)
 
     lines = [
         f"Input required — {question}",
@@ -224,32 +193,10 @@ def _format_decision_prompt(
     lines.append(
         format_reply_hint(
             len(labels),
-            examples=(labels[0].split(" — ")[0].lower(),),
+            examples=(labels[0].split(" — ")[0].lower(),) if labels else ("1",),
         )
     )
     return "\n".join(lines)
-
-
-def _option_label(value: str) -> str:
-    if value == "internal_pressure":
-        return "Internal pressure — use §304.1.2"
-    if value == "external_pressure":
-        return "External pressure — use §304.1.3"
-    if value == "nps_lookup":
-        return "Nominal pipe size (NPS) — use table lookup for outside diameter"
-    if value == "direct_od":
-        return "Outside diameter — enter the diameter directly with units"
-    if value == "direct_id":
-        return "Inside diameter — enter d directly (mm or in)"
-    if value == "seamless":
-        return "Seamless pipe (default)"
-    if value == "erw":
-        return "Electric-resistance welded (ERW)"
-    if value == "furnace_butt_welded":
-        return "Furnace butt-welded"
-    if value == "forging":
-        return "Forging"
-    return value.replace("_", " ").title()
 
 
 def _navigation_plan_from_planning(planning: dict[str, Any] | None) -> NavigationPlan | None:

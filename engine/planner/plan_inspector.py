@@ -604,7 +604,7 @@ def _lookup_summary_method(req: PlanRequirement) -> str:
     method = str(resolution.get("method") or "lookup")
     if req.id == "REQ-outside_diameter_lookup":
         return "lookup_if_nps_selected"
-    if req.id == "REQ-weld_strength_reduction_factor_W_lookup":
+    if req.field == "weld_joint_strength_reduction_factor_W":
         return "lookup_or_default"
     return method
 

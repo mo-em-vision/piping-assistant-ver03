@@ -46,7 +46,8 @@ Sync test: `tests/api/test_center_panel_phase6_contract.py` and `desktopApp/test
 | `branch_narration` | durable | Flow Guidance Layer |
 | `input_context` | durable or preview | Flow Guidance (durable when in transcript); preview when tied to `display_channel` |
 | `engineering_reference` | durable | Engineering display — Phase 3 |
-| `equation_preview` | preview | Engineering display (`display_outputs`) |
+| `paragraph_context` | durable | Engineering display (live focus paragraph) |
+| `equation_preview` | preview | Engineering display (`display_outputs`) — legacy ids only |
 | `ask_archive` | durable (transcript only) | Messaging + `api/input_archive_transcript.py` — Phase 2; **not shown in center-panel scroll** |
 | `answer_archive` | durable (transcript only) | Messaging + `api/input_archive_transcript.py` — Phase 2; **not shown in center-panel scroll** |
 | `calculation_trace` | durable | Execution + display |
@@ -64,12 +65,13 @@ Sync test: `tests/api/test_center_panel_phase6_contract.py` and `desktopApp/test
 | `branch_narration` / `input_context` (guidance) | `guidance-{workflow_id}-{entry_id}` |
 | `workflow_intro` | `workflow-intro-{workflow_id}` |
 | `scope_assumption` | `scope-assumption-{source_node_id}` |
-| `equation_preview` | existing preview ids (`path-preview-equation-*`, etc.) |
-| `calculation_trace` | `equation-trace-{source_node_id}-{equation_node_id}` |
-| `engineering_reference` | `paragraph-{node_id}` |
+| `equation_preview` | legacy preview ids (`path-preview-equation-*`) — **deprecated** |
+| `calculation_trace` | `equation-{equation_node_id}` (stable across preview and evaluated states) |
+| `paragraph_context` | `paragraph-{node_id}` (live focus paragraph with `presentation.summary`) |
+| `engineering_reference` | `paragraph-{node_id}` (trace/reference prose) |
 | `recommendation` (lookup table) | `table-lookup-{node_id}` |
 | `validation_check` | `validation-{semantic_key}` (e.g. `validation-thin-wall-criterion`) |
-| `result_summary` | `result-{output_key}` |
+| `result_summary` | `result-summary-{workflow_slug}` |
 | `ask_archive` | `archived-ask-{parameter_id}-{submission_id}` (transcript storage only; excluded from center-panel scroll) |
 | `answer_archive` | `archived-answer-{parameter_id}-{submission_id}` (transcript storage only; excluded from center-panel scroll) |
 | `next_workflows` | `next-workflows-{task_id}-{workflow_id}` |
@@ -90,35 +92,47 @@ Future: `guidance-{workflow_id}-{entry_id}-{activation_key}` when entry reuse is
 1. `workflow_intro`
 2. `scope_assumption`
 3. `branch_narration`
-4. `engineering_reference`
-5. `input_context`
-6. `calculation_trace`
-7. `equation_preview`
-8. `validation_check`
-9. `result_summary`
-10. `recommendation`
-11. `next_workflows`
+4. `ask_archive` / `answer_archive` (transcript only; excluded from scroll)
+5. `engineering_reference`
+6. `paragraph_context`
+7. `input_context`
+8. `calculation_trace`
+9. `equation_preview`
+10. `validation_check`
+11. `result_summary`
+12. `recommendation`
+13. `next_workflows`
 
 **Center-panel scroll exclusion:** `ask_archive` and `answer_archive` remain in `flow_guidance.transcript_blocks` for audit/history but are **not** merged into `ordered_scroll_blocks` or the desktop center-panel transcript. Users answer via the composer (`current_ask`), not the scroll area.
 
 Persisted archives may still exist in backend transcript storage; frontend filters repair older sessions via `buildCenterPanelTranscript.ts` and `flowGuidanceTranscript.ts`.
 
-Within the same role: chronological append order. Preview-tier: replace prior block in the same `display_channel`.
+Within the same role: chronological append order. Preview-tier (non-equation): replace prior block in the same `display_channel`. Equation blocks merge **by stable `block_id` only** — never by `display_channel`.
 
 ## Generic display block contracts
 
 `build_display_outputs()` (`api/output_blocks.py`) is workflow-agnostic. Block ids derive from `node_id`, `equation_node_id`, or trace keys — never from workflow slug.
 
-### Paragraph / engineering reference
+### Finalize pipeline (`_finalize_display_blocks`)
 
-- **Source:** paragraph node `presentation.summary` (preferred) or `text.original` fallback via `api/paragraph_display.py`.
-- **Node metadata:** `presentation.summary`, `presentation.display_label`, `presentation.reference_label` (see `docs/node-templates/Paragraph Node.md`).
-- **Shape:** `id=paragraph-{node_id}`, `type=text`, `display_role=engineering_reference`.
+1. Provenance enrich (`enrich_display_blocks_provenance`, row `value_provenance`)
+2. Reference dedupe (`select_primary_reference_chip` per cell)
+3. Block id dedupe (`dedupe_blocks_by_id_prefer_richer` — collapse legacy preview/trace ids)
+4. Role/order normalization (`sort_blocks_by_report_role` at API boundary)
+
+`append_equation_trace_blocks` is **not** called on the live central-panel path.
+
+### Paragraph / paragraph context
+
+- **`paragraph_context`:** live focus paragraph when `presentation.summary` exists (`api/paragraph_display.paragraph_context_blocks_for_focus()`).
+- **`engineering_reference`:** paragraph trace/reference prose from execution trace.
+- **Shape:** `id=paragraph-{node_id}`, `type=text`.
 
 ### Equation preview / calculation trace
 
-- **Preview:** `path-preview-equation-{focus_node_id}`, `path-preview-intro-{focus_node_id}` — replaced when focus advances.
-- **Evaluated trace:** `equation-trace-{source_node_id}-{equation_node_id}` — rebuilt from `_execution_trace` / persisted `_equation_trace_keys` via `append_equation_trace_blocks()`.
+- **Stable id:** `equation-{equation_node_id}` — same block updates in place: symbolic → input table → substitution/result via `equation_display_trace`.
+- **Lifecycle:** `durable` — frontend `mergeDisplayOutputs` retains prior equations when focus advances.
+- **Legacy ids** (`path-preview-equation-*`, `equation-trace-*`) stripped during finalize dedupe.
 - **Row provenance:** at most one primary `reference_chips` entry per cell (`api/reference_links.select_primary_reference_chip`).
 
 ### Lookup / recommendation table
@@ -134,9 +148,11 @@ Within the same role: chronological append order. Preview-tier: replace prior bl
 
 ### Workflow results
 
-- **Shape:** `id=result-{output_key}`, `type=result` from `task.outputs` keys configured in `_RESULT_KEYS`.
+- **Shape:** `id=result-summary-{workflow_slug}`, `type=text`, `display_role=result_summary`.
+- **Payload:** structured deterministic summary from `api/result_summary_display.py` (`primary_result`, `applied_conditions`, `warnings`, optional `runtime_narration`).
+- Loose `result-{output_key}` typed blocks are **not** emitted on the scroll path.
 
-Legacy ids removed from builders: `minimum-thickness-equation`, `pipe-schedule-recommendation`, `path-calculation-substituted-equation`, `thin-wall-applicability-check`.
+Legacy ids removed from builders: `minimum-thickness-equation`, `pipe-schedule-recommendation`, `path-calculation-substituted-equation`, `thin-wall-applicability-check`, `path-preview-equation-*`, `equation-trace-*`.
 
 ## Reference chips (Phase 3)
 

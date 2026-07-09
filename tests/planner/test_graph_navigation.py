@@ -6,7 +6,7 @@ from pathlib import Path
 
 from api.workflow_bootstrap import bootstrap_new_task, refresh_task_planning
 from config.loader import CLIConfig
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.graph_navigation import (
     build_graph_navigation_from_plan,
     unique_stable,
@@ -42,7 +42,7 @@ def test_unique_stable_deduplicates_preserving_order() -> None:
 
 def test_fresh_pipe_wall_graph_navigation_from_plan() -> None:
     _, task = _fresh_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     assert validate_engineering_plan(plan).valid
 
     nav = build_graph_navigation_from_plan(plan)
@@ -67,8 +67,9 @@ def test_fresh_pipe_wall_graph_navigation_from_plan() -> None:
         "diameter_input_mode",
         "material_grade",
         "design_temperature",
-        "corrosion_allowance",
     ]
+    # corrosion_allowance uses ask_later — excluded from phase_missing until equation phase
+    assert "corrosion_allowance" not in phase_missing.get("parameter_gathering", [])
     assert phase_missing["coefficient_resolution"] == ["pipe_construction_type"]
     assert phase_missing["equation_execution"] == []
     assert phase_missing["validation"] == []
@@ -86,7 +87,7 @@ def test_straight_pipe_resolved_graph_navigation_advances_path_decision() -> Non
         ),
     )
     task = state.get_task(task.task_id)
-    plan = build_pipe_wall_engineering_plan(task, existing_inputs=dict(task.fact_store.active_facts()))
+    plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
     nav = build_graph_navigation_from_plan(plan)
 
     assert nav["current_phase"] == "path_decisions"
@@ -108,7 +109,7 @@ def test_gates_resolved_graph_navigation_collects_parameter_gathering() -> None:
             ),
         )
     task = state.get_task(task.task_id)
-    plan = build_pipe_wall_engineering_plan(task, existing_inputs=dict(task.fact_store.active_facts()))
+    plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
     nav = build_graph_navigation_from_plan(plan)
 
     assert nav["current_phase"] == "parameter_gathering"

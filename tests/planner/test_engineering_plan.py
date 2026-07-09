@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from api.serializers import task_state
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.goal_builder import build_goal_tree
 from engine.planner.plan_inspector import build_engineering_plan_view, build_planner_inspector_summary
 from engine.planner.plan_validation import validate_engineering_plan
@@ -19,6 +19,11 @@ from models.task import TaskStatus
 from tests.acceptance.helpers import (
     internal_pressure_assumption,
     straight_section_assumption,
+)
+from tests.planner.plan_contract import (
+    REQ_MINIMUM_REQUIRED_THICKNESS_EQ,
+    REQ_REQUIRED_WALL_THICKNESS,
+    WELD_W_FIELD,
 )
 
 
@@ -63,7 +68,7 @@ def _active_phases(plan) -> list:
 def test_fresh_pipe_wall_no_facts_input_strategy_and_phase_contract() -> None:
     """Fresh plan with no facts: input strategy and phase progression contract."""
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     validation = validate_engineering_plan(plan)
     assert validation.valid, validation.errors
 
@@ -84,6 +89,7 @@ def test_fresh_pipe_wall_no_facts_input_strategy_and_phase_contract() -> None:
         "path_decisions": "pending",
         "parameter_gathering": "pending",
         "coefficient_resolution": "blocked",
+        "definition_equation_completion": "pending",
         "equation_execution": "blocked",
         "reporting": "blocked",
     }
@@ -91,7 +97,7 @@ def test_fresh_pipe_wall_no_facts_input_strategy_and_phase_contract() -> None:
 
 def test_fresh_pipe_wall_phase_statuses_single_active_phase() -> None:
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     validation = validate_engineering_plan(plan)
 
     assert validation.valid, validation.errors
@@ -120,7 +126,7 @@ def test_straight_pipe_resolved_only_path_decisions_active() -> None:
         ),
     )
     task = state.get_task(task.task_id)
-    plan = build_pipe_wall_engineering_plan(task, existing_inputs=dict(task.fact_store.active_facts()))
+    plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
     validation = validate_engineering_plan(plan)
 
     assert validation.valid, validation.errors
@@ -134,7 +140,7 @@ def test_straight_pipe_resolved_only_path_decisions_active() -> None:
 
 def test_gates_resolved_parameter_gathering_becomes_active() -> None:
     state, task = _task_with_gates_satisfied(TaskStateManager())
-    plan = build_pipe_wall_engineering_plan(task, existing_inputs=dict(task.fact_store.active_facts()))
+    plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
     validation = validate_engineering_plan(plan)
 
     assert validation.valid, validation.errors
@@ -148,7 +154,7 @@ def test_gates_resolved_parameter_gathering_becomes_active() -> None:
 
 def test_fresh_pipe_wall_internal_pressure_requirements_are_conditional() -> None:
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
 
     internal_pressure = plan.requirements["REQ-internal_design_gage_pressure"]
     assert internal_pressure.activation_status == "conditional"
@@ -164,8 +170,8 @@ def test_fresh_pipe_wall_internal_pressure_requirements_are_conditional() -> Non
     assert "REQ-internal_design_gage_pressure" in plan.root_goal.provisional_blocked_by
     assert "REQ-diameter_resolution" in plan.root_goal.provisional_blocked_by
     assert "REQ-allowable_stress_lookup" in plan.root_goal.provisional_blocked_by
-    assert "REQ-required_wall_thickness" in plan.root_goal.provisional_blocked_by
-    assert "REQ-minimum_required_thickness_eq" in plan.root_goal.provisional_blocked_by
+    assert REQ_REQUIRED_WALL_THICKNESS in plan.root_goal.provisional_blocked_by
+    assert REQ_MINIMUM_REQUIRED_THICKNESS_EQ in plan.root_goal.provisional_blocked_by
     assert "REQ-internal_design_gage_pressure" not in plan.root_goal.blocked_by
     assert plan.input_strategy is not None
     assert "internal_design_gage_pressure" not in plan.input_strategy.next_fields
@@ -173,7 +179,7 @@ def test_fresh_pipe_wall_internal_pressure_requirements_are_conditional() -> Non
 
 def test_internal_pressure_branch_activates_downstream_requirements() -> None:
     state, task = _task_with_gates_satisfied(TaskStateManager())
-    plan = build_pipe_wall_engineering_plan(task, existing_inputs=dict(task.fact_store.active_facts()))
+    plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
 
     internal_pressure = plan.requirements["REQ-internal_design_gage_pressure"]
     assert internal_pressure.activation_status == "active"
@@ -208,13 +214,13 @@ def test_external_pressure_branch_marks_internal_requirements_not_applicable() -
         ),
     )
     task = state.get_task(task.task_id)
-    plan = build_pipe_wall_engineering_plan(task, existing_inputs=dict(task.fact_store.active_facts()))
+    plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
 
     internal_pressure = plan.requirements["REQ-internal_design_gage_pressure"]
     assert internal_pressure.activation_status == "not_applicable"
     assert internal_pressure.status == "not_applicable"
-    assert plan.requirements["REQ-required_wall_thickness"].activation_status == "not_applicable"
-    assert plan.requirements["REQ-minimum_required_thickness_eq"].activation_status == "not_applicable"
+    assert plan.requirements[REQ_REQUIRED_WALL_THICKNESS].activation_status == "not_applicable"
+    assert plan.requirements[REQ_MINIMUM_REQUIRED_THICKNESS_EQ].activation_status == "not_applicable"
     assert plan.input_strategy is not None
     assert "internal_design_gage_pressure" not in plan.input_strategy.next_fields
     assert "REQ-internal_design_gage_pressure" not in plan.root_goal.blocked_by
@@ -223,7 +229,7 @@ def test_external_pressure_branch_marks_internal_requirements_not_applicable() -
 
 def test_planner_graph_summary_derived_from_engineering_plan() -> None:
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     summary = build_planner_inspector_summary(plan)
     graph_summary = summary["planner_graph_summary"]
 
@@ -236,7 +242,7 @@ def test_planner_graph_summary_derived_from_engineering_plan() -> None:
 
 def test_temperature_coefficient_lookup_summary_includes_metallurgical_group() -> None:
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     summary = build_planner_inspector_summary(plan)
 
     y_lookup = plan.requirements["REQ-temperature_coefficient_Y_lookup"]
@@ -254,7 +260,7 @@ def test_temperature_coefficient_lookup_summary_includes_metallurgical_group() -
 
 def test_fresh_pipe_wall_planner_inspector_summary_single_next_input() -> None:
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     summary = build_planner_inspector_summary(plan)
 
     assert plan.input_strategy is not None
@@ -302,7 +308,7 @@ def test_planner_inspector_summary_rebuilt_from_engineering_plan_dict() -> None:
     from engine.planner.legacy_goal_adapter import store_engineering_plan_on_task
 
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     store_engineering_plan_on_task(task, plan)
     task.outputs.pop("planner_inspector_summary", None)
     task.outputs["legacy_goal_map"] = {
@@ -327,7 +333,7 @@ def test_planner_inspector_summary_rebuilt_from_engineering_plan_dict() -> None:
 
 def test_fresh_pipe_wall_input_strategy_asks_expansion_assumption_first() -> None:
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     validation = validate_engineering_plan(plan)
 
     assert validation.valid, validation.errors
@@ -350,7 +356,7 @@ def test_straight_pipe_resolved_advances_to_path_decisions() -> None:
         ),
     )
     task = state.get_task(task.task_id)
-    plan = build_pipe_wall_engineering_plan(task, existing_inputs=dict(task.fact_store.active_facts()))
+    plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
     validation = validate_engineering_plan(plan)
 
     assert validation.valid, validation.errors
@@ -361,7 +367,7 @@ def test_straight_pipe_resolved_advances_to_path_decisions() -> None:
 
 def test_pipe_wall_diameter_resolution_dependency_edges() -> None:
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     validation = validate_engineering_plan(plan)
 
     assert validation.valid, validation.errors
@@ -388,7 +394,7 @@ def test_pipe_wall_initial_engineering_plan() -> None:
         inputs=dict(task.fact_store.active_facts()),
     )
 
-    plan = build_pipe_wall_engineering_plan(task, preview=preview)
+    plan = build_engineering_plan(task, _reader(), preview=preview)
     validation = validate_engineering_plan(plan)
 
     assert validation.valid, validation.errors
@@ -492,13 +498,13 @@ def test_goal_tree_from_engineering_plan_no_selected_nodes_on_root() -> None:
 def test_coefficients_are_lookup_not_user_input() -> None:
     state, task = _task_with_gates_satisfied(TaskStateManager())
     reader = _reader()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
 
     for field in (
         "allowable_stress",
         "weld_joint_efficiency",
         "temperature_coefficient_Y",
-        "weld_strength_reduction_factor_W",
+        WELD_W_FIELD,
     ):
         lookup_reqs = [
             req
@@ -526,7 +532,7 @@ def test_nps_path_activates_lookup_requirement() -> None:
         ),
     )
     task = state.get_task(task.task_id)
-    plan = build_pipe_wall_engineering_plan(task, existing_inputs=dict(task.fact_store.active_facts()))
+    plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
 
     nps = plan.requirements["REQ-nominal_pipe_size"]
     od_lookup = plan.requirements["REQ-outside_diameter_lookup"]

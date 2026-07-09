@@ -82,15 +82,14 @@ Stop if you drift into kitchen-sink refactors, wrong abstractions, or duplicatin
 | Layer | Owns | Does not own |
 | --- | --- | --- |
 | **Planner** (`engine/planner/`) | Navigation phases, missing-field order, submittable parameter ids, goal tree structure | User-facing question strings, autocomplete labels, material search hints |
-| **Messaging** (`engine/messaging/`) | Deterministic prompt text, resolution order, default catalog copy | Which parameter is active, phase gating, graph execution |
+| **Messaging** (`engine/messaging/`) | Deterministic prompt text and resolution order (assembly only) | Which parameter is active, phase gating, graph execution |
 
 ### Where prompt text lives
 
-- **Workflow interaction specs** — `interactions` on workflow sidecars / `runtime.yaml` (highest priority when present). Gate phases (yes/no, branch decisions) delegate numbered formatting to `engine/messaging/step_prompt.py`.
-- **PARAM-* node metadata** — `question` then `description` on parameter nodes, read via `engine/messaging/parameter_prompt_context.py` (messaging-owned; Graph Engine does not own user-facing wording).
-- **Equation / lookup context** — `engine/messaging/formula_parameter_prompt.py`.
-- **Default catalog** — `engine/messaging/workflow_parameter_prompts.py` (`DEFAULT_WORKFLOW_PARAMETER_PROMPTS`) — fallback only.
-- **Final messaging fallback** — structured minimal prompt from `parameter_display_label()` + phase context when no higher-priority source applies.
+- **Workflow interaction specs** — `interactions` on workflow sidecars / `runtime.yaml`. Gate phases (yes/no, branch decisions) delegate numbered formatting to `engine/messaging/step_prompt.py`.
+- **PARAM-* node metadata** — `question`, `description`, `metadata.short_question`, `metadata.input_examples`, and `metadata.composer_options` labels on parameter nodes, read via `engine/messaging/parameter_prompt_context.py` (messaging-owned; Graph Engine does not own user-facing wording).
+- **Equation / lookup context** — `engine/messaging/formula_parameter_prompt.py` (graph-driven; no workflow-specific branches).
+- **Final messaging fallback** — structured minimal prompt from PARAM `name` / `canonical_symbol` when no higher-priority source applies.
 - **LLM agent stubs** — `ai/prompts/` (intent/planner agents only; not desktop parameter asks).
 
 ### Resolution entry point
@@ -101,12 +100,11 @@ All desktop/API parameter asks must resolve through:
 
 Order inside that function (do not bypass or reorder without updating docs and tests):
 
-1. Workflow interaction spec / `runtime.yaml` / sidecar interaction question (gate phases use numbered formatting from `step_prompt` helpers)
+1. Workflow interaction spec / `runtime.yaml` / sidecar interaction question (gate phases use numbered formatting from `step_prompt` helpers; PARAM `question` preferred for numbered decision copy)
 2. PARAM-* node `question`, then useful `description` if no question (`parameter_prompt_context.py`)
 3. Equation or lookup context (`formula_parameter_prompt.guidance_for_parameter_input`)
 4. Legacy `phase_questions` on planning (backward compatibility only)
-5. `default_workflow_parameter_prompt()` from `workflow_parameter_prompts.py`
-6. Final messaging fallback (structured minimal prompt — not the frontend generic string)
+5. Final messaging fallback from PARAM metadata (`name`, `symbol`, `input_examples`)
 
 ### Desktop vs CLI prompt paths
 
@@ -488,7 +486,7 @@ Changing `presentation_blocks` after a phase advance must **not** erase `transcr
 
 **Forbidden:**
 
-- Deterministic parameter/formula prompt copy (owned by `engine/messaging/formula_parameter_prompt.py` and related prompt builders: `step_prompt.py`, `workflow_parameter_prompts.py`, and desktop/API `parameter_input_prompt.py`)
+- Deterministic parameter/formula prompt copy (owned by `engine/messaging/formula_parameter_prompt.py` and related prompt builders: `step_prompt.py` and desktop/API `parameter_input_prompt.py`)
 - Duplicates of `build_step_prompt()`, `build_formula_parameter_prompt()`, or `build_parameter_input_prompt()` output
 - Equation bodies, LaTeX, or formula text (reference `equation_id` only)
 - Verbatim paragraph engineering text from knowledge nodes

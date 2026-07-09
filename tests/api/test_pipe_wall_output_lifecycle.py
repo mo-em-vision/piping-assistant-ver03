@@ -28,11 +28,13 @@ from tests.api.test_equation_display_trace import (
 from tests.helpers.goals import task_with_planning
 
 AWAITING = "Awaiting user input"
+EQ_2_BLOCK_ID = "equation-asme-b313-304-1-1-eq-2"
+EQ_3A_BLOCK_ID = "equation-asme-b313-304-1-2-eq-3a"
 
 
 def test_api_display_role_uses_contract_names(standards_reader) -> None:
     block = tag_display_block(
-        {"id": "equation-trace-304.1.2-a-asme-b313-304-1-2-eq-3a", "type": "equation"},
+        {"id": EQ_3A_BLOCK_ID, "type": "equation"},
         display_role=DISPLAY_ROLE_EQUATION_TRACE,
         equation_node_id=EQ_3A_ID,
         source_node_id="304.1.2-a",
@@ -60,16 +62,15 @@ def test_post_eval_pipe_wall_omits_eq3a_preview(standards_reader) -> None:
     preview_eq_ids = [
         str(block.get("equation_node_id"))
         for block in blocks
-        if block.get("internal_display_role") == DISPLAY_ROLE_PREVIEW
-        or str(block.get("id", "")).startswith("path-preview-equation-")
+        if str(block.get("id", "")).startswith("path-preview-equation-")
     ]
     assert EQ_3A_ID not in preview_eq_ids
 
     trace_blocks = [
         block
         for block in blocks
-        if block.get("internal_display_role") == DISPLAY_ROLE_EQUATION_TRACE
-        or str(block.get("id", "")).startswith("equation-trace-")
+        if str(block.get("id", "")) == EQ_3A_BLOCK_ID
+        or str(block.get("equation_node_id")) == EQ_3A_ID
     ]
     assert any(str(block.get("equation_node_id")) == EQ_3A_ID for block in trace_blocks)
 
@@ -183,14 +184,14 @@ def test_gate_phase_single_eq3a_preview_before_thickness_eval(
     preview_eq = [
         block
         for block in blocks
-        if str(block.get("display_role")) == "equation_preview"
-        or str(block.get("id", "")).startswith("path-preview-equation-")
+        if str(block.get("equation_node_id")) == EQ_3A_ID
     ]
     assert len(preview_eq) == 1
-    assert preview_eq[0].get("equation_node_id") == EQ_3A_ID
-    assert str(preview_eq[0].get("context_intro") or "").strip()
-    assert "path-preview-intro-304.1.2-a" not in block_ids
+    assert preview_eq[0].get("id") == EQ_3A_BLOCK_ID
+    assert not str(preview_eq[0].get("context_intro") or "").strip()
+    assert "paragraph-304.1.2-a" in block_ids
     assert not any(str(block.get("equation_node_id")) == EQ_2_ID for block in blocks)
     assert not any(str(block.get("id", "")).startswith("equation-trace-") for block in blocks)
+    assert not any(str(block.get("id", "")).startswith("path-preview-equation-") for block in blocks)
     assert not any(str(block.get("id", "")).startswith("node-activation-equation-") for block in blocks)
     assert state["outputs"].get("required_thickness") is None

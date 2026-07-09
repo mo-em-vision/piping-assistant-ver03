@@ -392,7 +392,9 @@ def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
     ids = [block["id"] for block in blocks]
     assert not any(block_id.startswith("path-preview-inputs-table") for block_id in ids)
 
-    equation = next(block for block in blocks if block["id"] == "path-preview-equation-304.1.2-a")
+    equation = next(
+        block for block in blocks if block["id"] == "equation-asme-b313-304-1-2-eq-3a"
+    )
     assert "variables" not in equation
     assert equation["input_table"]["columns"][0]["label"] == "Symbol"
     assert equation["input_table"]["columns"][1]["label"] == "Definition"
@@ -435,7 +437,7 @@ def test_allowable_stress_not_emitted_as_standalone_result_block(standards_reade
     equation = next(
         block
         for block in blocks
-        if block["type"] == "equation" and block["id"].startswith("path-preview-equation-")
+        if block["type"] == "equation" and block.get("equation_node_id") == "asme-b313-304-1-2-eq-3a"
     )
     stress_row = next(row for row in equation["input_table"]["rows"] if row["symbol"] == "S")
     assert stress_row["value"] == "193 MPa"

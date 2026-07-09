@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from engine.planner.engineering_plan_builder import build_pipe_wall_engineering_plan
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.plan_validation import validate_engineering_plan
 from engine.state.state_manager import TaskStateManager
 from models.engineering_plan import LEGACY_REQUIREMENT_FIELD_NAMES
 from models.task import TaskStatus
+from tests.planner.helpers import _reader
 
 _CANONICAL_REQUIREMENT_FIELDS = (
     "id",
@@ -29,42 +30,35 @@ _LEGACY_FIELDS_FORBIDDEN_ON_REQUIREMENTS = frozenset(
     }
 ) | LEGACY_REQUIREMENT_FIELD_NAMES
 
-_CONTRACT_REQUIREMENT_IDS = (
-    "REQ-straight_pipe_section",
-    "REQ-pressure_loading",
-    "REQ-internal_design_gage_pressure",
-    "REQ-diameter_resolution",
-    "REQ-material_grade",
-    "REQ-design_temperature",
-    "REQ-corrosion_allowance",
-    "REQ-pipe_construction_type",
-    "REQ-allowable_stress_lookup",
-    "REQ-metallurgical_group_lookup",
-    "REQ-temperature_coefficient_Y_lookup",
-    "REQ-weld_joint_efficiency_lookup",
-    "REQ-weld_strength_reduction_factor_W_lookup",
-    "REQ-required_wall_thickness",
-    "REQ-minimum_required_thickness_eq",
-    "REQ-calculation_report",
+from tests.planner.plan_contract import (
+    PIPE_WALL_CONTRACT_REQUIREMENT_IDS,
+    PIPE_WALL_LOOKUP_IDS,
+    REQ_MINIMUM_REQUIRED_THICKNESS_EQ,
+    REQ_REQUIRED_WALL_THICKNESS,
 )
 
 _EXPECTED_REQUIREMENT_CLASSES = {
-    "REQ-straight_pipe_section": "user_input",
-    "REQ-pressure_loading": "branch_decision",
-    "REQ-internal_design_gage_pressure": "user_input",
-    "REQ-diameter_resolution": "user_input",
-    "REQ-material_grade": "user_input",
-    "REQ-design_temperature": "user_input",
-    "REQ-corrosion_allowance": "user_input",
-    "REQ-pipe_construction_type": "user_input",
-    "REQ-allowable_stress_lookup": "table_lookup",
-    "REQ-metallurgical_group_lookup": "table_lookup",
-    "REQ-temperature_coefficient_Y_lookup": "table_lookup",
-    "REQ-weld_joint_efficiency_lookup": "table_lookup",
-    "REQ-weld_strength_reduction_factor_W_lookup": "table_lookup",
-    "REQ-required_wall_thickness": "equation_result",
-    "REQ-minimum_required_thickness_eq": "equation_result",
-    "REQ-calculation_report": "report_output",
+    req_id: (
+        "user_input"
+        if req_id
+        in {
+            "REQ-straight_pipe_section",
+            "REQ-internal_design_gage_pressure",
+            "REQ-diameter_resolution",
+            "REQ-material_grade",
+            "REQ-design_temperature",
+            "REQ-corrosion_allowance",
+            "REQ-pipe_construction_type",
+        }
+        else "branch_decision"
+        if req_id == "REQ-pressure_loading"
+        else "table_lookup"
+        if req_id in PIPE_WALL_LOOKUP_IDS
+        else "equation_result"
+        if req_id in {REQ_REQUIRED_WALL_THICKNESS, REQ_MINIMUM_REQUIRED_THICKNESS_EQ}
+        else "report_output"
+    )
+    for req_id in PIPE_WALL_CONTRACT_REQUIREMENT_IDS
 }
 
 
@@ -78,7 +72,7 @@ def _fresh_pipe_wall_task():
 
 def _fresh_plan():
     _, task = _fresh_pipe_wall_task()
-    plan = build_pipe_wall_engineering_plan(task)
+    plan = build_engineering_plan(task, _reader())
     validation = validate_engineering_plan(plan)
     assert validation.valid, validation.errors
     return plan
@@ -86,7 +80,7 @@ def _fresh_plan():
 
 def test_fresh_pipe_wall_includes_contract_requirement_ids() -> None:
     plan = _fresh_plan()
-    missing = [req_id for req_id in _CONTRACT_REQUIREMENT_IDS if req_id not in plan.requirements]
+    missing = [req_id for req_id in PIPE_WALL_CONTRACT_REQUIREMENT_IDS if req_id not in plan.requirements]
     assert not missing, f"missing contract requirements: {missing}"
 
 

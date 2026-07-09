@@ -25,7 +25,7 @@ def test_enrich_display_output_uses_equation_node_id_chip(reader: StandardsReade
 
     eq2 = enrich_display_output_dict(
         {
-            "id": "path-preview-equation-304.1.1-a",
+            "id": "equation-asme-b313-304-1-1-eq-2",
             "type": "equation",
             "equation_node_id": "asme-b313-304-1-1-eq-2",
             "nomenclature_reference": {"node_id": "304.1.2-a", "label": "§304.1.2"},
@@ -34,7 +34,7 @@ def test_enrich_display_output_uses_equation_node_id_chip(reader: StandardsReade
     )
     eq3a = enrich_display_output_dict(
         {
-            "id": "path-preview-equation-304.1.2-a",
+            "id": "equation-asme-b313-304-1-2-eq-3a",
             "type": "equation",
             "equation_node_id": "asme-b313-304-1-2-eq-3a",
             "nomenclature_reference": {"node_id": "304.1.1-a", "label": "§304.1.1"},

@@ -19,7 +19,7 @@ from tests.graph.conftest import MAWP_ROOT, mawp_gate_open_inputs
     ).exists(),
     reason="ASME B31.3 pack required",
 )
-def test_mawp_engineering_plan_returns_none(project_root: Path) -> None:
+def test_mawp_engineering_plan_builds_generically(project_root: Path) -> None:
     reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
     manager = TaskStateManager()
     task = manager.create_task("mawp-plan-test")
@@ -28,7 +28,12 @@ def test_mawp_engineering_plan_returns_none(project_root: Path) -> None:
         manager.store_input(task.task_id, fact)
 
     plan = build_engineering_plan(task, reader)
-    assert plan is None
+    assert plan is not None
+    assert plan.workflow_id == MAWP_ROOT
+    assert plan.root_goal.target_field == "mawp"
+    assert plan.requirements
+    assert plan.traversal is not None
+    assert plan.traversal.current_active_node_id is not None
 
 
 @pytest.mark.skipif(

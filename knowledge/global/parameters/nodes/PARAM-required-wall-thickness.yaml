@@ -6,7 +6,9 @@ name: Pressure Design Thickness
 parameter_class: calculated_quantity
 dimension: DIM-length
 description: >
-  pressure design thickness
+  Pressure design thickness t calculated from the governing pressure design
+  equation before adding mechanical allowances. This is the thickness required
+  to withstand internal or external pressure per ASME B31.3 §304.1.2.
 canonical_symbol: t
 aliases:
   - pressure design thickness

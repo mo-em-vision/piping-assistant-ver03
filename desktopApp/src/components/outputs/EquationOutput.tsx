@@ -60,28 +60,20 @@ function renderRowReferenceChips(chips?: ReferenceChipDto[]) {
   return <ReferenceChipList chips={chips} className="reference-chip-list--inline" />
 }
 
-function renderDefinedInReference(reference: ReferenceLinkDto) {
-  return (
-    <span className="output-equation__value-defined-in">
-      defined in {renderReferenceLink(reference)}
-    </span>
-  )
+function primaryChip(chips?: ReferenceChipDto[]): ReferenceChipDto | undefined {
+  return chips?.[0]
 }
 
 function renderProvenanceTrail(provenance: ValueProvenanceDto, row: EquationInputTableRowDto) {
-  const reference = row.value_reference
-  if (provenance.source_type === 'equation_output' && reference) {
-    return renderDefinedInReference(reference)
-  }
-
   const chips = provenanceChips(row)
+  const chip = primaryChip(chips)
   return (
     <span className="output-equation__value-provenance">
       <span className="output-equation__value-provenance-label">{provenance.label}</span>
-      {chips?.length ? (
+      {chip ? (
         <>
           {' '}
-          {renderRowReferenceChips(chips)}
+          {renderRowReferenceChips([chip])}
         </>
       ) : null}
       {provenance.detail ? (
@@ -141,8 +133,7 @@ function renderValueCell(row: EquationInputTableRowDto) {
           {renderInputTableCell('value', value)}
           <span className="output-equation__value-provenance">
             {' '}
-            derived from{' '}
-            {chips?.length ? renderRowReferenceChips(chips) : reference ? renderReferenceLink(reference) : null}
+            derived from {renderValueReference(row)}
           </span>
         </span>
       )
@@ -155,26 +146,13 @@ function renderValueCell(row: EquationInputTableRowDto) {
 
   const hasResolvedValue = Boolean(value && value !== AWAITING_USER_INPUT)
 
-  if (hasResolvedValue && reference) {
+  if (hasResolvedValue && (reference || chips?.length)) {
     return (
       <span className="output-equation__value-cell">
         {renderInputTableCell('value', value)}
         <span className="output-equation__value-provenance">
           {' '}
-          derived from{' '}
-          {chips?.length ? renderRowReferenceChips(chips) : renderReferenceLink(reference)}
-        </span>
-      </span>
-    )
-  }
-
-  if (hasResolvedValue && chips?.length) {
-    return (
-      <span className="output-equation__value-cell">
-        {renderInputTableCell('value', value)}
-        <span className="output-equation__value-provenance">
-          {' '}
-          derived from {renderRowReferenceChips(chips)}
+          derived from {renderValueReference(row)}
         </span>
       </span>
     )
@@ -184,10 +162,10 @@ function renderValueCell(row: EquationInputTableRowDto) {
     return renderInputTableCell('value', value)
   }
 
-  if (reference) {
+  if (reference || chips?.length) {
     return (
       <span className="output-equation__value-cell">
-        {renderDefinedInReference(reference)}
+        {renderValueReference(row)}
       </span>
     )
   }
@@ -204,9 +182,22 @@ function renderDefinitionCell(row: EquationInputTableRowDto) {
 
   return (
     <span className="output-equation__definition-cell">
-      <EngineeringMathText text={definition} /> (as defined in {renderReferenceLink(reference)})
+      <EngineeringMathText text={definition} /> — {renderReferenceLink(reference)}
     </span>
   )
+}
+
+function renderValueReference(row: EquationInputTableRowDto) {
+  const chips = provenanceChips(row)
+  const chip = primaryChip(chips)
+  if (chip) {
+    return renderRowReferenceChips([chip])
+  }
+  const reference = row.value_reference
+  if (reference) {
+    return renderReferenceLink(reference)
+  }
+  return null
 }
 
 function mathExpressionsForBlock(block: EquationOutputBlock): string[] {

@@ -5,9 +5,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
 from engine.graph.assumption_checker import field_value
+from engine.graph.lookup_parameter_resolution import (
+    param_node_id_for_fact_key,
+    parameter_resolution_for_parameter,
+    prerequisite_input_keys,
+)
 from engine.graph.node_interaction import find_interaction, load_node_interactions, question_for_interaction
+from engine.messaging.parameter_prompt_context import (
+    composer_option_label,
+    parameter_metadata_context,
+)
 from engine.messaging.prompt_format import format_parameter_block, format_reply_hint
 from engine.reference.formula_display import load_equation_context
 from engine.reference.nomenclature_resolver import (
@@ -18,6 +26,13 @@ from engine.reference.nomenclature_resolver import (
     load_nomenclature_for_node,
     spec_symbol,
 )
+from engine.reference.parameter_display_value import (
+    format_scalar_display,
+    is_known_fact,
+    resolve_parameter_display_value,
+)
+from engine.reference.parameter_keys import canonical_parameter_key, param_node_id_for_input, read_parameter_value
+from engine.reference.parameter_value_source import resolve_parameter_value_reference
 from engine.reference.standards_reader import StandardsReader
 from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready, fact_scalar_value, fact_unit
 from models.planning import NavigationPhase, NavigationPlan
@@ -30,17 +45,6 @@ _CALCULATION_PHASES = frozenset(
         NavigationPhase.EXECUTION_ASSUMPTIONS,
     }
 )
-
-_FALLBACK_SYMBOL_MAP: dict[str, str] = {
-    "P": "internal_design_gage_pressure",
-    "D": "outside_diameter",
-    "NPS": "nominal_pipe_size",
-    "S": "allowable_stress",
-    "E": "weld_joint_efficiency",
-    "W": "weld_joint_strength_reduction_factor_W",
-    "Y": "temperature_coefficient_Y",
-    "c": "corrosion_allowance",
-}
 
 
 @dataclass(frozen=True)
@@ -65,6 +69,7 @@ def resolve_focus_calculation_node(
     task_inputs: dict[str, Fact] | None = None,
 ) -> str | None:
     """Return the calculation node that should drive the formula prompt."""
+    _ = task_inputs
     if navigation_plan is None:
         return None
 
@@ -79,13 +84,6 @@ def resolve_focus_calculation_node(
         record = reader.load(node_id)
         if str(record.metadata.get("type", "")) == "calculation":
             return record.node_id
-
-    inputs = task_inputs or {}
-    loading = field_value("pressure_loading", inputs)
-    if loading == "internal_pressure":
-        return "304.1.2-a"
-    if loading == "external_pressure":
-        return "B313-304.1.3"
     return None
 
 
@@ -96,7 +94,7 @@ def build_symbol_map(
     parameter_registry: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     """Map formula symbols to input_id for symbol-labeled user input."""
-    symbol_map: dict[str, str] = dict(_FALLBACK_SYMBOL_MAP)
+    symbol_map: dict[str, str] = {}
     if parameter_registry:
         for input_id, descriptor in parameter_registry.items():
             symbol = getattr(descriptor, "symbol", None) or (
@@ -137,6 +135,8 @@ def build_formula_parameter_prompt(
         task_inputs=task.fact_store.active_facts(),
     )
     if node_id is None:
+        node_id = focus_node_for_parameter(reader, task, dict(task.fact_store.active_facts()))
+    if node_id is None:
         return None
 
     eq_ctx = load_equation_context(
@@ -154,18 +154,17 @@ def build_formula_parameter_prompt(
         task_inputs=task.fact_store.active_facts(),
         missing_input_ids=missing_input_ids or [],
         navigation_plan=navigation_plan,
+        task=task,
     )
     if not missing:
         return None
 
-    context = summarize_path_context(dict(task.fact_store.active_facts()), navigation_plan)
+    context = summarize_path_context(reader, dict(task.fact_store.active_facts()))
     purpose = _purpose_line(eq_ctx)
     lines: list[str] = []
 
     if context:
-        lines.append(
-            f"Based on your inputs — {context} — {purpose}"
-        )
+        lines.append(f"Based on your inputs — {context} — {purpose}")
     else:
         lines.append(purpose)
 
@@ -202,9 +201,13 @@ def build_formula_parameter_prompt(
         lines.append("")
     lines.append("Please provide or confirm all missing parameters.")
     lines.append("You may reply with symbol-labeled values, for example:")
-    lines.append("  P: 8 bar")
-    lines.append("  D: 4 inch")
-    lines.append("  NPS: 10")
+    for param in missing[:3]:
+        metadata_ctx = parameter_metadata_context(reader, _param_key_for_symbol(param.symbol, reader, node_id))
+        example = metadata_ctx.input_examples[0] if metadata_ctx and metadata_ctx.input_examples else None
+        if example:
+            lines.append(f"  {param.symbol}: {example}")
+        else:
+            lines.append(f"  {param.symbol}: …")
     if any(param.options for param in missing):
         lines.append(format_reply_hint(2, examples=("1", "confirm")))
     return "\n".join(lines)
@@ -217,6 +220,7 @@ def classify_formula_parameters(
     task_inputs: dict[str, Fact],
     missing_input_ids: list[str],
     navigation_plan: NavigationPlan | None = None,
+    task: Task | None = None,
 ) -> tuple[list[KnownParam], list[MissingParam]]:
     """Classify equation variables as known or missing for prompt display."""
     record = reader.load(node_id)
@@ -229,7 +233,7 @@ def classify_formula_parameters(
     )
     variable_order = list(eq_ctx.get("variables") or [])
     if not variable_order:
-        variable_order = ["P", "D", "S", "E", "W", "Y"]
+        return [], []
 
     phase_missing = set(missing_input_ids)
     if navigation_plan and navigation_plan.phase_missing:
@@ -246,123 +250,175 @@ def classify_formula_parameters(
             continue
         seen_symbols.add(symbol)
         input_spec = _input_spec_for_symbol(record.metadata, symbol)
-        if symbol != "D" and symbol != "S" and input_spec and not input_applies(input_spec, task_inputs):
+        if input_spec and not input_applies(input_spec, task_inputs):
             continue
 
         entry = entry_for_symbol(nomenclature, symbol=symbol)
-        description = _description_for(symbol, input_spec, entry)
+        description = _description_for(reader, symbol, input_spec, entry)
         input_id = _input_id_for(symbol, input_spec, entry)
 
-        known_value = _resolve_known_display(
-            reader,
-            symbol=symbol,
-            input_id=input_id,
-            task_inputs=task_inputs,
-            input_spec=input_spec,
-        )
+        known_value = resolve_parameter_display_value(reader, input_id, task_inputs)
         if known_value is not None:
             known.append(KnownParam(symbol=symbol, description=description, display_value=known_value))
             continue
 
-        if _is_missing(symbol, input_id, input_spec, task_inputs, phase_missing):
-            if symbol in _LOOKUP_DERIVED_SYMBOLS and input_id not in phase_missing:
-                if _lookup_keys_missing(symbol, task_inputs):
-                    continue
-            guidance = _missing_guidance(
-                reader,
+        if not _is_missing(reader, input_id, input_spec, task_inputs, phase_missing):
+            continue
+
+        if _lookup_prerequisites_missing(reader, input_id, task_inputs) and input_id not in phase_missing:
+            continue
+
+        guidance = _missing_guidance(
+            reader,
+            task=task,
+            symbol=symbol,
+            input_id=input_id,
+            input_spec=input_spec,
+            entry=entry,
+            task_inputs=task_inputs,
+        )
+        options = _options_for_parameter(
+            reader=reader,
+            input_id=input_id,
+            task_inputs=task_inputs,
+            input_spec=input_spec,
+            interaction_specs=interaction_specs,
+            symbol=symbol,
+        )
+        missing.append(
+            MissingParam(
                 symbol=symbol,
-                input_id=input_id,
-                input_spec=input_spec,
-                entry=entry,
-                task_inputs=task_inputs,
-                record_metadata=record.metadata,
+                description=description,
+                guidance=guidance,
+                options=options,
             )
-            options = _options_for_parameter(
-                symbol=symbol,
-                input_id=input_id,
-                task_inputs=task_inputs,
-                input_spec=input_spec,
-                interaction_specs=interaction_specs,
-            )
-            missing.append(
-                MissingParam(
-                    symbol=symbol,
-                    description=description,
-                    guidance=guidance,
-                    options=options,
-                )
-            )
+        )
 
     return known, missing
 
 
 def summarize_path_context(
+    reader: StandardsReader,
     task_inputs: dict[str, Fact],
-    navigation_plan: NavigationPlan | None,
 ) -> str:
-    """Summarize confirmed decisions and inputs that led to the calculation node."""
+    """Summarize confirmed inputs using PARAM labels and composer option text."""
     fragments: list[str] = []
-
-    if task_inputs.get("straight_pipe_section") and _input_has_value(
-        task_inputs["straight_pipe_section"]
-    ):
-        val = fact_scalar_value(task_inputs["straight_pipe_section"])
-        if val is True:
-            fragments.append("straight pipe section")
-
-    loading = field_value("pressure_loading", task_inputs)
-    if loading == "internal_pressure":
-        fragments.append("internal pressure loading")
-    elif loading == "external_pressure":
-        fragments.append("external pressure loading")
-
-    for input_id, label in (
-        ("internal_design_gage_pressure", None),
-        ("material", None),
-        ("design_temperature", None),
-        ("nominal_pipe_size", "NPS"),
-        ("outside_diameter", None),
-    ):
-        from engine.reference.parameter_keys import read_parameter_value
-
-        inp = read_parameter_value(task_inputs, input_id)
-        if inp is None or not _input_has_value(inp):
+    for key, inp in task_inputs.items():
+        if not _input_has_value(inp):
             continue
         if inp.requires_confirmation and not fact_is_expansion_ready(inp):
             continue
-        if label:
-            fragments.append(f"{label} {fact_scalar_value(inp)}")
-        elif input_id == "internal_design_gage_pressure":
+        canonical = canonical_parameter_key(key)
+        metadata_ctx = parameter_metadata_context(reader, canonical)
+        label = metadata_ctx.name if metadata_ctx and metadata_ctx.name else canonical.replace("_", " ")
+        value = fact_scalar_value(inp)
+        if value is None:
+            continue
+        if isinstance(value, bool) and metadata_ctx:
+            fragments.append(composer_option_label(metadata_ctx, str(value).lower()))
+            continue
+        if metadata_ctx and metadata_ctx.composer_options:
+            fragments.append(composer_option_label(metadata_ctx, str(value)))
+            continue
+        display = resolve_parameter_display_value(reader, canonical, task_inputs)
+        if display:
+            fragments.append(f"{label} {display}")
+        else:
             unit = inp.original_unit or fact_unit(inp)
-            fragments.append(
-                f"internal design gage pressure {_format_scalar(fact_scalar_value(inp))} {unit}"
-            )
-        elif input_id == "design_temperature":
-            unit = inp.original_unit or fact_unit(inp)
-            fragments.append(f"design temperature {fact_scalar_value(inp)} {unit}")
-        elif input_id == "material":
-            fragments.append(f"material {fact_scalar_value(inp)}")
-        elif input_id == "outside_diameter":
-            unit = inp.original_unit or fact_unit(inp)
-            fragments.append(f"outside diameter {fact_scalar_value(inp)} {unit}")
-
-    if navigation_plan and navigation_plan.path_decision:
-        node = navigation_plan.path_decision.get("selected_node", "")
-        if node == "304.1.2-a" and "internal pressure" not in " ".join(fragments):
-            fragments.append("§304.1.2 internal pressure design")
-
+            if unit and unit != "dimensionless":
+                fragments.append(f"{label} {format_scalar_display(value)} {unit}")
+            else:
+                fragments.append(f"{label} {format_scalar_display(value)}")
     return ", ".join(fragments)
+
+
+def focus_node_for_parameter(
+    reader: StandardsReader,
+    task: Task,
+    facts: dict[str, Fact],
+) -> str | None:
+    active_definition = task.outputs.get("active_definition_node")
+    if active_definition:
+        return str(active_definition)
+
+    selected = task.outputs.get("selected_nodes")
+    if isinstance(selected, list):
+        for node_id in selected:
+            try:
+                if str(reader.load(str(node_id)).metadata.get("type", "")) == "calculation":
+                    return str(node_id)
+            except FileNotFoundError:
+                continue
+
+    planning = task.outputs.get("engineering_plan") or task.outputs.get("navigation_plan")
+    if isinstance(planning, dict):
+        path = planning.get("path_decision") or {}
+        if isinstance(path, dict) and path.get("selected_node"):
+            return str(path["selected_node"])
+        selected_nodes = planning.get("selected_nodes") or []
+        for node_id in selected_nodes:
+            try:
+                if str(reader.load(str(node_id)).metadata.get("type", "")) == "calculation":
+                    return str(node_id)
+            except FileNotFoundError:
+                continue
+
+    _ = facts
+    return None
+
+
+def guidance_for_parameter_input(
+    reader: StandardsReader,
+    task: Task,
+    parameter_id: str,
+) -> str | None:
+    """Return equation/lookup guidance for a missing calculation parameter."""
+    facts = dict(task.fact_store.active_facts())
+    node_id = focus_node_for_parameter(reader, task, facts)
+    if node_id is None:
+        return None
+
+    record = reader.load(node_id)
+    nomenclature = load_nomenclature_for_node(reader, record.metadata)
+    interaction_specs = load_node_interactions(record, reader)
+    eq_ctx = load_equation_context(
+        reader,
+        node_id,
+        task_facts=facts,
+    )
+    variable_order = list(eq_ctx.get("variables") or [])
+
+    for symbol in variable_order:
+        input_spec = _input_spec_for_symbol(record.metadata, symbol)
+        if input_spec and not input_applies(input_spec, facts):
+            continue
+        entry = entry_for_symbol(nomenclature, symbol=symbol)
+        input_id = _input_id_for(symbol, input_spec, entry)
+        if canonical_parameter_key(input_id) != canonical_parameter_key(parameter_id):
+            continue
+        guidance = _missing_guidance(
+            reader,
+            task=task,
+            symbol=symbol,
+            input_id=input_id,
+            input_spec=input_spec,
+            entry=entry,
+            task_inputs=facts,
+        )
+        display = eq_ctx.get("display")
+        if isinstance(display, str) and display.strip():
+            return f"Used in the governing equation: {display.strip()}\n\n{guidance}"
+        return guidance
+
+    spec = find_interaction(interaction_specs, parameter_id)
+    if spec is not None:
+        return question_for_interaction(spec, facts)
+    return None
 
 
 def _purpose_line(eq_ctx: dict[str, Any]) -> str:
     purpose = str(eq_ctx.get("purpose", "")).strip()
     title = str(eq_ctx.get("title", "")).strip()
-    combined = f"{purpose} {title}".lower()
-    if "wall thickness" in combined and "internal" in combined:
-        return (
-            "the following formula will be evaluated which will calculate "
-            "the minimum pipe wall thickness (internally pressurized)."
-        )
     if purpose:
         cleaned = purpose.rstrip(".")
         if cleaned.lower().startswith("calculate "):
@@ -393,14 +449,26 @@ def _input_id_for(
         return str(input_spec["id"])
     if entry and entry.input_id:
         return entry.input_id
-    return _FALLBACK_SYMBOL_MAP.get(symbol, symbol.lower())
+    return symbol.lower()
+
+
+def _param_key_for_symbol(symbol: str, reader: StandardsReader, node_id: str) -> str:
+    record = reader.load(node_id)
+    input_spec = _input_spec_for_symbol(record.metadata, symbol)
+    entry = entry_for_symbol(load_nomenclature_for_node(reader, record.metadata), symbol=symbol)
+    return _input_id_for(symbol, input_spec, entry)
 
 
 def _description_for(
+    reader: StandardsReader,
     symbol: str,
     input_spec: dict[str, Any] | None,
     entry: NomenclatureEntry | None,
 ) -> str:
+    input_id = _input_id_for(symbol, input_spec, entry)
+    metadata_ctx = parameter_metadata_context(reader, input_id)
+    if metadata_ctx and metadata_ctx.description:
+        return metadata_ctx.description.strip().rstrip(".")
     if input_spec and input_spec.get("description"):
         return str(input_spec["description"]).strip().rstrip(".")
     if entry and entry.description:
@@ -414,181 +482,70 @@ def _input_has_value(inp: Fact) -> bool:
     return fact_scalar_value(inp) is not None
 
 
-def _is_known_input(inp: Fact) -> bool:
-    if inp.requires_confirmation and inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
-        return False
-    if inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
-        return False
-    return fact_scalar_value(inp) is not None
-
-
-def _resolve_known_display(
+def _lookup_prerequisites_missing(
     reader: StandardsReader,
-    *,
-    symbol: str,
     input_id: str,
     task_inputs: dict[str, Fact],
-    input_spec: dict[str, Any] | None,
-) -> str | None:
-    if symbol == "D":
-        return _resolve_d_display(reader, task_inputs)
-    if symbol == "S":
-        return _resolve_s_display(task_inputs)
-
-    inp = task_inputs.get(input_id)
-    if inp is not None and _is_known_input(inp):
-        unit = inp.original_unit or fact_unit(inp)
-        if unit and unit != "dimensionless":
-            return f"{_format_scalar(fact_scalar_value(inp))} {unit}"
-        return _format_scalar(fact_scalar_value(inp))
-    return None
-
-
-def _format_scalar(value: Any) -> str:
-    if isinstance(value, float) and value == int(value):
-        return str(int(value))
-    return str(value)
-
-
-def _resolve_d_display(
-    reader: StandardsReader,
-    task_inputs: dict[str, Fact],
-) -> str | None:
-    mode = field_value("d_input_mode", task_inputs) or "nps_lookup"
-    od = task_inputs.get("outside_diameter")
-    if od is not None and _is_known_input(od):
-        unit = od.original_unit or fact_unit(od)
-        return f"{_format_scalar(fact_scalar_value(od))} {unit}"
-
-    if mode == "nps_lookup":
-        nps = task_inputs.get("nominal_pipe_size")
-        if nps is not None and _is_known_input(nps):
-            try:
-                lookup = PipeDimensionLookup(reader.standards_root)
-                result = lookup.lookup(str(fact_scalar_value(nps)))
-                return f"{result.outside_diameter_mm} mm (NPS {fact_scalar_value(nps)}, ASME B36.10)"
-            except (ValueError, FileNotFoundError):
-                return f"NPS {fact_scalar_value(nps)} (lookup pending)"
-    return None
-
-
-def _resolve_s_display(task_inputs: dict[str, Fact]) -> str | None:
-    s_inp = task_inputs.get("allowable_stress")
-    if s_inp is not None and _is_known_input(s_inp):
-        unit = s_inp.original_unit or fact_unit(s_inp)
-        return f"{_format_scalar(fact_scalar_value(s_inp))} {unit}"
-    return None
-
-
-_LOOKUP_DERIVED_SYMBOLS = frozenset({"S", "E", "W", "Y"})
-
-
-def _lookup_keys_missing(symbol: str, task_inputs: dict[str, Fact]) -> bool:
-    """Return True when prerequisite lookup keys for a derived symbol are still absent."""
-    from engine.reference.parameter_keys import read_parameter_value
-
-    if symbol == "S":
-        material = read_parameter_value(task_inputs, "material_grade")
-        temperature = read_parameter_value(task_inputs, "design_temperature")
-        return material is None or temperature is None
-    if symbol == "E":
-        return read_parameter_value(task_inputs, "pipe_construction_type") is None
-    if symbol == "W":
-        return (
-            read_parameter_value(task_inputs, "material_grade") is None
-            or read_parameter_value(task_inputs, "design_temperature") is None
-            or read_parameter_value(task_inputs, "pipe_construction_type") is None
-        )
-    if symbol == "Y":
-        return read_parameter_value(task_inputs, "design_temperature") is None
+) -> bool:
+    store = reader.graph_store
+    if not store.available:
+        return False
+    param_node_id = param_node_id_for_fact_key(store, input_id)
+    if param_node_id is None:
+        return False
+    resolution = parameter_resolution_for_parameter(store, param_node_id)
+    if not isinstance(resolution, dict) or resolution.get("method") != "table_lookup":
+        return False
+    for key in prerequisite_input_keys(store, input_id):
+        if read_parameter_value(task_inputs, key) is None:
+            return True
     return False
 
 
 def _is_missing(
-    symbol: str,
+    reader: StandardsReader,
     input_id: str,
     input_spec: dict[str, Any] | None,
     task_inputs: dict[str, Fact],
     phase_missing: set[str],
 ) -> bool:
-    if symbol == "D":
-        mode = field_value("d_input_mode", task_inputs)
-        if mode == "direct_od":
-            return "outside_diameter" in phase_missing or "outside_diameter" not in task_inputs
-        if task_inputs.get("outside_diameter") and _is_known_input(task_inputs["outside_diameter"]):
-            return False
-        return (
-            "nominal_pipe_size" in phase_missing
-            or "outside_diameter" in phase_missing
-            or (
-                "nominal_pipe_size" not in task_inputs
-                and "outside_diameter" not in task_inputs
-            )
-            or (
-                task_inputs.get("nominal_pipe_size")
-                and not _is_known_input(task_inputs["nominal_pipe_size"])
-            )
-        )
+    if resolve_parameter_display_value(reader, input_id, task_inputs) is not None:
+        return False
 
-    if symbol == "S":
-        if _resolve_s_display(task_inputs) is not None:
-            return False
-        from engine.reference.parameter_keys import read_parameter_value
-
-        material = read_parameter_value(task_inputs, "material_grade")
-        temperature = read_parameter_value(task_inputs, "design_temperature")
-        return (
-            material is None
-            or temperature is None
-            or input_id in phase_missing
-        )
-
-    inp = task_inputs.get(input_id)
-    if inp is not None and _is_known_input(inp):
+    inp = read_parameter_value(task_inputs, input_id)
+    if inp is not None and is_known_fact(inp):
         return False
     if inp is not None and inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
         return True
-    return input_id in phase_missing or inp is None
+    if canonical_parameter_key(input_id) in {canonical_parameter_key(item) for item in phase_missing}:
+        return True
+    if input_id in phase_missing:
+        return True
+    if inp is None:
+        return True
+    return False
 
 
 def _missing_guidance(
     reader: StandardsReader,
     *,
+    task: Task | None,
     symbol: str,
     input_id: str,
     input_spec: dict[str, Any] | None,
     entry: NomenclatureEntry | None,
     task_inputs: dict[str, Fact],
-    record_metadata: dict[str, Any],
 ) -> str:
-    if symbol == "D":
-        mode = field_value("d_input_mode", task_inputs)
-        if mode == "direct_od":
-            return (
-                "enter the outside diameter of the pipe directly (mm or in), "
-                "e.g. D: 4 inch"
-            )
-        return (
-            "requires NPS for lookup value from dimensions in ASME B36.10 "
-            "or specify the outside diameter directly (e.g. D: 4 inch or NPS: 10)"
-        )
+    metadata_ctx = parameter_metadata_context(reader, input_id)
 
-    if symbol == "S":
-        parts = ["looked up from Table A-1 at design metal temperature"]
-        if "material" not in task_inputs:
-            parts.append("requires material specification")
-        if "design_temperature" not in task_inputs:
-            parts.append("requires design temperature")
-        return ". ".join(parts) + "."
-
-    if inp := task_inputs.get(input_id):
-        if inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
-            default_val = inp.default if inp.default is not None else fact_scalar_value(inp)
-            condition = inp.default_condition or ""
-            base = f"default is {default_val}"
-            if condition:
-                base += f" when {condition}"
-            return f"{base}. Confirm or enter another value (e.g. {symbol}: {default_val})."
+    inp = read_parameter_value(task_inputs, input_id)
+    if inp is not None and inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
+        default_val = inp.default if inp.default is not None else fact_scalar_value(inp)
+        condition = inp.default_condition or ""
+        base = f"default is {default_val}"
+        if condition:
+            base += f" when {condition}"
+        return f"{base}. Confirm or enter another value (e.g. {symbol}: {default_val})."
 
     if input_spec:
         source = str(input_spec.get("source", ""))
@@ -605,53 +562,54 @@ def _missing_guidance(
             text = refs or str(input_spec.get("description", ""))
             if default is not None:
                 text += f"; default {symbol} = {default}"
-            if symbol == "Y" and "design_temperature" not in task_inputs:
-                text += "; provide design temperature for Table 304.1.1-1 lookup"
             if requires_conf:
                 text += f". Confirm or enter a value (e.g. {symbol}: {default})."
             return text.rstrip(".") + "."
 
-    if symbol == "E":
-        return (
-            "quality factor from Tables A-2 and A-3. "
-            "Provide pipe construction type and material grade for table lookup."
-        )
-    if symbol == "W":
-        return (
-            "weld strength reduction factor from Table 302.3.5-1 per §302.3.5-e; "
-            "resolved from material, design temperature, and pipe construction type."
-        )
-    if symbol == "Y":
-        return (
-            "coefficient from Table 304.1.1-1 (interpolate for intermediate temperatures); "
-            "default Y = 0.4 for thin-wall — confirm or provide design temperature for lookup."
-        )
+    missing_keys = []
+    store = reader.graph_store
+    if store.available:
+        for key in prerequisite_input_keys(store, input_id):
+            if read_parameter_value(task_inputs, key) is None:
+                key_ctx = parameter_metadata_context(reader, key)
+                missing_keys.append(key_ctx.name if key_ctx and key_ctx.name else key.replace("_", " "))
+
+    if task is not None:
+        param_node_id = param_node_id_for_input(canonical_parameter_key(input_id))
+        value_ref = resolve_parameter_value_reference(reader, param_node_id, task)
+        if value_ref and value_ref.get("label"):
+            text = f"Resolved from {value_ref['label']}"
+            if missing_keys:
+                text += f"; requires {', '.join(missing_keys)}"
+            return text + "."
+
+    if metadata_ctx and metadata_ctx.description:
+        text = metadata_ctx.description.strip().rstrip(".")
+        if missing_keys:
+            text += f"; requires {', '.join(missing_keys)}"
+        return text + "."
+
+    if missing_keys:
+        return f"provide {', '.join(missing_keys)} to resolve {symbol}."
 
     return f"provide {symbol} or confirm the proposed default."
 
 
 def _options_for_parameter(
     *,
-    symbol: str,
+    reader: StandardsReader,
     input_id: str,
     task_inputs: dict[str, Fact],
     input_spec: dict[str, Any] | None,
     interaction_specs: list,
+    symbol: str,
 ) -> tuple[str, ...]:
-    """Return numbered choices when the missing input has a finite option set."""
+    metadata_ctx = parameter_metadata_context(reader, input_id)
     spec = find_interaction(interaction_specs, input_id)
     if spec is not None and spec.mode.value == "decision" and spec.options:
-        return tuple(_decision_option_label(value) for value in spec.options)
+        return tuple(composer_option_label(metadata_ctx, value) for value in spec.options)
 
-    if symbol == "D":
-        mode = field_value("d_input_mode", task_inputs)
-        if mode is None:
-            return (
-                "Nominal pipe size (NPS) — look up outside diameter per ASME B36.10",
-                "Outside diameter — enter D directly (mm or in)",
-            )
-
-    inp = task_inputs.get(input_id)
+    inp = read_parameter_value(task_inputs, input_id)
     default_val: Any | None = None
     if inp is not None and inp.fact_class == FactClass.DEFAULT_CONFIRMED and inp.validation.status == ValidationStatus.PENDING:
         default_val = inp.default if inp.default is not None else fact_scalar_value(inp)
@@ -671,22 +629,6 @@ def _options_for_parameter(
     return ()
 
 
-def _decision_option_label(value: str) -> str:
-    if value == "nps_lookup":
-        return "Nominal pipe size (NPS) — look up outside diameter per ASME B36.10"
-    if value == "direct_od":
-        return "Outside diameter — enter D directly (mm or in)"
-    if value == "seamless":
-        return "Seamless pipe (default)"
-    if value == "erw":
-        return "Electric-resistance welded (ERW)"
-    if value == "furnace_butt_welded":
-        return "Furnace butt-welded"
-    if value == "forging":
-        return "Forging"
-    return str(value).replace("_", " ").title()
-
-
 def _reference_hint(entry: NomenclatureEntry | None) -> str:
     if entry is None:
         return ""
@@ -701,78 +643,5 @@ def _reference_hint(entry: NomenclatureEntry | None) -> str:
     return entry.description.strip().rstrip(".")
 
 
-def guidance_for_parameter_input(
-    reader: StandardsReader,
-    task: Task,
-    parameter_id: str,
-) -> str | None:
-    """Return equation/lookup guidance for a missing calculation parameter."""
-    facts = dict(task.fact_store.active_facts())
-    node_id = _focus_node_for_parameter(reader, task, facts)
-    if node_id is None:
-        return None
-
-    record = reader.load(node_id)
-    nomenclature = load_nomenclature_for_node(reader, record.metadata)
-    interaction_specs = load_node_interactions(record, reader)
-    eq_ctx = load_equation_context(
-        reader,
-        node_id,
-        task_facts=facts,
-    )
-    variable_order = list(eq_ctx.get("variables") or [])
-
-    for symbol in variable_order:
-        input_spec = _input_spec_for_symbol(record.metadata, symbol)
-        if symbol not in {"D", "S"} and input_spec and not input_applies(input_spec, facts):
-            continue
-        entry = entry_for_symbol(nomenclature, symbol=symbol)
-        input_id = _input_id_for(symbol, input_spec, entry)
-        if input_id != parameter_id:
-            continue
-        guidance = _missing_guidance(
-            reader,
-            symbol=symbol,
-            input_id=input_id,
-            input_spec=input_spec,
-            entry=entry,
-            task_inputs=facts,
-            record_metadata=record.metadata,
-        )
-        display = eq_ctx.get("display")
-        if isinstance(display, str) and display.strip():
-            return (
-                f"Used in the governing equation: {display.strip()}\n\n{guidance}"
-            )
-        return guidance
-
-    spec = find_interaction(interaction_specs, parameter_id)
-    if spec is not None:
-        return question_for_interaction(spec, facts)
-    return None
-
-
-def _focus_node_for_parameter(
-    reader: StandardsReader,
-    task: Task,
-    facts: dict[str, Fact],
-) -> str | None:
-    active_definition = task.outputs.get("active_definition_node")
-    if active_definition:
-        return str(active_definition)
-
-    selected = task.outputs.get("selected_nodes")
-    if isinstance(selected, list):
-        for node_id in selected:
-            try:
-                if str(reader.load(str(node_id)).metadata.get("type", "")) == "calculation":
-                    return str(node_id)
-            except FileNotFoundError:
-                continue
-
-    loading = field_value("pressure_loading", facts)
-    if loading == "internal_pressure":
-        return "304.1.2-a"
-    if loading == "external_pressure":
-        return "B313-304.1.3"
-    return None
+# Backward-compatible alias used by parameter_input_prompt
+_focus_node_for_parameter = focus_node_for_parameter

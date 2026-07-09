@@ -153,88 +153,36 @@ export type PlannerInspectorSummaryDto = {
 }
 
 /**
- * Preferred UI contract for Dev Mode Planner tab.
+ * Minimal UI contract for Dev Mode Planner / Debugger tab.
  * Read-only developer projection — do not use for behavioral logic.
  */
-export type PlannerDebugProjectionDto = {
-  workflow_title: string | null
-  workflow_slug: string
-  planner_confidence: number | null
-  planner_reason: string | null
-  current_step: {
-    phase: string
-    phase_label: string
-    status_badge: string
+export type PlannerDebugNodeRefDto = {
+  node_id: string
+  node_type: string
+  display_name: string
+}
+
+export type PlannerDebugNodeItemDto = PlannerDebugNodeRefDto & {
+  status_reason?: string
+}
+
+export type PlannerDebugViewDto = {
+  current_node: PlannerDebugNodeRefDto | null
+  next_queued_node: PlannerDebugNodeRefDto | null
+  goals: {
+    main_goal: string
+    subgoals: string[]
   }
-  active_node: {
-    node_id: string
-    title: string | null
-    node_type: string | null
-    why_active: string | null
-  } | null
-  visited_timeline: Array<{
-    node_id: string
-    title?: string | null
-    node_type?: string | null
-    why_visited?: string | null
-    status: 'visited' | 'active' | 'skipped' | 'pending' | 'blocked' | string
-    waiting_on?: string[]
-  }>
-  pending_nodes: Array<{
-    node_id: string
-    title?: string | null
-    node_type?: string | null
-    reason?: string | null
-    waiting_on: string[]
-  }>
-  pending_calculations: Array<{
-    field: string
-    title: string
-    status: string
-    depends_on: string[]
-    reason: string
-  }>
-  pending_validations: Array<{
-    field: string
-    title: string
-    status: string
-    reason: string
-  }>
-  pending_lookups: Array<{
-    field: string
-    title: string
-    status: string
-    depends_on: string[]
-    reason: string
-  }>
-  required_inputs: Array<{
-    key: string
-    symbol?: string | null
-    label: string
-    status: string
-    expected_input_type: string
-    unit?: string | null
-    reason_required?: string | null
-  }>
-  blocked_reason: {
-    kind:
-      | 'waiting_for_user_input'
-      | 'waiting_for_equation_dependency'
-      | 'waiting_for_lookup_resolution'
-      | 'blocked_by_validation'
-      | 'complete'
-      | 'not_available'
-      | string
-    message: string
-    missing_item: string | null
-  }
-  next_expected_action: string | null
-  warnings: string[]
-  raw_planner_state: {
-    engineering_plan: unknown
-    planner_inspector_summary: unknown
+  groups: {
+    visited_previous_step: PlannerDebugNodeItemDto[]
+    queue_leaf_nodes: PlannerDebugNodeItemDto[]
+    visited_from_beginning: PlannerDebugNodeItemDto[]
+    excluded_blocked: PlannerDebugNodeItemDto[]
   }
 }
+
+/** @deprecated Use PlannerDebugViewDto — legacy section components only. */
+export type PlannerDebugProjectionDto = PlannerDebugViewDto
 
 export type PlannerInspectorHeaderDto = {
   workflow_id: string
@@ -586,8 +534,8 @@ export type InspectionPayloadDto = {
   engineering_plan_view?: EngineeringPlanViewDto | null
   /** Legacy planner inspector summary — backward compat; prefer planner_debug_projection for Planner tab. */
   planner_inspector_summary?: PlannerInspectorSummaryDto
-  /** Preferred UI contract for Dev Mode Planner tab (read-only). */
-  planner_debug_projection?: PlannerDebugProjectionDto | null
+  /** Minimal planner debugger view for Dev Mode Planner tab (read-only). */
+  planner_debug_projection?: PlannerDebugViewDto | null
   execution_context?: Record<string, unknown>
   authority_context?: Record<string, unknown>
   planning_summary: Record<string, unknown>

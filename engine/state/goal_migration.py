@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from engine.reference.param_resolver import resolve_parameter_id
-from engine.messaging.workflow_parameter_prompts import resolve_workflow_parameter_prompt
+from engine.messaging.parameter_input_prompt import resolve_parameter_prompt_text
 from models.goal import (
     Goal,
     calculation_goal,
@@ -52,14 +52,14 @@ def _prompt_for_field(
     if isinstance(questions, dict):
         prompt = questions.get(field_id)
         if isinstance(prompt, str) and prompt.strip():
-            return resolve_workflow_parameter_prompt(field_id, field_question=prompt)
+            return resolve_parameter_prompt_text(field_id, field_question=prompt)
     elif isinstance(questions, list) and field_id in fields:
         index = fields.index(field_id)
         if index < len(questions):
             prompt = questions[index]
             if isinstance(prompt, str) and prompt.strip():
-                return resolve_workflow_parameter_prompt(field_id, field_question=prompt)
-    return resolve_workflow_parameter_prompt(field_id)
+                return resolve_parameter_prompt_text(field_id, field_question=prompt)
+    return resolve_parameter_prompt_text(field_id)
 
 
 def goals_from_planning_summary(
@@ -151,7 +151,7 @@ def goals_from_planning_summary(
         for field_id in summary.get("missing_inputs") or []:
             if str(field_id) in seen:
                 continue
-            prompt = resolve_workflow_parameter_prompt(str(field_id))
+            prompt = resolve_parameter_prompt_text(str(field_id))
             order += 1
             child = _goal_for_field(
                 field_id=str(field_id),

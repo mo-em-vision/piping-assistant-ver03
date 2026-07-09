@@ -2,27 +2,12 @@
 
 from __future__ import annotations
 
-from engine.planner.pipe_wall_plan import (
-    PIPE_WALL_WORKFLOW,
-    _ALT_NPS_LOOKUP,
-    req_id,
+from engine.planner.graph_requirements import (
+    _DIAMETER_RESOLUTION_ID,
+    lookup_requirement_id,
+    requirement_id,
 )
-from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from models.engineering_plan import PlanDependency, PlanRequirement
-
-_PIPE_WALL_WORKFLOW_IDS = frozenset(
-    {
-        PIPE_WALL_WORKFLOW,
-        PIPE_WALL_THICKNESS_DESIGN,
-        "pipe-wall-thickness",
-        "B313-PIPE-WALL-THICKNESS-DESIGN",
-    }
-)
-
-_PIPE_WALL_STRUCTURAL_EDGES: tuple[tuple[str, str, str], ...] = (
-    ("REQ-outside_diameter_lookup", "REQ-diameter_resolution", "resolves"),
-    (_ALT_NPS_LOOKUP, req_id("nominal_pipe_size"), "activates"),
-)
 
 
 def build_plan_dependencies(
@@ -30,14 +15,11 @@ def build_plan_dependencies(
     *,
     workflow_id: str,
 ) -> list[PlanDependency]:
-    """Derive plan dependency edges from requirements and workflow-specific structure."""
-    normalized = str(workflow_id or "").strip()
-    if normalized in _PIPE_WALL_WORKFLOW_IDS or normalized.replace("-", "_") in {
-        PIPE_WALL_WORKFLOW,
-        PIPE_WALL_THICKNESS_DESIGN.replace("-", "_"),
-    }:
-        return _build_pipe_wall_plan_dependencies(requirements)
-    return []
+    """Derive plan dependency edges from requirements and alternative structure."""
+    del workflow_id
+    edges = _edges_from_depends_on(requirements)
+    edges.extend(_alternative_structural_edges(requirements))
+    return _dedupe_edges(edges)
 
 
 def _infer_dependency_type(source: PlanRequirement, target: PlanRequirement) -> str:
@@ -48,6 +30,19 @@ def _infer_dependency_type(source: PlanRequirement, target: PlanRequirement) -> 
     if target.requirement_class == "table_lookup":
         return "lookup_input"
     return "requires"
+
+
+def _lookup_requirement_for_field(
+    requirements: dict[str, PlanRequirement],
+    field: str,
+) -> str | None:
+    lookup_id = lookup_requirement_id(field)
+    if lookup_id in requirements:
+        return lookup_id
+    for req in requirements.values():
+        if req.requirement_class == "table_lookup" and req.field == field:
+            return req.id
+    return None
 
 
 def _edges_from_depends_on(requirements: dict[str, PlanRequirement]) -> list[PlanDependency]:
@@ -67,13 +62,44 @@ def _edges_from_depends_on(requirements: dict[str, PlanRequirement]) -> list[Pla
     return edges
 
 
-def _structural_edges(
-    templates: tuple[tuple[str, str, str], ...],
+def _alternative_structural_edges(
+    requirements: dict[str, PlanRequirement],
 ) -> list[PlanDependency]:
-    return [
-        PlanDependency(from_id=from_id, to_id=to_id, type=edge_type)
-        for from_id, to_id, edge_type in templates
-    ]
+    edges: list[PlanDependency] = []
+    for req in requirements.values():
+        for alt in req.alternatives or []:
+            for field in alt.fields:
+                target_id = requirement_id(field)
+                if target_id in requirements:
+                    edges.append(
+                        PlanDependency(from_id=alt.id, to_id=target_id, type="activates")
+                    )
+            if alt.method != "lookup" or not alt.resolves:
+                continue
+            lookup_id = _lookup_requirement_for_field(requirements, alt.resolves)
+            if lookup_id is not None:
+                edges.append(
+                    PlanDependency(
+                        from_id=lookup_id,
+                        to_id=req.id,
+                        type="resolves",
+                    )
+                )
+
+    if (
+        _lookup_requirement_for_field(requirements, "outside_diameter")
+        == "REQ-outside_diameter_lookup"
+        and _DIAMETER_RESOLUTION_ID in requirements
+        and "REQ-outside_diameter_lookup" in requirements
+    ):
+        edges.append(
+            PlanDependency(
+                from_id="REQ-outside_diameter_lookup",
+                to_id=_DIAMETER_RESOLUTION_ID,
+                type="resolves",
+            )
+        )
+    return edges
 
 
 def _dedupe_edges(edges: list[PlanDependency]) -> list[PlanDependency]:
@@ -86,11 +112,3 @@ def _dedupe_edges(edges: list[PlanDependency]) -> list[PlanDependency]:
         seen.add(key)
         unique.append(edge)
     return unique
-
-
-def _build_pipe_wall_plan_dependencies(
-    requirements: dict[str, PlanRequirement],
-) -> list[PlanDependency]:
-    edges = _edges_from_depends_on(requirements)
-    edges.extend(_structural_edges(_PIPE_WALL_STRUCTURAL_EDGES))
-    return _dedupe_edges(edges)

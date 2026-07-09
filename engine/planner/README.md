@@ -27,7 +27,7 @@ Normalized **`EngineeringPlan`** output (`models/engineering_plan.py`) captures 
 
 ## Runtime Usage
 
-**Active** via `PlannerAgent` (CLI chat) and `api/workflow_bootstrap.py` (`GraphTools`, navigation phases, `build_engineering_plan` → `store_engineering_plan_on_task`). User-facing parameter prompts live in `engine/messaging/workflow_parameter_prompts.py` and `parameter_input_prompt.py`.
+**Active** via `PlannerAgent` (CLI chat) and `api/workflow_bootstrap.py` (`GraphTools`, navigation phases, `build_engineering_plan` → `store_engineering_plan_on_task`). User-facing parameter prompts resolve via `engine/messaging/parameter_input_prompt.py` from PARAM-* node metadata.
 
 Inspector payloads include `engineering_plan` (canonical), `engineering_plan_view`, `planner_debug_projection` (preferred Dev Mode Planner tab contract), `planner_inspector_summary` (backward compat, rebuilt from `engineering_plan` on inspection fetch), and `legacy_goal_map` (deprecated goal_store projection, debug only).
 
@@ -53,7 +53,7 @@ Failures attach to `plan.debug` and surface in the Planner dev tab. Tests: `test
 ## Notes
 
 - Hard-coded `_DEFAULT_PRIORITIES` for `pipe_wall_thickness_design` in `planner.py`; MAWP uses graph-driven navigation more heavily.
-- Default parameter prompt copy is owned by `engine/messaging/workflow_parameter_prompts.py`, not the planner.
+- Default parameter prompt copy is owned by PARAM-* nodes (`question`, `description`, `metadata.input_examples`), read by `engine/messaging/parameter_prompt_context.py` — not the planner.
 - **`PlannerTraversalState`** is derived from plan requirements + `input_strategy` + graph preview (not a second traversal engine). `current_active_node_id` follows phase order and must not jump to coefficient lookups before expansion/path gates resolve.
 
 ## Execution Traces
