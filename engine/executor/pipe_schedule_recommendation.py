@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from engine.executor.pipe_dimension_lookup import B36_10_SLUG, PipeDimensionLookup
 from engine.executor.unit_manager import prepare_fact
@@ -13,6 +14,7 @@ from models.fact import fact_scalar_value
 from models.task import Task
 
 B36_10_DISPLAY = "ASME B36.10M"
+B36_10_TRACE_NODE_ID = "B3610-table-2-1"
 
 _CANONICAL_SCHEDULE_ALIASES: dict[str, str] = {
     "STD": "40",
@@ -114,6 +116,78 @@ def recommend_pipe_schedule_for_task(
         minimum_required_thickness_mm=float(t_m),
         standards_root=standards_root,
     )
+
+
+def build_b36_10_schedule_lookup_trace_entry(
+    task: Task,
+    standards_root: Path,
+) -> dict[str, Any] | None:
+    """Build execution trace lookup payload for B36.10 schedule rows (display renders only)."""
+    recommendation = recommend_pipe_schedule_for_task(task, standards_root)
+    if recommendation is None:
+        return None
+
+    try:
+        lookup = PipeDimensionLookup(standards_root)
+        schedules = lookup.list_schedules_for_nps(recommendation.nps)
+    except (FileNotFoundError, ValueError):
+        return None
+
+    if not schedules:
+        return None
+
+    deduped = _dedupe_schedules(schedules)
+    rows: list[dict[str, Any]] = []
+    for entry in sorted(deduped, key=lambda item: item.wall_thickness_mm):
+        rows.append(
+            {
+                "schedule": entry.schedule,
+                "wall_thickness_mm": round(float(entry.wall_thickness_mm), 4),
+            }
+        )
+
+    return {
+        "node_id": B36_10_TRACE_NODE_ID,
+        "status": "completed",
+        "trace": {
+            "lookup": {
+                "table_id": recommendation.table_id or B36_10_TRACE_NODE_ID,
+                "standard": recommendation.standard_slug,
+                "title": f"{B36_10_DISPLAY} pipe schedules for NPS {recommendation.nps}",
+                "rows": rows,
+                "highlight": {
+                    "column": "schedule",
+                    "value": recommendation.schedule,
+                },
+                "recommendation": {
+                    "nps": recommendation.nps,
+                    "schedule": recommendation.schedule,
+                    "minimum_required_thickness_mm": recommendation.minimum_required_thickness_mm,
+                    "wall_thickness_mm": recommendation.wall_thickness_mm,
+                },
+                "recommendation_summary": format_schedule_recommendation_text(recommendation),
+            }
+        },
+        "outputs": {},
+    }
+
+
+def append_schedule_lookup_trace_to_payload(
+    task: Task,
+    trace_payload: list[dict[str, Any]],
+    standards_root: Path,
+) -> bool:
+    """Append B36.10 schedule lookup trace entry once when t_m and NPS are available."""
+    for entry in trace_payload:
+        if isinstance(entry, dict) and str(entry.get("node_id")) == B36_10_TRACE_NODE_ID:
+            return False
+
+    entry = build_b36_10_schedule_lookup_trace_entry(task, standards_root)
+    if entry is None:
+        return False
+
+    trace_payload.append(entry)
+    return True
 
 
 def format_schedule_recommendation_text(recommendation: PipeScheduleRecommendation) -> str:

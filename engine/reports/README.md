@@ -32,7 +32,7 @@ Turn completed (or partial) tasks into auditable engineering documents. Template
 
 ## Notes
 
-- `block_renderer.py` converts desktop `display_blocks` to report sections (shared with live UI blocks).
+- `block_renderer.py` converts desktop `display_blocks` to report sections (shared with live UI blocks). Section ids follow generic display patterns (`equation-trace-*`, `table-lookup-*`, `paragraph-*`, `validation-*`); legacy pipe-wall block ids are no longer emitted by `build_display_outputs`.
 - `equation_format.py` is internal to formatters/block_renderer (LaTeX helpers).
 - Templates: `pipe_wall_thickness_design_report.md`, `mawp_design_report.md`, `generic_task_report.md`, `calculation_report.md`, `audit_report.md`, `integrity_report.md`.
 

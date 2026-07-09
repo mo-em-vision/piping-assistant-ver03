@@ -183,6 +183,8 @@ export interface TableOutputBlock extends OutputBlockBase {
   rows: Array<Record<string, unknown>>
   searchable?: boolean
   compact?: boolean
+  highlight_row?: { column: string; value: string }
+  summary_text?: string
 }
 
 export interface GraphPointDto {

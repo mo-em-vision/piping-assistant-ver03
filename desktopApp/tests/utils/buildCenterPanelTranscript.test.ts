@@ -24,7 +24,7 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
     expect(blocks[0]?.title).toBe('Pipe Wall Thickness Design')
   })
 
-  it('orders workflow intro before branch narration in center panel merge', () => {
+  it('excludes workflow intro from center panel because WorkflowHeader shows the title', () => {
     const displayOutputs: DisplayOutputBlock[] = []
     const transcript = [
       {
@@ -44,8 +44,8 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
     ]
 
     const items = buildCenterPanelTranscript(displayOutputs, transcript, 'pipe_wall_thickness_design')
-    expect(items[0]?.block.id).toBe('workflow-intro-pipe_wall_thickness_design')
-    expect(items[1]?.block.id).toContain('guidance-')
+    expect(items).toHaveLength(1)
+    expect(items[0]?.block.id).toContain('guidance-')
   })
 
   it('converts guidance transcript blocks to durable text display blocks', () => {
@@ -69,6 +69,26 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
     expect(blocks[0]?.id).toBe('guidance-pipe_wall_thickness_design-expansion-gate-intro')
     expect(blocks[0]?.display_role).toBe('branch_narration')
     expect(blocks[0]?.lifecycle).toBe('durable')
+  })
+
+  it('excludes input archive blocks from guidance transcript conversion', () => {
+    const blocks = guidanceTranscriptToDisplayBlocks([
+      {
+        block_id: 'archived-ask-straight_pipe_section-1',
+        kind: 'ask_archive',
+        source: 'input_archive',
+        text: 'Is this a straight pipe section?',
+      },
+      {
+        block_id: 'guidance-pipe_wall_thickness_design-expansion-gate-intro',
+        kind: 'guidance',
+        source: 'guidance',
+        text: 'Branch narration only.',
+      },
+    ])
+
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0]?.id).toBe('guidance-pipe_wall_thickness_design-expansion-gate-intro')
   })
 })
 

@@ -114,6 +114,7 @@ def tag_display_block(
             else LIFECYCLE_DURABLE
         )
 
+    block["internal_display_role"] = display_role
     block["display_role"] = display_role
     block["lifecycle"] = lifecycle
 
@@ -138,9 +139,18 @@ def tag_display_block(
 
 
 def infer_display_role(block: dict[str, Any]) -> str | None:
-    explicit = block.get("display_role")
+    explicit = block.get("internal_display_role") or block.get("display_role")
     if isinstance(explicit, str) and explicit.strip():
-        return explicit.strip()
+        internal = explicit.strip()
+        from api.center_panel_contract import INTERNAL_TO_CONTRACT_DISPLAY_ROLE
+
+        if internal in INTERNAL_TO_CONTRACT_DISPLAY_ROLE:
+            return internal
+        if internal in INTERNAL_TO_CONTRACT_DISPLAY_ROLE.values():
+            for key, value in INTERNAL_TO_CONTRACT_DISPLAY_ROLE.items():
+                if value == internal:
+                    return key
+        return internal
 
     block_id = str(block.get("id") or "")
     if block_id.startswith("node-activation-equation-"):
@@ -149,18 +159,16 @@ def infer_display_role(block: dict[str, Any]) -> str | None:
         return DISPLAY_ROLE_EQUATION_TRACE
     if block_id.startswith("path-preview-equation-"):
         return DISPLAY_ROLE_PREVIEW
-    if block_id in {"path-calculation-substituted-equation", "mawp-substituted-equation"}:
-        return DISPLAY_ROLE_SUBSTITUTED
-    if block_id == "minimum-thickness-equation":
-        return DISPLAY_ROLE_DERIVED
     if block_id.startswith("path-preview-intro-"):
         return DISPLAY_ROLE_INTRO
-    if block_id == "minimum-thickness-conclusion":
-        return DISPLAY_ROLE_CONCLUSION
-    if block_id == "thin-wall-applicability-check":
+    if block_id.startswith("table-lookup-"):
+        if block.get("highlight_row"):
+            return DISPLAY_ROLE_RECOMMENDATION
+        return "engineering_reference"
+    if block_id.startswith("paragraph-"):
+        return "engineering_reference"
+    if block_id.startswith("validation-"):
         return DISPLAY_ROLE_APPLICABILITY
-    if block_id == "pipe-schedule-recommendation":
-        return DISPLAY_ROLE_RECOMMENDATION
     if block_id == "planning-status":
         return None
     if str(block.get("type")) == "result":
@@ -270,28 +278,129 @@ def _preview_equation_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any
     return previews
 
 
+def _evaluated_equation_trace_entries(task: Any) -> list[dict[str, str]]:
+    """Enumerate evaluated equations from execution trace (engineering truth)."""
+    from engine.equation.display_trace_serializer import trace_from_dict
+
+    trace_entries = getattr(task, "outputs", {}).get("_execution_trace")
+    if not isinstance(trace_entries, list):
+        return []
+
+    results: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for entry in trace_entries:
+        if not isinstance(entry, dict):
+            continue
+        node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
+        display_trace = trace_from_dict(node_trace.get("equation_display_trace"))
+        if display_trace is None or display_trace.status != "evaluated":
+            continue
+        equation_node_id = str(display_trace.equation_id or entry.get("node_id") or "").strip()
+        source_node_id = str(display_trace.node_id or entry.get("node_id") or "").strip()
+        if not equation_node_id or equation_node_id in seen:
+            continue
+        seen.add(equation_node_id)
+        results.append(
+            {
+                "equation_node_id": equation_node_id,
+                "source_node_id": source_node_id or equation_node_id,
+            }
+        )
+    return results
+
+
+def _persisted_equation_trace_entries(task: Any) -> list[dict[str, str]]:
+    """Decode durable equation trace keys persisted on the task."""
+    workflow_id = str(getattr(task, "outputs", {}).get("workflow") or "").strip()
+    if not workflow_id:
+        return []
+
+    results: list[dict[str, str]] = []
+    for key in getattr(task, "outputs", {}).get(EQUATION_TRACE_KEYS_OUTPUT) or []:
+        decoded = decode_equation_trace_semantic_key(str(key))
+        if decoded is None:
+            continue
+        key_workflow_id, source_node_id, equation_node_id = decoded
+        if key_workflow_id != workflow_id:
+            continue
+        results.append(
+            {
+                "equation_node_id": equation_node_id,
+                "source_node_id": source_node_id,
+            }
+        )
+    return results
+
+
+def _all_equation_trace_entries(task: Any) -> list[dict[str, str]]:
+    """Merge execution-trace evaluations with persisted semantic keys."""
+    seen: set[str] = set()
+    merged: list[dict[str, str]] = []
+    for item in _evaluated_equation_trace_entries(task):
+        equation_node_id = item["equation_node_id"]
+        if equation_node_id in seen:
+            continue
+        seen.add(equation_node_id)
+        merged.append(item)
+    for item in _persisted_equation_trace_entries(task):
+        equation_node_id = item["equation_node_id"]
+        if equation_node_id in seen:
+            continue
+        seen.add(equation_node_id)
+        merged.append(item)
+    return merged
+
+
+def evaluated_equation_node_ids(task: Any) -> frozenset[str]:
+    return frozenset(item["equation_node_id"] for item in _evaluated_equation_trace_entries(task))
+
+
 def collect_equation_trace_keys(
     task: Any,
     blocks: list[dict[str, Any]],
 ) -> list[str]:
+    """Persist semantic keys for evaluated equations and durable trace keys."""
+    del blocks
     workflow_id = str(getattr(task, "outputs", {}).get("workflow") or "").strip()
     if not workflow_id:
         return list(getattr(task, "outputs", {}).get(EQUATION_TRACE_KEYS_OUTPUT) or [])
 
     key_set = {
-        str(key).strip()
-        for key in (getattr(task, "outputs", {}).get(EQUATION_TRACE_KEYS_OUTPUT) or [])
-        if str(key).strip()
-    }
-    for block in _preview_equation_blocks(blocks):
-        key_set.add(
-            equation_trace_semantic_key(
-                workflow_id=workflow_id,
-                source_node_id=str(block["source_node_id"]),
-                equation_node_id=str(block["equation_node_id"]),
-            )
+        equation_trace_semantic_key(
+            workflow_id=workflow_id,
+            source_node_id=item["source_node_id"],
+            equation_node_id=item["equation_node_id"],
         )
+        for item in _all_equation_trace_entries(task)
+    }
     return sorted(key_set)
+
+
+def dedupe_competing_equation_preview_blocks(
+    blocks: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Drop activation previews when a path preview exists for the same equation_node_id."""
+    path_preview_eq_ids = {
+        str(block.get("equation_node_id") or "").strip()
+        for block in blocks
+        if str(block.get("id") or "").startswith("path-preview-equation-")
+        and str(block.get("equation_node_id") or "").strip()
+    }
+    if not path_preview_eq_ids:
+        return blocks
+
+    result: list[dict[str, Any]] = []
+    for block in blocks:
+        block_id = str(block.get("id") or "")
+        equation_node_id = str(block.get("equation_node_id") or "").strip()
+        if (
+            block_id.startswith("node-activation-equation-")
+            and equation_node_id
+            and equation_node_id in path_preview_eq_ids
+        ):
+            continue
+        result.append(block)
+    return result
 
 
 def append_equation_trace_blocks(
@@ -299,7 +408,7 @@ def append_equation_trace_blocks(
     task: Any,
     reader: Any,
 ) -> list[dict[str, Any]]:
-    """Rebuild durable equation traces from stored keys and current task state."""
+    """Rebuild durable equation traces from execution trace and current task state."""
     from api.equation_evaluation_display import build_equation_trace_block
 
     if task is None:
@@ -315,14 +424,15 @@ def append_equation_trace_blocks(
     ]
 
     trace_blocks: list[dict[str, Any]] = []
-    for key in keys:
-        decoded = decode_equation_trace_semantic_key(key)
-        if decoded is None:
+    built_ids: set[str] = set()
+    for item in _all_equation_trace_entries(task):
+        equation_node_id = item["equation_node_id"]
+        if equation_node_id in built_ids:
             continue
-        _workflow_id, source_node_id, _equation_node_id = decoded
-        trace = build_equation_trace_block(task, reader, source_node_id)
-        if trace is not None:
+        trace = build_equation_trace_block(task, reader, item["source_node_id"])
+        if trace is not None and str(trace.get("equation_node_id") or "") == equation_node_id:
             trace_blocks.append(trace)
+            built_ids.add(equation_node_id)
 
     if not trace_blocks:
         return refreshed

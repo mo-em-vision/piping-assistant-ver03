@@ -29,7 +29,7 @@ entries:
       decision.
     refs:
       node_id: "304.1.2-a"
-      equation_id: asme-b313-required-wall-thickness
+      equation_id: asme-b313-304-1-2-eq-3a
 
   - id: input-context-internal-pressure
     match:
@@ -40,7 +40,7 @@ entries:
       equation on the selected internal-pressure branch. It combines with
       allowable stress and geometry inputs to determine required thickness.
     refs:
-      equation_id: asme-b313-required-wall-thickness
+      equation_id: asme-b313-304-1-2-eq-3a
 
   - id: input-context-design-temperature
     match:
@@ -50,7 +50,7 @@ entries:
       Design temperature is used with the selected material to resolve allowable
       stress from the applicable material table on the active branch.
     refs:
-      equation_id: asme-b313-required-wall-thickness
+      equation_id: asme-b313-304-1-2-eq-3a
 
   - id: input-context-material-grade
     match:
@@ -60,7 +60,7 @@ entries:
       Material specification and grade are used with design temperature to
       resolve allowable stress from the applicable material table.
     refs:
-      equation_id: asme-b313-required-wall-thickness
+      equation_id: asme-b313-304-1-2-eq-3a
 
   - id: parameter-gathering-entry
     match:
@@ -72,4 +72,4 @@ entries:
       Design parameters for the selected branch will be collected next. Values
       feed the governing thickness equation on the active path.
     refs:
-      equation_id: asme-b313-required-wall-thickness
+      equation_id: asme-b313-304-1-2-eq-3a

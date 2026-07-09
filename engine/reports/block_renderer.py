@@ -36,15 +36,16 @@ def input_label_for_timeline(step_id: str) -> str:
 def has_timeline_input_label(step_id: str) -> bool:
     return step_id in _INPUT_LABELS
 
-_SECTIONS_NEEDING_EXPLANATION: frozenset[str] = frozenset(
-    {
-        "path-preview-equation",
-        "path-calculation-substituted-equation",
-        "thin-wall-applicability-check",
-        "minimum-thickness-equation",
-        "pipe-schedule-recommendation",
-    }
+_EXPLANATION_SECTION_PREFIXES: tuple[str, ...] = (
+    "path-preview-equation",
+    "equation-trace-",
+    "validation-thin-wall",
+    "table-lookup-",
 )
+
+
+def _section_needs_explanation(section_id: str) -> bool:
+    return any(section_id.startswith(prefix) for prefix in _EXPLANATION_SECTION_PREFIXES)
 
 
 def blocks_to_display_sections(blocks: list[dict[str, Any]]) -> list[ReportDisplaySection]:
@@ -137,7 +138,7 @@ def _text_section(block_id: str, block: dict[str, Any]) -> ReportDisplaySection 
         section_id=section_id,
         title=title,
         body_markdown=content,
-        needs_explanation=section_id in _SECTIONS_NEEDING_EXPLANATION,
+        needs_explanation=_section_needs_explanation(section_id),
     )
 
 
@@ -171,7 +172,7 @@ def _equation_section(block_id: str, block: dict[str, Any]) -> ReportDisplaySect
         title=title,
         body_markdown="\n\n".join(part for part in parts if part).strip(),
         equation_latex=latex or None,
-        needs_explanation=section_id in _SECTIONS_NEEDING_EXPLANATION
+        needs_explanation=_section_needs_explanation(section_id)
         or "equation" in section_id,
     )
 

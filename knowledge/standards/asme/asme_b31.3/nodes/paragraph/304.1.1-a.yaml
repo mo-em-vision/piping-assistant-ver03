@@ -55,6 +55,12 @@ metadata:
   status: active
   source_revision_year: 2024
   node_version: 1
-  last_revision: 2026-07-05
+  last_revision: 2026-07-09
   edited_by: admin
+presentation:
+  summary: >
+    The minimum required wall thickness for straight pipe is the design thickness
+    plus corrosion and mechanical allowances, per equation (2).
+  display_label: Required thickness for straight pipe
+  reference_label: ASME B31.3 §304.1.1
 ---

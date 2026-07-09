@@ -63,7 +63,7 @@ describe('EquationOutput', () => {
     const { container } = render(
       <EquationOutput
         block={{
-          id: 'path-calculation-substituted-equation',
+          id: 'equation-trace-304.1.2-a-asme-b313-304-1-2-eq-3a',
           type: 'equation',
           content:
             't = \\frac{(3447378)(254)}{2((193000000)(1)(1) + (3447378)(0.4))} = 2.252\\ \\mathrm{mm}',
@@ -303,7 +303,7 @@ describe('EquationOutput', () => {
                 symbol: 'D',
                 definition: 'Outside diameter of pipe',
                 value: '8 bar',
-                definition_reference: { node_id: '304.1.1-b', label: '§304.1.1-b' },
+                definition_reference: { node_id: '304.1.1-b', label: '§304.1.1' },
               },
             ],
           },
@@ -313,8 +313,68 @@ describe('EquationOutput', () => {
 
     expect(getByText(/Outside diameter of pipe/)).toBeTruthy()
     expect(getByText(/as defined in/)).toBeTruthy()
-    expect(getByRole('button', { name: '§304.1.1-b' })).toBeTruthy()
+    expect(getByRole('button', { name: '§304.1.1' })).toBeTruthy()
     expect(queryByText('Symbol definitions:')).toBeNull()
+  })
+
+  it('definition column ignores merged reference_chips and keeps value provenance in value column', () => {
+    const { getByRole, getAllByRole, queryByRole } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-s-definition',
+          type: 'equation',
+          content: 't = PD / 2(SEW + PY)',
+          display: 't = PD / 2(SEW + PY)',
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'definition', label: 'Definition', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+            ],
+            rows: [
+              {
+                symbol: 'S',
+                definition: 'stress value for material',
+                value: '',
+                definition_reference: { node_id: '304.1.1-b', label: '§304.1.1' },
+                reference_chips: [
+                  {
+                    ref_type: 'table',
+                    id: 'asme_b31.3_A-1',
+                    label: 'Table A-1',
+                    target: { table_id: 'asme_b31.3_A-1', node_id: 'asme_b31.3_A-1' },
+                  },
+                  {
+                    ref_type: 'paragraph',
+                    id: '304.1.1-b',
+                    label: '§304.1.1',
+                    target: { paragraph_id: '304.1.1-b', node_id: '304.1.1-b' },
+                  },
+                ],
+                value_provenance: {
+                  source_type: 'table_lookup',
+                  status: 'pending_derived',
+                  label: 'Resolved from Table A-1',
+                  reference_chips: [
+                    {
+                      ref_type: 'table',
+                      id: 'asme_b31.3_A-1',
+                      label: 'Table A-1',
+                      target: { table_id: 'asme_b31.3_A-1', node_id: 'asme_b31.3_A-1' },
+                    },
+                  ],
+                },
+              },
+            ],
+          },
+        }}
+      />,
+    )
+
+    const definitionLinks = getAllByRole('button', { name: '§304.1.1' })
+    expect(definitionLinks).toHaveLength(1)
+    expect(getByRole('button', { name: 'Table A-1' })).toBeTruthy()
+    expect(queryByRole('button', { name: '§304.1.1-b' })).toBeNull()
   })
 
   it('renders resolved variable descriptions and nomenclature reference link', () => {

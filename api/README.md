@@ -378,7 +378,7 @@ Do not delete without explicit approval.
 | `chat_service.py` | Chat list/send/clear with AI agents |
 | `chat_orchestrator.py` | Flow Guidance on `waiting_input` turns; `presentation` + `new_transcript_blocks` in chat data |
 | `flow_guidance.py` | `build_flow_guidance_payload` → `task_state["flow_guidance"]` |
-| `center_panel_contract.py` | Shared `REPORT_ROLE_ORDER` + presentation package assembly for scroll/report-preview parity |
+| `center_panel_contract.py` | Contract `display_role` mapping; scroll assembly; archives excluded from center-panel merge |
 | `completion_next_workflows_transcript.py` | Durable `next_workflows` block on task completion |
 | `chat_context.py` | Task context brief, conversation trimming |
 | `report_service.py` | Report generate/preview/download/status |
@@ -436,7 +436,7 @@ Confidence: **High** = clear importers and runtime path; **Medium** = indirect o
 ### `workflow_bootstrap.py`
 
 - **Purpose:** Initialize new tasks; refresh planning; optional workflow execution.
-- **Public:** `bootstrap_new_task`, `refresh_task_planning`, `maybe_execute_ready_workflow`, `standards_reader_for_config`, `resolve_activated_definition_node`
+- **Public:** `bootstrap_new_task`, `refresh_task_planning`, `maybe_execute_ready_workflow`, `task_ready_for_execution`, `standards_reader_for_config`, `resolve_activated_definition_node`
 - **Imported by:** `desktop_service`, `output_blocks`, `node_context`, `node_provenance`, tests
 - **Active:** Yes — **High**
 
@@ -463,11 +463,36 @@ Confidence: **High** = clear importers and runtime path; **Medium** = indirect o
 
 ### `output_blocks.py`
 
-- **Purpose:** Ordered blocks (equations, tables, results) for task center panel.
+- **Purpose:** Workflow-agnostic ordered blocks (equations, tables, paragraphs, results) for the task center panel.
 - **Public:** `build_display_outputs`
+- **Pipeline:** warnings → focus-filtered activation → path equation preview → paragraph/validation blocks from trace → execution-trace blocks (equations, lookup tables) → result blocks → `_finalize_display_blocks` (provenance, dedupe, `append_equation_trace_blocks`).
+- **Stable ids:** `equation-trace-{source_node_id}-{equation_node_id}`, `table-lookup-{node_id}`, `paragraph-{node_id}`, `validation-{semantic_key}` — no workflow-specific builder branches.
+- **Schedule lookup:** B36.10 table rows are read from `_execution_trace` (`engine/executor/pipe_schedule_recommendation.py`); display does not query tables at serialize time.
 - **Imported by:** `serializers`, `engine/reports/report_data`, `engine/inspection/provenance`, tests
 - **Active:** Yes — **High**
-- **Durable history:** `display_outputs` carries durable workflow blocks only. Volatile blocks (`planning-status`, archived prompts) are not emitted. Preview-tier blocks use `lifecycle: preview` and `display_channel` (`current_equation_preview`, `current_node_intro`); durable results use `lifecycle: durable`. Preview duplicates collapse in `dedupe_preview_tier_equations()` via `equation_node_id`. Frontend merges durable blocks append-only and treats preview as authoritative per snapshot (`mergeDisplayOutputs`, `displayBlockLifecycle`).
+- **Companion:** `paragraph_display.py` reads paragraph `presentation.*` metadata for engineering reference blocks.
+
+### `paragraph_display.py`
+
+- **Purpose:** Generic paragraph/text blocks for center panel from node `presentation.*` metadata.
+- **Public:** `build_paragraph_display_block`, `paragraph_blocks_from_trace`
+- **Imported by:** `output_blocks.py`, tests
+- **Active:** Yes — **High**
+
+### `center_panel_contract.py`
+
+- **Purpose:** Shared center-panel / report-preview presentation contract; assembles scroll blocks from transcript + `display_outputs`.
+- **Public:** `assemble_center_panel_scroll_blocks`, `presentation_package_from_task_state`, `normalize_display_block_for_api`
+- **Scroll exclusion:** `ask_archive` / `answer_archive` are not mapped into `ordered_scroll_blocks` (composer owns Q&A).
+- **Imported by:** `serializers`, tests
+- **Active:** Yes — **High**
+
+### `reference_links.py`
+
+- **Purpose:** Read-only reference chip resolution for API/desktop presentation blocks.
+- **Public:** `enrich_display_output_dict`, `enrich_row_provenance_dict`, `select_primary_reference_chip`, `resolve_reference_chips`
+- **Imported by:** `output_blocks`, `serializers`, tests
+- **Active:** Yes — **High**
 
 ### `equation_inputs_display.py`
 

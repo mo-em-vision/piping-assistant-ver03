@@ -8,65 +8,28 @@ from typing import Any
 
 from api.display_block_metadata import (
     DISPLAY_CHANNEL_CURRENT_NODE_INTRO,
-    DISPLAY_ROLE_ACTIVATION,
     DISPLAY_ROLE_APPLICABILITY,
-    DISPLAY_ROLE_CONCLUSION,
-    DISPLAY_ROLE_DERIVED,
-    DISPLAY_ROLE_INTRO,
-    DISPLAY_ROLE_PREVIEW,
     DISPLAY_ROLE_RECOMMENDATION,
-    DISPLAY_ROLE_SUBSTITUTED,
+    DISPLAY_ROLE_WARNING,
+    append_equation_trace_blocks,
+    dedupe_competing_equation_preview_blocks,
     dedupe_preview_tier_equations,
+    evaluated_equation_node_ids,
     tag_display_block,
 )
 from api.equation_evaluation_display import (
     build_equation_evaluation_block,
+    resolve_equation_node_for_display,
     resolve_focus_node_for_equation_display,
-)
-from api.equation_inputs_display import (
-    build_mawp_formula_inputs_input_table,
-    build_mawp_pressure_design_input_table,
-    build_mawp_substituted_equation,
-    build_wall_thickness_substituted_equation,
-    format_thickness_result_display,
 )
 from api.node_display import build_activated_node_blocks
 from api.node_provenance import definition_node_id_for_task, enrich_display_blocks_provenance
+from api.paragraph_display import build_paragraph_display_block, paragraph_blocks_from_trace
 from api.workflow_bootstrap import resolve_activated_definition_node
-from api.workflow_timeline import is_mawp_task, is_pipe_wall_thickness_task
 from engine.reference.formula_display import load_equation_context
 from engine.reference.standards_reader import StandardsReader
-from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.goal_projection import planning_projection
-from models.fact import FactClass, ValidationStatus, fact_scalar_value
 from models.task import Task, TaskStatus
-
-_NODE_REFERENCES: dict[str, dict[str, str]] = {
-    "304.1.2-a": {
-        "standard": "ASME B31.3",
-        "paragraph": "304.1.2",
-        "title": "Straight Pipe Under Internal Pressure",
-        "excerpt": "The minimum required wall thickness for straight pipe under internal pressure shall be computed.",
-    },
-    "B313-table-A-1": {
-        "standard": "ASME B31.3",
-        "paragraph": "Table A-1",
-        "title": "Allowable Stress Lookup",
-        "excerpt": "Allowable stress values are selected from Table A-1 for the design material and temperature.",
-    },
-    "asme-b313-mawp-pressure": {
-        "standard": "ASME B31.3",
-        "paragraph": "304.1.2",
-        "title": "Maximum Allowable Working Pressure",
-        "excerpt": "MAWP for straight pipe under internal pressure using the thin-wall equation.",
-    },
-    "B313-MAWP-CALCULATION": {
-        "standard": "ASME B31.3",
-        "paragraph": "304.1.2",
-        "title": "Maximum Allowable Working Pressure",
-        "excerpt": "MAWP for straight pipe under internal pressure using the thin-wall equation.",
-    },
-}
 
 _RESULT_KEYS: tuple[tuple[str, str, str], ...] = (
     ("required_thickness", "Required Thickness", "mm"),
@@ -77,12 +40,6 @@ _RESULT_KEYS: tuple[tuple[str, str, str], ...] = (
     ("MAWP", "Maximum Allowable Working Pressure (MAWP)", "Pa"),
 )
 
-_MAWP_FORMULA = "MAWP = 2SEWt / (D - 2Yt)"
-_MAWP_PRESSURE_DESIGN_FORMULA = "t = t_actual - c"
-
-
-_WALL_THICKNESS_FORMULA = "t = PD / 2(SEW + PY)"
-
 
 def build_display_outputs(
     task: Task,
@@ -90,42 +47,26 @@ def build_display_outputs(
     standards_root: Path | None = None,
     reader: StandardsReader | None = None,
 ) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
     planning = planning_projection(task)
-
     resolved_reader = reader or _reader_for(standards_root)
-    resolved_standards_root = standards_root or resolved_reader.standards_root
     trace = task.outputs.get("_execution_trace")
     has_trace = isinstance(trace, list) and bool(trace)
+    trace_list = trace if has_trace else None
 
-    if is_pipe_wall_thickness_task(task):
-        return _build_pipe_wall_display_outputs(
-            task,
-            planning,
-            resolved_reader,
-            trace if has_trace else None,
-            has_trace=has_trace,
-            standards_root=resolved_standards_root,
-        )
-
-    if is_mawp_task(task):
-        return _build_mawp_display_outputs(
-            task,
-            planning,
-            resolved_reader,
-            trace if has_trace else None,
-            has_trace=has_trace,
-        )
-
-    blocks.extend(_activated_definition_blocks(task, planning, resolved_reader))
+    blocks: list[dict[str, Any]] = []
 
     for warning in task.warnings:
         blocks.append(_warning_block(warning))
 
-    blocks.extend(_result_blocks(task))
+    blocks.extend(_activated_definition_blocks_for_focus(task, planning, resolved_reader))
+    blocks.extend(_path_calculation_preview_blocks(task, planning, resolved_reader, trace=trace_list))
+    blocks.extend(paragraph_blocks_from_trace(trace_list, resolved_reader))
+    blocks.extend(_validation_blocks_from_trace(trace_list, task))
 
     if has_trace:
-        blocks.extend(_blocks_from_execution_trace(trace, task))
+        blocks.extend(_blocks_from_execution_trace(trace_list, task, resolved_reader))
+
+    blocks.extend(_result_blocks(task))
 
     return _finalize_display_blocks(blocks, resolved_reader, task=task, planning=planning)
 
@@ -150,13 +91,12 @@ def _finalize_display_blocks(
     task: Task | None = None,
     planning: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    from api.display_block_metadata import append_equation_trace_blocks
-
     default_node_id = None
     if task is not None:
         default_node_id = definition_node_id_for_task(task, reader, planning)
     enrich_display_blocks_provenance(blocks, reader, default_node_id=default_node_id)
     blocks = dedupe_preview_tier_equations(blocks)
+    blocks = dedupe_competing_equation_preview_blocks(blocks)
     if task is not None:
         blocks = append_equation_trace_blocks(blocks, task, reader)
     return _dedupe_blocks_by_id(blocks)
@@ -192,6 +132,27 @@ def _activated_definition_blocks(
     return build_activated_node_blocks(reader, str(node_id))
 
 
+def _activated_definition_blocks_for_focus(
+    task: Task,
+    planning: dict[str, Any],
+    reader: StandardsReader,
+) -> list[dict[str, Any]]:
+    """Activation blocks for the active calculation path only (no foreign-branch equations)."""
+    focus_node = resolve_focus_node_for_equation_display(task, planning, reader)
+    blocks = _activated_definition_blocks(task, planning, reader)
+    if not focus_node:
+        return blocks
+
+    filtered: list[dict[str, Any]] = []
+    for block in blocks:
+        if block.get("type") == "equation":
+            source_node_id = str(block.get("source_node_id") or "")
+            if source_node_id and source_node_id != str(focus_node):
+                continue
+        filtered.append(block)
+    return filtered
+
+
 def _path_calculation_preview_blocks(
     task: Task,
     planning: dict[str, Any],
@@ -199,17 +160,28 @@ def _path_calculation_preview_blocks(
     *,
     trace: list[Any] | None = None,
 ) -> list[dict[str, Any]]:
-    """After path expansion, preview the selected calculation node's governing equation."""
-    selected_node = _resolve_calculation_node_id(task, planning, trace)
-    if not selected_node:
-        selected_node = resolve_focus_node_for_equation_display(task, planning, reader)
+    """After path expansion, preview the focus calculation node's governing equation."""
+    void = trace
+    selected_node = resolve_focus_node_for_equation_display(task, planning, reader)
     if not selected_node:
         return []
 
-    reference = _NODE_REFERENCES.get(str(selected_node))
+    equation_id = resolve_equation_node_for_display(reader, str(selected_node), task)
+    evaluated_ids = evaluated_equation_node_ids(task)
+    if equation_id and equation_id in evaluated_ids:
+        return []
+
     blocks: list[dict[str, Any]] = []
-    if reference:
-        blocks.append(_path_preview_intro_block(str(selected_node), reference))
+    intro = build_paragraph_display_block(
+        reader,
+        str(selected_node),
+        display_role="intro",
+        block_id=f"path-preview-intro-{selected_node}",
+        content_suffix=" with the following equation:",
+        display_channel=DISPLAY_CHANNEL_CURRENT_NODE_INTRO,
+    )
+    if intro is not None:
+        blocks.append(intro)
 
     equation_block = build_equation_evaluation_block(
         task,
@@ -217,558 +189,57 @@ def _path_calculation_preview_blocks(
         str(selected_node),
     )
     if equation_block:
+        block_eq_id = str(equation_block.get("equation_node_id") or equation_id or "")
+        if block_eq_id and block_eq_id in evaluated_ids:
+            return blocks
         blocks.append(equation_block)
 
     return blocks
 
 
-def _resolve_calculation_node_id(
-    task: Task,
-    planning: dict[str, Any],
+def _validation_blocks_from_trace(
     trace: list[Any] | None,
-) -> str | None:
-    path = planning.get("path_decision") or {}
-    if isinstance(path, dict) and path.get("selected_node"):
-        return str(path["selected_node"])
+    task: Task,
+) -> list[dict[str, Any]]:
+    blocks: list[dict[str, Any]] = []
+    thin_wall = task.outputs.get("thin_wall")
+    if thin_wall is None:
+        return blocks
 
-    loading = task.fact_store.active_fact("pressure_loading")
-    loading_value = fact_scalar_value(loading) if loading is not None else None
-    if loading_value == "internal_pressure":
-        return "304.1.2-a"
-    if loading_value == "external_pressure":
-        return "B313-304.1.3"
-
+    has_calculation = False
     if isinstance(trace, list):
         for entry in trace:
             if not isinstance(entry, dict):
                 continue
             node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
             if node_trace.get("calculation"):
-                node_id = entry.get("node_id")
-                if node_id:
-                    return str(node_id)
-    return None
+                has_calculation = True
+                break
 
-
-def _build_mawp_display_outputs(
-    task: Task,
-    planning: dict[str, Any],
-    reader: StandardsReader,
-    trace: list[Any] | None,
-    *,
-    has_trace: bool,
-) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
-
-    if _mawp_calculated(task, has_trace=has_trace):
-        blocks.extend(_mawp_equation_preview_blocks(task, reader))
-        derivation = _mawp_thickness_derivation_block(trace)
-        if derivation:
-            blocks.append(derivation)
-        substituted = _mawp_substituted_equation_block(trace)
-        if substituted:
-            blocks.append(substituted)
-        conclusion = _mawp_conclusion_block(task)
-        if conclusion:
-            blocks.append(conclusion)
-        return _finalize_display_blocks(blocks, reader, task=task, planning=planning)
-
-    blocks.extend(_activated_definition_blocks(task, planning, reader))
-    blocks.extend(_mawp_equation_preview_blocks(task, reader))
-    return _finalize_display_blocks(blocks, reader, task=task, planning=planning)
-
-
-def _mawp_calculated(task: Task, *, has_trace: bool) -> bool:
-    if not has_trace:
-        return False
-    return task.outputs.get("mawp") is not None or task.outputs.get("MAWP") is not None
-
-
-_MAWP_TRACE_NODE_IDS = frozenset({"asme-b313-mawp-pressure", "B313-MAWP-CALCULATION"})
-_PRESSURE_DESIGN_TRACE_NODE_IDS = frozenset(
-    {"asme-b313-pressure-design-thickness", "B313-MAWP-PRESSURE-DESIGN"}
-)
-
-
-def _equation_display_text(reader: StandardsReader, node_id: str, fallback: str) -> str:
-    try:
-        ctx = load_equation_context(reader, node_id)
-        if isinstance(ctx, dict):
-            display = ctx.get("display")
-            if isinstance(display, dict):
-                text = display.get("text")
-                if text:
-                    return str(text)
-            elif display:
-                return str(display)
-        elif getattr(ctx, "display", None):
-            return str(ctx.display)
-    except (FileNotFoundError, TypeError, ValueError):
-        pass
-    return fallback
-
-
-def _mawp_equation_preview_blocks(task: Task, reader: StandardsReader) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
-    for ref_id in ("asme-b313-mawp-pressure", "B313-MAWP-CALCULATION"):
-        reference = _NODE_REFERENCES.get(ref_id)
-        if reference:
-            blocks.append(_path_preview_intro_block(ref_id, reference))
-            break
-
-    pressure_design_formula = _equation_display_text(
-        reader,
-        "asme-b313-pressure-design-thickness",
-        _MAWP_PRESSURE_DESIGN_FORMULA,
-    )
-    mawp_formula = _equation_display_text(
-        reader,
-        "asme-b313-mawp-pressure",
-        _MAWP_FORMULA,
-    )
-
-    blocks.append(
-        {
-            "id": "mawp-pressure-design-equation",
-            "type": "equation",
-            "title": None,
-            "content": _display_to_latex(pressure_design_formula),
-            "display": pressure_design_formula,
-            "input_table": build_mawp_pressure_design_input_table(task, reader=reader),
-        }
-    )
-    blocks.append(
-        {
-            "id": "mawp-formula-equation",
-            "type": "equation",
-            "title": None,
-            "content": _display_to_latex(mawp_formula),
-            "display": mawp_formula,
-            "input_table": build_mawp_formula_inputs_input_table(task, reader=reader),
-            "nomenclature_reference": {
-                "standard": "ASME B31.3",
-                "paragraph": "304.1.2",
-            },
-        }
-    )
-    return blocks
-
-
-def _mawp_substituted_equation_block(trace: list[Any] | None) -> dict[str, Any] | None:
-    if not isinstance(trace, list):
-        return None
-    for entry in trace:
-        if not isinstance(entry, dict):
-            continue
-        node_id = str(entry.get("node_id"))
-        if node_id not in _MAWP_TRACE_NODE_IDS:
-            continue
-        node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
-        calc = node_trace.get("calculation") if isinstance(node_trace.get("calculation"), dict) else {}
-        variables_si = node_trace.get("variables_si") if isinstance(node_trace.get("variables_si"), dict) else {}
-        final = calc.get("final_result") if isinstance(calc.get("final_result"), dict) else {}
-        value = final.get("value")
-        if value is None or not variables_si:
-            return None
-        display, latex = build_mawp_substituted_equation(
-            result_value_pa=float(value),
-            variables_si={k: float(v) for k, v in variables_si.items()},
-        )
-        return {
-            "id": "mawp-substituted-equation",
-            "type": "equation",
-            "title": None,
-            "content": latex,
-            "display": display,
-        }
-    return None
-
-
-def _mawp_thickness_derivation_block(trace: list[Any] | None) -> dict[str, Any] | None:
-    """Surface pressure design thickness derivation from execution trace."""
-    if not isinstance(trace, list):
-        return None
-    for entry in trace:
-        if not isinstance(entry, dict):
-            continue
-        node_id = str(entry.get("node_id"))
-        if node_id not in _PRESSURE_DESIGN_TRACE_NODE_IDS:
-            continue
-        node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
-        calc = node_trace.get("calculation") if isinstance(node_trace.get("calculation"), dict) else {}
-        variables_si = node_trace.get("variables_si") if isinstance(node_trace.get("variables_si"), dict) else {}
-        final = calc.get("final_result") if isinstance(calc.get("final_result"), dict) else {}
-        t_value = final.get("value")
-        t_actual = variables_si.get("t_actual")
-        c_value = variables_si.get("c")
-        if t_value is None:
-            continue
-        t_text = format_thickness_result_display(float(t_value))
-        parts = ["Pressure design thickness derivation:"]
-        if t_actual is not None and c_value is not None:
-            t_actual_text = format_thickness_result_display(float(t_actual))
-            c_text = format_thickness_result_display(float(c_value))
-            parts.append(f"t_actual = {t_actual_text}, c = {c_text}")
-        parts.append(f"t = t_actual - c = {t_text}")
-        display = " ".join(parts)
-        return {
-            "id": "mawp-thickness-derivation",
-            "type": "text",
-            "title": "Thickness basis",
-            "content": display,
-            "display": display,
-        }
-    return None
-
-
-def _mawp_conclusion_block(task: Task) -> dict[str, Any] | None:
-    mawp = task.outputs.get("mawp")
-    if mawp is None:
-        mawp = task.outputs.get("MAWP")
-    if mawp is None:
-        return None
-    from api.equation_inputs_display import format_value_with_unit_for_display
-
-    pressure_display = format_value_with_unit_for_display(float(mawp) / 1_000_000, "MPa")
-    return {
-        "id": "mawp-conclusion",
-        "type": "text",
-        "title": None,
-        "content": (
-            f"Maximum Allowable Working Pressure (MAWP): {pressure_display} "
-            "(per ASME B31.3 §304.1.2)."
-        ),
-        "variant": "body",
-    }
-
-
-def _build_pipe_wall_display_outputs(
-    task: Task,
-    planning: dict[str, Any],
-    reader: StandardsReader,
-    trace: list[Any] | None,
-    *,
-    has_trace: bool,
-    standards_root: Path,
-) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
-
-    if _pipe_wall_t_calculated(task, has_trace=has_trace):
-        blocks.extend(_path_calculation_preview_blocks(task, planning, reader, trace=trace))
-        substituted = _substituted_calculation_equation_block(trace)
-        if substituted:
-            blocks.append(substituted)
-        applicability = _thin_wall_applicability_block(task, trace)
-        if applicability:
-            blocks.append(applicability)
-        minimum_equation = _minimum_thickness_equation_block(task)
-        if minimum_equation:
-            blocks.append(minimum_equation)
-        conclusion = _minimum_thickness_conclusion_block(task)
-        if conclusion:
-            blocks.append(conclusion)
-        schedule = _pipe_schedule_recommendation_block(task, standards_root)
-        if schedule:
-            blocks.append(schedule)
-        return _finalize_display_blocks(blocks, reader, task=task, planning=planning)
-
-    blocks.extend(_activated_definition_blocks(task, planning, reader))
-    blocks.extend(_path_calculation_preview_blocks(task, planning, reader, trace=trace))
-    return _finalize_display_blocks(blocks, reader, task=task, planning=planning)
-
-
-def _pipe_wall_t_calculated(task: Task, *, has_trace: bool) -> bool:
-    if not has_trace:
-        return False
-    return task.outputs.get("required_thickness") is not None or task.outputs.get("t") is not None
-
-
-def _pipe_wall_tm_complete(task: Task) -> bool:
-    return (
-        task.outputs.get("minimum_required_thickness") is not None
-        or task.outputs.get("t_m") is not None
-    )
-
-
-def _required_thickness_summary_block(task: Task) -> dict[str, Any] | None:
-    thickness = task.outputs.get("required_thickness")
-    if thickness is None:
-        thickness = task.outputs.get("t")
-    if thickness is None:
-        return None
-    unit = str(
-        task.outputs.get("required_thickness_unit")
-        or task.outputs.get("t_unit")
-        or task.outputs.get("thickness_unit")
-        or "mm"
-    )
-    from api.equation_inputs_display import format_thickness_result_display
-
-    return {
-        "id": "required-thickness-summary",
-        "type": "text",
-        "title": None,
-        "content": f"Required wall thickness: {format_thickness_result_display(float(thickness), unit)}.",
-        "variant": "body",
-    }
-
-
-def _minimum_thickness_equation_block(task: Task) -> dict[str, Any] | None:
-    thickness = task.outputs.get("required_thickness")
-    if thickness is None:
-        thickness = task.outputs.get("t")
-    if thickness is None:
-        return None
-
-    from api.equation_inputs_display import build_minimum_thickness_equation
-
-    t_value = float(thickness)
-    unit = str(
-        task.outputs.get("required_thickness_unit")
-        or task.outputs.get("t_unit")
-        or task.outputs.get("thickness_unit")
-        or "mm"
-    )
-    c_value = _corrosion_allowance_mm(task)
-    t_m_value = task.outputs.get("t_m")
-    if t_m_value is None:
-        t_m_value = task.outputs.get("minimum_required_thickness")
-
-    display, latex = build_minimum_thickness_equation(
-        t_value=t_value,
-        c_value=c_value,
-        t_m_value=float(t_m_value) if isinstance(t_m_value, (int, float)) else None,
-        unit=unit,
-    )
-    return tag_display_block(
-        {
-            "id": "minimum-thickness-equation",
-            "type": "equation",
-            "title": None,
-            "content": latex,
-            "display": display,
-        },
-        display_role=DISPLAY_ROLE_DERIVED,
-        equation_node_id="asme-b313-304-1-1-eq-2",
-    )
-
-
-def _minimum_thickness_conclusion_block(task: Task) -> dict[str, Any] | None:
-    if not _pipe_wall_tm_complete(task):
-        return None
-    t_m = task.outputs.get("t_m")
-    if t_m is None:
-        t_m = task.outputs.get("minimum_required_thickness")
-    if t_m is None:
-        return None
-
-    from api.equation_inputs_display import format_thickness_result_display
-
-    unit = str(
-        task.outputs.get("t_m_unit")
-        or task.outputs.get("minimum_required_thickness_unit")
-        or "mm"
-    )
-    return tag_display_block(
-        {
-            "id": "minimum-thickness-conclusion",
-            "type": "text",
-            "title": None,
-            "content": (
-                f"Minimum required pipe wall thickness is "
-                f"{format_thickness_result_display(float(t_m), unit)}. "
-                "The selected pipe wall thickness must be not less than t_m per §304.1.1-a."
-            ),
-            "variant": "body",
-        },
-        display_role=DISPLAY_ROLE_CONCLUSION,
-    )
-
-
-def _pipe_schedule_recommendation_block(
-    task: Task,
-    standards_root: Path,
-) -> dict[str, Any] | None:
-    if not _pipe_wall_tm_complete(task):
-        return None
-
-    from engine.executor.pipe_schedule_recommendation import (
-        format_schedule_recommendation_text,
-        recommend_pipe_schedule_for_task,
-    )
-
-    recommendation = recommend_pipe_schedule_for_task(task, standards_root)
-    if recommendation is None:
-        return None
-
-    return tag_display_block(
-        {
-            "id": "pipe-schedule-recommendation",
-            "type": "text",
-            "title": None,
-            "content": format_schedule_recommendation_text(recommendation),
-            "variant": "body",
-            "pipe_schedule_recommendation": {
-                "nps": recommendation.nps,
-                "schedule": recommendation.schedule,
-                "wall_thickness_mm": recommendation.wall_thickness_mm,
-                "minimum_required_thickness_mm": recommendation.minimum_required_thickness_mm,
-                "standard": recommendation.standard_display,
-                "standard_slug": recommendation.standard_slug,
-                "table_id": recommendation.table_id,
-            },
-        },
-        display_role=DISPLAY_ROLE_RECOMMENDATION,
-    )
-
-
-def _corrosion_allowance_mm(task: Task) -> float | None:
-    from engine.executor.unit_manager import prepare_fact
-
-    fact = task.fact_store.active_fact("corrosion_allowance")
-    if fact is None or fact_scalar_value(fact) is None:
-        return None
-    if fact.fact_class == FactClass.DEFAULT_CONFIRMED and fact.validation.status == ValidationStatus.PENDING:
-        return None
-    return float(fact_scalar_value(prepare_fact(fact)))
-
-
-def _pipe_wall_calculation_complete(task: Task, *, has_trace: bool) -> bool:
-    return _pipe_wall_t_calculated(task, has_trace=has_trace)
-
-
-def _thin_wall_applicability_block(task: Task, trace: list[Any]) -> dict[str, Any] | None:
-    """Show §304.1.2 thin-wall criterion result after thickness is calculated."""
-    if trace is None:
-        return None
-    thin_wall = task.outputs.get("thin_wall")
-    if thin_wall is None:
-        return None
-    if not _pipe_wall_t_calculated(task, has_trace=True):
-        return None
+    if not has_calculation:
+        return blocks
 
     if bool(thin_wall):
-        content = "ASME B31.3 paragraph §304.1.2 condition (t < D/6) is valid."
+        content = "Thin-wall design criterion is satisfied for the evaluated thickness."
     else:
         content = (
-            "ASME B31.3 paragraph §304.1.2 condition (t < D/6) is NOT valid. "
-            "continuing with thick wall condition (t > D/6)"
+            "Thin-wall design criterion is not satisfied; "
+            "thick-wall design assumptions may apply."
         )
 
-    return tag_display_block(
-        {
-            "id": "thin-wall-applicability-check",
-            "type": "text",
-            "title": None,
-            "content": content,
-            "variant": "body",
-        },
-        display_role=DISPLAY_ROLE_APPLICABILITY,
-    )
-
-
-def _substituted_calculation_equation_block(trace: list[Any]) -> dict[str, Any] | None:
-    calc_entry = _wall_thickness_calculation_trace_entry(trace)
-    if not calc_entry:
-        return None
-
-    node_trace = calc_entry.get("trace") if isinstance(calc_entry.get("trace"), dict) else {}
-    substitution = node_trace.get("substitution")
-    if isinstance(substitution, str) and substitution.strip():
-        display = substitution.strip()
-        return tag_display_block(
+    blocks.append(
+        tag_display_block(
             {
-                "id": "path-calculation-substituted-equation",
-                "type": "equation",
+                "id": "validation-thin-wall-criterion",
+                "type": "text",
                 "title": None,
-                "content": display,
-                "display": display,
+                "content": content,
+                "variant": "body",
             },
-            display_role=DISPLAY_ROLE_SUBSTITUTED,
+            display_role=DISPLAY_ROLE_APPLICABILITY,
         )
-
-    calculation = node_trace.get("calculation")
-    if not isinstance(calculation, dict):
-        return None
-
-    variables_si = node_trace.get("variables_si")
-    if not isinstance(variables_si, dict):
-        return None
-
-    final = calculation.get("final_result")
-    if not isinstance(final, dict) or final.get("value") is None:
-        return None
-
-    variables = {
-        key: float(value)
-        for key, value in variables_si.items()
-        if isinstance(value, (int, float))
-    }
-    if not {"P", "D", "S", "E", "W", "Y"}.issubset(variables):
-        return None
-
-    result_unit = str(final.get("unit") or "mm")
-    display, latex = build_wall_thickness_substituted_equation(
-        result_value=float(final["value"]),
-        result_unit=result_unit,
-        variables_si=variables,
     )
-
-    return tag_display_block(
-        {
-            "id": "path-calculation-substituted-equation",
-            "type": "equation",
-            "title": None,
-            "content": latex,
-            "display": display,
-        },
-        display_role=DISPLAY_ROLE_SUBSTITUTED,
-    )
-
-
-def _wall_thickness_calculation_trace_entry(trace: list[Any]) -> dict[str, Any] | None:
-    preferred = ("B313-eq-wall-thickness", "304.1.2-a", "B313-304.1.3")
-    for node_id in preferred:
-        for entry in trace:
-            if isinstance(entry, dict) and entry.get("node_id") == node_id:
-                node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
-                if node_trace.get("calculation"):
-                    return entry
-
-    for entry in trace:
-        if not isinstance(entry, dict):
-            continue
-        node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
-        if node_trace.get("calculation") or node_trace.get("substitution"):
-            return entry
-    return None
-
-
-def _path_preview_intro_block(selected_node: str, reference: dict[str, str]) -> dict[str, Any]:
-    paragraph = str(reference.get("paragraph", "")).strip()
-    excerpt = str(reference.get("excerpt", "")).strip().rstrip(".")
-    label = f"§{paragraph}" if paragraph else selected_node
-    return tag_display_block(
-        {
-            "id": f"path-preview-intro-{selected_node}",
-            "type": "text",
-            "title": None,
-            "content": f"{excerpt} based on",
-            "content_suffix": " with the following equation:",
-            "variant": "body",
-            "reference_links": [
-                {
-                    "node_id": selected_node,
-                    "label": label,
-                    "paragraph": paragraph or None,
-                }
-            ],
-            "reference_links_placement": "inline",
-        },
-        display_role=DISPLAY_ROLE_INTRO,
-        source_node_id=selected_node,
-        display_channel=DISPLAY_CHANNEL_CURRENT_NODE_INTRO,
-    )
+    return blocks
 
 
 def _task_workflow_id(task: Task) -> str:
@@ -776,46 +247,17 @@ def _task_workflow_id(task: Task) -> str:
     return str(workflow) if workflow else ""
 
 
-def _planning_status_block(task: Task, planning: dict[str, Any]) -> dict[str, Any] | None:
-    action = planning.get("action")
-    if not action and task.status != TaskStatus.AWAITING_INPUT:
-        return None
-
-    if action == "request_input" or task.status == TaskStatus.AWAITING_INPUT:
-        return {
-            "id": "planning-status",
-            "type": "text",
-            "title": "Task status:",
-            "content": "Complete the fields below to continue.",
-            "variant": "body",
-        }
-
-    parts: list[str] = []
-    if action:
-        parts.append(f"Planner action: {action}.")
-    elif task.status == TaskStatus.COMPLETED:
-        parts.append("Calculation workflow completed.")
-
-    if not parts:
-        return None
-
-    return {
-        "id": "planning-status",
-        "type": "text",
-        "title": "Task status:",
-        "content": " ".join(parts),
-        "variant": "body",
-    }
-
-
 def _warning_block(message: str) -> dict[str, Any]:
-    return {
-        "id": f"warning-{abs(hash(message)) % 10_000}",
-        "type": "text",
-        "title": "Warning",
-        "content": message,
-        "variant": "warning",
-    }
+    return tag_display_block(
+        {
+            "id": f"warning-{abs(hash(message)) % 10_000}",
+            "type": "text",
+            "title": "Warning",
+            "content": message,
+            "variant": "warning",
+        },
+        display_role=DISPLAY_ROLE_WARNING,
+    )
 
 
 def _result_blocks(task: Task) -> list[dict[str, Any]]:
@@ -846,8 +288,13 @@ def _result_blocks(task: Task) -> list[dict[str, Any]]:
     return blocks
 
 
-def _blocks_from_execution_trace(trace: list[Any], task: Task) -> list[dict[str, Any]]:
+def _blocks_from_execution_trace(
+    trace: list[Any],
+    task: Task,
+    reader: StandardsReader,
+) -> list[dict[str, Any]]:
     blocks: list[dict[str, Any]] = []
+    evaluated_ids = evaluated_equation_node_ids(task)
 
     for index, entry in enumerate(trace):
         if not isinstance(entry, dict):
@@ -856,27 +303,23 @@ def _blocks_from_execution_trace(trace: list[Any], task: Task) -> list[dict[str,
         node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
         outputs = entry.get("outputs") if isinstance(entry.get("outputs"), dict) else {}
 
-        reference = _NODE_REFERENCES.get(node_id)
-        if reference:
-            blocks.append(
-                {
-                    "id": f"reference-{node_id}",
-                    "type": "reference",
-                    "title": reference["title"],
-                    "standard": reference["standard"],
-                    "paragraph": reference.get("paragraph"),
-                    "excerpt": reference.get("excerpt"),
-                    "source_node": node_id,
-                }
-            )
-
         calculation = node_trace.get("calculation")
         if isinstance(calculation, dict):
-            blocks.extend(_calculation_blocks(node_id, calculation, outputs))
+            equation_id = resolve_equation_node_for_display(reader, node_id, task)
+            skip_equation = bool(equation_id and equation_id in evaluated_ids)
+            blocks.extend(
+                _calculation_blocks(
+                    node_id,
+                    calculation,
+                    outputs,
+                    reader=reader,
+                    skip_equation=skip_equation,
+                )
+            )
 
         lookup = node_trace.get("lookup")
         if isinstance(lookup, dict):
-            table_block = _lookup_table_block(node_id, lookup)
+            table_block = _lookup_table_block(node_id, lookup, reader=reader)
             if table_block:
                 blocks.append(table_block)
 
@@ -894,22 +337,29 @@ def _calculation_blocks(
     node_id: str,
     calculation: dict[str, Any],
     outputs: dict[str, Any],
+    *,
+    reader: StandardsReader,
+    skip_equation: bool = False,
 ) -> list[dict[str, Any]]:
     blocks: list[dict[str, Any]] = []
-    formula = str(calculation.get("formula_display") or _WALL_THICKNESS_FORMULA)
-    variables = _variable_rows(calculation, outputs)
 
-    blocks.append(
-        {
-            "id": f"equation-{node_id}",
-            "type": "equation",
-            "title": "Governing equation",
-            "content": _display_to_latex(formula),
-            "display": formula,
-            "variables": variables,
-            "result": _equation_result(outputs),
-        }
-    )
+    if not skip_equation:
+        formula = str(calculation.get("formula_display") or "")
+        if not formula:
+            formula = _equation_formula_from_node(reader, node_id)
+        if formula:
+            variables = _variable_rows(calculation, outputs)
+            blocks.append(
+                {
+                    "id": f"equation-{node_id}",
+                    "type": "equation",
+                    "title": "Governing equation",
+                    "content": _display_to_latex(formula),
+                    "display": formula,
+                    "variables": variables,
+                    "result": _equation_result(outputs),
+                }
+            )
 
     steps = calculation.get("steps")
     if isinstance(steps, list) and steps:
@@ -966,7 +416,39 @@ def _calculation_blocks(
     return blocks
 
 
-def _lookup_table_block(node_id: str, lookup: dict[str, Any]) -> dict[str, Any] | None:
+def _equation_formula_from_node(reader: StandardsReader, node_id: str) -> str:
+    try:
+        ctx = load_equation_context(reader, node_id)
+        if isinstance(ctx, dict):
+            display = ctx.get("display")
+            if isinstance(display, dict):
+                text = display.get("text")
+                if text:
+                    return str(text)
+            elif display:
+                return str(display)
+        elif getattr(ctx, "display", None):
+            return str(ctx.display)
+    except (FileNotFoundError, TypeError, ValueError):
+        pass
+    try:
+        record = reader.load(node_id)
+        metadata = record.metadata
+        if str(metadata.get("type")) == "equation":
+            latex = metadata.get("display_latex") or metadata.get("sympy")
+            if latex:
+                return str(latex)
+    except FileNotFoundError:
+        pass
+    return ""
+
+
+def _lookup_table_block(
+    node_id: str,
+    lookup: dict[str, Any],
+    *,
+    reader: StandardsReader | None = None,
+) -> dict[str, Any] | None:
     rows = lookup.get("rows") or lookup.get("matches")
     if not isinstance(rows, list) or not rows:
         return None
@@ -981,15 +463,42 @@ def _lookup_table_block(node_id: str, lookup: dict[str, Any]) -> dict[str, Any] 
     if not normalized_rows:
         return None
 
-    columns = [{"key": key, "label": key.replace("_", " ").title(), "sortable": True} for key in normalized_rows[0]]
-    return {
+    columns = [
+        {"key": key, "label": key.replace("_", " ").title(), "sortable": True}
+        for key in normalized_rows[0]
+    ]
+
+    table_id = str(lookup.get("table_id") or node_id).strip()
+    title = str(lookup.get("title") or "").strip()
+    if not title and reader is not None:
+        try:
+            from api.node_context import display_heading_for_node
+
+            title = display_heading_for_node(reader.load(table_id).metadata) or "Lookup results"
+        except FileNotFoundError:
+            title = "Lookup results"
+    if not title:
+        title = "Lookup results"
+
+    highlight = lookup.get("highlight")
+    recommendation_summary = str(lookup.get("recommendation_summary") or "").strip()
+    display_role = DISPLAY_ROLE_RECOMMENDATION if highlight else "engineering_reference"
+
+    block: dict[str, Any] = {
         "id": f"table-lookup-{node_id}",
         "type": "table",
-        "title": "Lookup results",
+        "title": title,
         "columns": columns,
         "rows": normalized_rows,
         "searchable": True,
+        "refs": {"table_id": table_id, "node_id": table_id},
     }
+    if isinstance(highlight, dict) and highlight:
+        block["highlight_row"] = highlight
+    if recommendation_summary:
+        block["summary_text"] = recommendation_summary
+
+    return tag_display_block(block, display_role=display_role, source_node_id=node_id)
 
 
 def _intermediate_graph_block(trace: list[Any]) -> dict[str, Any] | None:
@@ -1073,8 +582,7 @@ def _format_step_result(result: Any) -> str:
 
 def _format_number(value: Any) -> str:
     if isinstance(value, float):
-        text = f"{value:.6g}"
-        return text
+        return f"{value:.6g}"
     return str(value)
 
 

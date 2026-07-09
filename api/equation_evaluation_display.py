@@ -444,6 +444,8 @@ def _definition_reference_for_parameter(
     reader: StandardsReader,
     param_id: str,
 ) -> dict[str, str] | None:
+    from api.reference_links import _display_paragraph_label
+
     try:
         param = reader.load(param_id)
     except FileNotFoundError:
@@ -465,7 +467,7 @@ def _definition_reference_for_parameter(
             or def_record.metadata.get("paragraph")
             or ""
         ).strip()
-        label = f"§{paragraph}" if paragraph else def_node_id
+        label = _display_paragraph_label(paragraph) if paragraph else def_node_id
     except FileNotFoundError:
         label = def_node_id
 
@@ -488,7 +490,7 @@ def _param_input_id(reader: StandardsReader, param_id: str) -> str | None:
 
 
 def _output_display_value(task: Task, input_id: str) -> str | None:
-    from api.equation_inputs_display import format_thickness_result_display
+    from api.equation_inputs_display import format_thickness_result_display, format_value_with_unit_for_display
 
     if input_id in {"required_wall_thickness", "pressure_design_thickness"}:
         value = (
@@ -499,11 +501,25 @@ def _output_display_value(task: Task, input_id: str) -> str | None:
         if value is None:
             return None
         return format_thickness_result_display(float(value), "mm")
-    if input_id == "allowable_stress":
-        value = task.outputs.get("allowable_stress") or task.outputs.get("S")
-        if value is None:
-            return None
-        return _input_display_value(task, input_id)
+    output_key_groups: dict[str, tuple[str, ...]] = {
+        "allowable_stress": ("allowable_stress", "S"),
+        "weld_joint_efficiency": ("weld_joint_efficiency", "E"),
+        "weld_joint_strength_reduction_factor_W": ("weld_joint_strength_reduction_factor_W", "W"),
+        "temperature_coefficient_Y": ("temperature_coefficient_Y", "Y"),
+        "internal_design_gage_pressure": ("internal_design_gage_pressure", "P"),
+        "outside_diameter": ("outside_diameter", "D"),
+    }
+    for key in output_key_groups.get(input_id, ()):
+        raw = task.outputs.get(key)
+        if raw is None:
+            continue
+        formatted = _input_display_value(task, input_id)
+        if formatted:
+            return formatted
+        unit = str(task.outputs.get(f"{key}_unit") or "")
+        if isinstance(raw, (int, float)):
+            return format_value_with_unit_for_display(float(raw), unit or None) or str(raw)
+        return str(raw)
     return None
 
 

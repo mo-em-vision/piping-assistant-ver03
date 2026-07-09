@@ -13,7 +13,7 @@ import { useUiStore } from '@/store/uiStore'
 import { toUserFacingError } from '@/types/backend/errors'
 import { confirmTaskDeletion } from '@/utils/confirmTaskDeletion'
 import { mergeDisplayOutputs } from '@/utils/mergeDisplayOutputs'
-import { durableDisplayBlocks } from '@/utils/displayBlockLifecycle'
+import { durableDisplayBlocks, isPreviewEquationBlock } from '@/utils/displayBlockLifecycle'
 import {
   clearTranscriptCache,
   loadTranscriptCache,
@@ -99,10 +99,11 @@ export function withPreservedDisplayOutputs(
   incoming: TaskStateDto,
   _options?: { submittedParameter?: string },
 ): TaskStateDto {
-  const priorBlocks =
+  const priorBlocks = (
     previous && previous.task_id === incoming.task_id
       ? durableDisplayBlocks(previous.display_outputs ?? [])
       : durableDisplayBlocks(loadTranscriptCache(incoming.task_id))
+  ).filter((block) => !isPreviewEquationBlock(block))
 
   const merged = mergeDisplayOutputs(priorBlocks, incoming.display_outputs ?? [])
   saveTranscriptCache(incoming.task_id, durableDisplayBlocks(merged))

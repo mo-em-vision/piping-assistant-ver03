@@ -3,13 +3,7 @@ import {
   guidanceTranscriptToDisplayBlocks,
   type FlowGuidancePresentationBlock,
 } from '@/utils/flowGuidanceTranscript'
-import {
-  inferDisplayRole,
-  isPreviewDisplayBlock,
-  isVolatileDisplayBlock,
-  previewEquationSemanticKey,
-  equationTraceSemanticKey,
-} from '@/utils/displayBlockLifecycle'
+import { inferDisplayRole, isVolatileDisplayBlock } from '@/utils/displayBlockLifecycle'
 import { REPORT_ROLE_ORDER } from '@/utils/centerPanelContract'
 
 import type { WorkflowHistoryItem } from '@/components/workflow/buildWorkflowHistory'
@@ -18,54 +12,6 @@ function reportRoleIndex(block: DisplayOutputBlock): number {
   const role = (block as { display_role?: string }).display_role ?? inferDisplayRole(block)
   const index = REPORT_ROLE_ORDER.indexOf(role)
   return index === -1 ? REPORT_ROLE_ORDER.length : index
-}
-
-function isEquationTraceBlock(block: DisplayOutputBlock): boolean {
-  const role = inferDisplayRole(block)
-  return role === 'equation_trace' || block.id.startsWith('equation-trace-')
-}
-
-function hideTraceDuplicateOfCurrentPreview(
-  blocks: DisplayOutputBlock[],
-  workflowId?: string | null,
-): DisplayOutputBlock[] {
-  const previewKeys = new Set(
-    blocks
-      .map((block) => previewEquationSemanticKey(block, workflowId))
-      .filter((key): key is string => Boolean(key)),
-  )
-
-  if (previewKeys.size === 0) {
-    return blocks
-  }
-
-  return blocks.filter((block) => {
-    if (!isEquationTraceBlock(block)) {
-      return true
-    }
-    const traceKey = equationTraceSemanticKey(block, workflowId)
-    return !traceKey || !previewKeys.has(traceKey)
-  })
-}
-
-function orderEngineeringBlocks(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
-  const traces: DisplayOutputBlock[] = []
-  const durable: DisplayOutputBlock[] = []
-  const previews: DisplayOutputBlock[] = []
-
-  for (const block of blocks) {
-    if (isPreviewDisplayBlock(block)) {
-      previews.push(block)
-      continue
-    }
-    if (isEquationTraceBlock(block)) {
-      traces.push(block)
-      continue
-    }
-    durable.push(block)
-  }
-
-  return [...traces, ...durable, ...previews]
 }
 
 function dedupeByBlockId(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
@@ -102,16 +48,20 @@ export function buildCenterPanelTranscript(
   transcriptBlocks: FlowGuidancePresentationBlock[] | unknown[],
   workflowId?: string | null,
 ): WorkflowHistoryItem[] {
-  const guidanceBlocks = guidanceTranscriptToDisplayBlocks(transcriptBlocks)
+  void workflowId
+  const guidanceBlocks = guidanceTranscriptToDisplayBlocks(transcriptBlocks).filter((block) => {
+    const role = (block as { display_role?: string }).display_role
+    return (
+      role !== 'workflow_intro' && role !== 'ask_archive' && role !== 'answer_archive'
+    )
+  })
   const guidanceIds = new Set(guidanceBlocks.map((block) => block.id))
 
   const engineering = displayOutputs.filter(
     (block) => !guidanceIds.has(block.id) && !isVolatileDisplayBlock(block),
   )
-  const dedupedEngineering = hideTraceDuplicateOfCurrentPreview(engineering, workflowId)
-  const orderedEngineering = orderEngineeringBlocks(dedupedEngineering)
 
-  const merged = dedupeByBlockId([...guidanceBlocks, ...orderedEngineering])
+  const merged = dedupeByBlockId([...guidanceBlocks, ...engineering])
   const ordered = sortByReportOrder(merged)
 
   return ordered.map((block) => ({

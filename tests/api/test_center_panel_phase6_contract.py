@@ -235,6 +235,12 @@ def test_completed_task_cross_phase_contract(
     visible = collect_visible_text(
         presentation_package_from_task_state(state)["ordered_scroll_blocks"]
     ).lower()
+    scroll_roles = [
+        str(block.get("display_role") or "")
+        for block in presentation_package_from_task_state(state)["ordered_scroll_blocks"]
+    ]
+    assert "ask_archive" not in scroll_roles
+    assert "answer_archive" not in scroll_roles
     assert "engineering_plan" not in visible
     assert '"goal-' not in visible
     assert "asme-b313-" not in visible

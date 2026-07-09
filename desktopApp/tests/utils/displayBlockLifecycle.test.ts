@@ -74,10 +74,10 @@ describe('displayBlockLifecycle', () => {
       display: 't = 1.23 mm',
     }
     const derived: DisplayOutputBlock = {
-      id: 'minimum-thickness-equation',
+      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
       type: 'equation',
       lifecycle: 'durable',
-      display_role: 'derived',
+      display_role: 'equation_trace',
       equation_node_id: 'asme-b313-304-1-1-eq-2',
       content: 't_m = 2.252',
       display: 't_m = 2.252',

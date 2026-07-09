@@ -69,9 +69,18 @@ def _input_table_from_trace(
                 trace_source_type=trace_source_type,
                 trace_source_ref=trace_source_ref,
             )
+            from api.equation_evaluation_display import _definition_reference_for_parameter
+
+            definition_reference = _definition_reference_for_parameter(reader, item.parameter_id)
+            if definition_reference is not None:
+                row["definition_reference"] = definition_reference
         elif not value_text:
-            row["value"] = "Awaiting user input"
-            row["value_status"] = "unresolved_user_input"
+            if trace.status == "evaluated":
+                row["value"] = item.display_value or "—"
+                row["value_status"] = "resolved"
+            else:
+                row["value"] = "Awaiting user input"
+                row["value_status"] = "unresolved_user_input"
         rows.append(row)
     return {"columns": list(_INPUT_TABLE_COLUMNS), "rows": rows}
 

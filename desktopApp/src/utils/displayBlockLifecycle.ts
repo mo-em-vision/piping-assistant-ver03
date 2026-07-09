@@ -12,21 +12,27 @@ export type DisplayBlockWithLifecycle = DisplayOutputBlock & {
 
 const DURABLE_ROLES = new Set([
   'equation_trace',
+  'calculation_trace',
   'substituted',
   'derived',
   'conclusion',
-  'applicability',
+  'result_summary',
+  'validation_check',
   'recommendation',
   'result',
   'warning',
+  'engineering_reference',
 ])
 
-const PREVIEW_ROLES = new Set(['activation', 'preview'])
+const PREVIEW_ROLES = new Set(['activation', 'preview', 'equation_preview'])
 
 export function inferDisplayRole(block: DisplayOutputBlock): string | undefined {
-  const candidate = block as DisplayBlockWithLifecycle
+  const candidate = block as DisplayBlockWithLifecycle & { internal_display_role?: string }
   if (candidate.display_role) {
     return candidate.display_role
+  }
+  if (candidate.internal_display_role) {
+    return candidate.internal_display_role
   }
 
   const id = block.id
@@ -39,23 +45,17 @@ export function inferDisplayRole(block: DisplayOutputBlock): string | undefined 
   if (id.startsWith('path-preview-equation-')) {
     return 'preview'
   }
-  if (id === 'path-calculation-substituted-equation' || id === 'mawp-substituted-equation') {
-    return 'substituted'
-  }
-  if (id === 'minimum-thickness-equation') {
-    return 'derived'
-  }
   if (id.startsWith('path-preview-intro-')) {
     return 'intro'
   }
-  if (id === 'minimum-thickness-conclusion') {
-    return 'conclusion'
-  }
-  if (id === 'thin-wall-applicability-check') {
-    return 'applicability'
-  }
-  if (id === 'pipe-schedule-recommendation') {
+  if (id.startsWith('table-lookup-')) {
     return 'recommendation'
+  }
+  if (id.startsWith('paragraph-')) {
+    return 'engineering_reference'
+  }
+  if (id.startsWith('validation-')) {
+    return 'validation_check'
   }
   if (block.type === 'result') {
     return 'result'
@@ -158,7 +158,11 @@ export function equationTraceSemanticKey(
 ): string | null {
   const candidate = block as DisplayBlockWithLifecycle
   const role = candidate.display_role ?? inferDisplayRole(block)
-  if (role !== 'equation_trace' && !block.id.startsWith('equation-trace-')) {
+  const isTrace =
+    role === 'equation_trace' ||
+    role === 'calculation_trace' ||
+    block.id.startsWith('equation-trace-')
+  if (!isTrace) {
     return null
   }
   const sourceNodeId = candidate.source_node_id
@@ -168,6 +172,21 @@ export function equationTraceSemanticKey(
   }
   const workflow = workflowId ?? 'unknown'
   return `${workflow}|${sourceNodeId}|${equationNodeId}|equation_trace`
+}
+
+export function isPreviewEquationBlock(block: DisplayOutputBlock): boolean {
+  if (isPreviewDisplayBlock(block)) {
+    return block.type === 'equation'
+  }
+  const role = inferDisplayRole(block)
+  if (role === 'equation_preview' || role === 'activation' || role === 'preview') {
+    return block.type === 'equation'
+  }
+  const id = block.id
+  return (
+    block.type === 'equation' &&
+    (id.startsWith('path-preview-equation-') || id.startsWith('node-activation-equation-'))
+  )
 }
 
 export function previewEquationSemanticKey(

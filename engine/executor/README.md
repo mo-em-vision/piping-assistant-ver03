@@ -20,7 +20,9 @@ Deterministic workflow runtime: execute `ExecutionPlan` nodes, table lookups, Sy
 
 **Depends on:** `engine/graph/`, `engine/validation/`, `engine/events/`, `engine/execution/`, `engine/inspection/` (trace), `engine/equation/`, `engine/rules/`, `engine/reference/`, `engine/units/` (via unit_manager), `models/execution`
 
-**Used by:** `api/workflow_bootstrap.py`, `api/parameter_definitions.py`, `api/output_blocks.py`, `api/material_detail.py`, acceptance/e2e tests
+**Used by:** `api/workflow_bootstrap.py`, `api/parameter_definitions.py`, `api/material_detail.py`, acceptance/e2e tests
+
+**Display trace (B36.10):** On `ExecutionStatus.COMPLETED`, when `t_m` / `minimum_required_thickness` and NPS are available, `executor.py` appends a `B3610-table-2-1` lookup entry to `_execution_trace` via `append_schedule_lookup_trace_to_payload()`. `api/output_blocks.py` renders it as `table-lookup-B3610-table-2-1` — display does not call `recommend_pipe_schedule_for_task`.
 
 ## Runtime Usage
 
@@ -78,6 +80,6 @@ api/parameter_definitions (input edit)
 | `node_runner.py` | **Per-node execution** | `NodeRunner` | executor |
 | `nps_input_resolver.py` | NPS → outside diameter | `apply_nominal_pipe_size_lookup` | parameter_definitions, mawp_geometry |
 | `pipe_dimension_lookup.py` | B36.10 dimensions | `PipeDimensionLookup` | node_runner |
-| `pipe_schedule_recommendation.py` | Schedule recommendation | `recommend_pipe_schedule_for_task` | output_blocks |
+| `pipe_schedule_recommendation.py` | Schedule recommendation + display trace | `recommend_pipe_schedule_for_task`, `build_b36_10_schedule_lookup_trace_entry`, `append_schedule_lookup_trace_to_payload` | executor (trace append), tests |
 | `standards_equation.py` | Run equation `.py` scripts | `execute_standards_equation` | functions |
 | `unit_manager.py` | SI conversion for calcs | `prepare_engineering_input`, `convert_to_si` | node_runner, api, tests |

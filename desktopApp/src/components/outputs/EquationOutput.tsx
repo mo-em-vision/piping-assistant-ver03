@@ -78,6 +78,29 @@ function renderProvenanceTrail(provenance: ValueProvenanceDto, row: EquationInpu
   )
 }
 
+function chipKey(chip: ReferenceChipDto): string {
+  return `${chip.ref_type}:${chip.id}`
+}
+
+function collectRowReferenceKeys(row: EquationInputTableRowDto): Set<string> {
+  const keys = new Set<string>()
+  const provenance = row.value_provenance
+  if (provenance?.reference_chips?.length) {
+    for (const chip of provenance.reference_chips) {
+      keys.add(chipKey(chip))
+    }
+  }
+  const reference = row.value_reference
+  if (reference?.node_id) {
+    keys.add(`node:${reference.node_id}`)
+  }
+  const defRef = row.definition_reference
+  if (defRef?.node_id) {
+    keys.add(`node:${defRef.node_id}`)
+  }
+  return keys
+}
+
 function renderValueCell(row: EquationInputTableRowDto) {
   const value = String(row.value ?? '')
   const provenance = row.value_provenance
@@ -163,13 +186,6 @@ function renderValueCell(row: EquationInputTableRowDto) {
 function renderDefinitionCell(row: EquationInputTableRowDto) {
   const definition = String(row.definition ?? '')
   const reference = row.definition_reference
-  if (row.reference_chips?.length) {
-    return (
-      <span className="output-equation__definition-cell">
-        <EngineeringMathText text={definition} /> (as defined in {renderRowReferenceChips(row.reference_chips)})
-      </span>
-    )
-  }
   if (!reference) {
     return <EngineeringMathText text={definition} />
   }
@@ -208,6 +224,17 @@ function mathExpressionsForBlock(block: EquationOutputBlock): string[] {
 export function EquationOutput({ block }: EquationOutputProps) {
   const trace = block.equation_display_trace
   const mathExpressions = mathExpressionsForBlock(block)
+  const rowReferenceKeys = new Set<string>()
+  if (block.input_table?.rows) {
+    for (const row of block.input_table.rows) {
+      for (const key of collectRowReferenceKeys(row)) {
+        rowReferenceKeys.add(key)
+      }
+    }
+  }
+  const footerChips = (block.reference_chips ?? []).filter(
+    (chip) => !rowReferenceKeys.has(chipKey(chip)),
+  )
 
   return (
     <article className="output-block output-equation">
@@ -270,7 +297,7 @@ export function EquationOutput({ block }: EquationOutputProps) {
           ))}
         </dl>
       ) : null}
-      {block.reference_chips?.length ? <ReferenceChipList chips={block.reference_chips} /> : null}
+      {footerChips.length ? <ReferenceChipList chips={footerChips} /> : null}
       {block.nomenclature_reference &&
       !block.input_table?.rows.some((row) => row.definition_reference) ? (
         <p className="output-equation__nomenclature-ref">

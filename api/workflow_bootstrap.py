@@ -510,6 +510,30 @@ def _graph_navigation_snapshot(task: Task) -> dict[str, Any] | None:
     return nav if isinstance(nav, dict) else None
 
 
+_PIPE_WALL_PRE_EXEC_DEFINITION_FIELDS = frozenset({"corrosion_allowance"})
+
+
+def _pipe_wall_ready_for_primary_execution(task: Task, planning: dict[str, Any]) -> bool:
+    """Allow main thickness execution when only post-thickness definition inputs remain."""
+    if has_execution_trace(task):
+        return False
+    if task.outputs.get("t") is not None or task.outputs.get("required_thickness") is not None:
+        return False
+    missing = set(planning.get("missing_inputs") or [])
+    if not missing:
+        return False
+    phase_missing = planning.get("phase_missing") or {}
+    if not isinstance(phase_missing, dict):
+        return False
+    definition_missing = set(
+        phase_missing.get(NavigationPhase.DEFINITION_EQUATION_COMPLETION.value) or []
+    )
+    pre_execution_missing = missing - definition_missing
+    if pre_execution_missing:
+        return False
+    return bool(definition_missing & _PIPE_WALL_PRE_EXEC_DEFINITION_FIELDS)
+
+
 def task_ready_for_execution(task: Task) -> bool:
     if task.status in {TaskStatus.COMPLETED, TaskStatus.INVALIDATED}:
         return False
@@ -524,7 +548,19 @@ def task_ready_for_execution(task: Task) -> bool:
         workflow == PIPE_WALL_THICKNESS_DESIGN
         and nav_phase == NavigationPhase.DEFINITION_EQUATION_COMPLETION.value
     ):
-        return False
+        thickness_ready = (
+            task.outputs.get("t") is not None
+            or task.outputs.get("required_thickness") is not None
+            or has_execution_trace(task)
+        )
+        if thickness_ready:
+            return False
+
+    planning = planning_projection(task)
+    if workflow == PIPE_WALL_THICKNESS_DESIGN and _pipe_wall_ready_for_primary_execution(
+        task, planning
+    ):
+        return True
 
     if nav_phase == NavigationPhase.READY.value and not has_execution_trace(task):
         from engine.planner.graph_navigation import graph_navigation_has_collectable_missing
@@ -552,8 +588,6 @@ def task_ready_for_execution(task: Task) -> bool:
     roots = task.goal_store.roots()
     if roots and not task.goal_store.children(roots[0].id):
         return False
-
-    planning = planning_projection(task)
 
     if planning.get("action") != AgentAction.PROPOSE_PATH.value:
         return False

@@ -162,9 +162,19 @@ metadata:
 
   node_version: 1
 
-  last_revision: 2026-07-04
+  last_revision: 2026-07-09
 
   edited_by: admin
+
+presentation:
+
+  summary: >
+    Symbols used in the straight-pipe pressure design equations are defined in this
+    nomenclature paragraph.
+
+  display_label: Pressure design nomenclature
+
+  reference_label: ASME B31.3 §304.1.1
 
 ---
 

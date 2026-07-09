@@ -36,7 +36,6 @@ _USER_INPUT_FIELDS = (
     "internal_design_gage_pressure",
     "material_grade",
     "design_temperature",
-    "corrosion_allowance",
 )
 
 _GATE_FIELDS = (
@@ -308,9 +307,12 @@ def build_pipe_wall_requirements(*, root_goal_id: str) -> dict[str, PlanRequirem
 
     requirements[req_id("corrosion_allowance")] = user_input_requirement(
         "corrosion_allowance",
-        phase="parameter_gathering",
+        phase="definition_equation_completion",
         required_by=[root_goal_id],
     )
+    corrosion_req = requirements[req_id("corrosion_allowance")]
+    if corrosion_req.question_spec:
+        corrosion_req.question_spec.ask_policy = "ask_later"
 
     for field in _COEFFICIENT_INPUT_FIELDS:
         requirements[req_id(field)] = user_input_requirement(
@@ -356,5 +358,4 @@ def root_blocked_by_for_gathering() -> list[str]:
         req_id("material_grade"),
         req_id("design_temperature"),
         req_id("pipe_construction_type"),
-        req_id("corrosion_allowance"),
     ]

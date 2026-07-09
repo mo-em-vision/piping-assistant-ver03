@@ -50,13 +50,6 @@ function isRuntimeTranscriptBlock(block: FlowGuidancePresentationBlock): boolean
   return block.kind === 'text' && block.source === 'runtime'
 }
 
-function isInputArchiveBlock(block: FlowGuidancePresentationBlock): boolean {
-  return (
-    block.source === 'input_archive' &&
-    (block.kind === 'ask_archive' || block.kind === 'answer_archive')
-  )
-}
-
 function isNextWorkflowsBlock(block: FlowGuidancePresentationBlock): boolean {
   return block.kind === 'next_workflows' && block.source === 'workflow_runtime'
 }
@@ -65,7 +58,6 @@ function isDurableTranscriptBlock(block: FlowGuidancePresentationBlock): boolean
   return (
     isGuidanceNarrationBlock(block) ||
     isRuntimeTranscriptBlock(block) ||
-    isInputArchiveBlock(block) ||
     isNextWorkflowsBlock(block)
   )
 }

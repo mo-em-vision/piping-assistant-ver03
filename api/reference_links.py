@@ -7,6 +7,7 @@ from typing import Any
 
 from api.node_context import display_heading_for_node
 from engine.reference.equation_metadata import equation_reference
+from engine.reference.parameter_value_source import apply_value_provenance_to_row
 from engine.reference.paragraph_hierarchy import paragraph_reference
 from engine.reference.standards_reader import StandardsReader
 from engine.reference.table_metadata import table_paragraph_reference, table_reference
@@ -252,6 +253,29 @@ def dedupe_reference_chips(chips: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return ordered
 
 
+_CHIP_TYPE_PRIORITY = ("equation", "table", "paragraph", "node")
+
+
+def select_primary_reference_chip(chips: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return at most one primary chip for visible table-cell display."""
+    deduped = dedupe_reference_chips(chips)
+    if not deduped:
+        return []
+    if len(deduped) == 1:
+        return deduped
+
+    def rank(chip: dict[str, Any]) -> tuple[int, str]:
+        ref_type = str(chip.get("ref_type") or "").strip().lower()
+        try:
+            priority = _CHIP_TYPE_PRIORITY.index(ref_type)
+        except ValueError:
+            priority = len(_CHIP_TYPE_PRIORITY)
+        return (priority, str(chip.get("label") or ""))
+
+    deduped.sort(key=rank)
+    return [deduped[0]]
+
+
 def enrich_presentation_block_dict(
     block: dict[str, Any],
     reader: StandardsReader,
@@ -314,19 +338,20 @@ def enrich_row_provenance_dict(
             if isinstance(value_reference, dict):
                 chips = resolve_reference_chips_from_legacy_links([value_reference], reader)
         if chips:
-            prov_copy["reference_chips"] = dedupe_reference_chips(chips)
+            prov_copy["reference_chips"] = select_primary_reference_chip(chips)
         row_copy["value_provenance"] = prov_copy
 
-    row_chips: list[dict[str, Any]] = []
     nested = row_copy.get("value_provenance")
-    if isinstance(nested, dict) and isinstance(nested.get("reference_chips"), list):
-        row_chips.extend(nested["reference_chips"])
-    for key in ("value_reference", "definition_reference"):
-        ref = row_copy.get(key)
-        if isinstance(ref, dict):
-            row_chips.extend(resolve_reference_chips_from_legacy_links([ref], reader))
-    if row_chips:
-        row_copy["reference_chips"] = dedupe_reference_chips(row_chips)
+    if isinstance(nested, dict) and nested.get("reference_chips"):
+        row_copy.pop("reference_chips", None)
+    else:
+        row_chips: list[dict[str, Any]] = []
+        for key in ("value_reference",):
+            ref = row_copy.get(key)
+            if isinstance(ref, dict):
+                row_chips.extend(resolve_reference_chips_from_legacy_links([ref], reader))
+        if row_chips:
+            row_copy["reference_chips"] = select_primary_reference_chip(row_chips)
 
     return row_copy
 
@@ -344,18 +369,23 @@ def enrich_display_output_dict(
     enriched = dict(block)
     chips: list[dict[str, Any]] = []
 
-    refs = block.get("refs")
-    if isinstance(refs, dict):
-        chips.extend(resolve_reference_chips(refs, reader))
+    block_type = str(block.get("type") or "")
+    equation_node_id = str(block.get("equation_node_id") or "").strip()
+    if block_type == "equation" and equation_node_id:
+        chips = [_chip_for_equation(reader, equation_node_id)]
+    else:
+        refs = block.get("refs")
+        if isinstance(refs, dict):
+            chips.extend(resolve_reference_chips(refs, reader))
 
-    reference_links = block.get("reference_links")
-    if isinstance(reference_links, list):
-        chips.extend(resolve_reference_chips_from_legacy_links(reference_links, reader))
+        reference_links = block.get("reference_links")
+        if isinstance(reference_links, list):
+            chips.extend(resolve_reference_chips_from_legacy_links(reference_links, reader))
 
-    for key in ("value_reference", "definition_reference", "nomenclature_reference"):
-        ref = block.get(key)
-        if isinstance(ref, dict):
-            chips.extend(resolve_reference_chips_from_legacy_links([ref], reader))
+        for key in ("value_reference", "definition_reference", "nomenclature_reference"):
+            ref = block.get(key)
+            if isinstance(ref, dict):
+                chips.extend(resolve_reference_chips_from_legacy_links([ref], reader))
 
     inputs = block.get("inputs")
     if isinstance(inputs, list):
@@ -368,20 +398,40 @@ def enrich_display_output_dict(
         enriched["inputs"] = new_inputs
 
     input_table = block.get("input_table")
+    row_chip_ids: set[tuple[str, str]] = set()
     if isinstance(input_table, dict):
         rows = input_table.get("rows")
         if isinstance(rows, list):
-            enriched["input_table"] = {
-                **input_table,
-                "rows": [
-                    enrich_row_provenance_dict(row, reader, task=task) if isinstance(row, dict) else row
-                    for row in rows
-                ],
-            }
+            enriched_rows: list[dict[str, Any]] = []
+            for row in rows:
+                if not isinstance(row, dict):
+                    enriched_rows.append(row)
+                    continue
+                enriched_row = enrich_row_provenance_dict(row, reader, task=task)
+                enriched_rows.append(enriched_row)
+                provenance = enriched_row.get("value_provenance")
+                if isinstance(provenance, dict):
+                    for chip in provenance.get("reference_chips") or []:
+                        if isinstance(chip, dict):
+                            row_chip_ids.add(
+                                (
+                                    str(chip.get("ref_type") or ""),
+                                    str(chip.get("id") or ""),
+                                )
+                            )
+            enriched["input_table"] = {**input_table, "rows": enriched_rows}
 
-    deduped = dedupe_reference_chips(chips)
-    if deduped:
+    deduped = select_primary_reference_chip(chips)
+    if deduped and not row_chip_ids:
         enriched["reference_chips"] = deduped
+    elif deduped:
+        footer = [
+            chip
+            for chip in deduped
+            if (str(chip.get("ref_type") or ""), str(chip.get("id") or "")) not in row_chip_ids
+        ]
+        if footer:
+            enriched["reference_chips"] = footer
     return enriched
 
 

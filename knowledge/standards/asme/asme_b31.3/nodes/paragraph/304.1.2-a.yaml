@@ -102,9 +102,19 @@ metadata:
 
   node_version: 1
 
-  last_revision: 2026-07-07
+  last_revision: 2026-07-09
 
   edited_by: admin
+
+presentation:
+
+  summary: >
+    For thin-wall straight pipe under internal pressure (t < D/6), the required
+    wall thickness is calculated from the governing equation in this paragraph.
+
+  display_label: Straight pipe under internal pressure
+
+  reference_label: ASME B31.3 §304.1.2
 
 ---
 

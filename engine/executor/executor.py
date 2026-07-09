@@ -322,6 +322,19 @@ class Executor:
                     selection_reason=_selection_reason(plan, item.node_id),
                 )
             trace_payload.append(payload)
+
+        if overall_status == ExecutionStatus.COMPLETED:
+            task = state.get_task(plan.task_id)
+            from engine.executor.pipe_schedule_recommendation import (
+                append_schedule_lookup_trace_to_payload,
+            )
+
+            append_schedule_lookup_trace_to_payload(
+                task,
+                trace_payload,
+                self._reader.standards_root,
+            )
+
         state.store_output(plan.task_id, "_execution_trace", trace_payload)
         state.store_output(plan.task_id, "_validation_trace", validation_trace)
 

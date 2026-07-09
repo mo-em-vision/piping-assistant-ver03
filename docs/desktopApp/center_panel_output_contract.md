@@ -47,8 +47,8 @@ Sync test: `tests/api/test_center_panel_phase6_contract.py` and `desktopApp/test
 | `input_context` | durable or preview | Flow Guidance (durable when in transcript); preview when tied to `display_channel` |
 | `engineering_reference` | durable | Engineering display — Phase 3 |
 | `equation_preview` | preview | Engineering display (`display_outputs`) |
-| `ask_archive` | durable | Messaging + `api/input_archive_transcript.py` — Phase 2 |
-| `answer_archive` | durable | Messaging + `api/input_archive_transcript.py` — Phase 2 |
+| `ask_archive` | durable (transcript only) | Messaging + `api/input_archive_transcript.py` — Phase 2; **not shown in center-panel scroll** |
+| `answer_archive` | durable (transcript only) | Messaging + `api/input_archive_transcript.py` — Phase 2; **not shown in center-panel scroll** |
 | `calculation_trace` | durable | Execution + display |
 | `validation_check` | durable | Engineering display |
 | `result_summary` | durable | Engineering display / runtime `texts` — Phase 1B |
@@ -65,9 +65,13 @@ Sync test: `tests/api/test_center_panel_phase6_contract.py` and `desktopApp/test
 | `workflow_intro` | `workflow-intro-{workflow_id}` |
 | `scope_assumption` | `scope-assumption-{source_node_id}` |
 | `equation_preview` | existing preview ids (`path-preview-equation-*`, etc.) |
-| `calculation_trace` | `equation-trace-{semantic_key}` |
-| `ask_archive` | `archived-ask-{parameter_id}-{submission_id}` |
-| `answer_archive` | `archived-answer-{parameter_id}-{submission_id}` |
+| `calculation_trace` | `equation-trace-{source_node_id}-{equation_node_id}` |
+| `engineering_reference` | `paragraph-{node_id}` |
+| `recommendation` (lookup table) | `table-lookup-{node_id}` |
+| `validation_check` | `validation-{semantic_key}` (e.g. `validation-thin-wall-criterion`) |
+| `result_summary` | `result-{output_key}` |
+| `ask_archive` | `archived-ask-{parameter_id}-{submission_id}` (transcript storage only; excluded from center-panel scroll) |
+| `answer_archive` | `archived-answer-{parameter_id}-{submission_id}` (transcript storage only; excluded from center-panel scroll) |
 | `next_workflows` | `next-workflows-{task_id}-{workflow_id}` |
 
 Future: `guidance-{workflow_id}-{entry_id}-{activation_key}` when entry reuse is required.
@@ -86,18 +90,53 @@ Future: `guidance-{workflow_id}-{entry_id}-{activation_key}` when entry reuse is
 1. `workflow_intro`
 2. `scope_assumption`
 3. `branch_narration`
-4. `ask_archive`
-5. `answer_archive`
-6. `engineering_reference`
-7. `input_context`
-8. `equation_preview`
-9. `calculation_trace`
-10. `validation_check`
-11. `result_summary`
-12. `recommendation`
-13. `next_workflows`
+4. `engineering_reference`
+5. `input_context`
+6. `calculation_trace`
+7. `equation_preview`
+8. `validation_check`
+9. `result_summary`
+10. `recommendation`
+11. `next_workflows`
+
+**Center-panel scroll exclusion:** `ask_archive` and `answer_archive` remain in `flow_guidance.transcript_blocks` for audit/history but are **not** merged into `ordered_scroll_blocks` or the desktop center-panel transcript. Users answer via the composer (`current_ask`), not the scroll area.
+
+Persisted archives may still exist in backend transcript storage; frontend filters repair older sessions via `buildCenterPanelTranscript.ts` and `flowGuidanceTranscript.ts`.
 
 Within the same role: chronological append order. Preview-tier: replace prior block in the same `display_channel`.
+
+## Generic display block contracts
+
+`build_display_outputs()` (`api/output_blocks.py`) is workflow-agnostic. Block ids derive from `node_id`, `equation_node_id`, or trace keys — never from workflow slug.
+
+### Paragraph / engineering reference
+
+- **Source:** paragraph node `presentation.summary` (preferred) or `text.original` fallback via `api/paragraph_display.py`.
+- **Node metadata:** `presentation.summary`, `presentation.display_label`, `presentation.reference_label` (see `docs/node-templates/Paragraph Node.md`).
+- **Shape:** `id=paragraph-{node_id}`, `type=text`, `display_role=engineering_reference`.
+
+### Equation preview / calculation trace
+
+- **Preview:** `path-preview-equation-{focus_node_id}`, `path-preview-intro-{focus_node_id}` — replaced when focus advances.
+- **Evaluated trace:** `equation-trace-{source_node_id}-{equation_node_id}` — rebuilt from `_execution_trace` / persisted `_equation_trace_keys` via `append_equation_trace_blocks()`.
+- **Row provenance:** at most one primary `reference_chips` entry per cell (`api/reference_links.select_primary_reference_chip`).
+
+### Lookup / recommendation table
+
+- **Source:** `_execution_trace[].trace.lookup` written by execution (e.g. B36.10 schedule list on completion).
+- **Shape:** `id=table-lookup-{node_id}`, `type=table`, optional `highlight_row`, `summary_text`.
+- Display **must not** query standards tables at serialize time.
+
+### Validation check
+
+- **Source:** `task.warnings` or trace-derived checks (e.g. thin-wall criterion from `task.outputs.thin_wall` + calculation trace).
+- **Shape:** `id=validation-{semantic_key}`, `type=text`, `display_role=validation_check`.
+
+### Workflow results
+
+- **Shape:** `id=result-{output_key}`, `type=result` from `task.outputs` keys configured in `_RESULT_KEYS`.
+
+Legacy ids removed from builders: `minimum-thickness-equation`, `pipe-schedule-recommendation`, `path-calculation-substituted-equation`, `thin-wall-applicability-check`.
 
 ## Reference chips (Phase 3)
 

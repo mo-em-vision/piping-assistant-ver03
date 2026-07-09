@@ -39,7 +39,7 @@ def test_guidance_resolver_returns_traversal_narration_for_matching_context() ->
     assert blocks[0].source == "guidance"
     assert blocks[0].kind == "guidance"
     assert "straight pipe section" in blocks[0].text.lower()
-    assert blocks[0].refs.get("node_id") == "304.1.2-a"
+    assert blocks[0].refs.get("node_id") == "304.1.1-a"
 
 
 def test_guidance_yaml_does_not_duplicate_parameter_prompt_copy() -> None:
@@ -52,13 +52,13 @@ def test_guidance_yaml_does_not_duplicate_parameter_prompt_copy() -> None:
 def test_guidance_block_may_reference_equation_but_not_duplicate_formula_text() -> None:
     validate_guidance_text(
         "The governing thickness equation on the active path will be used next.",
-        refs={"equation_id": "asme-b313-required-wall-thickness"},
+        refs={"equation_id": "asme-b313-304-1-2-eq-3a"},
     )
 
     with pytest.raises(GuidanceValidationError, match="formula"):
         validate_guidance_text(
             r"t = \frac{P D}{2 S E}",
-            refs={"equation_id": "asme-b313-required-wall-thickness"},
+            refs={"equation_id": "asme-b313-304-1-2-eq-3a"},
         )
 
 

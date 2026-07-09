@@ -15,6 +15,7 @@ from engine.reference.parameter_keys import (
     canonical_parameter_key,
     is_material_grade_parameter,
 )
+from engine.state.goal_projection import missing_input_keys
 from engine.state.task_facts import active_facts
 from models.fact import Fact, FactClass, ValidationStatus, fact_scalar_value
 from models.planning import NavigationPhase
@@ -32,6 +33,26 @@ _NAVIGATION_PHASE_SEQUENCE: tuple[str, ...] = (
     NavigationPhase.DEFINITION_EQUATION_COMPLETION.value,
     NavigationPhase.READY.value,
 )
+
+
+def _prioritize_submittable_by_phase(
+    planning: dict[str, Any],
+    candidates: list[str],
+) -> list[str]:
+    """Pick the earliest navigation-phase missing field among candidates."""
+    if not candidates:
+        return []
+    phase_missing = planning.get("phase_missing") or {}
+    if not isinstance(phase_missing, dict):
+        return candidates
+    candidate_set = set(candidates)
+    for phase_id in _NAVIGATION_PHASE_SEQUENCE:
+        for field in phase_missing.get(phase_id) or []:
+            field_id = str(field)
+            if field_id in candidate_set:
+                return [field_id]
+    return candidates
+
 
 _HIDDEN_TIMELINE_INPUTS = frozenset({"d_input_mode", "thin_wall"})
 _MAWP_HIDDEN_TIMELINE_INPUTS = frozenset(
@@ -683,7 +704,7 @@ def _unconfirmed_proposed_defaults_for_phase(
 
 def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]:
     """Parameters the user may submit on the current navigation phase."""
-    from engine.planner.goal_navigation import goal_guided_parameter_ids
+    from engine.planner.goal_navigation import goal_guided_parameter_ids, goal_parameter_key, next_actionable_goal
 
     edit_session = task.outputs.get("edit_session")
     if isinstance(edit_session, dict) and edit_session.get("parameter"):
@@ -720,6 +741,8 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
             and (not is_mawp_task(task) or _mawp_step_applies(task, param))
             and (not is_pipe_wall_thickness_task(task) or _pipe_wall_step_applies(task, param))
         ]
+        missing_keys = set(missing_input_keys(task))
+        filtered = list(dict.fromkeys([*filtered, *[p for p in missing_keys if p not in hidden]]))
         if filtered:
             current_phase = str(planning.get("current_phase") or "")
             phase_missing = planning.get("phase_missing") or {}
@@ -742,19 +765,21 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
                     phase_fields=set(phase_fields),
                     step_order=step_order,
                 )
+                ordered = _ordered_submittable_ids(
+                    task,
+                    set(filtered) | set(phase_fields) | set(extras),
+                    planning,
+                )
+                ordered = _prioritize_submittable_by_phase(planning, ordered)
                 return _log_submittable_result(
                     task,
                     planning,
-                    composer_parameter_ids(
-                        task,
-                        _ordered_submittable_ids(
-                            task, set(filtered) | set(phase_fields) | set(extras), planning
-                        ),
-                    ),
+                    composer_parameter_ids(task, ordered),
                     "goal_params+phase_fields",
                 )
+            prioritized = _prioritize_submittable_by_phase(planning, filtered)
             return _log_submittable_result(
-                task, planning, composer_parameter_ids(task, filtered), "goal_params_only"
+                task, planning, composer_parameter_ids(task, prioritized), "goal_params_only"
             )
 
     phase_missing = planning.get("phase_missing") or {}

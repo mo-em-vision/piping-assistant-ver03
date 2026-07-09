@@ -85,10 +85,10 @@ describe('mergeDisplayOutputs', () => {
       content: 'The minimum required wall thickness shall be computed.',
     }
     const derivedResult: DisplayOutputBlock = {
-      id: 'minimum-thickness-equation',
+      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
       type: 'equation',
       lifecycle: 'durable',
-      display_role: 'derived',
+      display_role: 'equation_trace',
       equation_node_id: 'asme-b313-304-1-1-eq-2',
       content: 't_m = 2.252',
       display: 't_m = 2.252',
@@ -101,17 +101,17 @@ describe('mergeDisplayOutputs', () => {
 
     expect(merged.map((block) => block.id)).toEqual([
       'preview-intro',
-      'minimum-thickness-equation',
+      'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
       'path-preview-equation-304.1.2-a',
     ])
   })
 
   it('updates durable equation blocks in place by id', () => {
     const previous: DisplayOutputBlock = {
-      id: 'minimum-thickness-equation',
+      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
       type: 'equation',
       lifecycle: 'durable',
-      display_role: 'derived',
+      display_role: 'equation_trace',
       content: 't_m = 2.000 + c',
       display: 't_m = 2.000 + c',
     }
@@ -146,10 +146,10 @@ describe('mergeDisplayOutputs', () => {
 
   it('preserves durable blocks when incoming only contains volatile blocks', () => {
     const durable: DisplayOutputBlock = {
-      id: 'minimum-thickness-equation',
+      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
       type: 'equation',
       lifecycle: 'durable',
-      display_role: 'derived',
+      display_role: 'equation_trace',
       content: 't_m = 2.252',
       display: 't_m = 2.252',
     }
@@ -189,10 +189,10 @@ describe('mergeDisplayOutputs', () => {
   it('returns incoming durable blocks when previous is empty', () => {
     const incoming: DisplayOutputBlock[] = [
       {
-        id: 'minimum-thickness-conclusion',
+        id: 'paragraph-304.1.1-a',
         type: 'text',
         lifecycle: 'durable',
-        display_role: 'conclusion',
+        display_role: 'engineering_reference',
         content: 'Minimum required pipe wall thickness is 2.252 mm.',
       },
     ]

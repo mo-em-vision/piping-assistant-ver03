@@ -7,6 +7,7 @@ from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import TaskStatus
 
 from api.equation_evaluation_display import (
+    _definition_reference_for_parameter,
     build_equation_evaluation_block,
     resolve_equation_node_for_display,
 )
@@ -114,3 +115,10 @@ def test_eq2_trace_updates_t_value_when_output_available(standards_reader) -> No
     assert "2.000" in t_row["value"]
     assert t_row.get("value_reference") is not None
     assert t_row.get("value_status") == "equation_derived"
+
+
+def test_definition_reference_strips_letter_suffix_from_label(standards_reader) -> None:
+    reference = _definition_reference_for_parameter(standards_reader, "PARAM-allowable-stress")
+    assert reference is not None
+    assert reference["label"] == "§304.1.1"
+    assert reference["node_id"]

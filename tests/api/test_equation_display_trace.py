@@ -176,7 +176,7 @@ def test_blocked_trace_before_evaluation_has_no_substitution(standards_reader) -
     assert payload.get("substituted_latex") in {None, ""}
 
 
-def test_legacy_pipe_wall_substitution_blocks_remain(standards_reader) -> None:
+def test_post_eval_pipe_wall_keeps_minimum_thickness_equation(standards_reader) -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-display-trace-legacy", status=TaskStatus.AWAITING_INPUT)
     planning = {
@@ -188,5 +188,5 @@ def test_legacy_pipe_wall_substitution_blocks_remain(standards_reader) -> None:
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     ids = {block.get("id") for block in blocks}
-    assert "minimum-thickness-equation" in ids
-    assert "path-calculation-substituted-equation" in ids
+    assert "equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2" in ids
+    assert "path-calculation-substituted-equation" not in ids

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from api.equation_inputs_display import _SYMBOL_TO_INPUT_ID, _format_scalar, _format_unit_for_display
-from api.output_blocks import _NODE_REFERENCES, _format_number
+from api.output_blocks import _format_number
 from engine.reference.standards_reader import StandardsReader
 from models.fact import fact_scalar_value, fact_unit
 from models.task import Task
@@ -72,13 +72,8 @@ def build_node_calculation_summaries(
         if primary is None:
             continue
 
-        reference = _NODE_REFERENCES.get(node_id, {})
-        paragraph = str(reference.get("paragraph") or record.metadata.get("paragraph") or "").strip() or None
-        title = str(
-            reference.get("title")
-            or record.metadata.get("title")
-            or node_id
-        ).strip()
+        paragraph = str(record.metadata.get("paragraph") or "").strip() or None
+        title = str(record.metadata.get("title") or node_id).strip()
 
         inputs = _input_rows(task, node_trace, entry.get("inputs") if isinstance(entry.get("inputs"), dict) else {})
 

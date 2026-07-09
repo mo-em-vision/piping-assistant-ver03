@@ -309,6 +309,28 @@ def _coerce_value(parameter: dict[str, Any], raw_value: Any) -> Any:
     return raw_value
 
 
+def _resolve_pipe_construction_type_value(
+    raw_value: Any,
+    options: list[Any],
+) -> str:
+    """Map short aliases (e.g. seamless) to dropdown option labels."""
+    from engine.reference.coefficient_resolver import _normalize_joint_category
+
+    value = str(raw_value).strip()
+    allowed = {
+        str(item["value"] if isinstance(item, dict) else item).strip()
+        for item in options
+        if item is not None
+    }
+    if value in allowed:
+        return value
+    target = _normalize_joint_category(value)
+    for option in allowed:
+        if _normalize_joint_category(option) == target:
+            return option
+    return value
+
+
 def _validate_against_spec(parameter: dict[str, Any], value: Any) -> None:
     validation = parameter.get("validation") or {}
     if parameter["type"] == "number" and isinstance(value, (int, float)):
@@ -436,6 +458,8 @@ def _submit_task_input_impl(
     if definition is None:
         raise ValueError(f"Parameter is not currently requested: {parameter}")
     coerced = _coerce_value(definition, value)
+    if parameter == "pipe_construction_type" and definition.get("options"):
+        coerced = _resolve_pipe_construction_type_value(coerced, definition["options"])
     if parameter == "outside_diameter" and definition["type"] == "dropdown":
         coerced = float(coerced)
     if not (parameter == "nominal_pipe_size" and str(unit or "").strip().upper() == "DN"):

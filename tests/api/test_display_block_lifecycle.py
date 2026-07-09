@@ -12,6 +12,33 @@ from api.display_block_metadata import (
 )
 
 
+def test_dedupe_competing_activation_when_path_preview_exists() -> None:
+    from api.display_block_metadata import dedupe_competing_equation_preview_blocks, tag_display_block
+
+    activation = tag_display_block(
+        {
+            "id": "node-activation-equation-304.1.2-a-fallback",
+            "type": "equation",
+            "display": "t = PD / 2(SEW + PY)",
+        },
+        display_role="activation",
+        equation_node_id="asme-b313-304-1-2-eq-3a",
+        source_node_id="304.1.2-a",
+    )
+    preview = tag_display_block(
+        {
+            "id": "path-preview-equation-304.1.2-a",
+            "type": "equation",
+            "display": "t = PD / 2(SEW + PY)",
+        },
+        display_role="preview",
+        equation_node_id="asme-b313-304-1-2-eq-3a",
+        source_node_id="304.1.2-a",
+    )
+    result = dedupe_competing_equation_preview_blocks([activation, preview])
+    assert [block["id"] for block in result] == ["path-preview-equation-304.1.2-a"]
+
+
 def test_tag_preview_equation_block_lifecycle() -> None:
     block = tag_display_block(
         {
@@ -100,9 +127,9 @@ def test_dedupe_preserves_substituted_result_for_same_equation_node_id() -> None
             "input_table": {"columns": [], "rows": []},
         },
         {
-            "id": "minimum-thickness-equation",
+            "id": "equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2",
             "type": "equation",
-            "display_role": "derived",
+            "display_role": "equation_trace",
             "lifecycle": "durable",
             "equation_node_id": "asme-b313-304-1-1-eq-2",
             "display": "t_m = 2.252",
@@ -112,7 +139,7 @@ def test_dedupe_preserves_substituted_result_for_same_equation_node_id() -> None
     deduped = dedupe_preview_tier_equations(blocks)
     ids = {block["id"] for block in deduped}
 
-    assert "minimum-thickness-equation" in ids
+    assert "equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2" in ids
     assert "path-preview-equation-304.1.1-a" in ids
 
 

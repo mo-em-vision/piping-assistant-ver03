@@ -20,6 +20,51 @@ def load_report_role_order() -> tuple[str, ...]:
 
 REPORT_ROLE_ORDER: tuple[str, ...] = load_report_role_order()
 
+# Internal builder roles (display_block_metadata) → API contract roles.
+INTERNAL_TO_CONTRACT_DISPLAY_ROLE: dict[str, str] = {
+    "activation": "equation_preview",
+    "preview": "equation_preview",
+    "equation_trace": "calculation_trace",
+    "substituted": "calculation_trace",
+    "derived": "result_summary",
+    "intro": "engineering_reference",
+    "conclusion": "result_summary",
+    "applicability": "validation_check",
+    "recommendation": "recommendation",
+    "result": "result_summary",
+    "warning": "validation_check",
+}
+
+
+def contract_display_role_for_internal(internal_role: str | None) -> str:
+    role = str(internal_role or "").strip()
+    if not role:
+        return ""
+    mapped = INTERNAL_TO_CONTRACT_DISPLAY_ROLE.get(role)
+    if mapped:
+        return mapped
+    if role in REPORT_ROLE_ORDER:
+        return role
+    return role
+
+
+def normalize_display_block_for_api(block: dict[str, Any]) -> dict[str, Any]:
+    """Map internal display roles to contract roles at the API boundary."""
+    if not isinstance(block, dict):
+        return block
+    normalized = dict(block)
+    internal = str(
+        normalized.get("internal_display_role")
+        or normalized.get("display_role")
+        or ""
+    ).strip()
+    if internal and internal not in REPORT_ROLE_ORDER:
+        normalized["internal_display_role"] = internal
+        normalized["display_role"] = contract_display_role_for_internal(internal)
+    elif internal:
+        normalized["display_role"] = internal
+    return normalized
+
 
 def report_role_index(display_role: str | None) -> int:
     role = str(display_role or "").strip()
@@ -119,17 +164,6 @@ def transcript_blocks_to_scroll_blocks(transcript_blocks: list[dict[str, Any]]) 
                         "type": "text",
                         "content": raw.get("text"),
                         "display_role": infer_block_display_role(raw),
-                    }
-                )
-            )
-        elif source == "input_archive" and kind in {"ask_archive", "answer_archive"}:
-            scroll_blocks.append(
-                normalize_scroll_block(
-                    {
-                        "id": raw.get("block_id"),
-                        "type": "text",
-                        "content": raw.get("text"),
-                        "display_role": kind,
                     }
                 )
             )

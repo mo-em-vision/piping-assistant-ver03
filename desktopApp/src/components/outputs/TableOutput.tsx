@@ -62,6 +62,11 @@ export function TableOutput({ block }: TableOutputProps) {
   return (
     <article className={`output-block${block.compact ? ' output-block--compact-table' : ''}`}>
       {block.title ? <h4 className="output-block__title">{block.title}</h4> : null}
+      {block.summary_text ? (
+        <p className="output-block__summary">
+          <EngineeringMathText text={block.summary_text} />
+        </p>
+      ) : null}
       {block.searchable ? (
         <div className="output-table__toolbar">
           <input
@@ -92,13 +97,21 @@ export function TableOutput({ block }: TableOutputProps) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((row, index) => (
-            <tr key={`${block.id}-row-${index}`}>
+          {rows.map((row, index) => {
+            const highlight =
+              block.highlight_row &&
+              String(row[block.highlight_row.column] ?? '') === block.highlight_row.value
+            return (
+            <tr
+              key={`${block.id}-row-${index}`}
+              className={highlight ? 'output-table__row--highlight' : undefined}
+            >
               {block.columns.map((column) => (
                 <td key={column.key}>{renderCell(column.key, row[column.key])}</td>
               ))}
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </article>

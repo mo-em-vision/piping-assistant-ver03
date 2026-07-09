@@ -69,14 +69,6 @@ def _submit_while_requested(
     return state
 
 
-@pytest.mark.skip(
-    reason=(
-        "Follow-up (out of stabilization scope): API submit path stalls in parameter_gathering "
-        "while pipe_construction_type remains in missing_inputs but is not submittable, so "
-        "thickness execution never runs. Requires graph/planner coefficient-resolution exposure; "
-        "see tests/api/test_workflow_timeline.py for phase/submittable contract tests."
-    ),
-)
 @pytest.mark.skipif(
     not _standards_db_available(),
     reason="standards_tables.db must be built for end-to-end thickness execution",

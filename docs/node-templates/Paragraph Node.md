@@ -47,6 +47,12 @@ metadata:
   node_version: 1
   last_revision: 2026-07-04
   edited_by: admin
+
+presentation:
+  summary: >
+    Short user-facing explanation for the center-panel scroll (1–3 sentences).
+  display_label: Optional heading override for scroll blocks
+  reference_label: Optional chip label override (defaults to § paragraph number)
 ---
 ```
 
