@@ -54,6 +54,8 @@ def infer_lifecycle(block: dict[str, Any]) -> str:
         return LIFECYCLE_VOLATILE
 
     role = str(block.get("display_role") or "").strip()
+    if role == DisplayRole.input_waiting.value:
+        return LIFECYCLE_VOLATILE
     if role == DisplayRole.equation.value:
         return lifecycle_for_equation_state(str(block.get("display_state") or ""))
 
@@ -449,4 +451,6 @@ def is_volatile_block(block: dict[str, Any]) -> bool:
     if block.get("history_eligible") is False and infer_lifecycle(block) == LIFECYCLE_VOLATILE:
         return True
     block_id = str(block.get("id") or "")
-    return block_id == "planning-status" or block_id.startswith("archived-prompt-")
+    if block_id in {"planning-status", "input-waiting"}:
+        return True
+    return block_id.startswith("archived-prompt-")

@@ -10,7 +10,10 @@ logger = logging.getLogger(__name__)
 
 
 class DisplayRole(StrEnum):
+    title = "title"
+    workflow_description = "workflow_description"
     workflow_intro = "workflow_intro"
+    input_waiting = "input_waiting"
     scope_assumption = "scope_assumption"
     branch_narration = "branch_narration"
     ask_archive = "ask_archive"
@@ -46,6 +49,8 @@ class ResultKind(StrEnum):
 
 
 DISPLAY_ROLE_ORDER: tuple[DisplayRole, ...] = (
+    DisplayRole.title,
+    DisplayRole.workflow_description,
     DisplayRole.workflow_intro,
     DisplayRole.scope_assumption,
     DisplayRole.branch_narration,
@@ -54,6 +59,7 @@ DISPLAY_ROLE_ORDER: tuple[DisplayRole, ...] = (
     DisplayRole.engineering_reference,
     DisplayRole.paragraph_context,
     DisplayRole.input_context,
+    DisplayRole.input_waiting,
     DisplayRole.node_intro,
     DisplayRole.equation,
     DisplayRole.applicability,
@@ -209,7 +215,13 @@ def infer_display_fields_from_block(block: dict[str, Any]) -> dict[str, Any]:
         if payload_role and not resolved.get("display_role"):
             resolved["display_role"] = payload_role
 
-    if block_id.startswith("workflow-intro-"):
+    if block_id.startswith("workflow-title-"):
+        resolved["display_role"] = DisplayRole.title.value
+    elif block_id.startswith("workflow-description-"):
+        resolved["display_role"] = DisplayRole.workflow_description.value
+    elif block_id == "input-waiting":
+        resolved["display_role"] = DisplayRole.input_waiting.value
+    elif block_id.startswith("workflow-intro-"):
         resolved["display_role"] = DisplayRole.workflow_intro.value
     elif block_id.startswith("result-summary-"):
         resolved["display_role"] = DisplayRole.result_summary.value

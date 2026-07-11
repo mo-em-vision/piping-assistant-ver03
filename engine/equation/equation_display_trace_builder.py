@@ -14,7 +14,7 @@ from engine.equation.latex_format import (
 )
 from engine.graph.param_priority import require_target_id
 from engine.graph.relationship_resolver import RequireBinding, resolve_require_bindings
-from engine.reference.parameter_keys import parameter_node_description
+from engine.equation.input_table import equation_parameter_description
 from engine.reference.parameter_value_source import resolve_parameter_value_reference
 from engine.reference.standards_reader import StandardsReader
 from models.calculation import CalculationResult, CalculationStep
@@ -263,10 +263,7 @@ def build_equation_display_trace(
         except FileNotFoundError:
             param_meta = {}
 
-        label = (
-            parameter_node_description(reader=reader, param_id=param_id)
-            or str(binding.metadata.get("description") or symbol)
-        )
+        label = equation_parameter_description(reader, param_id)
         fact_key = str(param_meta.get("input_id") or param_meta.get("key") or "").strip()
         unit = _param_unit(reader, param_id, param_meta)
 

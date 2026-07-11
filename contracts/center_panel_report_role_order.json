@@ -1,4 +1,6 @@
 [
+  "title",
+  "workflow_description",
   "workflow_intro",
   "scope_assumption",
   "branch_narration",
@@ -7,6 +9,7 @@
   "engineering_reference",
   "paragraph_context",
   "input_context",
+  "input_waiting",
   "node_intro",
   "equation",
   "applicability",

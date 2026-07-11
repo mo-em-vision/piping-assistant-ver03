@@ -4,17 +4,17 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.equation.input_table import (
+    INPUT_TABLE_COLUMNS,
+    equation_parameter_description,
+    equation_parameter_name,
+    finalize_equation_input_table_row,
+    format_value_for_table,
+)
 from engine.reference.parameter_value_source import apply_value_provenance_to_row
 from models.equation_display_trace import EquationDisplayTrace
 from models.task import Task
 from engine.reference.standards_reader import StandardsReader
-
-
-_INPUT_TABLE_COLUMNS: tuple[dict[str, Any], ...] = (
-    {"key": "symbol", "label": "Symbol", "sortable": False},
-    {"key": "definition", "label": "Definition", "sortable": False},
-    {"key": "value", "label": "Value", "sortable": False},
-)
 
 
 def trace_to_dict(trace: EquationDisplayTrace) -> dict[str, Any]:
@@ -38,32 +38,30 @@ def _input_table_from_trace(
 ) -> dict[str, Any]:
     rows: list[dict[str, Any]] = []
     for item in trace.inputs:
-        value_text = ""
-        if item.value is not None:
-            try:
-                from api.equation_inputs_display import format_value_with_unit_for_display
-
-                value_text = format_value_with_unit_for_display(item.value, item.unit) or ""
-            except Exception:
-                value_text = item.display_value or str(item.value)
-        elif item.display_value:
-            value_text = item.display_value
+        param_id = str(item.parameter_id or "").strip()
+        value_text, unit_text = format_value_for_table(item.value, item.unit)
+        if not value_text and item.display_value:
+            value_text = str(item.display_value).strip()
 
         row: dict[str, Any] = {
             "symbol": item.symbol,
-            "definition": item.label,
+            "parameter": equation_parameter_name(reader, param_id) if reader and param_id else "",
+            "description": equation_parameter_description(reader, param_id) if reader and param_id else "",
+            "definition": equation_parameter_description(reader, param_id) if reader and param_id else "",
             "value": value_text,
+            "unit": unit_text,
+            "source": "",
         }
-        if item.parameter_id:
-            row["parameter_id"] = item.parameter_id
+        if param_id:
+            row["parameter_id"] = param_id
         trace_source_type = str(item.source_type or "").strip() or None
         trace_source_ref = str(item.source_ref or "").strip() or None
 
-        if reader is not None and task is not None and item.parameter_id:
+        if reader is not None and task is not None and param_id:
             row = apply_value_provenance_to_row(
                 row,
                 reader,
-                item.parameter_id,
+                param_id,
                 task,
                 display_value=value_text,
                 trace_source_type=trace_source_type,
@@ -71,7 +69,7 @@ def _input_table_from_trace(
             )
             from api.equation_evaluation_display import _definition_reference_for_parameter
 
-            definition_reference = _definition_reference_for_parameter(reader, item.parameter_id)
+            definition_reference = _definition_reference_for_parameter(reader, param_id)
             if definition_reference is not None:
                 row["definition_reference"] = definition_reference
         elif not value_text:
@@ -79,10 +77,12 @@ def _input_table_from_trace(
                 row["value"] = item.display_value or "—"
                 row["value_status"] = "resolved"
             else:
-                row["value"] = "Awaiting user input"
+                from api.equation_inputs_display import AWAITING_USER_INPUT
+
+                row["value"] = AWAITING_USER_INPUT
                 row["value_status"] = "unresolved_user_input"
-        rows.append(row)
-    return {"columns": list(_INPUT_TABLE_COLUMNS), "rows": rows}
+        rows.append(finalize_equation_input_table_row(row))
+    return {"columns": list(INPUT_TABLE_COLUMNS), "rows": rows}
 
 
 def enrich_equation_block(

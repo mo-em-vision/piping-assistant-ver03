@@ -87,7 +87,7 @@ def transcript_blocks_to_scroll_blocks(transcript_blocks: list[dict[str, Any]]) 
                     }
                 )
             )
-        elif kind == "text" and source == "runtime":
+        elif kind == "text" and source in {"runtime", "workflow_node"}:
             scroll_blocks.append(
                 normalize_scroll_block(
                     {

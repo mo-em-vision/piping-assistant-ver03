@@ -49,10 +49,12 @@ def test_build_equation_evaluation_block_includes_live_values(standards_reader) 
     block = build_equation_evaluation_block(task, standards_reader, "304.1.2-a")
     assert block is not None
     assert block["display"] == "t = PD / 2(SEW + PY)"
-    assert block["input_table"]["columns"][1]["label"] == "Definition"
+    assert block["input_table"]["columns"][1]["label"] == "Parameter"
+    assert block["input_table"]["columns"][2]["label"] == "Description"
 
     pressure_row = next(row for row in block["input_table"]["rows"] if row["symbol"] == "P")
-    assert pressure_row["value"] == "8.0 bar"
+    assert pressure_row["value"] == "8"
+    assert pressure_row["unit"] == "bar"
     assert any(row["value"] == AWAITING_USER_INPUT for row in block["input_table"]["rows"])
     assert pressure_row.get("definition_reference") is not None
 

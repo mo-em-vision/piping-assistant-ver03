@@ -50,6 +50,10 @@ function isRuntimeTranscriptBlock(block: FlowGuidancePresentationBlock): boolean
   return block.kind === 'text' && block.source === 'runtime'
 }
 
+function isWorkflowNodeTranscriptBlock(block: FlowGuidancePresentationBlock): boolean {
+  return block.kind === 'text' && block.source === 'workflow_node'
+}
+
 function isNextWorkflowsBlock(block: FlowGuidancePresentationBlock): boolean {
   return block.kind === 'next_workflows' && block.source === 'workflow_runtime'
 }
@@ -58,6 +62,7 @@ function isDurableTranscriptBlock(block: FlowGuidancePresentationBlock): boolean
   return (
     isGuidanceNarrationBlock(block) ||
     isRuntimeTranscriptBlock(block) ||
+    isWorkflowNodeTranscriptBlock(block) ||
     isNextWorkflowsBlock(block)
   )
 }
@@ -86,6 +91,12 @@ function inferGuidanceDisplayRole(block: FlowGuidancePresentationBlock): string 
     return fromPayload
   }
   const blockId = String(block.block_id ?? '')
+  if (blockId.startsWith('workflow-title-')) {
+    return 'title'
+  }
+  if (blockId.startsWith('workflow-description-')) {
+    return 'workflow_description'
+  }
   if (blockId.startsWith('workflow-intro-')) {
     return 'workflow_intro'
   }

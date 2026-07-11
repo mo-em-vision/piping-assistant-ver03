@@ -305,11 +305,11 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
     equation = equation_blocks[0]
     assert not str(equation.get("context_intro") or "").strip()
     assert equation.get("title") is None
-    assert equation.get("lifecycle") == "durable"
+    assert equation.get("lifecycle") == "preview"
     assert "variables" not in equation
     assert "input_table" in equation
     pressure_row = next(row for row in equation["input_table"]["rows"] if row["symbol"] == "P")
-    assert pressure_row["definition"] == parameter_node_description(input_id="internal_design_gage_pressure")
+    assert pressure_row["description"] == parameter_node_description(input_id="internal_design_gage_pressure")
     assert pressure_row["value"] == "Awaiting user input"
     pressure_reference = pressure_row.get("definition_reference")
     assert pressure_reference is not None
@@ -348,6 +348,16 @@ def test_execution_trace_keeps_definition_node_outputs(standards_reader) -> None
     task.outputs.pop("minimum_required_thickness", None)
     task.outputs.pop("t_m", None)
     task.outputs.pop("_execution_trace", None)
+    from tests.helpers.goals import task_with_planning
+
+    task_with_planning(
+        task,
+        {
+            "path_decision": {"selected_node": "304.1.2-a"},
+            "current_phase": "definition_equation_completion",
+        },
+        workflow_id="pipe_wall_thickness_design",
+    )
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     ids = [block["id"] for block in blocks]

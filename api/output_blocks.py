@@ -23,7 +23,7 @@ from api.workflow_bootstrap import resolve_activated_definition_node
 from engine.reference.formula_display import load_equation_context
 from engine.reference.standards_reader import StandardsReader
 from engine.state.goal_projection import planning_projection
-from models.task import Task
+from models.task import Task, TaskStatus
 
 
 def build_display_outputs(
@@ -44,6 +44,7 @@ def build_display_outputs(
     blocks.extend(_workflow_scope_blocks(task, planning, resolved_reader))
     blocks.extend(_paragraph_context_blocks(task, planning, resolved_reader, trace=trace_list))
     blocks.extend(_equation_display_blocks(task, planning, resolved_reader, trace=trace_list))
+    blocks.extend(_input_waiting_blocks(task))
     blocks.extend(_validation_blocks_from_trace(trace_list, task))
 
     if has_trace:
@@ -89,8 +90,12 @@ def _enrich_reference_links(
     for index, block in enumerate(blocks):
         input_table = block.get("input_table")
         if isinstance(input_table, dict) and isinstance(input_table.get("rows"), list):
+            from engine.equation.input_table import finalize_equation_input_table_row
+
             rows = [
-                enrich_row_provenance_dict(row, reader, task=task)
+                finalize_equation_input_table_row(
+                    enrich_row_provenance_dict(row, reader, task=task),
+                )
                 if isinstance(row, dict)
                 else row
                 for row in input_table["rows"]
@@ -136,6 +141,26 @@ def _reader_for(standards_root: Path | None) -> StandardsReader:
 
 def _warning_blocks_from_task(task: Task) -> list[dict[str, Any]]:
     return [_warning_block(message) for message in task.warnings]
+
+
+def _input_waiting_blocks(task: Task) -> list[dict[str, Any]]:
+    if task.status != TaskStatus.AWAITING_INPUT:
+        return []
+    from engine.messaging.center_panel_copy import GENERIC_INPUT_WAITING_MESSAGE
+
+    return [
+        tag_display_block(
+            {
+                "id": "input-waiting",
+                "type": "text",
+                "content": GENERIC_INPUT_WAITING_MESSAGE,
+                "variant": "caption",
+            },
+            display_role=DisplayRole.input_waiting.value,
+            history_eligible=False,
+            volatile=True,
+        )
+    ]
 
 
 def _workflow_scope_blocks(

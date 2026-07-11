@@ -397,10 +397,12 @@ def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
     )
     assert "variables" not in equation
     assert equation["input_table"]["columns"][0]["label"] == "Symbol"
-    assert equation["input_table"]["columns"][1]["label"] == "Definition"
-    assert equation["input_table"]["columns"][2]["label"] == "Value"
+    assert equation["input_table"]["columns"][1]["label"] == "Parameter"
+    assert equation["input_table"]["columns"][2]["label"] == "Description"
+    assert equation["input_table"]["columns"][3]["label"] == "Value"
     assert equation["input_table"]["rows"][0]["symbol"] == "P"
-    assert equation["input_table"]["rows"][0]["value"] == "3.0 bar"
+    assert equation["input_table"]["rows"][0]["value"] == "3"
+    assert equation["input_table"]["rows"][0]["unit"] == "bar"
     unresolved_row = equation["input_table"]["rows"][2]
     assert unresolved_row["value"] == ""
     assert unresolved_row.get("value_reference")

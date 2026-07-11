@@ -10,6 +10,12 @@ from api.display_block_metadata import (
     tag_equation_block,
 )
 from models.display_role import DisplayState, EquationContent, infer_equation_content
+from engine.equation.input_table import (
+    INPUT_TABLE_COLUMNS,
+    build_base_input_row,
+    finalize_equation_input_table_row,
+    resolve_row_value_parts,
+)
 from api.equation_inputs_display import AWAITING_USER_INPUT, _input_display_value
 from engine.graph.assumption_checker import field_value
 from engine.graph.param_priority import require_target_id
@@ -19,7 +25,7 @@ from engine.reference.formula_display import (
     load_equation_context,
     resolve_equation_display_variables,
 )
-from engine.reference.parameter_keys import param_node_id_for_input, parameter_node_description
+from engine.reference.parameter_keys import param_node_id_for_input
 from engine.reference.parameter_value_source import (
     apply_value_provenance_to_row,
     resolve_parameter_value_reference,
@@ -29,11 +35,7 @@ from models.planning import NavigationPhase
 from models.task import Task
 
 
-_INPUT_TABLE_COLUMNS: tuple[dict[str, Any], ...] = (
-    {"key": "symbol", "label": "Symbol", "sortable": False},
-    {"key": "definition", "label": "Definition", "sortable": False},
-    {"key": "value", "label": "Value", "sortable": False},
-)
+_INPUT_TABLE_COLUMNS = INPUT_TABLE_COLUMNS
 
 
 def resolve_focus_node_for_equation_display(
@@ -413,7 +415,9 @@ def _dedupe_equation_input_rows(rows: list[dict[str, Any]]) -> list[dict[str, An
             seen[key] = row
             order.append(key)
             continue
-        if len(str(row.get("definition") or "")) > len(str(existing.get("definition") or "")):
+        if len(str(row.get("description") or row.get("definition") or "")) > len(
+            str(existing.get("description") or existing.get("definition") or "")
+        ):
             seen[key] = row
     return [seen[key] for key in order]
 
@@ -429,26 +433,26 @@ def _equation_input_rows(
             continue
         symbol = str(item.get("symbol") or item.get("alias") or "").strip()
         param_id = str(item.get("parameter") or require_target_id(item) or "").strip()
-        definition = parameter_node_description(reader=reader, param_id=param_id) or symbol
         input_id = _param_input_id(reader, param_id)
-        display = None
-        if input_id:
-            display = _input_display_value(task, input_id) or _output_display_value(task, input_id)
-        row: dict[str, Any] = {
-            "symbol": symbol,
-            "definition": definition,
-            "value": display or "",
-            "parameter_id": param_id or None,
-        }
+        value_text, unit_text, provenance_display = resolve_row_value_parts(
+            task,
+            reader,
+            param_id=param_id,
+            input_id=input_id,
+            symbol=symbol,
+        )
+        row = build_base_input_row(reader=reader, symbol=symbol, param_id=param_id)
+        row["value"] = value_text
+        row["unit"] = unit_text
         if param_id:
             row = apply_value_provenance_to_row(
                 row,
                 reader,
                 param_id,
                 task,
-                display_value=display or "",
+                display_value=provenance_display or value_text,
             )
-        elif display:
+        elif value_text:
             row["value_status"] = "user_supplied"
         else:
             row["value"] = AWAITING_USER_INPUT
@@ -456,7 +460,7 @@ def _equation_input_rows(
         definition_reference = _definition_reference_for_parameter(reader, param_id)
         if definition_reference is not None:
             row["definition_reference"] = definition_reference
-        rows.append(row)
+        rows.append(finalize_equation_input_table_row(row))
     return _dedupe_equation_input_rows(rows)
 
 
@@ -474,31 +478,31 @@ def _legacy_variable_rows(
             continue
         input_id = _SYMBOL_TO_INPUT_ID.get(symbol)
         param_id = param_node_id_for_input(input_id) if input_id else None
-        definition = (
-            parameter_node_description(reader=reader, param_id=param_id)
-            if param_id
-            else symbol
+        value_text, unit_text, provenance_display = resolve_row_value_parts(
+            task,
+            reader,
+            param_id=param_id or "",
+            input_id=input_id,
+            symbol=symbol,
         )
-        display = None
-        if input_id:
-            display = _input_display_value(task, input_id) or _output_display_value(task, input_id)
-        if display is None and variable.get("value"):
-            display = str(variable["value"])
-        row: dict[str, Any] = {
-            "symbol": symbol,
-            "definition": definition,
-            "value": display or "",
-        }
+        if not value_text and variable.get("value"):
+            value_text = str(variable.get("value") or "").strip()
+        row = build_base_input_row(
+            reader=reader,
+            symbol=symbol,
+            param_id=param_id or "",
+        )
+        row["value"] = value_text
+        row["unit"] = unit_text
         if param_id:
-            row["parameter_id"] = param_id
             row = apply_value_provenance_to_row(
                 row,
                 reader,
                 param_id,
                 task,
-                display_value=display or "",
+                display_value=provenance_display or value_text,
             )
-        elif display:
+        elif value_text:
             row["value_status"] = "user_supplied"
         else:
             row["value"] = AWAITING_USER_INPUT
@@ -507,7 +511,7 @@ def _legacy_variable_rows(
             definition_reference = _definition_reference_for_parameter(reader, param_id)
             if definition_reference is not None:
                 row["definition_reference"] = definition_reference
-        rows.append(row)
+        rows.append(finalize_equation_input_table_row(row))
     return _dedupe_equation_input_rows(rows)
 
 

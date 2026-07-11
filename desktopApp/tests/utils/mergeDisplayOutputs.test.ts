@@ -124,6 +124,25 @@ describe('mergeDisplayOutputs', () => {
     expect(mergeDisplayOutputs([previous], [])).toEqual([])
   })
 
+  it('passes through ephemeral input_waiting from incoming snapshot only', () => {
+    const waiting: DisplayOutputBlock = {
+      id: 'input-waiting',
+      type: 'text',
+      content: 'Waiting for your input to continue the workflow.',
+      display_role: 'input_waiting',
+      lifecycle: 'volatile',
+      volatile: true,
+      history_eligible: false,
+    }
+
+    const merged = mergeDisplayOutputs([stableEq2Block], [waiting])
+    expect(merged).toHaveLength(2)
+    expect(merged[1]?.id).toBe('input-waiting')
+
+    const afterSubmit = mergeDisplayOutputs(merged, [stableEq2Block])
+    expect(afterSubmit.some((block) => block.id === 'input-waiting')).toBe(false)
+  })
+
   it('clears stale preview when incoming snapshot has no preview blocks', () => {
     const merged = mergeDisplayOutputs([legacyEq2Preview], [])
 

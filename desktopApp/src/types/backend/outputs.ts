@@ -102,8 +102,12 @@ export interface EquationResultDto {
 
 export interface EquationInputTableRowDto {
   symbol?: string
+  parameter?: string
+  description?: string
   definition?: string
   value?: string
+  unit?: string
+  source?: string
   value_status?: string
   definition_reference?: ReferenceLinkDto | null
   value_reference?: ReferenceLinkDto | null

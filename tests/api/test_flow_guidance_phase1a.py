@@ -223,4 +223,5 @@ def test_flow_guidance_transcript_persisted_on_task_outputs(
     assert isinstance(stored, list)
     assert len(stored) >= 1
     block_ids = {block.get("block_id") for block in stored}
-    assert "workflow-intro-pipe_wall_thickness_design" in block_ids
+    assert "workflow-title-pipe_wall_thickness_design" in block_ids
+    assert "workflow-description-pipe_wall_thickness_design" in block_ids

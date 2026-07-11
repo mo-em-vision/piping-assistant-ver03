@@ -17,7 +17,7 @@ from api.flow_guidance_transcript import (
     save_flow_guidance_transcript,
     transcript_is_frozen,
 )
-from api.flow_guidance_runtime_texts import runtime_transcript_candidates
+from api.flow_guidance_runtime_texts import runtime_transcript_candidates, workflow_node_transcript_blocks
 
 
 def _transcript_sync_enabled() -> bool:
@@ -60,7 +60,8 @@ def sync_flow_guidance_transcript(
         for block in guidance_blocks
     )
     runtime_blocks = runtime_transcript_candidates(task)
-    candidates = normalized + runtime_blocks
+    workflow_blocks = workflow_node_transcript_blocks(task, reader)
+    candidates = normalized + workflow_blocks + runtime_blocks
 
     merged, changed = merge_guidance_into_transcript(
         stored,

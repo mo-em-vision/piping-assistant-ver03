@@ -96,7 +96,13 @@ export function inferDisplayFieldsFromBlock(block: DisplayBlockWithRole): Displa
   const resolved: DisplayBlockWithRole = { ...block }
   const id = block.id ?? ''
 
-  if (id.startsWith('workflow-intro-')) {
+  if (id.startsWith('workflow-title-')) {
+    resolved.display_role = 'title'
+  } else if (id.startsWith('workflow-description-')) {
+    resolved.display_role = 'workflow_description'
+  } else if (id === 'input-waiting') {
+    resolved.display_role = 'input_waiting'
+  } else if (id.startsWith('workflow-intro-')) {
     resolved.display_role = 'workflow_intro'
   } else if (id.startsWith('result-summary-')) {
     resolved.display_role = 'result_summary'

@@ -8,23 +8,30 @@ import {
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
 
 describe('guidanceTranscriptToDisplayBlocks', () => {
-  it('converts runtime workflow intro blocks to durable text display blocks', () => {
+  it('converts workflow node title and description blocks to durable text display blocks', () => {
     const blocks = guidanceTranscriptToDisplayBlocks([
       {
-        block_id: 'workflow-intro-pipe_wall_thickness_design',
+        block_id: 'workflow-title-pipe_wall_thickness_design',
         kind: 'text',
-        source: 'runtime',
-        text: 'Pipe Wall Thickness Design\n\nDetermine minimum required pipe wall thickness.',
-        payload: { display_role: 'workflow_intro', title: 'Pipe Wall Thickness Design' },
+        source: 'workflow_node',
+        text: 'Pipe Wall Thickness Design',
+        payload: { display_role: 'title' },
+      },
+      {
+        block_id: 'workflow-description-pipe_wall_thickness_design',
+        kind: 'text',
+        source: 'workflow_node',
+        text: 'Determine minimum required pipe wall thickness via graph expansion.',
+        payload: { display_role: 'workflow_description' },
       },
     ])
 
-    expect(blocks).toHaveLength(1)
-    expect(blocks[0]?.display_role).toBe('workflow_intro')
-    expect(blocks[0]?.title).toBe('Pipe Wall Thickness Design')
+    expect(blocks).toHaveLength(2)
+    expect(blocks[0]?.display_role).toBe('title')
+    expect(blocks[1]?.display_role).toBe('workflow_description')
   })
 
-  it('includes workflow intro first and appends guidance after engineering blocks', () => {
+  it('includes title and description before guidance and engineering blocks', () => {
     const displayOutputs: DisplayOutputBlock[] = [
       {
         id: 'equation-asme-b313-304-1-2-eq-3a',
@@ -44,19 +51,88 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
         payload: { display_role: 'branch_narration' },
       },
       {
-        block_id: 'workflow-intro-pipe_wall_thickness_design',
+        block_id: 'workflow-description-pipe_wall_thickness_design',
         kind: 'text',
-        source: 'runtime',
-        text: 'Determine minimum required pipe wall thickness from applicable standards.',
-        payload: { display_role: 'workflow_intro' },
+        source: 'workflow_node',
+        text: 'Workflow description from node.',
+        payload: { display_role: 'workflow_description' },
+      },
+      {
+        block_id: 'workflow-title-pipe_wall_thickness_design',
+        kind: 'text',
+        source: 'workflow_node',
+        text: 'Pipe Wall Thickness Design',
+        payload: { display_role: 'title' },
       },
     ]
 
     const items = buildCenterPanelTranscript(displayOutputs, transcript, 'pipe_wall_thickness_design')
-    expect(items).toHaveLength(3)
-    expect(items[0]?.block.id).toBe('workflow-intro-pipe_wall_thickness_design')
-    expect(items[1]?.block.id).toContain('guidance-')
-    expect(items[2]?.block.id).toBe('equation-asme-b313-304-1-2-eq-3a')
+    expect(items).toHaveLength(4)
+    expect(items[0]?.block.id).toBe('workflow-title-pipe_wall_thickness_design')
+    expect(items[1]?.block.id).toBe('workflow-description-pipe_wall_thickness_design')
+    expect(items[2]?.block.id).toContain('guidance-')
+    expect(items[3]?.block.id).toBe('equation-asme-b313-304-1-2-eq-3a')
+  })
+
+  it('renders ephemeral input_waiting block from display outputs', () => {
+    const items = buildCenterPanelTranscript(
+      [
+        {
+          id: 'input-waiting',
+          type: 'text',
+          content: 'Waiting for your input to continue the workflow.',
+          display_role: 'input_waiting',
+          lifecycle: 'volatile',
+          volatile: true,
+          history_eligible: false,
+        },
+      ],
+      [],
+    )
+
+    expect(items).toHaveLength(1)
+    expect(items[0]?.block.display_role).toBe('input_waiting')
+  })
+
+  it('filters leaked internal text from center panel merge', () => {
+    const items = buildCenterPanelTranscript(
+      [
+        {
+          id: 'paragraph-leak',
+          type: 'text',
+          content: 'waiting_user_input',
+          display_role: 'paragraph_context',
+          lifecycle: 'durable',
+        },
+        {
+          id: 'paragraph-safe',
+          type: 'text',
+          content: 'Visible summary.',
+          display_role: 'paragraph_context',
+          lifecycle: 'durable',
+        },
+      ],
+      [],
+    )
+
+    expect(items).toHaveLength(1)
+    expect(items[0]?.block.id).toBe('paragraph-safe')
+  })
+
+  it('converts runtime workflow intro blocks to durable text display blocks', () => {
+    const blocks = guidanceTranscriptToDisplayBlocks([
+      {
+        block_id: 'workflow-intro-pipe_wall_thickness_design',
+        kind: 'text',
+        source: 'runtime',
+        text: 'Pipe Wall Thickness Design\n\nDetermine minimum required pipe wall thickness.',
+        payload: { display_role: 'workflow_intro', title: 'Pipe Wall Thickness Design' },
+      },
+    ])
+
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0]?.display_role).toBe('workflow_intro')
+    expect(blocks[0]?.title).toBe('Pipe Wall Thickness Design')
   })
 
   it('rejects internal leak text in merged transcript output', () => {

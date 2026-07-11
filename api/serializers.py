@@ -814,7 +814,7 @@ def _task_state_impl(
         legacy_extras: dict[str, Any] = {
             "discipline": meta["discipline"],
             "description": str(planning.get("goal") or meta["description"]),
-            "workflow_display": workflow_display_meta(workflow_id, meta),
+            "workflow_display": workflow_display_meta(workflow_id, meta, reader=resolved_reader),
             "facts": {key: _fact_to_dict(value) for key, value in task.fact_store.active_facts().items()},
             "execution_context": execution_context_summary(task),
             "authority_context": authority_context_summary(task),

@@ -126,6 +126,22 @@ def workflow_title_for_goal(reader: StandardsReader, workflow_id: str) -> str:
     return _workflow_title(metadata, workflow_id=workflow_id)
 
 
+def workflow_display_title_from_node(reader: StandardsReader, workflow_id: str) -> str:
+    """User-facing workflow title from workflow node metadata only."""
+    metadata = _workflow_node_metadata(reader, workflow_id)
+    for key in ("title", "name"):
+        value = str(metadata.get(key) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def workflow_display_description_from_node(reader: StandardsReader, workflow_id: str) -> str:
+    """User-facing workflow description from workflow node ``description`` field only."""
+    metadata = _workflow_node_metadata(reader, workflow_id)
+    return str(metadata.get("description") or "").strip()
+
+
 def selection_fields_for_workflow(reader: StandardsReader, workflow_id: str) -> frozenset[str]:
     metadata = _workflow_node_metadata(reader, workflow_id)
     fields = set(_DEFAULT_SELECTION_FIELDS)

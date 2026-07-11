@@ -6,6 +6,7 @@ import {
   isVolatileDisplayBlock,
   mergeEquationTraceHistoryKey,
 } from '@/utils/displayBlockLifecycle'
+import { blockDisplayRole } from '@/utils/displayRole'
 
 function withoutVolatileBlocks(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
   return blocks.filter((block) => !isVolatileDisplayBlock(block))
@@ -73,12 +74,16 @@ function collectIncomingPreviewEquations(blocks: DisplayOutputBlock[]): DisplayO
   return Array.from(byKey.values())
 }
 
+function collectInputWaitingBlocks(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
+  return blocks.filter((block) => blockDisplayRole(block) === 'input_waiting')
+}
+
 /**
  * Merge display outputs by lifecycle:
  * - durable blocks update/append by stable block id only
  * - preview equation blocks from the incoming snapshot only (keyed by stable equation id)
  * - other preview blocks replace by display_channel when present
- * - volatile blocks are dropped
+ * - volatile blocks are dropped except ephemeral input_waiting from the incoming snapshot
  */
 export function mergeDisplayOutputs(
   previous: DisplayOutputBlock[],
@@ -86,6 +91,7 @@ export function mergeDisplayOutputs(
 ): DisplayOutputBlock[] {
   const filteredPrevious = withoutVolatileBlocks(previous)
   const filteredIncoming = withoutVolatileBlocks(incoming)
+  const inputWaiting = collectInputWaitingBlocks(incoming)
 
   const { durable: durablePrevious } = partitionByLifecycle(filteredPrevious)
   const { durable: durableIncoming, preview: previewIncoming } = partitionByLifecycle(filteredIncoming)
@@ -103,7 +109,12 @@ export function mergeDisplayOutputs(
 
   const previewEquations = collectIncomingPreviewEquations(previewIncoming)
 
-  return [...mergedDurable, ...previewEquations, ...Array.from(previewByChannel.values())]
+  return [
+    ...mergedDurable,
+    ...previewEquations,
+    ...Array.from(previewByChannel.values()),
+    ...inputWaiting,
+  ]
 }
 
 export { isVolatileDisplayBlock } from '@/utils/displayBlockLifecycle'

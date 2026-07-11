@@ -504,6 +504,108 @@ describe('EquationOutput', () => {
     expect(container.querySelector('.output-equation__input-table')).toBeTruthy()
     expect(container.querySelectorAll('.output-equation__math').length).toBe(3)
   })
+
+  it('renders evaluated input table beneath the final result line', () => {
+    const { container } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-trace-evaluated-order',
+          type: 'equation',
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'parameter', label: 'Parameter', sortable: false },
+              { key: 'description', label: 'Description', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+              { key: 'unit', label: 'Unit', sortable: false },
+              { key: 'source', label: 'Source', sortable: false },
+            ],
+            rows: [
+              {
+                symbol: 'P',
+                parameter: 'Internal Design Gage Pressure',
+                description: 'Internal design gage pressure',
+                value: '8',
+                unit: 'bar',
+                source: 'User input',
+              },
+            ],
+          },
+          equation_display_trace: {
+            equation_id: 'eq-3a',
+            node_id: '304.1.2-a',
+            symbolic_latex: 't = \\frac{PD}{2(SEW + PY)}',
+            substituted_latex: 't = \\frac{(8)(2)}{2((3)(4)(5) + (1)(6))}',
+            result_latex: '7\\ \\mathrm{mm}',
+            latex_source: 'metadata_display_text',
+            status: 'evaluated',
+            inputs: [],
+            intermediate_values: [],
+            result: {
+              symbol: 't',
+              value: 7,
+              unit: 'mm',
+              display_value: '7\\ \\mathrm{mm}',
+            },
+          },
+        }}
+      />,
+    )
+
+    const mathBlocks = Array.from(container.querySelectorAll('.output-equation__math'))
+    const table = container.querySelector('.output-equation__input-table')
+    expect(mathBlocks.length).toBe(3)
+    expect(table).toBeTruthy()
+    const lastMath = mathBlocks[mathBlocks.length - 1]
+    expect(lastMath.classList.contains('output-equation__math--result')).toBe(true)
+    expect(
+      lastMath.compareDocumentPosition(table!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('renders parameter and description columns from row metadata', () => {
+    const { getByText } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-six-column-table',
+          type: 'equation',
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'parameter', label: 'Parameter', sortable: false },
+              { key: 'description', label: 'Description', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+              { key: 'unit', label: 'Unit', sortable: false },
+              { key: 'source', label: 'Source', sortable: false },
+            ],
+            rows: [
+              {
+                symbol: 'P',
+                parameter: 'Internal Design Gage Pressure',
+                description: 'Internal design gage pressure per design conditions',
+                value: '8',
+                unit: 'bar',
+                source: 'User input',
+              },
+            ],
+          },
+          equation_display_trace: {
+            equation_id: 'eq-3a',
+            node_id: '304.1.2-a',
+            symbolic_latex: 't = \\frac{PD}{2(SEW + PY)}',
+            status: 'blocked',
+            inputs: [],
+            intermediate_values: [],
+            result: null,
+          },
+        }}
+      />,
+    )
+
+    expect(getByText('Internal Design Gage Pressure')).toBeTruthy()
+    expect(getByText('Internal design gage pressure per design conditions')).toBeTruthy()
+    expect(getByText('User input')).toBeTruthy()
+  })
 })
 
 describe('TableOutput', () => {

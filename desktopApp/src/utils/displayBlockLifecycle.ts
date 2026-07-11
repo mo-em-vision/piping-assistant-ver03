@@ -88,7 +88,7 @@ export function isVolatileDisplayBlock(block: DisplayOutputBlock): boolean {
     return true
   }
   const id = block.id
-  return id === 'planning-status' || id.startsWith('archived-prompt-')
+  return id === 'planning-status' || id === 'input-waiting' || id.startsWith('archived-prompt-')
 }
 
 export function isPreviewEquationBlock(block: DisplayOutputBlock): boolean {

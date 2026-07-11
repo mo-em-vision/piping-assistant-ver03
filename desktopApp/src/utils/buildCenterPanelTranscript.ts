@@ -1,6 +1,7 @@
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
 import {
   guidanceTranscriptToDisplayBlocks,
+  containsInternalLeakText,
   type FlowGuidancePresentationBlock,
 } from '@/utils/flowGuidanceTranscript'
 import { isVolatileDisplayBlock } from '@/utils/displayBlockLifecycle'
@@ -35,6 +36,22 @@ function sortByReportRole(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
     .map((item) => item.block)
 }
 
+function isUserVisibleBlock(block: DisplayOutputBlock): boolean {
+  const content = String(
+    ('content' in block ? block.content : '') ||
+      ('text' in block ? (block as { text?: string }).text : '') ||
+      '',
+  ).trim()
+  const title = String(block.title ?? '').trim()
+  if (content && containsInternalLeakText(content)) {
+    return false
+  }
+  if (title && containsInternalLeakText(title)) {
+    return false
+  }
+  return true
+}
+
 /**
  * Merge durable flow_guidance.transcript_blocks with engineering display_outputs.
  * Blocks are ordered by the shared REPORT_ROLE_ORDER contract.
@@ -45,15 +62,20 @@ export function buildCenterPanelTranscript(
   workflowId?: string | null,
 ): WorkflowHistoryItem[] {
   void workflowId
-  const allGuidance = guidanceTranscriptToDisplayBlocks(transcriptBlocks).filter((block) => {
-    const role = blockDisplayRole(block)
-    return role !== 'ask_archive' && role !== 'answer_archive'
-  })
+  const allGuidance = guidanceTranscriptToDisplayBlocks(transcriptBlocks)
+    .filter((block) => {
+      const role = blockDisplayRole(block)
+      return role !== 'ask_archive' && role !== 'answer_archive'
+    })
+    .filter(isUserVisibleBlock)
 
   const guidanceIds = new Set(allGuidance.map((block) => block.id))
 
   const engineering = displayOutputs.filter(
-    (block) => !guidanceIds.has(block.id) && !isVolatileDisplayBlock(block),
+    (block) =>
+      !guidanceIds.has(block.id) &&
+      (!isVolatileDisplayBlock(block) || blockDisplayRole(block) === 'input_waiting') &&
+      isUserVisibleBlock(block),
   )
 
   const merged = sortByReportRole(dedupeByBlockId([...allGuidance, ...engineering]))
