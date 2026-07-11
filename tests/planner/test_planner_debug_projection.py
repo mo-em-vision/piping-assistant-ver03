@@ -48,9 +48,9 @@ def _synthetic_generic_plan() -> EngineeringPlan:
     )
     traversal = PlannerTraversalState(
         traversal_id="TRAV-synthetic",
-        current_active_node_id="NODE-sample",
+        current_active_node_id="PARAM-sample-input",
         current_active_node=TraversalActiveNode(
-            node_id="NODE-sample",
+            node_id="PARAM-sample-input",
             node_type="parameter",
             title="Sample Input",
             phase="parameter_gathering",
@@ -68,7 +68,7 @@ def _synthetic_generic_plan() -> EngineeringPlan:
             TraversalPendingNode(
                 node_id="NODE-pending",
                 node_type="paragraph",
-                waiting_on=["NODE-sample"],
+                waiting_on=["PARAM-sample-input"],
                 reason="Blocked until sample input is provided",
                 title="Pending Paragraph",
             )
@@ -140,7 +140,7 @@ def _plan_with_multiple_expansions() -> EngineeringPlan:
             title="First Paragraph",
         ),
         TraversalExpandedNode(
-            node_id="NODE-sample",
+            node_id="PARAM-sample-input",
             node_type="parameter",
             expanded_at_order=3,
             title="Sample Input",
@@ -190,6 +190,30 @@ def _plan_with_phases_fallback() -> EngineeringPlan:
     return plan
 
 
+def _plan_with_equation_gathering() -> EngineeringPlan:
+    plan = _synthetic_generic_plan()
+    assert plan.traversal is not None
+    plan.traversal.pending_expansion_nodes = [
+        TraversalPendingNode(
+            node_id="asme-b313-304-1-2-eq-3a",
+            node_type="equation",
+            waiting_on=[],
+            reason="Awaiting parameter gathering.",
+            title="Internal Pressure Wall Thickness — Eq. (3a)",
+            phase="equation_execution",
+        ),
+        TraversalPendingNode(
+            node_id="PARAM-outside-diameter",
+            node_type="parameter",
+            waiting_on=[],
+            reason="Awaiting user input.",
+            phase="parameter_gathering",
+            title="Outside Diameter",
+        ),
+    ]
+    return plan
+
+
 def test_projection_shape_contract() -> None:
     projection = build_planner_debug_projection(_synthetic_generic_plan())
 
@@ -201,6 +225,8 @@ def test_projection_shape_contract() -> None:
         "visited_previous_step",
         "queue_leaf_nodes",
         "visited_from_beginning",
+        "excluded_nodes",
+        "blocked_nodes",
         "excluded_blocked",
     ):
         assert key in groups
@@ -221,8 +247,8 @@ def test_traversal_populated_groups() -> None:
     projection = build_planner_debug_projection(_synthetic_generic_plan())
     groups = projection["groups"]
 
-    assert projection["current_node"]["node_id"] == "NODE-sample"
-    assert projection["current_node"]["display_name"] == "Sample Input"
+    assert projection["current_node"]["node_id"] == "PARAM-sample-input"
+    assert projection["current_node"]["display_name"] == "PARAM-sample-input"
     assert projection["next_queued_node"]["node_id"] == "NODE-pending"
     assert groups["visited_from_beginning"]
     assert groups["visited_previous_step"]
@@ -231,7 +257,7 @@ def test_traversal_populated_groups() -> None:
     assert groups["queue_leaf_nodes"][0]["status_reason"] == "waiting for dependency"
 
     queue_ids = {item["node_id"] for item in groups["queue_leaf_nodes"]}
-    excluded_ids = {item["node_id"] for item in groups["excluded_blocked"]}
+    excluded_ids = {item["node_id"] for item in groups["excluded_nodes"]}
     assert queue_ids.isdisjoint(excluded_ids)
 
 
@@ -251,16 +277,45 @@ def test_visited_previous_step_picks_prior_expansion_batch() -> None:
     previous = projection["groups"]["visited_previous_step"]
 
     assert len(previous) == 1
-    assert previous[0]["node_id"] == "NODE-sample"
-    assert previous[0]["display_name"] == "Sample Input"
+    assert previous[0]["node_id"] == "PARAM-sample-input"
+    assert previous[0]["display_name"] == "PARAM-sample-input"
+
+
+def test_visited_previous_step_prefers_parameter_resolved_event() -> None:
+    plan = _synthetic_generic_plan()
+    assert plan.traversal is not None
+    plan.traversal.traversal_events = [
+        TraversalEvent(
+            order=1,
+            event_type="parameter_resolved",
+            node_id="PARAM-straight-pipe-section",
+            message="User input resolved for straight_pipe_section.",
+        )
+    ]
+    projection = build_planner_debug_projection(plan)
+    previous = projection["groups"]["visited_previous_step"]
+
+    assert len(previous) == 1
+    assert previous[0]["node_id"] == "PARAM-straight-pipe-section"
 
 
 def test_excluded_event_not_in_queue() -> None:
     projection = build_planner_debug_projection(_plan_with_excluded_event())
     groups = projection["groups"]
 
-    assert any(item["node_id"] == "NODE-excluded" for item in groups["excluded_blocked"])
+    assert any(item["node_id"] == "NODE-excluded" for item in groups["excluded_nodes"])
+    assert groups["excluded_nodes"][0]["status_reason"] == "excluded by branch"
     assert not any(item["node_id"] == "NODE-excluded" for item in groups["queue_leaf_nodes"])
+
+
+def test_equation_awaiting_parameter_gathering_in_queue() -> None:
+    projection = build_planner_debug_projection(_plan_with_equation_gathering())
+    queue = projection["groups"]["queue_leaf_nodes"]
+
+    equation_rows = [row for row in queue if row["node_id"] == "asme-b313-304-1-2-eq-3a"]
+    assert equation_rows
+    assert equation_rows[0]["status_reason"] == "awaiting parameter gathering"
+    assert equation_rows[0]["display_name"] == "asme-b313-304-1-2-eq-3a"
 
 
 def test_goals_from_required_outputs() -> None:
@@ -295,10 +350,11 @@ def test_candidate_queue_reason_ready_for_expansion() -> None:
     assert queue[0]["status_reason"] == "ready for expansion"
 
 
-def test_display_name_uses_traversal_title() -> None:
+def test_display_name_uses_node_id_for_traceability() -> None:
     projection = build_planner_debug_projection(_synthetic_generic_plan())
     visited = projection["groups"]["visited_from_beginning"][0]
-    assert visited["display_name"] == "Generic Workflow"
+    assert visited["display_name"] == "WF-GENERIC"
+    assert visited["label"] == "Generic Workflow"
 
 
 def test_planner_debug_projection_for_task_from_synthetic_outputs() -> None:
@@ -309,5 +365,5 @@ def test_planner_debug_projection_for_task_from_synthetic_outputs() -> None:
 
     projection = planner_debug_projection_for_task(task)
     assert projection is not None
-    assert projection["current_node"]["node_id"] == "NODE-sample"
+    assert projection["current_node"]["node_id"] == "PARAM-sample-input"
     assert projection["goals"]["main_goal"] == "Generic Sample Calculation"

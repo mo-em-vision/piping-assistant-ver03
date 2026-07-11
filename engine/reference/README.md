@@ -68,8 +68,8 @@ scripts/build_standards_tables_db.py → standards_tables.StandardsTablesDatabas
 | `coefficient_resolver.py` | E, W, Y table/formula resolution | `lookup_*`, `propose_coefficient_defaults` | `node_runner`, `workflow_bootstrap`, tests |
 | `embedded_nodes.py` | Parse embedded child sources in metadata | `iter_embedded_node_sources`, `find_embedded_body` | `graph_builder`, `formula_loader`, scripts |
 | `formula_display.py` | Equation display strings from nodes | `load_equation_context`, `resolve_equation_display_variables` | `api/node_display`, messaging, reports |
-| `graph_cache.py` | PackGraph SQLite cache R/W | `build_or_load_graph`, `write_graph_cache` | `graph_store`, `unit_resolver`, dev_studio |
-| `graph_compile.py` | Metadata → semantic edges | `compile_metadata_edges`, `node_aliases`, `validate_edge_item` | `graph_builder`, dev_studio graph_sync |
+| `graph_cache.py` | PackGraph SQLite cache R/W | `build_or_load_graph`, `write_graph_cache` | `graph_store`, `unit_resolver` |
+| `graph_compile.py` | Metadata → semantic edges | `compile_metadata_edges`, `node_aliases`, `validate_edge_item` | `graph_builder` |
 | `graph_edge_schema.py` | Canonical edge types and metadata | `CANONICAL_EDGE_TYPES`, `REVERSE_EDGE_TYPE`, `workflow_anchor_target` | graph_compile, relationship_taxonomy, lazy_expander |
 | `relationship_taxonomy.py` | Relationship taxonomy vocabulary | `KNOWLEDGE_EDGE_TYPES` (`reads_table`, `returns_parameter`, `constrains_equation`, …), `normalize_authoring_edge`, `expand_edge_types_for_query` | graph_compile, relationship_validator, traversal |
 | `relationship_validator.py` | Taxonomy edge validation | `validate_edge_item`, `validate_edges_for_node` | node validators, graph_compile |
@@ -83,7 +83,7 @@ scripts/build_standards_tables_db.py → standards_tables.StandardsTablesDatabas
 | `equation_sidecar.py` | Merge equation / validation_rule execution sidecars | `merge_equation_sidecar_metadata` | `standards_reader`, `graph_builder`, `formula_loader` |
 | `workflow_sidecar.py` | Merge workflow runtime sidecars (`workflows/{id}/runtime.yaml`) | `merge_workflow_sidecar_metadata` | `standards_reader`, `graph_builder`, `node_interaction`, `assumption_checker` |
 | `node_types.py` | Type/kind predicates | `is_lookup_node`, `is_validation_rule_node`, `canonical_type`, … | widespread |
-| `pack_graph_db.py` | Path resolver | `resolve_pack_graph_db` | graph_store, graph_cache, dev_studio |
+| `pack_graph_db.py` | Path resolver | `resolve_pack_graph_db` | graph_store, graph_cache |
 | `pack_nodes_db.py` | Path resolver | `resolve_pack_nodes_db` | standards_reader, scripts |
 | `pack_pipe_dimensions_db.py` | Path resolver | `resolve_pack_pipe_dimensions_db` | pipe_dimension_lookup |
 | `pack_tables_db.py` | Path resolver | `resolve_pack_tables_db` | lookup_engine, scripts |
@@ -91,7 +91,7 @@ scripts/build_standards_tables_db.py → standards_tables.StandardsTablesDatabas
 | `pipe_dimensions_db.py` | B36.10 pipe dimensions SQLite | `PipeDimensionsDatabase` | pipe lookups, scripts |
 | `pipe_dimensions_registry.py` | Multi-pack dimension source registry | `load_pipe_dimensions_registry` | scripts, tests |
 | `standards_config_db.py` | Global standards registry DB | `StandardsConfigDatabase` | material_catalog, scripts |
-| `standards_markdown.py` | Frontmatter parse/compose | `split_frontmatter`, `compose_frontmatter` | reader, dev_studio, scripts |
+| `standards_markdown.py` | Frontmatter parse/compose | `split_frontmatter`, `compose_frontmatter` | reader, scripts |
 | `standards_nodes.py` | Per-pack node content SQLite | `StandardsNodesDatabase` | standards_reader |
 | `standards_paths.py` | Pack path resolution | `resolve_standard_pack`, `list_standard_packs` | reader, scripts, api |
 | `standards_reader.py` | **Main reader** — load nodes, graph_store | `StandardsReader`, `NodeRecord` | entire codebase |

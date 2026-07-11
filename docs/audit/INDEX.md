@@ -63,7 +63,6 @@ Not every README uses identical headings; search the file for the closest sectio
 | Folder | Audit doc |
 |--------|-----------|
 | `api/` | [api/README.md](../../api/README.md) |
-| `api/dev_studio/` | [api/dev_studio/README.md](../../api/dev_studio/README.md) |
 | `models/` | [models/README.md](../../models/README.md) |
 | `storage/` | [storage/README.md](../../storage/README.md) |
 | `config/` | [config/README.md](../../config/README.md) |
@@ -105,7 +104,6 @@ Not every README uses identical headings; search the file for the closest sectio
 | `desktopApp/src/services/api/` | [desktopApp/src/services/api/README.md](../../desktopApp/src/services/api/README.md) |
 | `desktopApp/src/store/` | [desktopApp/src/store/README.md](../../desktopApp/src/store/README.md) |
 | `desktopApp/src/config/` | [desktopApp/src/config/README.md](../../desktopApp/src/config/README.md) |
-| `desktopApp/src/dev-studio/` | [desktopApp/src/dev-studio/README.md](../../desktopApp/src/dev-studio/README.md) |
 | `desktopApp/src/types/` | [desktopApp/src/types/README.md](../../desktopApp/src/types/README.md) |
 | `desktopApp/src/components/` | [desktopApp/src/components/README.md](../../desktopApp/src/components/README.md) |
 

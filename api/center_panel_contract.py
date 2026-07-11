@@ -6,6 +6,15 @@ import json
 from pathlib import Path
 from typing import Any
 
+from models.display_role import (
+    DISPLAY_ROLE_ORDER,
+    DisplayRole,
+    infer_display_fields_from_block,
+    report_role_index,
+    resolve_display_block,
+    sort_blocks_by_report_role,
+)
+
 _CONTRACT_PATH = (
     Path(__file__).resolve().parents[1] / "contracts" / "center_panel_report_role_order.json"
 )
@@ -20,113 +29,18 @@ def load_report_role_order() -> tuple[str, ...]:
 
 REPORT_ROLE_ORDER: tuple[str, ...] = load_report_role_order()
 
-# Internal builder roles (display_block_metadata) → API contract roles.
-INTERNAL_TO_CONTRACT_DISPLAY_ROLE: dict[str, str] = {
-    "activation": "equation_preview",
-    "preview": "equation_preview",
-    "equation_trace": "calculation_trace",
-    "substituted": "calculation_trace",
-    "derived": "result_summary",
-    "intro": "engineering_reference",
-    "paragraph_context": "paragraph_context",
-    "conclusion": "result_summary",
-    "applicability": "validation_check",
-    "recommendation": "recommendation",
-    "result": "result_summary",
-    "warning": "validation_check",
-}
-
-
-def contract_display_role_for_internal(internal_role: str | None) -> str:
-    role = str(internal_role or "").strip()
-    if not role:
-        return ""
-    mapped = INTERNAL_TO_CONTRACT_DISPLAY_ROLE.get(role)
-    if mapped:
-        return mapped
-    if role in REPORT_ROLE_ORDER:
-        return role
-    return role
-
-
-def normalize_display_block_for_api(block: dict[str, Any]) -> dict[str, Any]:
-    """Map internal display roles to contract roles at the API boundary."""
-    if not isinstance(block, dict):
-        return block
-    normalized = dict(block)
-    internal = str(
-        normalized.get("internal_display_role")
-        or normalized.get("display_role")
-        or ""
-    ).strip()
-    if internal and internal not in REPORT_ROLE_ORDER:
-        normalized["internal_display_role"] = internal
-        normalized["display_role"] = contract_display_role_for_internal(internal)
-    elif internal:
-        normalized["display_role"] = internal
-    return normalized
-
-
-def report_role_index(display_role: str | None) -> int:
-    role = str(display_role or "").strip()
-    if not role:
-        return len(REPORT_ROLE_ORDER)
-    try:
-        return REPORT_ROLE_ORDER.index(role)
-    except ValueError:
-        return len(REPORT_ROLE_ORDER)
-
 
 def infer_block_display_role(block: dict[str, Any]) -> str:
-    role = str(block.get("display_role") or "").strip()
-    if role:
-        return role
-    payload = block.get("payload")
-    if isinstance(payload, dict):
-        payload_role = str(payload.get("display_role") or "").strip()
-        if payload_role:
-            return payload_role
-    block_id = str(block.get("block_id") or block.get("id") or "")
-    if block_id.startswith("workflow-intro-"):
-        return "workflow_intro"
-    if block_id.startswith("result-summary-"):
-        return "result_summary"
-    if block_id.startswith("archived-ask-"):
-        return "ask_archive"
-    if block_id.startswith("archived-answer-"):
-        return "answer_archive"
-    if block_id.startswith("next-workflows-"):
-        return "next_workflows"
-    if block_id.startswith("guidance-"):
-        return "branch_narration"
-    if block_id.startswith("equation-"):
-        return "calculation_trace"
-    if block_id.startswith("equation-trace-"):
-        return "calculation_trace"
-    if block_id.startswith("path-preview-equation-"):
-        return "equation_preview"
-    lifecycle = str(block.get("lifecycle") or "").strip()
-    if lifecycle == "preview":
-        return "equation_preview"
-    return ""
+    resolved = resolve_display_block(block)
+    return str(resolved.get("display_role") or "")
 
 
 def normalize_scroll_block(block: dict[str, Any]) -> dict[str, Any]:
     """Normalize transcript or display output dicts to a shared scroll shape."""
     block_id = str(block.get("block_id") or block.get("id") or "").strip()
-    normalized = dict(block)
+    normalized = resolve_display_block(block)
     normalized["id"] = block_id
-    normalized["display_role"] = infer_block_display_role(block)
     return normalized
-
-
-def sort_blocks_by_report_role(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    indexed = [
-        (index, report_role_index(str(block.get("display_role") or "")), block)
-        for index, block in enumerate(blocks)
-    ]
-    indexed.sort(key=lambda item: (item[1], item[0]))
-    return [block for _, _, block in indexed]
 
 
 def dedupe_blocks_by_id(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -193,7 +107,7 @@ def transcript_blocks_to_scroll_blocks(transcript_blocks: list[dict[str, Any]]) 
                         "content": raw.get("text"),
                         "title": raw.get("title"),
                         "suggestions": raw.get("suggestions") or [],
-                        "display_role": "next_workflows",
+                        "display_role": DisplayRole.next_workflows.value,
                     }
                 )
             )
@@ -214,15 +128,20 @@ def assemble_center_panel_scroll_blocks(
     guidance_blocks = [
         block
         for block in transcript_blocks_to_scroll_blocks(transcript_blocks)
-        if str(block.get("display_role") or "") not in {"ask_archive", "answer_archive"}
+        if str(block.get("display_role") or "") not in {
+            DisplayRole.ask_archive.value,
+            DisplayRole.answer_archive.value,
+        }
     ]
     workflow_intro = [
-        block for block in guidance_blocks if str(block.get("display_role") or "") == "workflow_intro"
+        block
+        for block in guidance_blocks
+        if str(block.get("display_role") or "") == DisplayRole.workflow_intro.value
     ]
     narration = [
         block
         for block in guidance_blocks
-        if str(block.get("display_role") or "") != "workflow_intro"
+        if str(block.get("display_role") or "") != DisplayRole.workflow_intro.value
     ]
     engineering_blocks = [
         normalize_scroll_block(block)

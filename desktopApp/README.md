@@ -12,7 +12,6 @@ Root package for the Engineering Workspace desktop application. Contains:
 | --- | --- | --- |
 | Electron main process | `electron/` | Window, menu, Python backend child process, IPC |
 | React renderer | `src/` | UI, Zustand stores, API client |
-| Node Dev Studio (dev only) | `src/dev-studio/` | Browser-only graph node CRUD UI |
 | Build / test | `vite.config.ts`, `vitest.config.ts`, `tests/` | Vite bundling, Vitest, Playwright |
 | Packaging | `scripts/`, `electron-builder` config in `package.json` | Stage backend, NSIS installer |
 
@@ -22,8 +21,7 @@ Root package for the Engineering Workspace desktop application. Contains:
 | --- | --- |
 | `package.json` | Dependencies, npm scripts (`dev`, `build`, `verify:mvp`, `package:win`) |
 | `index.html` | Main app HTML shell → `src/main.tsx` |
-| `studio.html` | Dev Studio HTML shell → `src/dev-studio/main.tsx` |
-| `vite.config.ts` | Vite + `vite-plugin-electron`; studio-only mode when `VITE_DEV_STUDIO=true` |
+| `vite.config.ts` | Vite + `vite-plugin-electron` |
 | `vitest.config.ts` | Unit/integration test runner config |
 | `tsconfig*.json` | TypeScript project references |
 | `electron/` | Main process (see `electron/README.md`) |
@@ -39,7 +37,6 @@ Root package for the Engineering Workspace desktop application. Contains:
 | --- | --- | --- |
 | Electron main | `npm run dev` / packaged app | `electron/main.ts` → `dist-electron/main.js` |
 | Main renderer | `index.html` | `src/main.tsx` → `App.tsx` |
-| Dev Studio renderer | `npm run dev:studio` | `src/dev-studio/main.tsx` → `DevStudioApp.tsx` |
 | Preload bridge | Electron loads with window | `electron/preload.ts` → exposes `window.electronAPI` |
 
 ## Dependencies
@@ -47,20 +44,18 @@ Root package for the Engineering Workspace desktop application. Contains:
 **Outbound (this package depends on):**
 
 - Ver03 Python backend (`python -m api.server`) spawned by Electron or run separately
-- npm packages: React 19, Zustand, Vite, Electron 36, KaTeX, react-markdown, Monaco (dev studio)
+- npm packages: React 19, Zustand, Vite, Electron, KaTeX, react-markdown
 
-**Inbound (depend on this package):**
+**Inbound (depends on this package):**
 
-- Repository root pytest MVP tests (`tests/mvp/test_desktop_mvp_workflow.py`)
+- End users (packaged installer)
 - `dev/desktop_ui` (inspector, hovers, node edit tab)
 
 ## Runtime Usage
 
 **Active in production path:** Yes. Packaged app runs `dist-electron/main.js`, loads `dist/index.html`, spawns bundled backend under `resources/backend`.
 
-**Active in development:** `npm run dev` starts Vite on `127.0.0.1:5173` and Electron with `VITE_DEV_SERVER_URL`. Unpackaged Electron sets `DEV_STUDIO_ENABLED=1` and `DEV_INSPECTION_ENABLED=1` on the backend child process.
-
-**Dev Studio path:** Separate Vite entry (`studio.html`); no Electron. Requires backend with `DEV_STUDIO_ENABLED=1`.
+**Active in development:** `npm run dev` starts Vite on `127.0.0.1:5173` and Electron with `VITE_DEV_SERVER_URL`. Unpackaged Electron sets `DEV_INSPECTION_ENABLED=1` on the backend child process.
 
 ## Possible Dead Code
 
@@ -76,7 +71,6 @@ Root package for the Engineering Workspace desktop application. Contains:
 - `docs/README.md` lists product name "Engineering Knowledge Graph Assistant"; `constants.appName` matches. `package.json` `productName` is "Engineering Workspace".
 - `VITE_MOCK_DATA=true` bypasses API calls in stores (`taskStore`, `projectStore`, `chatStore`, `reportStore`, `materialCatalogStore`).
 - Path alias `@` → `src/` (configured in `vite.config.ts` and `tsconfig.json`).
-- Release build excludes Dev Studio unless `VITE_DEV_STUDIO=true` at build time.
 
 ## Execution Traces
 
@@ -128,14 +122,6 @@ StandardReferenceLink / output link click
   → standardsApi.getNode | getTable
 ```
 
-### Dev Studio (separate process)
-
-```
-studio.html → src/dev-studio/main.tsx → DevStudioApp
-  → devStudioStore.bootstrap → devStudioApi (GET /api/v1/dev/*)
-  → NodeEditorPanel saves → PUT dev node endpoints
-```
-
 ## Subfolder documentation
 
 | README | Scope |
@@ -144,6 +130,5 @@ studio.html → src/dev-studio/main.tsx → DevStudioApp
 | [`src/services/api/README.md`](src/services/api/README.md) | REST client layer |
 | [`src/store/README.md`](src/store/README.md) | Zustand stores |
 | [`src/config/README.md`](src/config/README.md) | Env and constants |
-| [`src/dev-studio/README.md`](src/dev-studio/README.md) | Node Dev Studio |
 | [`src/types/README.md`](src/types/README.md) | TypeScript contracts |
 | [`src/components/README.md`](src/components/README.md) | UI components by subfolder |

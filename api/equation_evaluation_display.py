@@ -5,14 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from api.display_block_metadata import (
-    DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
-    DISPLAY_ROLE_EQUATION_TRACE,
-    DISPLAY_ROLE_PREVIEW,
     _all_equation_trace_entries,
     equation_display_block_id,
-    equation_trace_block_id,
-    tag_display_block,
+    tag_equation_block,
 )
+from models.display_role import DisplayState, EquationContent, infer_equation_content
 from api.equation_inputs_display import AWAITING_USER_INPUT, _input_display_value
 from engine.graph.assumption_checker import field_value
 from engine.graph.param_priority import require_target_id
@@ -121,7 +118,7 @@ def build_equation_evaluation_block(
     focus_node_id: str,
     *,
     block_id: str | None = None,
-    display_role: str = DISPLAY_ROLE_EQUATION_TRACE,
+    display_state: str | None = None,
     display_channel: str | None = None,
     attach_paragraph_context: bool = True,
 ) -> dict[str, Any] | None:
@@ -166,18 +163,6 @@ def build_equation_evaluation_block(
     if nomenclature_reference and not rows:
         block["nomenclature_reference"] = nomenclature_reference
 
-    tagged = tag_display_block(
-        block,
-        display_role=display_role,
-        equation_node_id=equation_id,
-        source_node_id=focus_node_id,
-        display_channel=display_channel,
-        history_eligible=True,
-    )
-    tagged.pop("display_channel", None)
-    if tagged.get("input_table") and tagged.get("variables"):
-        tagged.pop("variables", None)
-
     from api.equation_display_trace_serializer import enrich_equation_block, find_trace_for_equation
 
     execution_trace = find_trace_for_equation(task, equation_id)
@@ -189,8 +174,33 @@ def build_equation_evaluation_block(
             equation_metadata=eq_record.metadata,
             source_node_id=focus_node_id,
         )
+
+    resolved_state = display_state
+    if resolved_state is None:
+        if execution_trace is not None and execution_trace.status == "evaluated":
+            resolved_state = DisplayState.evaluated.value
+        else:
+            resolved_state = DisplayState.preview.value
+
+    tagged = tag_equation_block(
+        block,
+        display_state=resolved_state,
+        equation_node_id=equation_id,
+        source_node_id=focus_node_id,
+        display_channel=display_channel,
+    )
+    tagged.pop("display_channel", None)
+    if tagged.get("input_table") and tagged.get("variables"):
+        tagged.pop("variables", None)
+
     if execution_trace is not None:
         tagged = enrich_equation_block(tagged, execution_trace, reader=reader, task=task)
+        tagged["display_state"] = (
+            DisplayState.evaluated.value
+            if execution_trace.status == "evaluated"
+            else resolved_state
+        )
+        tagged["equation_content"] = infer_equation_content(tagged)
 
     if attach_paragraph_context:
         from api.paragraph_display import build_equation_context_from_paragraph
@@ -262,7 +272,7 @@ def build_equation_trace_block(
         task,
         reader,
         source_node_id,
-        display_role=DISPLAY_ROLE_EQUATION_TRACE,
+        display_state=DisplayState.evaluated.value,
     )
 
 

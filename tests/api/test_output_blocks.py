@@ -159,36 +159,40 @@ def test_new_pipe_wall_task_single_eq_2_preview_block(standards_reader) -> None:
     assert "pipe_wall_thickness_design" not in state.get("name", "")
 
 
-def test_preview_dedupe_preserves_substituted_equation_block() -> None:
-    from api.display_block_metadata import dedupe_preview_tier_equations
+def test_preview_dedupe_preserves_evaluated_equation_block() -> None:
+    from api.display_block_metadata import dedupe_equation_blocks_by_node_id
+    from models.display_role import DisplayRole, DisplayState
 
     blocks = [
         {
             "id": "node-activation-equation-304.1.1-a-fallback",
             "type": "equation",
             "equation_node_id": "asme-b313-304-1-1-eq-2",
-            "display_role": "activation",
+            "display_role": DisplayRole.equation.value,
+            "display_state": DisplayState.active.value,
             "variables": [{"symbol": "t"}, {"symbol": "c"}],
         },
         {
             "id": "path-preview-equation-304.1.1-a",
             "type": "equation",
             "equation_node_id": "asme-b313-304-1-1-eq-2",
-            "display_role": "preview",
+            "display_role": DisplayRole.equation.value,
+            "display_state": DisplayState.preview.value,
             "input_table": {"columns": [], "rows": [{"symbol": "t"}, {"symbol": "c"}]},
         },
         {
-            "id": "path-calculation-substituted-equation",
+            "id": "equation-asme-b313-304-1-1-eq-2",
             "type": "equation",
             "equation_node_id": "asme-b313-304-1-1-eq-2",
-            "display_role": "substituted",
+            "display_role": DisplayRole.equation.value,
+            "display_state": DisplayState.evaluated.value,
             "display": "t = 1.23 mm",
         },
     ]
-    deduped = dedupe_preview_tier_equations(blocks)
+    deduped = dedupe_equation_blocks_by_node_id(blocks)
     ids = [block["id"] for block in deduped]
     assert "path-preview-equation-304.1.1-a" in ids
-    assert "path-calculation-substituted-equation" in ids
+    assert "equation-asme-b313-304-1-1-eq-2" in ids
     assert "node-activation-equation-304.1.1-a-fallback" not in ids
 
 
@@ -442,7 +446,7 @@ def test_eq2_trace_updates_t_value_after_eq3a_evaluation(standards_reader) -> No
         "t": 2.0,
         "required_thickness": 2.0,
         "_equation_trace_keys": [
-            "pipe_wall_thickness_design|304.1.1-a|asme-b313-304-1-1-eq-2|equation_trace"
+            "pipe_wall_thickness_design|304.1.1-a|asme-b313-304-1-1-eq-2|equation"
         ],
     }
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")

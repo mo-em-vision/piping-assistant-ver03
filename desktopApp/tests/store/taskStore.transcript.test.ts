@@ -21,7 +21,8 @@ const stableEq2Block: DisplayOutputBlock = {
   id: 'equation-asme-b313-304-1-1-eq-2',
   type: 'equation',
   lifecycle: 'durable',
-  display_role: 'calculation_trace',
+  display_role: 'equation',
+  display_state: 'evaluated',
   equation_node_id: 'asme-b313-304-1-1-eq-2',
   content: 't_m = t + c',
   display: 't_m = t + c',
@@ -31,7 +32,8 @@ const stableEq3Block: DisplayOutputBlock = {
   id: 'equation-asme-b313-304-1-2-eq-3a',
   type: 'equation',
   lifecycle: 'durable',
-  display_role: 'calculation_trace',
+  display_role: 'equation',
+  display_state: 'evaluated',
   equation_node_id: 'asme-b313-304-1-2-eq-3a',
   content: 't = PD / 2(SEW + PY)',
   display: 't = PD / 2(SEW + PY)',
@@ -142,6 +144,31 @@ describe('withPreservedDisplayOutputs', () => {
     const merged = withPreservedDisplayOutputs(taskA, taskB)
 
     expect(merged.display_outputs).toHaveLength(0)
+  })
+
+  it('shows preview equations in merged state but keeps transcript cache durable-only', () => {
+    const previewEq3: DisplayOutputBlock = {
+      id: 'equation-asme-b313-304-1-2-eq-3a',
+      type: 'equation',
+      lifecycle: 'preview',
+      display_role: 'equation',
+      display_state: 'preview',
+      equation_node_id: 'asme-b313-304-1-2-eq-3a',
+      content: 't = PD / 2(SEW + PY)',
+      display: 't = PD / 2(SEW + PY)',
+    }
+
+    const incoming = createTaskState({
+      task_id: 'preview-equation-task',
+      display_outputs: [previewEq3],
+    })
+
+    const merged = withPreservedDisplayOutputs(null, incoming)
+
+    expect(merged.display_outputs.map((block) => block.id)).toEqual([
+      'equation-asme-b313-304-1-2-eq-3a',
+    ])
+    expect(loadTranscriptCache('preview-equation-task')).toEqual([])
   })
 })
 

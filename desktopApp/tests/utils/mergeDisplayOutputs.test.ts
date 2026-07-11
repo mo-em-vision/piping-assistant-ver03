@@ -37,7 +37,8 @@ const stableEq2Block: DisplayOutputBlock = {
   id: 'equation-asme-b313-304-1-1-eq-2',
   type: 'equation',
   lifecycle: 'durable',
-  display_role: 'calculation_trace',
+  display_role: 'equation',
+  display_state: 'evaluated',
   equation_node_id: 'asme-b313-304-1-1-eq-2',
   source_node_id: '304.1.1-a',
   content: 't_m = t + c',
@@ -49,7 +50,8 @@ const incomingEq3Block: DisplayOutputBlock = {
   id: 'equation-asme-b313-304-1-2-eq-3a',
   type: 'equation',
   lifecycle: 'durable',
-  display_role: 'calculation_trace',
+  display_role: 'equation',
+  display_state: 'evaluated',
   equation_node_id: 'asme-b313-304-1-2-eq-3a',
   source_node_id: '304.1.2-a',
   content: 't = PD / 2(SEW + PY)',
@@ -266,5 +268,49 @@ describe('mergeDisplayOutputs', () => {
     )
 
     expect(merged.map((block) => block.id)).toEqual(['equation-asme-b313-304-1-2-eq-3a'])
+  })
+
+  it('includes incoming preview equation blocks with stable ids', () => {
+    const previewEq3: DisplayOutputBlock = {
+      id: 'equation-asme-b313-304-1-2-eq-3a',
+      type: 'equation',
+      lifecycle: 'preview',
+      display_role: 'equation',
+      display_state: 'preview',
+      equation_node_id: 'asme-b313-304-1-2-eq-3a',
+      source_node_id: '304.1.2-a',
+      content: 't = PD / 2(SEW + PY)',
+      display: 't = PD / 2(SEW + PY)',
+      input_table: incomingEq3Block.input_table,
+    }
+
+    const merged = mergeDisplayOutputs([], [previewEq3])
+
+    expect(merged).toHaveLength(1)
+    expect(merged[0]?.id).toBe('equation-asme-b313-304-1-2-eq-3a')
+    if (merged[0]?.type === 'equation') {
+      expect(merged[0].display_state).toBe('preview')
+    }
+  })
+
+  it('replaces preview equation with durable evaluated block for same stable id', () => {
+    const previewEq3: DisplayOutputBlock = {
+      id: 'equation-asme-b313-304-1-2-eq-3a',
+      type: 'equation',
+      lifecycle: 'preview',
+      display_role: 'equation',
+      display_state: 'preview',
+      equation_node_id: 'asme-b313-304-1-2-eq-3a',
+      content: 't = PD / 2(SEW + PY)',
+      display: 't = PD / 2(SEW + PY)',
+    }
+
+    const merged = mergeDisplayOutputs([previewEq3], [incomingEq3Block])
+
+    expect(merged).toHaveLength(1)
+    expect(merged[0]?.id).toBe('equation-asme-b313-304-1-2-eq-3a')
+    if (merged[0]?.type === 'equation') {
+      expect(merged[0].display_state).toBe('evaluated')
+    }
   })
 })

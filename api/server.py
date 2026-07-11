@@ -20,13 +20,6 @@ from engine.inspection.performance_trace import (
     request_trace_context,
     trace_header_name,
 )
-from api.dev_studio.routes import (
-    handle_dev_delete,
-    handle_dev_get,
-    handle_dev_post,
-    handle_dev_put,
-)
-from api.dev_studio.service import DevStudioService
 from api.error_catalog import enrich_api_error_payload
 from api.json_encoding import dumps as json_dumps
 
@@ -107,7 +100,6 @@ def _parse_task_route(path: str) -> tuple[str, str | None] | None:
 
 class ApiHandler(BaseHTTPRequestHandler):
     service: DesktopApiService
-    dev_studio: DevStudioService | None = None
     backend_instance_id: str = ""
 
     def log_message(self, format: str, *args: object) -> None:
@@ -272,11 +264,6 @@ class ApiHandler(BaseHTTPRequestHandler):
                 )
                 return
 
-            if path.startswith("/api/v1/dev/"):
-                payload = handle_dev_get(path, query, self.dev_studio)
-                _json_response(self, 200, payload)
-                return
-
             if path.startswith("/api/v1/standards/tables/"):
                 table_id = path.removeprefix("/api/v1/standards/tables/").strip("/")
                 if not table_id:
@@ -391,11 +378,6 @@ class ApiHandler(BaseHTTPRequestHandler):
         session_id = query.get("session_id", [None])[0]
 
         try:
-            if path.startswith("/api/v1/dev/"):
-                status, payload = handle_dev_post(path, query, _read_json_body(self), self.dev_studio)
-                _json_response(self, status, payload)
-                return
-
             if path == "/api/v1/tasks":
                 body = _read_json_body(self)
                 workflow_id = str(body.get("workflow_id") or "")
@@ -530,14 +512,8 @@ class ApiHandler(BaseHTTPRequestHandler):
     def do_PUT(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
-        query = parse_qs(parsed.query)
 
         try:
-            if path.startswith("/api/v1/dev/"):
-                payload = handle_dev_put(path, query, _read_json_body(self), self.dev_studio)
-                _json_response(self, 200, payload)
-                return
-
             _json_response(
                 self,
                 404,
@@ -597,11 +573,6 @@ class ApiHandler(BaseHTTPRequestHandler):
         session_id = query.get("session_id", [None])[0]
 
         try:
-            if path.startswith("/api/v1/dev/"):
-                payload = handle_dev_delete(path, query, self.dev_studio)
-                _json_response(self, 200, payload)
-                return
-
             if path.startswith("/api/v1/projects/"):
                 project_id = path.removeprefix("/api/v1/projects/").strip("/")
                 if project_id and "/" not in project_id:
@@ -643,7 +614,6 @@ class ApiHandler(BaseHTTPRequestHandler):
 def create_handler(
     service: DesktopApiService,
     *,
-    dev_studio: DevStudioService | None = None,
     backend_instance_id: str = "",
 ) -> type[ApiHandler]:
     return type(
@@ -651,20 +621,8 @@ def create_handler(
         (ApiHandler,),
         {
             "service": service,
-            "dev_studio": dev_studio,
             "backend_instance_id": backend_instance_id,
         },
-    )
-
-
-def _build_dev_studio(service: DesktopApiService) -> DevStudioService | None:
-    from api.dev_studio.routes import dev_studio_enabled
-
-    if not dev_studio_enabled():
-        return None
-    return DevStudioService(
-        standards_root=service.config.standards_root,
-        on_pack_changed=lambda _pack: service.invalidate_standards_cache(),
     )
 
 
@@ -674,8 +632,7 @@ def main() -> None:
     project_root = Path(os.environ.get("PROJECT_ROOT", Path(__file__).resolve().parent.parent))
     instance_id = os.environ.get("BACKEND_INSTANCE_ID") or str(uuid.uuid4())
     service = DesktopApiService.from_project_root(project_root)
-    dev_studio = _build_dev_studio(service)
-    handler = create_handler(service, dev_studio=dev_studio, backend_instance_id=instance_id)
+    handler = create_handler(service, backend_instance_id=instance_id)
     # #region agent log
     import time as _time
     from engine.graph import display_emitter as _display_emitter

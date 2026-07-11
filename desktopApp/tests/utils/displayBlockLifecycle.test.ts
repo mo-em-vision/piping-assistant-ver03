@@ -13,7 +13,8 @@ describe('displayBlockLifecycle', () => {
       id: 'path-preview-equation-304.1.1-a',
       type: 'equation',
       lifecycle: 'preview',
-      display_role: 'preview',
+      display_role: 'equation',
+      display_state: 'preview',
       display_channel: 'current_equation_preview',
       content: 't_m = t + c',
       display: 't_m = t + c',
@@ -21,7 +22,7 @@ describe('displayBlockLifecycle', () => {
 
     expect(inferDisplayLifecycle(preview)).toBe('preview')
     expect(inferDisplayChannel(preview)).toBe('current_equation_preview')
-    expect(inferDisplayRole(preview)).toBe('preview')
+    expect(inferDisplayRole(preview)).toBe('equation')
   })
 
   it('classifies legacy blocks without lifecycle metadata', () => {
@@ -63,27 +64,18 @@ describe('displayBlockLifecycle', () => {
     expect(inferDisplayChannel(intro)).toBe('current_node_intro')
   })
 
-  it('classifies substituted and derived equation results as durable', () => {
-    const substituted: DisplayOutputBlock = {
-      id: 'path-calculation-substituted-equation',
+  it('classifies evaluated equation blocks as durable', () => {
+    const evaluated: DisplayOutputBlock = {
+      id: 'equation-asme-b313-304-1-1-eq-2',
       type: 'equation',
       lifecycle: 'durable',
-      display_role: 'substituted',
-      equation_node_id: 'asme-b313-304-1-2-eq-3a',
-      content: 't = 1.23 mm',
-      display: 't = 1.23 mm',
-    }
-    const derived: DisplayOutputBlock = {
-      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
-      type: 'equation',
-      lifecycle: 'durable',
-      display_role: 'equation_trace',
+      display_role: 'equation',
+      display_state: 'evaluated',
       equation_node_id: 'asme-b313-304-1-1-eq-2',
       content: 't_m = 2.252',
       display: 't_m = 2.252',
     }
 
-    expect(inferDisplayLifecycle(substituted)).toBe('durable')
-    expect(inferDisplayLifecycle(derived)).toBe('durable')
+    expect(inferDisplayLifecycle(evaluated)).toBe('durable')
   })
 })

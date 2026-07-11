@@ -18,7 +18,10 @@ export interface OutputBlockBase {
   provenance?: NodeProvenanceDto
   lifecycle?: 'durable' | 'preview' | 'volatile'
   display_role?: string
+  display_state?: 'preview' | 'active' | 'evaluated'
+  equation_content?: 'symbolic' | 'substituted' | 'evaluated'
   display_channel?: string
+  result_kind?: 'workflow' | 'calculation' | 'recommendation'
   equation_node_id?: string
   source_node_id?: string
   history_eligible?: boolean

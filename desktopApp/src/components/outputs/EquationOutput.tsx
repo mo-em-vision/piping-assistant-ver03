@@ -1,6 +1,7 @@
 import { DisplayMath, EngineeringMathText, InlineMath, isEngineeringSymbol } from '@/components/math/engineeringMath'
 import { ReferenceChipList } from '@/components/outputs/ReferenceChipList'
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
+import { equationPresentationLines } from '@/utils/equationPresentationLines'
 
 import type {
   EquationInputTableRowDto,
@@ -200,33 +201,19 @@ function renderValueReference(row: EquationInputTableRowDto) {
   return null
 }
 
-function mathExpressionsForBlock(block: EquationOutputBlock): string[] {
-  const trace = block.equation_display_trace
-  if (trace?.status === 'evaluated') {
-    const expressions: string[] = []
-    if (trace.symbolic_latex) {
-      expressions.push(trace.symbolic_latex)
-    }
-    if (trace.substituted_latex) {
-      expressions.push(trace.substituted_latex)
-    } else if (trace.result_latex && trace.symbolic_latex) {
-      expressions.push(`${trace.symbolic_latex} = ${trace.result_latex}`)
-    }
-    if (expressions.length > 0) {
-      return expressions
-    }
-  }
-
-  if (trace?.symbolic_latex && trace.status === 'blocked') {
-    return [trace.symbolic_latex]
-  }
-
-  return block.content ? [block.content] : []
+function renderMathLine(blockId: string, suffix: string, expression: string) {
+  return (
+    <DisplayMath
+      key={`${blockId}-${suffix}`}
+      expression={expression}
+      className={`output-equation__math output-equation__math--${suffix}`}
+    />
+  )
 }
 
 export function EquationOutput({ block }: EquationOutputProps) {
   const trace = block.equation_display_trace
-  const mathExpressions = mathExpressionsForBlock(block)
+  const presentation = equationPresentationLines(block)
   const rowReferenceKeys = new Set<string>()
   if (block.input_table?.rows) {
     for (const row of block.input_table.rows) {
@@ -248,15 +235,9 @@ export function EquationOutput({ block }: EquationOutputProps) {
       {block.context_lead ? (
         <p className="output-equation__context-lead">{block.context_lead}</p>
       ) : null}
-      <div className="output-equation__math-row">
-        {mathExpressions.map((expression, index) => (
-          <DisplayMath
-            key={`${block.id}-math-${index}`}
-            expression={expression}
-            className="output-equation__math"
-          />
-        ))}
-      </div>
+      {presentation.symbolic
+        ? renderMathLine(block.id, 'symbolic', presentation.symbolic)
+        : null}
       {block.input_table ? (
         <div className="output-equation__input-table">
           <table className="output-table">
@@ -306,6 +287,10 @@ export function EquationOutput({ block }: EquationOutputProps) {
           ))}
         </dl>
       ) : null}
+      {presentation.substituted
+        ? renderMathLine(block.id, 'substituted', presentation.substituted)
+        : null}
+      {presentation.result ? renderMathLine(block.id, 'result', presentation.result) : null}
       {!block.input_table && footerChips.length ? (
         <ReferenceChipList chips={footerChips} />
       ) : null}

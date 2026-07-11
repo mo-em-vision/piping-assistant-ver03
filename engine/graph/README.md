@@ -86,7 +86,7 @@ GraphEngine.prefetch → MicroGraphEngine.prefetch
 | `display_emitter.py` | Output blocks from graph nodes | `emit_initiation_blocks`, `emit_equation_blocks` | micro_graph_engine, presentation/blocks |
 | `doc_templates.py` | `{{var}}` doc rendering | `build_doc_context`, `render_doc_template` | documentation_resolver, lifecycle_emitter |
 | `documentation_resolver.py` | Structured node docs | `resolve_workflow_documentation` | workflow_state |
-| `graph_builder.py` | MD/YAML → PackGraph | `GraphBuilder`, `compute_source_fingerprint` | graph_cache, dev_studio |
+| `graph_builder.py` | MD/YAML → PackGraph | `GraphBuilder`, `compute_source_fingerprint` | graph_cache |
 | `graph_engine.py` | **Plan coordinator**, legacy traversal | `GraphEngine`, `normalize_root_id` | planner, executor, api, tests |
 | `graph_store.py` | In-memory graph facade | `GraphStore` | widespread |
 | `graph_timeline.py` | Parameter step ordering | `graph_input_step_order`, `graph_step_titles` | workflow_bootstrap, workflow_timeline |

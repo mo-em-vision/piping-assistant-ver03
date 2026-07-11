@@ -6,7 +6,7 @@ Audit date: 2026-07-01. Documents the HTTP API layer as it exists today (36 Pyth
 
 ## Purpose
 
-The `api/` package is the **desktop application's REST boundary**. It exposes a stdlib `HTTPServer` (`server.py`), routes HTTP to `DesktopApiService`, and assembles JSON payloads for the Electron client. Engineering logic lives in `engine/`, `storage/`, and `ai/`; this layer orchestrates those modules, serializes task state, and gates development-only features (Node Dev Studio, Developer Inspection).
+The `api/` package is the **desktop application's REST boundary**. It exposes a stdlib `HTTPServer` (`server.py`), routes HTTP to `DesktopApiService`, and assembles JSON payloads for the Electron client. Engineering logic lives in `engine/`, `storage/`, and `ai/`; this layer orchestrates those modules, serializes task state, and gates development-only features (Developer Inspection).
 
 ---
 
@@ -30,7 +30,7 @@ The `api/` package is the **desktop application's REST boundary**. It exposes a 
 Electron main (backendProcess.ts)
   → spawn: python -m api.server
   → env: BACKEND_HOST, BACKEND_PORT, PROJECT_ROOT, DESKTOP_USER_DATA
-  → optional: DEV_STUDIO_ENABLED=1, DEV_INSPECTION_ENABLED=1 (dev Electron)
+  → optional: DEV_INSPECTION_ENABLED=1 (dev Electron)
   → ApiHandler.do_* → DesktopApiService → engine/storage/ai
   → desktopApp/src/services/api/* (fetch via BackendClient)
 ```
@@ -51,7 +51,7 @@ Evidence: `desktopApp/electron/services/backendProcess.ts` line 140 (`spawn(pyth
 | Models | `models.task`, `models.input`, `models.report`, `models.agent`, `models.planning` |
 | Storage | `storage.project_repository`, `storage.project_session_store`, `storage.migrate_legacy_sessions` |
 | AI | `ai.agents.*` (chat, continuation) |
-| Internal | `api.*` submodules (serializers, output_blocks, dev_studio, inspection, …) |
+| Internal | `api.*` submodules (serializers, output_blocks, inspection, …) |
 
 ## Dependents (inbound)
 
@@ -59,7 +59,6 @@ Evidence: `desktopApp/electron/services/backendProcess.ts` line 140 (`spawn(pyth
 |----------|---------|
 | `desktopApp/electron/services/backendProcess.ts` | Spawns `api.server` (no Python import) |
 | `desktopApp/src/services/api/*` | HTTP client only |
-| `desktopApp/src/dev-studio/api/devStudioApi.ts` | HTTP to `/api/v1/dev/*` |
 | `tests/api/*`, `tests/mvp/*` | `DesktopApiService`, individual helpers |
 | `engine/reports/report_data.py` | `api.output_blocks.build_display_outputs` |
 | `engine/inspection/provenance.py` | `api.node_provenance`, `api.output_blocks` |
@@ -160,10 +159,6 @@ Requires `DEV_INSPECTION_ENABLED=1` (see `engine/inspection/dev_guard.py`). Retu
 
 Note: `integrity` route ignores `task_id` in the URL; it runs pack-wide checks via `run_integrity(reader)`.
 
-### Node Dev Studio (gated)
-
-Requires `DEV_STUDIO_ENABLED=1`. Routed to `api/dev_studio/routes.py`. Full route table: [dev_studio/README.md](dev_studio/README.md).
-
 ---
 
 ## `DesktopApiService` wiring
@@ -196,7 +191,6 @@ DesktopApiService.from_project_root(project_root)
 | Standards browse/nodes/tables | `api.standards_browse`, `api.node_context`, `api.table_context` |
 | Continuation | `api.task_continuation_service` |
 | Parameter edit | `api.parameter_edit` |
-| `invalidate_standards_cache` | Reloads `StandardsReader` after dev studio writes |
 
 ### `task_state` assembly chain
 
@@ -236,21 +230,11 @@ task_state(task, manager, standards_root, reader, projection_mode="interactive")
 | `engine/inspection/*` | Payload building, trace, replay frames, integrity checks |
 | `engine/inspection/dev_guard.py` | `inspection_enabled()` reads `DEV_INSPECTION_ENABLED` |
 
-**Enable:** `DEV_INSPECTION_ENABLED=1` on backend. Electron dev sets this with `DEV_STUDIO_ENABLED` (`backendProcess.ts`).
+**Enable:** `DEV_INSPECTION_ENABLED=1` on backend. Unpackaged Electron sets this automatically (`backendProcess.ts`).
 
 **Desktop client:** `desktopApp/src/services/api/inspectionApi.ts` → Inspector UI (`DeveloperInspector.tsx`).
 
 **Executor hook:** `engine/executor/executor.py` calls `persist_replay_snapshot` after steps when inspection is enabled.
-
----
-
-## Node Dev Studio
-
-Gated subgraph under `api/dev_studio/`. See [dev_studio/README.md](dev_studio/README.md).
-
-**Server wiring:** `server._build_dev_studio()` creates `DevStudioService` when `DEV_STUDIO_ENABLED=1`, passes it to `ApiHandler.dev_studio`, and registers `on_pack_changed` → `service.invalidate_standards_cache()`.
-
-**Desktop client:** `desktopApp/src/dev-studio/api/devStudioApi.ts` (Vite `dev:studio` entry, not release build by default).
 
 ---
 
@@ -281,16 +265,6 @@ User: Submit parameter (inputApi.post)
 reportApi.post → generate_task_report (report_service)
   → engine.reports.ReportGenerator
   → files under session reports/
-```
-
-### Dev Studio: edit node
-
-```text
-devStudioApi.put → handle_dev_put (dev_studio/routes)
-  → DevStudioService.update_node
-  → NodeRepository.write_node (YAML on disk)
-  → sync_node_to_graph_db (incremental SQLite)
-  → on_pack_changed → DesktopApiService.invalidate_standards_cache
 ```
 
 ### Inspection: fetch panel data
@@ -385,7 +359,6 @@ Do not delete without explicit approval.
 | `task_continuation_service.py` | Post-completion AI suggestions |
 | `inspection.py` | Developer inspection API (gated) |
 | `health_server.py` | Minimal standalone health server |
-| `dev_studio/*` | Node Dev Studio — see [dev_studio/README.md](dev_studio/README.md) |
 
 ---
 
@@ -395,10 +368,10 @@ Confidence: **High** = clear importers and runtime path; **Medium** = indirect o
 
 ### `server.py`
 
-- **Purpose:** Bind `HTTPServer` to `ApiHandler`; map paths to `DesktopApiService` / dev studio handlers.
+- **Purpose:** Bind `HTTPServer` to `ApiHandler`; map paths to `DesktopApiService`.
 - **Public:** `ApiHandler`, `create_handler`, `main`, `_parse_task_route`
 - **Side effects:** Listens on TCP; reads env `BACKEND_HOST`, `BACKEND_PORT`, `PROJECT_ROOT`
-- **Imports:** `desktop_service`, `dev_studio.routes`, `dev_studio.service`, `error_catalog`, `json_encoding`
+- **Imports:** `desktop_service`, `error_catalog`, `json_encoding`
 - **Imported by:** `python -m api.server` only (no Python imports)
 - **Active:** Yes — **High**
 
@@ -408,7 +381,7 @@ Confidence: **High** = clear importers and runtime path; **Medium** = indirect o
 - **Public:** `ApiError`, `DesktopApiService`, `from_project_root`
 - **Side effects:** SQLite, filesystem (sessions, reports), standards reader cache, shutil on project delete
 - **Imports:** `cli.*`, `config`, `engine.*`, `storage.*`, many `api.*` helpers
-- **Imported by:** `server.py`, all `tests/api/*` using service, `api.inspection`, `api.dev_studio.service`
+- **Imported by:** `server.py`, all `tests/api/*` using service, `api.inspection`
 - **Active:** Yes — **High**
 
 ### `serializers.py`
@@ -482,7 +455,7 @@ Confidence: **High** = clear importers and runtime path; **Medium** = indirect o
 ### `center_panel_contract.py`
 
 - **Purpose:** Shared center-panel / report-preview presentation contract; assembles scroll blocks from transcript + `display_outputs`.
-- **Public:** `assemble_center_panel_scroll_blocks`, `presentation_package_from_task_state`, `normalize_display_block_for_api`
+- **Public:** `assemble_center_panel_scroll_blocks`, `presentation_package_from_task_state`, `sort_blocks_by_report_role` (via `models.display_role.resolve_display_block`)
 - **Scroll exclusion:** `ask_archive` / `answer_archive` are not mapped into `ordered_scroll_blocks` (composer owns Q&A).
 - **Imported by:** `serializers`, tests
 - **Active:** Yes — **High**
@@ -647,7 +620,6 @@ Confidence: **High** = clear importers and runtime path; **Medium** = indirect o
 | Standards browse/nodes/tables | `desktopApp/src/services/api/standardsApi.ts` |
 | Continuation | `desktopApp/src/services/api/taskContinuationApi.ts` |
 | Inspection | `desktopApp/src/services/api/inspectionApi.ts` |
-| Dev studio | `desktopApp/src/dev-studio/api/devStudioApi.ts` |
 | Health | `desktopApp/src/config/constants.ts` (`buildHealthUrl`) |
 
 **No desktop client found for:** `/api/v1/graph/neighbors`, `/api/v1/tasks/{id}/workflow-state`.
@@ -656,7 +628,5 @@ Confidence: **High** = clear importers and runtime path; **Medium** = indirect o
 
 ## Related docs
 
-- [dev_studio/README.md](dev_studio/README.md) — Node Dev Studio subgraph
-- [docs/node_dev_studio.md](../docs/node_dev_studio.md) — product/dev workflow
 - [docs/developer_inspection_framework.md](../docs/developer_inspection_framework.md) — inspection UI
 - [docs/audit/PROGRESS.md](../docs/audit/PROGRESS.md) — audit tracker

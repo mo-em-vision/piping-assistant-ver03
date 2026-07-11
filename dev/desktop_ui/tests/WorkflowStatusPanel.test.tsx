@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -16,14 +16,16 @@ vi.mock('@/store/rightPanelStore', () => ({
 
 const sampleProjection: PlannerDebugViewDto = {
   current_node: {
-    node_id: 'NODE-sample',
+    node_id: 'PARAM-sample-input',
     node_type: 'parameter',
-    display_name: 'Sample Input',
+    display_name: 'PARAM-sample-input',
+    label: 'Sample Input',
   },
   next_queued_node: {
     node_id: 'NODE-pending',
     node_type: 'paragraph',
-    display_name: 'Pending Paragraph',
+    display_name: 'NODE-pending',
+    label: 'Pending Paragraph',
   },
   goals: {
     main_goal: 'Generic Sample Calculation',
@@ -34,14 +36,16 @@ const sampleProjection: PlannerDebugViewDto = {
       {
         node_id: 'WF-GENERIC',
         node_type: 'workflow',
-        display_name: 'Generic Workflow',
+        display_name: 'WF-GENERIC',
+        label: 'Generic Workflow',
       },
     ],
     queue_leaf_nodes: [
       {
         node_id: 'NODE-pending',
         node_type: 'paragraph',
-        display_name: 'Pending Paragraph',
+        display_name: 'NODE-pending',
+        label: 'Pending Paragraph',
         status_reason: 'waiting for dependency',
       },
     ],
@@ -49,14 +53,27 @@ const sampleProjection: PlannerDebugViewDto = {
       {
         node_id: 'WF-GENERIC',
         node_type: 'workflow',
-        display_name: 'Generic Workflow',
+        display_name: 'WF-GENERIC',
+        label: 'Generic Workflow',
       },
     ],
+    excluded_nodes: [
+      {
+        node_id: 'NODE-excluded',
+        node_type: 'paragraph',
+        display_name: 'NODE-excluded',
+        label: 'Excluded Paragraph',
+        status_reason: 'excluded by branch',
+      },
+    ],
+    blocked_nodes: [],
     excluded_blocked: [
       {
         node_id: 'NODE-excluded',
         node_type: 'paragraph',
-        display_name: 'Excluded Paragraph',
+        display_name: 'NODE-excluded',
+        label: 'Excluded Paragraph',
+        status_reason: 'excluded by branch',
       },
     ],
   },
@@ -131,17 +148,17 @@ describe('PlannerDevPanel', () => {
     render(<PlannerDevPanel projection={sampleProjection} />)
 
     expect(screen.getByText(/Current node:/)).toBeInTheDocument()
-    expect(screen.getByText(/\[parameter\] Sample Input/)).toBeInTheDocument()
+    expect(screen.getByText(/\[parameter\] PARAM-sample-input/)).toBeInTheDocument()
     expect(screen.getByText(/Next queued node:/)).toBeInTheDocument()
-    expect(screen.getByText(/\[paragraph\] Pending Paragraph/)).toBeInTheDocument()
+    expect(screen.getAllByText(/\[paragraph\] NODE-pending/).length).toBeGreaterThan(0)
     expect(screen.getByText('Goal')).toBeInTheDocument()
     expect(screen.getByText('Generic Sample Calculation')).toBeInTheDocument()
     expect(screen.getByText('Sample Output')).toBeInTheDocument()
     expect(screen.getByText('Visited in previous step (1)')).toBeInTheDocument()
     expect(screen.getByText('Queue / leaf nodes awaiting expansion (1)')).toBeInTheDocument()
-    expect(screen.getByText(/\[paragraph\] Pending Paragraph — waiting for dependency/)).toBeInTheDocument()
+    expect(screen.getByText(/\[paragraph\] NODE-pending — waiting for dependency/)).toBeInTheDocument()
     expect(screen.getByText('Visited from beginning (1)')).toBeInTheDocument()
-    expect(screen.getByText('Excluded / blocked (1)')).toBeInTheDocument()
+    expect(screen.getByText('Excluded (1)')).toBeInTheDocument()
     expect(screen.queryByText('engineering_plan')).not.toBeInTheDocument()
     expect(screen.queryByText('PLAN-test')).not.toBeInTheDocument()
     expect(screen.queryByText('Pipe Wall')).not.toBeInTheDocument()
@@ -151,7 +168,7 @@ describe('PlannerDevPanel', () => {
     const user = userEvent.setup()
     render(<PlannerDevPanel projection={sampleProjection} />)
 
-    await user.click(screen.getByRole('button', { name: '[workflow] Generic Workflow' }))
+    await user.click(screen.getAllByRole('button', { name: /\[workflow\] WF-GENERIC/ })[0])
     expect(openReferenceTab).toHaveBeenCalledWith('WF-GENERIC', 'Generic Workflow')
   })
 
@@ -166,8 +183,16 @@ describe('PlannerDevPanel', () => {
       />,
     )
 
-    expect(screen.getByText(/Current node:\s*none/)).toBeInTheDocument()
-    expect(screen.getByText(/Next queued node:\s*none/)).toBeInTheDocument()
+    const header = document.querySelector('.planner-debug__header')
+    expect(header).not.toBeNull()
+    const headerScope = within(header as HTMLElement)
+
+    expect(headerScope.getByText((_content, el) => {
+      return el?.className === 'planner-debug__line' && (el.textContent ?? '').includes('Current node:') && (el.textContent ?? '').includes('none')
+    })).toBeInTheDocument()
+    expect(headerScope.getByText((_content, el) => {
+      return el?.className === 'planner-debug__line' && (el.textContent ?? '').includes('Next queued node:') && (el.textContent ?? '').includes('none')
+    })).toBeInTheDocument()
   })
 })
 

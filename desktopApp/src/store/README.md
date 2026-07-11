@@ -79,7 +79,7 @@ Direct `getState()` calls exist (`useTaskStore.getState()`, `useProjectStore.get
 
 ## Runtime Usage
 
-All Zustand stores are active in the main app renderer. They are **not** used by Dev Studio (`devStudioStore` is separate under `src/dev-studio/store/`).
+All Zustand stores are active in the main app renderer.
 
 `connectionStore` runs on every backend-connected bootstrap; `materialCatalogStore.warmCatalog` runs once per session after health OK.
 

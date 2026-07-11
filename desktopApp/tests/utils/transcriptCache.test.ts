@@ -30,10 +30,11 @@ describe('transcriptCache', () => {
 
   it('stores durable equation traces and drops preview-only blocks', () => {
     const trace: DisplayOutputBlock = {
-      id: 'equation-trace-304.1.1-a-asme-b313-304-1-1-eq-2',
+      id: 'equation-asme-b313-304-1-1-eq-2',
       type: 'equation',
       lifecycle: 'durable',
-      display_role: 'equation_trace',
+      display_role: 'equation',
+      display_state: 'evaluated',
       equation_node_id: 'asme-b313-304-1-1-eq-2',
       source_node_id: '304.1.1-a',
       content: 't_m = t + c',
@@ -51,7 +52,8 @@ describe('transcriptCache', () => {
       id: 'path-preview-equation-304.1.1-a',
       type: 'equation',
       lifecycle: 'preview',
-      display_role: 'preview',
+      display_role: 'equation',
+      display_state: 'preview',
       display_channel: 'current_equation_preview',
       content: 't_m = t + c',
       display: 't_m = t + c',

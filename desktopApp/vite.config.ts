@@ -5,24 +5,20 @@ import electron from 'vite-plugin-electron/simple'
 
 import { repoRoot, resolveAliases } from './resolveAliases.mjs'
 
-const isStudioOnly = process.env.VITE_DEV_STUDIO === 'true'
-const enableDevTools = process.env.VITE_ENABLE_DEV_TOOLS === 'true'
 const desktopAppDir = __dirname
 
 export default defineConfig({
-  plugins: isStudioOnly
-    ? [react()]
-    : [
-        react(),
-        electron({
-          main: {
-            entry: 'electron/main.ts',
-          },
-          preload: {
-            input: path.join(__dirname, 'electron/preload.ts'),
-          },
-        }),
-      ],
+  plugins: [
+    react(),
+    electron({
+      main: {
+        entry: 'electron/main.ts',
+      },
+      preload: {
+        input: path.join(__dirname, 'electron/preload.ts'),
+      },
+    }),
+  ],
   server: {
     host: '127.0.0.1',
     port: 5173,
@@ -33,12 +29,9 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      input: isStudioOnly
-        ? { studio: path.resolve(__dirname, 'studio.html') }
-        : {
-            main: path.resolve(__dirname, 'index.html'),
-            ...(enableDevTools ? { studio: path.resolve(__dirname, 'studio.html') } : {}),
-          },
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+      },
     },
   },
   resolve: {

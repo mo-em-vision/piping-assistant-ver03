@@ -76,7 +76,7 @@ assertions / pytest.raises / parametrized cases
 | `cd desktopApp && npm run verify:mvp` | Frontend integration tests + `tests/mvp/test_desktop_mvp_workflow.py` |
 | `cd desktopApp && npm run verify:release` | typecheck + verify:mvp + release readiness tests |
 
-Targeted subsets are also documented in `docs/developer_inspection_framework.md` and `docs/node_dev_studio.md`.
+Targeted subsets are also documented in `docs/developer_inspection_framework.md`.
 
 ---
 
@@ -132,7 +132,6 @@ Validates the **desktop REST API layer**: `DesktopApiService`, serializers, work
 | Standards & tables | `test_standards_browse.py`, `test_standards_retrieval.py`, `test_table_context.py`, `test_material_catalog.py`, `test_material_catalog_service.py` |
 | Chat | `test_chat_api.py`, `test_chat_context.py` |
 | Reports | `test_report_api.py` |
-| Dev studio | `test_dev_studio_crud.py`, `test_dev_studio_validation.py`, `test_dev_studio_search.py`, `test_dev_studio_import.py` |
 | Inspection | `test_inspection_api.py` |
 | Infrastructure | `test_serializers.py`, `test_json_encoding.py`, `test_error_catalog.py` |
 | `conftest.py` | `DesktopApiService`, `StandardsReader`, `TaskStateManager`, `api_session_id()` helper |

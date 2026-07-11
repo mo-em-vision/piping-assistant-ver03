@@ -86,6 +86,16 @@
   background: #f2f4f7;
 }
 
+.planner-debug__row-id {
+  display: block;
+}
+
+.planner-debug__row-label {
+  display: block;
+  font-size: 0.72rem;
+  color: #667085;
+}
+
 .planner-debug__empty {
   margin: 2px 0 0;
   padding: 2px 4px;

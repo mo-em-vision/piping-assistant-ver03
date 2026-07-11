@@ -6,7 +6,7 @@ type: parameter
 
 key: weld_joint_strength_reduction_factor_W
 
-name: Weld Joint Strength Reduction Factor W
+name: Weld Strength Reduction Factor W
 
 parameter_class: factor
 
@@ -48,7 +48,7 @@ metadata:
   status: active
 
   version: 1
-  last_revision: 2026-07-04
+  last_revision: 2026-07-10
   edited_by: admin
 
 ---

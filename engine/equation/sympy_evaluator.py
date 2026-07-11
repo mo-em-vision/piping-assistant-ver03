@@ -12,7 +12,7 @@ from engine.equation.equation_renderer import (
     render_equation_steps,
 )
 
-# Backward-compatible alias for dev studio validation.
+# Backward-compatible alias for equation validation callers.
 _parse_assignment = parse_assignment
 
 

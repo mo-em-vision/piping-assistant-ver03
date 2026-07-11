@@ -2,7 +2,7 @@
 id: PARAM-thin-wall-applicability
 type: parameter
 key: thin_wall_applicability
-name: Thin-Wall Applicability
+name: Thin Wall Applicability
 parameter_class: categorical
 dimension: null
 description: >
@@ -20,6 +20,6 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-07
+  last_revision: 2026-07-10
   edited_by: admin
 ---

@@ -10,7 +10,7 @@ Centralize `fetch`-based access to `/api/v1/*` endpoints. `backendClient` is the
 
 | File | Purpose | Key exports | Used by |
 | --- | --- | --- | --- |
-| `backendClient.ts` | JSON fetch wrapper, `ApiError` on non-OK | `BackendClient`, `backendClient` | All `*Api.ts`, `connectionStore`, `devStudioApi` |
+| `backendClient.ts` | JSON fetch wrapper, `ApiError` on non-OK | `BackendClient`, `backendClient` | All `*Api.ts`, `connectionStore` |
 | `requestManager.ts` | In-flight promise cache by string key | `RequestManager`, `requestManager` | Most `*Api.ts` (not `standardsApi`, `inspectionApi`, `materialApi` direct calls) |
 | `responseParser.ts` | DTO → UI summary helpers | `parseTaskState`, `projectToSummary`, `workflowToSummary`, `toNavTaskSummary`, … | `taskStore`, `projectStore`, `taskApi`, `inputApi` |
 | `taskApi.ts` | Tasks, workflows, recent tasks | `taskApi` | `taskStore` |
@@ -45,8 +45,6 @@ No file is executed standalone. Consumers import named singletons:
 
 - Stores: `taskStore`, `projectStore`, `chatStore`, `reportStore`, `materialCatalogStore`, `connectionStore`
 - Components: `RightPanel`, standards tabs, inspector panels
-- Dev Studio: `devStudioApi` reuses `backendClient`
-
 ## Dependencies
 
 **Depends on:**
@@ -58,7 +56,6 @@ No file is executed standalone. Consumers import named singletons:
 **Depended on by:**
 
 - `src/store/*` (except `rightPanelStore`, `uiStore`, `taskStateManager`)
-- `src/dev-studio/api/devStudioApi.ts`
 - `src/components/standards/*`, `dev/desktop_ui/inspector/*`
 - `tests/` (mocked or real module imports)
 

@@ -33,7 +33,7 @@ Runs outside the React renderer. Owns `BrowserWindow`, spawns and health-checks 
 - Active: **High** — required for `useBackendConnection` and `useWindowDisplayState`
 
 **`services/backendProcess.ts`**
-- Sets `DEV_STUDIO_ENABLED=1` and `DEV_INSPECTION_ENABLED=1` for all Electron backend spawns (`defaultBackendDevFlags`)
+- Sets `DEV_INSPECTION_ENABLED=1` for all Electron backend spawns (`defaultBackendDevFlags`)
 - Polls `buildHealthUrl(backendUrl)` until timeout or connected
 - Active: **High**
 
@@ -62,8 +62,6 @@ Runs outside the React renderer. Owns `BrowserWindow`, spawns and health-checks 
 **Production:** Always runs when the desktop app launches.
 
 **Development:** Same path; `loadRenderer` uses Vite dev server URL when `VITE_DEV_SERVER_URL` is set.
-
-**Dev Studio (`npm run dev:studio`):** Electron plugin is **not** loaded (`vite.config.ts` `isStudioOnly`); this folder is **not** on that execution path.
 
 ## Possible Dead Code
 

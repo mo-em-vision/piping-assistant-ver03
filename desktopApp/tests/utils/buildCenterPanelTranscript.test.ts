@@ -30,7 +30,8 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
         id: 'equation-asme-b313-304-1-2-eq-3a',
         type: 'equation',
         content: 't = PD / 2(SEW + PY)',
-        display_role: 'calculation_trace',
+        display_role: 'equation',
+        display_state: 'evaluated',
         lifecycle: 'durable',
       },
     ]
@@ -180,7 +181,8 @@ describe('buildCenterPanelTranscript', () => {
         type: 'equation',
         content: 't = 1',
         display: 't = 1',
-        display_role: 'calculation_trace',
+        display_role: 'equation',
+        display_state: 'evaluated',
       },
     ]
     const transcript = [
@@ -223,14 +225,15 @@ describe('buildCenterPanelTranscript', () => {
     expect(guidanceItems).toHaveLength(1)
   })
 
-  it('orders branch narration before calculation trace blocks', () => {
+  it('orders branch narration before evaluated equation blocks', () => {
     const displayOutputs: DisplayOutputBlock[] = [
       {
         id: 'equation-trace-1',
         type: 'equation',
         content: 't = 1',
         display: 't = 1',
-        display_role: 'calculation_trace',
+        display_role: 'equation',
+        display_state: 'evaluated',
       },
     ]
     const transcript = [

@@ -65,7 +65,7 @@ Electron main imports `constants` directly, not `env.ts`.
 | `env.devToolsAvailable` | Build may load dev UI chunks (all Electron builds via `VITE_ENABLE_DEV_TOOLS=true`; always true in Vite dev) |
 | `useDevToolsStore().devModeActive` | User toggled Dev Mode on (persisted in `localStorage`) |
 
-Effective dev UI: `devToolsAvailable && devModeActive`. Backend dev APIs (`DEV_INSPECTION_ENABLED`, `DEV_STUDIO_ENABLED`) are enabled for all Electron spawns; the toggle controls visibility only.
+Effective dev UI: `devToolsAvailable && devModeActive`. Backend dev APIs (`DEV_INSPECTION_ENABLED`) are enabled for all Electron spawns; the toggle controls visibility only.
 
 ## Possible Dead Code
 

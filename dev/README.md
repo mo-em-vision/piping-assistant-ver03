@@ -42,8 +42,8 @@ flowchart LR
 |---------|----------|
 | **Production boundary** | `api/` does not import `dev`. `desktop_ui` loads when `env.devToolsAvailable && devModeActive`. |
 | **Shared read models** | Active task, `active_nodes`, compiled pack graphs (`GraphStore` / `*_graph.db`), optional `_execution_trace` on task outputs. |
-| **Write policy** | Dev tools are **read-only** for engineering state (Inspector observes; Node Edit tab is the exception — writes via Dev Studio API, see [Node Dev Studio](../docs/node_dev_studio.md)). |
-| **Backend env flags** | `DEV_INSPECTION_ENABLED`, `DEV_STUDIO_ENABLED` (Electron dev sets both when unpackaged). |
+| **Write policy** | Dev tools are **read-only** for engineering state (Inspector observes). |
+| **Backend env flags** | `DEV_INSPECTION_ENABLED` (Electron dev sets this when unpackaged). |
 
 ---
 
@@ -57,13 +57,13 @@ Grep for `from dev.` / `import dev` / `@dev-ui` (2026-07-05):
 
 **No imports from:** `api/`, `cli/`, or production `engine/` paths.
 
-Docs referencing `dev/` (not runtime imports): `AGENTS.md`, `docs/developer tools/`, `docs/node_dev_studio.md`, and per-folder audit READMEs under `config/`, `models/`, `storage/`, `scripts/`.
+Docs referencing `dev/` (not runtime imports): `AGENTS.md`, `docs/developer tools/`, and per-folder audit READMEs under `config/`, `models/`, `storage/`, `scripts/`.
 
 ---
 
 ## Overlapping capabilities
 
-Several graph and authoring surfaces overlap across dev tools, CLI, and Node Dev Studio. See [docs/audit/DUPLICATES.md — Graph visualization (dev)](../docs/audit/DUPLICATES.md#graph-visualization-dev) for the canonical map (Inspector graph panel vs CLI `graph show`). Node authoring is owned by Node Dev Studio.
+Several graph surfaces overlap across dev tools and CLI. See [docs/audit/DUPLICATES.md — Graph visualization (dev)](../docs/audit/DUPLICATES.md#graph-visualization-dev) for the canonical map (Inspector graph panel vs CLI `graph show`).
 
 No recommendation on which visualization to use; documented for navigation only.
 

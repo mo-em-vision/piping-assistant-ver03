@@ -7,10 +7,11 @@
   "engineering_reference",
   "paragraph_context",
   "input_context",
-  "calculation_trace",
-  "equation_preview",
-  "validation_check",
+  "node_intro",
+  "equation",
+  "applicability",
+  "warning",
   "result_summary",
-  "recommendation",
+  "lookup_table_recommendation",
   "next_workflows"
 ]

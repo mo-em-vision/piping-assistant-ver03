@@ -50,8 +50,6 @@ Source lives under `dev/desktop_ui/`. The desktop app imports this package via t
 | `desktopApp/src/store/*` | `rightPanelStore`, `uiStore`, `taskStore` |
 | `desktopApp/src/services/api/*` | `inspectionApi` |
 | `desktopApp/src/types/*` | `backend/api`, `backend/inspection` |
-| `desktopApp/src/dev-studio/*` | `NodeEditTab` reuses Dev Studio field components and API client |
-| `desktopApp/src/config/env` | Dev mode gating on hover surfaces |
 | `desktopApp/src/utils/*` | `nodeProvenance` |
 
 ### Who depends on this folder
@@ -71,9 +69,8 @@ Source lives under `dev/desktop_ui/`. The desktop app imports this package via t
 Requires backend flags when features are used:
 
 - `DEV_INSPECTION_ENABLED=1` — Developer Inspector API
-- `DEV_STUDIO_ENABLED=1` — Node Edit tab / Dev Studio API
 
-Electron dev spawn sets both automatically when unpackaged.
+Electron dev spawn sets this automatically when unpackaged.
 
 ---
 

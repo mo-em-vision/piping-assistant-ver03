@@ -2,7 +2,9 @@ import type { DisplayOutputBlock } from '@/types/backend/outputs'
 
 import {
   inferDisplayLifecycle,
+  isPreviewEquationBlock,
   isVolatileDisplayBlock,
+  mergeEquationTraceHistoryKey,
 } from '@/utils/displayBlockLifecycle'
 
 function withoutVolatileBlocks(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
@@ -59,10 +61,23 @@ function partitionByLifecycle(blocks: DisplayOutputBlock[]): {
   return { durable, preview }
 }
 
+function collectIncomingPreviewEquations(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
+  const byKey = new Map<string, DisplayOutputBlock>()
+  for (const block of blocks) {
+    if (!isPreviewEquationBlock(block)) {
+      continue
+    }
+    const key = mergeEquationTraceHistoryKey(block) ?? block.id
+    byKey.set(key, block)
+  }
+  return Array.from(byKey.values())
+}
+
 /**
  * Merge display outputs by lifecycle:
  * - durable blocks update/append by stable block id only
- * - preview blocks (non-equation) replace by display_channel when present
+ * - preview equation blocks from the incoming snapshot only (keyed by stable equation id)
+ * - other preview blocks replace by display_channel when present
  * - volatile blocks are dropped
  */
 export function mergeDisplayOutputs(
@@ -79,14 +94,16 @@ export function mergeDisplayOutputs(
 
   const previewByChannel = new Map<string, DisplayOutputBlock>()
   for (const block of previewIncoming) {
-    if (block.type === 'equation' || block.id.startsWith('equation-')) {
+    if (isPreviewEquationBlock(block)) {
       continue
     }
     const channel = (block as { display_channel?: string }).display_channel ?? block.id
     previewByChannel.set(channel, block)
   }
 
-  return [...mergedDurable, ...Array.from(previewByChannel.values())]
+  const previewEquations = collectIncomingPreviewEquations(previewIncoming)
+
+  return [...mergedDurable, ...previewEquations, ...Array.from(previewByChannel.values())]
 }
 
 export { isVolatileDisplayBlock } from '@/utils/displayBlockLifecycle'

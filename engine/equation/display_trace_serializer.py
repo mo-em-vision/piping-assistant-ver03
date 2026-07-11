@@ -97,9 +97,12 @@ def enrich_equation_block(
         return block
 
     enriched = dict(block)
+    enriched.setdefault("display_role", "equation")
     enriched["equation_display_trace"] = trace_to_dict(trace)
 
     if trace.status == "evaluated":
+        enriched["display_state"] = "evaluated"
+        enriched["equation_content"] = "evaluated"
         if trace.substituted_latex:
             enriched["content"] = trace.substituted_latex
             enriched["display"] = trace.substituted_latex.replace("\\ ", " ").replace("\\mathrm{", "").replace("}", "")
@@ -118,6 +121,15 @@ def enrich_equation_block(
     elif trace.symbolic_latex:
         enriched.setdefault("content", trace.symbolic_latex)
         enriched.setdefault("display", trace.symbolic_latex)
+        enriched.setdefault("display_state", "preview")
+        enriched.setdefault("equation_content", "symbolic")
+
+    from models.display_role import infer_equation_content, lifecycle_for_equation_state
+
+    if enriched.get("display_role") == "equation":
+        enriched.setdefault("equation_content", infer_equation_content(enriched))
+        state = str(enriched.get("display_state") or "preview")
+        enriched["lifecycle"] = lifecycle_for_equation_state(state)
 
     return enriched
 

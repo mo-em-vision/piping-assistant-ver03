@@ -7,7 +7,6 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "dev:studio": "cross-env VITE_DEV_STUDIO=true vite --open /studio.html",
     "dev:test": "vite --mode test",
     "build": "vite build",
     "preview": "vite preview",
@@ -23,8 +22,6 @@
     "verify:release": "npm run typecheck && npm run verify:mvp && cd .. && python -m pytest tests/test_release_readiness.py tests/test_cursor_rules.py -q"
   },
   "dependencies": {
-    "@monaco-editor/react": "^4.7.0",
-    "@tanstack/react-virtual": "^3.13.10",
     "katex": "^0.17.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -44,7 +41,7 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^4.5.0",
     "cross-env": "^7.0.3",
-    "electron": "^36.4.0",
+    "electron": "^43.1.0",
     "electron-builder": "^26.15.3",
     "jsdom": "^26.1.0",
     "typescript": "^5.8.3",

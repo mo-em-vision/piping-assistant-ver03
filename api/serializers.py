@@ -843,10 +843,10 @@ def _task_state_impl(
             with perf_span("engineering_plan_view", "serializer"):
                 legacy_extras["engineering_plan_view"] = _engineering_plan_view_for_task(task)
         with perf_span("display_output_projection", "serializer"):
-            from api.center_panel_contract import normalize_display_block_for_api
+            from models.display_role import resolve_display_block
 
             legacy_extras["display_outputs"] = [
-                normalize_display_block_for_api(
+                resolve_display_block(
                     enrich_display_output_dict(item, resolved_reader, task=task)
                 )
                 for item in build_display_outputs(

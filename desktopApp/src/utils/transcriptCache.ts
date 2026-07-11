@@ -1,6 +1,6 @@
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
 
-const STORAGE_KEY = 'ver03_workflow_transcript'
+const STORAGE_KEY = 'ver03_workflow_transcript_v2'
 
 type TranscriptCacheStore = Record<string, DisplayOutputBlock[]>
 

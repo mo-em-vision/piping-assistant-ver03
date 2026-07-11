@@ -15,11 +15,11 @@ function formatNodeRef(node: PlannerDebugNodeRefDto | null): string {
   if (!node) {
     return 'none'
   }
-  return `[${node.node_type}] ${node.display_name}`
+  return `[${node.node_type}] ${node.node_id}`
 }
 
 function formatNodeRow(node: PlannerDebugNodeItemDto, includeReason: boolean): string {
-  const base = `[${node.node_type}] ${node.display_name}`
+  const base = `[${node.node_type}] ${node.node_id}`
   if (includeReason && node.status_reason) {
     return `${base} — ${node.status_reason}`
   }
@@ -50,9 +50,12 @@ function NodeGroup({ title, nodes, showReason = false, defaultOpen = false }: No
               <button
                 type="button"
                 className="planner-debug__row"
-                onClick={() => openReferenceTab(node.node_id, node.display_name)}
+                onClick={() => openReferenceTab(node.node_id, node.label ?? node.node_id)}
               >
-                {formatNodeRow(node, showReason)}
+                <span className="planner-debug__row-id">{formatNodeRow(node, showReason)}</span>
+                {node.label && node.label !== node.node_id ? (
+                  <span className="planner-debug__row-label">{node.label}</span>
+                ) : null}
               </button>
             </li>
           ))}
@@ -100,7 +103,16 @@ export function PlannerDebugView({ view }: PlannerDebugViewProps) {
         defaultOpen
       />
       <NodeGroup title="Visited from beginning" nodes={groups.visited_from_beginning} />
-      <NodeGroup title="Excluded / blocked" nodes={groups.excluded_blocked} />
+      <NodeGroup
+        title="Excluded"
+        nodes={groups.excluded_nodes ?? groups.excluded_blocked}
+        showReason
+      />
+      <NodeGroup
+        title="Blocked"
+        nodes={groups.blocked_nodes ?? []}
+        showReason
+      />
     </div>
   )
 }

@@ -2,28 +2,17 @@
 
 from __future__ import annotations
 
-from api.center_panel_contract import (
-    INTERNAL_TO_CONTRACT_DISPLAY_ROLE,
-    normalize_display_block_for_api,
-    report_role_index,
-)
-from api.display_block_metadata import (
-    DISPLAY_ROLE_EQUATION_TRACE,
-    DISPLAY_ROLE_PREVIEW,
-    append_equation_trace_blocks,
-    tag_display_block,
-)
+from api.center_panel_contract import report_role_index
+from api.display_block_metadata import append_equation_trace_blocks, tag_equation_block
 from api.output_blocks import build_display_outputs
 from api.serializers import task_state
-from engine.equation.equation_display_trace_builder import build_equation_display_trace
 from engine.state.state_manager import TaskStateManager
-from models.calculation import CalculationResult, CalculationStatus, QuantityResult
+from models.display_role import DisplayRole, DisplayState
 from models.task import TaskStatus
 from tests.api.test_equation_display_trace import (
     EQ_2_ID,
     EQ_3A_ID,
     _apply_simulated_completed_state,
-    _wall_thickness_variables,
 )
 from tests.helpers.goals import task_with_planning
 
@@ -32,20 +21,23 @@ EQ_2_BLOCK_ID = "equation-asme-b313-304-1-1-eq-2"
 EQ_3A_BLOCK_ID = "equation-asme-b313-304-1-2-eq-3a"
 
 
-def test_api_display_role_uses_contract_names(standards_reader) -> None:
-    block = tag_display_block(
+def test_api_display_role_emits_canonical_equation_shape(standards_reader) -> None:
+    block = tag_equation_block(
         {"id": EQ_3A_BLOCK_ID, "type": "equation"},
-        display_role=DISPLAY_ROLE_EQUATION_TRACE,
+        display_state=DisplayState.evaluated.value,
         equation_node_id=EQ_3A_ID,
         source_node_id="304.1.2-a",
     )
-    api_block = normalize_display_block_for_api(block)
-    assert api_block["internal_display_role"] == DISPLAY_ROLE_EQUATION_TRACE
-    assert api_block["display_role"] == "calculation_trace"
+    assert block["display_role"] == DisplayRole.equation.value
+    assert block["display_state"] == DisplayState.evaluated.value
+    assert block.get("internal_display_role") is None
 
 
-def test_contract_role_ordering_calculation_trace_before_equation_preview() -> None:
-    assert report_role_index("calculation_trace") < report_role_index("equation_preview")
+def test_contract_role_ordering_equation_single_slot() -> None:
+    assert report_role_index(DisplayRole.equation.value) == report_role_index("equation")
+    assert report_role_index(DisplayRole.branch_narration.value) < report_role_index(
+        DisplayRole.equation.value
+    )
 
 
 def test_post_eval_pipe_wall_omits_eq3a_preview(standards_reader) -> None:
@@ -114,7 +106,7 @@ def test_trace_blocks_generated_from_execution_trace_without_preview(standards_r
     assert EQ_3A_ID in equation_ids
 
 
-def test_serializer_display_outputs_emit_contract_roles(standards_reader) -> None:
+def test_serializer_display_outputs_emit_canonical_roles(standards_reader) -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-lifecycle-serializer", status=TaskStatus.AWAITING_INPUT)
     task_with_planning(
@@ -130,10 +122,11 @@ def test_serializer_display_outputs_emit_contract_roles(standards_reader) -> Non
     internal_roles = {
         block.get("internal_display_role") for block in state.get("display_outputs") or []
     }
-    assert "calculation_trace" in roles or "equation_preview" in roles
-    assert not roles.intersection({"preview", "equation_trace", "substituted"})
-    if internal_roles:
-        assert internal_roles.issubset(set(INTERNAL_TO_CONTRACT_DISPLAY_ROLE) | set(roles))
+    assert DisplayRole.equation.value in roles
+    assert not roles.intersection(
+        {"preview", "equation_trace", "substituted", "calculation_trace", "equation_preview"}
+    )
+    assert not internal_roles or all(role is None for role in internal_roles)
 
 
 def test_eq2_trace_coexists_with_eq3a_evaluated_state(standards_reader) -> None:

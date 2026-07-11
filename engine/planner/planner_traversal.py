@@ -8,7 +8,10 @@ from engine.graph.assumption_checker import _field_from_param_ref, field_value
 from engine.graph.graph_engine import normalize_root_id
 from engine.graph.path_decision import _applies_when_matches_field
 from engine.planner.plan_phases import strategy_field
-from engine.reference.parameter_keys import load_parameter_node_metadata, param_node_id_for_input
+from engine.reference.parameter_keys import (
+    load_parameter_node_metadata,
+    param_node_id_for_input,
+)
 from engine.reference.standards_reader import StandardsReader
 from models.planning import NavigationPhase
 from models.engineering_plan import (
@@ -26,6 +29,7 @@ from models.engineering_plan import (
 )
 
 _COEFFICIENT_PHASE = NavigationPhase.COEFFICIENT_RESOLUTION.value
+_GATE_PHASES = frozenset({"expansion_assumptions", "path_decisions"})
 
 
 def _graph_store(reader: StandardsReader | None):
@@ -112,6 +116,51 @@ def _req_for_field(requirements: dict[str, PlanRequirement], field: str) -> Plan
     return None
 
 
+def _is_askable_requirement(req: PlanRequirement) -> bool:
+    if req.activation_status != "active":
+        return False
+    if req.status != "missing":
+        return False
+    if req.requirement_class not in {"user_input", "branch_decision"}:
+        return False
+    if req.question_spec is None:
+        return False
+    if req.question_spec.ask_policy in {"ask_later", "do_not_ask", "ask_if_needed"}:
+        return False
+    return True
+
+
+def _is_askable_field(requirements: dict[str, PlanRequirement], field: str) -> bool:
+    req = _req_for_field(requirements, field)
+    return req is not None and _is_askable_requirement(req)
+
+
+def _equation_dep_unresolved(
+    req: PlanRequirement,
+    requirements: dict[str, PlanRequirement],
+) -> bool:
+    for dep_id in req.depends_on:
+        dep = requirements.get(dep_id)
+        if dep is None:
+            continue
+        if dep.status not in {"resolved", "not_applicable"}:
+            return True
+    return False
+
+
+def _gate_phases_clear(requirements: dict[str, PlanRequirement]) -> bool:
+    for req in requirements.values():
+        if req.phase not in _GATE_PHASES:
+            continue
+        if req.requirement_class not in {"user_input", "branch_decision"}:
+            continue
+        if req.activation_status != "active":
+            continue
+        if req.status not in {"resolved", "not_applicable"}:
+            return False
+    return True
+
+
 def _default_branch_value(field: str) -> Any:
     param_node_id = param_node_id_for_input(field)
     meta = load_parameter_node_metadata(param_node_id)
@@ -183,6 +232,9 @@ def _build_active_node(
         return None, None
 
     field = input_strategy.next_fields[0]
+    if not _is_askable_field(requirements, field):
+        return None, None
+
     node_id = param_node_id_for_input(field)
     phase = input_strategy.current_phase
     req = _req_for_field(requirements, field)
@@ -337,6 +389,43 @@ def _build_branch_decisions(
     return decisions
 
 
+def _append_equation_gathering_pending(
+    pending: list[TraversalPendingNode],
+    *,
+    reader: StandardsReader | None,
+    requirements: dict[str, PlanRequirement],
+    active_node_id: str | None,
+    seen: set[str],
+) -> None:
+    if not _gate_phases_clear(requirements):
+        return
+    for req in requirements.values():
+        if req.requirement_class != "equation_result":
+            continue
+        if req.status in {"resolved", "not_applicable"}:
+            continue
+        if req.activation_status != "active":
+            continue
+        resolution = req.resolution if isinstance(req.resolution, dict) else {}
+        equation_id = str(resolution.get("source_node_id") or "").strip()
+        if not equation_id or equation_id in seen or equation_id == active_node_id:
+            continue
+        if not _equation_dep_unresolved(req, requirements) and req.status != "missing":
+            continue
+        seen.add(equation_id)
+        node_type = _infer_node_type(reader, equation_id)
+        pending.append(
+            TraversalPendingNode(
+                node_id=equation_id,
+                node_type=node_type,
+                title=_node_title(reader, equation_id, node_type=node_type),
+                phase=req.phase,
+                waiting_on=[],
+                reason="Awaiting parameter gathering.",
+            )
+        )
+
+
 def _build_pending_nodes(
     *,
     reader: StandardsReader | None,
@@ -354,6 +443,8 @@ def _build_pending_nodes(
             continue
         if req.activation_status != "active":
             continue
+        if req.requirement_class in {"report_output", "table_lookup", "equation_result"}:
+            continue
         node_id = req.parameter_node_id or param_node_id_for_input(req.field)
         if not node_id or node_id == active_node_id:
             continue
@@ -361,6 +452,16 @@ def _build_pending_nodes(
         if not waiting_on and req.status == "missing":
             waiting_on = _infer_waiting_on_for_missing(req, requirements, input_strategy)
         if req.status == "missing" and not waiting_on:
+            if req.requirement_class == "user_input":
+                _append_pending(
+                    pending,
+                    reader=reader,
+                    node_id=node_id,
+                    waiting_on=[],
+                    phase=req.phase,
+                    reason="Awaiting user input.",
+                    seen=seen,
+                )
             continue
         _append_pending(
             pending,
@@ -371,6 +472,14 @@ def _build_pending_nodes(
             reason=f"Waiting on dependencies for {req.resolved_title()}.",
             seen=seen,
         )
+
+    _append_equation_gathering_pending(
+        pending,
+        reader=reader,
+        requirements=requirements,
+        active_node_id=active_node_id,
+        seen=seen,
+    )
 
     for decision in branch_decisions:
         if decision.status == "resolved":
@@ -555,6 +664,7 @@ def _build_traversal_events(
     active_node: TraversalActiveNode | None,
     branch_decisions: list[TraversalBranchDecision],
     pending_nodes: list[TraversalPendingNode],
+    input_strategy: InputStrategy | None = None,
 ) -> list[TraversalEvent]:
     events: list[TraversalEvent] = []
     order = 0
@@ -601,6 +711,19 @@ def _build_traversal_events(
                         f"Branch {decision.field} resolved to {decision.value!r} "
                         f"via node {decision.selected_node}."
                     ),
+                )
+            )
+
+    if input_strategy is not None:
+        for field in input_strategy.resolved_fields:
+            node_id = param_node_id_for_input(field)
+            order += 1
+            events.append(
+                TraversalEvent(
+                    order=order,
+                    event_type="parameter_resolved",
+                    node_id=node_id,
+                    message=f"User input resolved for {field}.",
                 )
             )
 
@@ -696,6 +819,7 @@ def build_planner_traversal_state(
         active_node=active_node,
         branch_decisions=branch_decisions,
         pending_nodes=pending_nodes,
+        input_strategy=input_strategy,
     )
 
     return PlannerTraversalState(

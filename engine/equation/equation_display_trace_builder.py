@@ -377,7 +377,6 @@ def build_equation_display_trace(
                 symbolic_latex,
                 substitutions,
                 symbol_order=substitution_symbols,
-                result_latex=result_latex,
             )
 
         if render_steps is not None and render_steps.evaluated:
@@ -385,9 +384,6 @@ def build_equation_display_trace(
             if " = " in evaluated:
                 _, rhs = evaluated.split(" = ", 1)
                 result_latex = rhs.strip()
-                if substituted_latex and result_latex:
-                    base = substituted_latex.split(" = ", 1)[0]
-                    substituted_latex = f"{base} = {result_latex}"
 
     return EquationDisplayTrace(
         equation_id=equation_id,

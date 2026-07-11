@@ -2,7 +2,7 @@
 id: PARAM-required-wall-thickness
 type: parameter
 key: required_wall_thickness
-name: Pressure Design Thickness
+name: Required Wall Thickness
 parameter_class: calculated_quantity
 dimension: DIM-length
 description: >
@@ -12,6 +12,7 @@ description: >
 canonical_symbol: t
 aliases:
   - pressure design thickness
+  - pressure design thickness t
   - required wall thickness
   - design thickness
 introduced_by:
@@ -42,6 +43,6 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-07
+  last_revision: 2026-07-10
   edited_by: admin
 ---

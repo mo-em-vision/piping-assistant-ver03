@@ -47,7 +47,7 @@ metadata:
 |`id`|Stable canonical parameter identity. Prefer `PARAM-*`, not standard-owned IDs.|
 |`type`|Must be `parameter`.|
 |`key`|Machine-safe semantic key.|
-|`name`|Human-readable canonical name.|
+|`name`|Human-readable canonical name. Must match the id slug (`PARAM-required-wall-thickness` → `Required Wall Thickness`). Put engineering synonyms in `aliases`.|
 |`parameter_class`|Kind of parameter.|
 |`dimension`|Reference to a `DIM-*` node.|
 |`description`|Stable semantic definition.|

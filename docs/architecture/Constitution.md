@@ -54,8 +54,8 @@ Facts are append-only. Corrections create new Facts rather than modifying existi
 ## Law 15 
 Decision Separation Principle:
  ```
-The Planner decides _what is needed 
-The Kernel decides _what happens next
+The Planner decides 'what is needed' 
+The Kernel decides 'what happens next'
  ```
 
 **Planner:**

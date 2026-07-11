@@ -103,8 +103,11 @@ def test_completed_state_emits_equation_display_trace_for_eq_3a(standards_reader
     assert trace.status == "evaluated"
     assert trace.symbolic_latex
     assert trace.substituted_latex
+    assert trace.result_latex
     assert trace.result is not None
     assert trace.result.symbol == "t"
+    if trace.substituted_latex and trace.result_latex:
+        assert trace.result_latex not in trace.substituted_latex
 
 
 def test_eq_3a_trace_block_includes_substitution(standards_reader) -> None:
@@ -122,13 +125,18 @@ def test_eq_3a_trace_block_includes_substitution(standards_reader) -> None:
         block
         for block in blocks
         if block.get("equation_node_id") == EQ_3A_ID
-        and block.get("display_role") == "equation_trace"
+        and block.get("display_role") == "equation"
+        and block.get("display_state") == "evaluated"
     ]
     assert trace_blocks
     payload = trace_blocks[0].get("equation_display_trace")
     assert isinstance(payload, dict)
     assert payload.get("status") == "evaluated"
     assert payload.get("substituted_latex")
+    result_latex = str(payload.get("result_latex") or "")
+    substituted_latex = str(payload.get("substituted_latex") or "")
+    if result_latex and substituted_latex:
+        assert result_latex not in substituted_latex
 
 
 def test_eq_2_trace_uses_calculated_t_not_awaiting_input(standards_reader) -> None:

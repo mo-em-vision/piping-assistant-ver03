@@ -4,7 +4,7 @@ Development-only debugging environment for verifying that the application execut
 
 The framework does **not** ship in production builds and does **not** change planner or business logic.
 
-**Related tools:** [Node Dev Studio](node_dev_studio.md) (node authoring), inline dev hovers (`DevNodeHoverSurface`).
+**Related tools:** inline dev hovers (`DevNodeHoverSurface`).
 
 ---
 ## maintaining Audit Files
@@ -43,8 +43,7 @@ The Developer Inspector answers: *“Where did this value come from, and why did
 |----------|-------|--------|
 | `DEV_INSPECTION_ENABLED` | Backend | Enables inspection API and enriched executor metadata |
 | `VITE_ENABLE_DEV_TOOLS` | Frontend build | Ships dev UI chunks in packaged Electron (`devToolsAvailable`) |
-| Dev Mode toggle | Frontend runtime | User enables Inspector, hovers, Node Edit |
-| `DEV_STUDIO_ENABLED` | Backend | Enables Node Dev Studio API (all Electron builds) |
+| Dev Mode toggle | Frontend runtime | User enables Inspector and hovers |
 
 ---
 
@@ -474,12 +473,10 @@ cd desktopApp && npm run test:run -- ../dev/desktop_ui/tests/ExecutionTracePanel
 
 - Does not modify node schema, planner algorithms, or validation rules
 - Does not expose inspection UI or API in production builds
-- Does not replace Node Dev Studio (authoring) — complements it
 
 ---
 
 ## 15. Related documentation
 
-- [Node Dev Studio](node_dev_studio.md) — YAML node authoring
 - [Graph platform architecture](architecture/graph_platform.md) — compile pipeline and runtime graph
 - [Developer Inspection Framework spec](todo/Developer%20Inspection%20Framework.md) — original requirements document

@@ -23,7 +23,7 @@ Organize the three-panel workspace (left nav, center workflow, right references/
 | `tasks/` | 6 | 3 | `CreateTaskDialog`, `RecentTaskRow`, `TaskContextMenu` | Task list actions |
 | `projects/` | 4 | 2 | `ProjectGroup`, `CreateProjectDialog` | Project sidebar |
 | `reports/` | 2 | 1 | `ReportPanel` | Report preview in right panel |
-| `math/` | 2 | 1 | `engineeringMath` | KaTeX/markdown math (shared with dev-studio) |
+| `math/` | 2 | 1 | `engineeringMath` | KaTeX/markdown math |
 | `common/` | 1 | 1 | `RenameDialog` | Shared rename modal |
 | `ui/` | 2 | 1 | `ExternalLink` | External link with icon |
 
@@ -59,7 +59,7 @@ RightPanel → lazy(@dev-ui/NodeEditTab) when node edit tab open
 
 **Depended on by:**
 
-- `App.tsx`, `src/dev-studio/components/equation/EquationEditor.tsx` (imports `engineeringMath`)
+- `App.tsx`
 - Extensive `tests/components/**`
 
 ## Runtime Usage

@@ -159,7 +159,10 @@ export type PlannerInspectorSummaryDto = {
 export type PlannerDebugNodeRefDto = {
   node_id: string
   node_type: string
+  /** Traceable node id (same as node_id in current contract). */
   display_name: string
+  /** Optional human-readable label from node metadata. */
+  label?: string
 }
 
 export type PlannerDebugNodeItemDto = PlannerDebugNodeRefDto & {
@@ -177,6 +180,9 @@ export type PlannerDebugViewDto = {
     visited_previous_step: PlannerDebugNodeItemDto[]
     queue_leaf_nodes: PlannerDebugNodeItemDto[]
     visited_from_beginning: PlannerDebugNodeItemDto[]
+    excluded_nodes: PlannerDebugNodeItemDto[]
+    blocked_nodes: PlannerDebugNodeItemDto[]
+    /** @deprecated Use excluded_nodes and blocked_nodes */
     excluded_blocked: PlannerDebugNodeItemDto[]
   }
 }

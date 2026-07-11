@@ -111,6 +111,22 @@ def param_node_id_for_input(input_id: str) -> str:
     return f"PARAM-{canonical_parameter_key(input_id).replace('_', '-')}"
 
 
+def param_display_name_from_id(param_node_id: str) -> str:
+    """Human label from PARAM-* id slug: PARAM-required-wall-thickness → Required Wall Thickness."""
+    slug = str(param_node_id or "").strip()
+    if slug.upper().startswith("PARAM-"):
+        slug = slug[6:]
+    if not slug:
+        return str(param_node_id or "").strip()
+    return slug.replace("-", " ").strip().title()
+
+
+def param_name_matches_id_slug(param_node_id: str, name: str) -> bool:
+    """True when PARAM ``name`` matches the id-derived display label."""
+    expected = param_display_name_from_id(param_node_id)
+    return str(name or "").strip().casefold() == expected.casefold()
+
+
 def load_parameter_node_metadata(param_node_id: str) -> dict[str, Any] | None:
     from engine.reference.knowledge_paths import parameters_root
     from engine.reference.standards_markdown import split_frontmatter

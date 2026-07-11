@@ -3,35 +3,36 @@
 from __future__ import annotations
 
 from api.display_block_metadata import (
-    DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
+    DISPLAY_CHANNEL_CURRENT_NODE_INTRO,
     LIFECYCLE_DURABLE,
     LIFECYCLE_PREVIEW,
-    dedupe_preview_tier_equations,
+    dedupe_competing_equation_preview_blocks,
+    dedupe_equation_blocks_by_node_id,
     infer_lifecycle,
     tag_display_block,
+    tag_equation_block,
 )
+from models.display_role import DisplayRole, DisplayState
 
 
 def test_dedupe_competing_activation_when_path_preview_exists() -> None:
-    from api.display_block_metadata import dedupe_competing_equation_preview_blocks, tag_display_block
-
-    activation = tag_display_block(
+    activation = tag_equation_block(
         {
             "id": "node-activation-equation-304.1.2-a-fallback",
             "type": "equation",
             "display": "t = PD / 2(SEW + PY)",
         },
-        display_role="activation",
+        display_state=DisplayState.active.value,
         equation_node_id="asme-b313-304-1-2-eq-3a",
         source_node_id="304.1.2-a",
     )
-    preview = tag_display_block(
+    preview = tag_equation_block(
         {
             "id": "path-preview-equation-304.1.2-a",
             "type": "equation",
             "display": "t = PD / 2(SEW + PY)",
         },
-        display_role="preview",
+        display_state=DisplayState.preview.value,
         equation_node_id="asme-b313-304-1-2-eq-3a",
         source_node_id="304.1.2-a",
     )
@@ -40,13 +41,13 @@ def test_dedupe_competing_activation_when_path_preview_exists() -> None:
 
 
 def test_stable_equation_block_lifecycle() -> None:
-    block = tag_display_block(
+    block = tag_equation_block(
         {
             "id": "equation-asme-b313-304-1-1-eq-2",
             "type": "equation",
             "display": "t_m = t + c",
         },
-        display_role="equation_trace",
+        display_state=DisplayState.evaluated.value,
         equation_node_id="asme-b313-304-1-1-eq-2",
         source_node_id="304.1.1-a",
     )
@@ -55,6 +56,7 @@ def test_stable_equation_block_lifecycle() -> None:
     assert block["history_eligible"] is True
     assert block.get("display_channel") is None
     assert block["equation_node_id"] == "asme-b313-304-1-1-eq-2"
+    assert block["display_role"] == DisplayRole.equation.value
 
 
 def test_path_preview_intro_is_preview_not_durable_intro() -> None:
@@ -64,22 +66,22 @@ def test_path_preview_intro_is_preview_not_durable_intro() -> None:
             "type": "text",
             "content": "Minimum required wall thickness based on",
         },
-        display_role="intro",
+        display_role=DisplayRole.node_intro.value,
         source_node_id="304.1.2-a",
     )
 
     assert block["lifecycle"] == LIFECYCLE_PREVIEW
-    assert block["display_channel"] == "current_node_intro"
+    assert block["display_channel"] == DISPLAY_CHANNEL_CURRENT_NODE_INTRO
 
 
-def test_conclusion_block_stays_durable() -> None:
+def test_result_summary_block_stays_durable() -> None:
     block = tag_display_block(
         {
             "id": "minimum-thickness-conclusion",
             "type": "text",
             "content": "Minimum required pipe wall thickness is 2.252 mm.",
         },
-        display_role="conclusion",
+        display_role=DisplayRole.result_summary.value,
     )
 
     assert block["lifecycle"] == LIFECYCLE_DURABLE
@@ -91,7 +93,8 @@ def test_dedupe_preview_vs_activation_keeps_input_table() -> None:
         {
             "id": "node-activation-equation-304.1.1-a-fallback",
             "type": "equation",
-            "display_role": "activation",
+            "display_role": DisplayRole.equation.value,
+            "display_state": DisplayState.active.value,
             "lifecycle": "preview",
             "equation_node_id": "asme-b313-304-1-1-eq-2",
             "variables": [{"symbol": "t"}, {"symbol": "c"}],
@@ -99,14 +102,15 @@ def test_dedupe_preview_vs_activation_keeps_input_table() -> None:
         {
             "id": "path-preview-equation-304.1.1-a",
             "type": "equation",
-            "display_role": "preview",
+            "display_role": DisplayRole.equation.value,
+            "display_state": DisplayState.preview.value,
             "lifecycle": "preview",
             "equation_node_id": "asme-b313-304-1-1-eq-2",
             "input_table": {"columns": [], "rows": [{"symbol": "t"}, {"symbol": "c"}]},
         },
     ]
 
-    deduped = dedupe_preview_tier_equations(blocks)
+    deduped = dedupe_equation_blocks_by_node_id(blocks)
     ids = [block["id"] for block in deduped]
 
     assert ids == ["path-preview-equation-304.1.1-a"]
@@ -122,7 +126,8 @@ def test_dedupe_blocks_by_id_prefers_evaluated_equation() -> None:
         {
             "id": "equation-asme-b313-304-1-1-eq-2",
             "type": "equation",
-            "display_role": "equation_trace",
+            "display_role": DisplayRole.equation.value,
+            "display_state": DisplayState.evaluated.value,
             "lifecycle": "durable",
             "equation_node_id": "asme-b313-304-1-1-eq-2",
             "input_table": {"columns": [], "rows": []},
@@ -130,7 +135,8 @@ def test_dedupe_blocks_by_id_prefers_evaluated_equation() -> None:
         {
             "id": "equation-asme-b313-304-1-1-eq-2",
             "type": "equation",
-            "display_role": "equation_trace",
+            "display_role": DisplayRole.equation.value,
+            "display_state": DisplayState.evaluated.value,
             "lifecycle": "durable",
             "equation_node_id": "asme-b313-304-1-1-eq-2",
             "display": "t_m = 2.252",

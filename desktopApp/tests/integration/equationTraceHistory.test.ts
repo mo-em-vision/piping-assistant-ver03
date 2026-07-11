@@ -10,7 +10,8 @@ const eq2Block: DisplayOutputBlock = {
   id: 'equation-asme-b313-304-1-1-eq-2',
   type: 'equation',
   lifecycle: 'durable',
-  display_role: 'calculation_trace',
+  display_role: 'equation',
+  display_state: 'evaluated',
   equation_node_id: 'asme-b313-304-1-1-eq-2',
   source_node_id: '304.1.1-a',
   content: 't_m = t + c',
@@ -36,7 +37,8 @@ const eq3Block: DisplayOutputBlock = {
   id: 'equation-asme-b313-304-1-2-eq-3a',
   type: 'equation',
   lifecycle: 'durable',
-  display_role: 'calculation_trace',
+  display_role: 'equation',
+  display_state: 'evaluated',
   equation_node_id: 'asme-b313-304-1-2-eq-3a',
   source_node_id: '304.1.2-a',
   content: 't = PD / 2(SEW + PY)',
@@ -59,8 +61,8 @@ function baseState(display_outputs: DisplayOutputBlock[]): TaskStateDto {
   } as TaskStateDto
 }
 
-function isCalculationTrace(block: DisplayOutputBlock): boolean {
-  return block.display_role === 'calculation_trace' || block.display_role === 'equation_trace'
+function isEvaluatedEquationBlock(block: DisplayOutputBlock): boolean {
+  return block.display_role === 'equation' && block.display_state === 'evaluated'
 }
 
 describe('equation trace history sequence', () => {
@@ -161,14 +163,14 @@ describe('equation trace history sequence', () => {
 
     const traces = (refreshed.display_outputs ?? []).filter(
       (block) =>
-        isCalculationTrace(block) && block.equation_node_id === 'asme-b313-304-1-1-eq-2',
+        isEvaluatedEquationBlock(block) && block.equation_node_id === 'asme-b313-304-1-1-eq-2',
     )
     expect(traces).toHaveLength(1)
     const row = traces[0]?.type === 'equation' ? traces[0].input_table?.rows[0] : undefined
     expect(row?.value).toBe('2.000 mm')
   })
 
-  it('orders calculation_trace blocks by stable id in center panel merge', () => {
+  it('orders evaluated equation blocks by stable id in center panel merge', () => {
     const items = buildCenterPanelTranscript([eq2Block, eq3Block], [], 'pipe_wall_thickness_design')
     const ids = items.map((item) => item.block.id)
     expect(ids.indexOf('equation-asme-b313-304-1-1-eq-2')).toBeLessThan(

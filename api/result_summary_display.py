@@ -7,7 +7,8 @@ from typing import Any
 
 import yaml
 
-from api.display_block_metadata import DISPLAY_ROLE_RESULT, tag_display_block
+from api.display_block_metadata import tag_display_block
+from models.display_role import DisplayRole, ResultKind
 from api.flow_guidance_runtime_texts import (
     _runtime_workflow_dirs,
     load_runtime_text_entries,
@@ -163,7 +164,8 @@ def build_result_summary_display_block(
     runtime_narration = _runtime_result_narration(resolved_workflow)
 
     payload: dict[str, Any] = {
-        "display_role": "result_summary",
+        "display_role": DisplayRole.result_summary.value,
+        "result_kind": ResultKind.workflow.value,
         "primary_result": {
             "label": label,
             "value": _format_number(raw_value),
@@ -201,5 +203,5 @@ def build_result_summary_display_block(
             "variant": "body",
             "payload": payload,
         },
-        display_role=DISPLAY_ROLE_RESULT,
+        display_role=DisplayRole.result_summary.value,
     )

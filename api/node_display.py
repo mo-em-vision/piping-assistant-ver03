@@ -10,9 +10,9 @@ import yaml
 
 from api.display_block_metadata import (
     DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
-    DISPLAY_ROLE_ACTIVATION,
-    tag_display_block,
+    tag_equation_block,
 )
+from models.display_role import DisplayState
 from engine.reference.formula_display import (
     _resolve_equation_display_from_data,
     _resolve_equation_node_id,
@@ -68,9 +68,9 @@ def build_activated_node_blocks(
                     "label": f"§{paragraph}(b)",
                     "paragraph": paragraph,
                 }
-            tag_display_block(
+            tag_equation_block(
                 block,
-                display_role=DISPLAY_ROLE_ACTIVATION,
+                display_state=DisplayState.active.value,
                 equation_node_id=ref_id,
                 source_node_id=node_id,
                 display_channel=DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
@@ -258,9 +258,9 @@ def _equation_blocks(
         nomenclature_reference = resolved.get("nomenclature_reference")
         if nomenclature_reference:
             equation_block["nomenclature_reference"] = nomenclature_reference
-        tag_display_block(
+        tag_equation_block(
             equation_block,
-            display_role=DISPLAY_ROLE_ACTIVATION,
+            display_state=DisplayState.active.value,
             equation_node_id=equation_node_id or None,
             source_node_id=node_id,
             display_channel=DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,
@@ -284,9 +284,9 @@ def _equation_blocks(
             nomenclature_reference = resolved.get("nomenclature_reference")
             if nomenclature_reference:
                 equation_block["nomenclature_reference"] = nomenclature_reference
-            tag_display_block(
+            tag_equation_block(
                 equation_block,
-                display_role=DISPLAY_ROLE_ACTIVATION,
+                display_state=DisplayState.active.value,
                 equation_node_id=equation_node_id,
                 source_node_id=node_id,
                 display_channel=DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW,

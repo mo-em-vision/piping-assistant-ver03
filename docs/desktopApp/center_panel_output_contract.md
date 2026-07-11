@@ -33,28 +33,58 @@ The center-panel scroll and report preview may consume the same **presentation p
 Assembly helpers:
 
 - Python: `api/center_panel_contract.py` (`presentation_package_from_task_state`, `assemble_center_panel_scroll_blocks`)
-- Desktop: `desktopApp/src/utils/buildCenterPanelTranscript.ts` + `centerPanelContract.ts`
+- Desktop: `desktopApp/src/utils/buildCenterPanelTranscript.ts` + `displayRole.ts`
 
-Sync test: `tests/api/test_center_panel_phase6_contract.py` and `desktopApp/tests/utils/centerPanelContractSync.test.ts` both read `contracts/center_panel_report_role_order.json`.
+Sync test: `tests/models/test_display_role_contract.py` and `desktopApp/tests/utils/centerPanelContractSync.test.ts` both read `contracts/center_panel_report_role_order.json`.
+
+## Canonical display roles (`models/display_role.py`)
+
+Authority module: `DisplayRole`, `DisplayState`, `EquationContent`, `DISPLAY_ROLE_ORDER`, `resolve_display_block()`.
+
+| Field | Answers | Values |
+| --- | --- | --- |
+| `display_role` | What function does this block serve in the transcript? | `equation`, `node_intro`, `result_summary`, … |
+| `display_state` | What presentation stage is this **equation** block in? | `preview`, `active`, `evaluated` |
+| `equation_content` | What equation content is shown? | `symbolic`, `substituted`, `evaluated` |
+| `lifecycle` | Ephemeral vs durable merge semantics | `preview`, `durable`, `volatile` |
+| `display_channel` | Preview-tier replacement channel | `current_equation_preview`, `current_node_intro` |
+| `result_kind` | Result semantic type | `workflow`, `calculation`, `recommendation` |
+
+**Reserved:** `scope_assumption` is an ordering slot only (no builder emits it yet).
+
+**Not enum members (legacy — migrate only):** `node_activation`, `equation_preview`, `equation_trace`, `preview`, `activation`, `intro`, `recommendation`, `calculation_trace`, `validation_check`, `substituted`, `derived`, `conclusion`, `result`.
+
+Legacy migration lives only in `tests/helpers/legacy_display_role_migration.py` and `scripts/migrate_persisted_display_roles.py`. Production code validates and infers — no runtime alias maps.
 
 ## Lifecycle table
 
 | `display_role` | Lifecycle | Owner |
 | --- | --- | --- |
-| `workflow_intro` | durable | Engineering display (runtime `texts`) — Phase 1B |
-| `scope_assumption` | durable | Engineering display |
+| `workflow_intro` | durable | Engineering display (runtime `texts`) |
+| `scope_assumption` | durable | **Reserved** ordering slot |
 | `branch_narration` | durable | Flow Guidance Layer |
 | `input_context` | durable or preview | Flow Guidance (durable when in transcript); preview when tied to `display_channel` |
-| `engineering_reference` | durable | Engineering display — Phase 3 |
+| `engineering_reference` | durable | Engineering display |
 | `paragraph_context` | durable | Engineering display (live focus paragraph) |
-| `equation_preview` | preview | Engineering display (`display_outputs`) — legacy ids only |
-| `ask_archive` | durable (transcript only) | Messaging + `api/input_archive_transcript.py` — Phase 2; **not shown in center-panel scroll** |
-| `answer_archive` | durable (transcript only) | Messaging + `api/input_archive_transcript.py` — Phase 2; **not shown in center-panel scroll** |
-| `calculation_trace` | durable | Execution + display |
-| `validation_check` | durable | Engineering display |
-| `result_summary` | durable | Engineering display / runtime `texts` — Phase 1B |
-| `recommendation` | durable | Engineering display |
-| `next_workflows` | durable | Workflow runtime `suggested_workflows` — Phase 5 |
+| `node_intro` | preview | Engineering display (`path-preview-intro-*`) |
+| `equation` | preview or durable | Engineering display — see `display_state` |
+| `applicability` | durable | Engineering display |
+| `warning` | durable | Engineering display |
+| `result_summary` | durable | Engineering display / runtime `texts` (`result_kind: workflow`) |
+| `lookup_table_recommendation` | durable | Engineering display |
+| `ask_archive` | durable (transcript only) | Messaging — **not shown in center-panel scroll** |
+| `answer_archive` | durable (transcript only) | Messaging — **not shown in center-panel scroll** |
+| `next_workflows` | durable | Workflow runtime `suggested_workflows` |
+
+### Equation blocks (`display_role: equation`)
+
+| `display_state` | Lifecycle | Typical ids |
+| --- | --- | --- |
+| `preview` | preview | `path-preview-equation-*`, stable `equation-{id}` before evaluation |
+| `active` | preview | `node-activation-equation-*` |
+| `evaluated` | durable | stable `equation-{equation_node_id}` |
+
+Dedupe: preview-tier blocks with the same `equation_node_id` collapse to the richest payload; `active` drops when `preview` exists. Durable blocks update in place by stable `equation-{equation_node_id}` id.
 
 ## Stable `block_id` rules
 
@@ -65,12 +95,13 @@ Sync test: `tests/api/test_center_panel_phase6_contract.py` and `desktopApp/test
 | `branch_narration` / `input_context` (guidance) | `guidance-{workflow_id}-{entry_id}` |
 | `workflow_intro` | `workflow-intro-{workflow_id}` |
 | `scope_assumption` | `scope-assumption-{source_node_id}` |
-| `equation_preview` | legacy preview ids (`path-preview-equation-*`) — **deprecated** |
-| `calculation_trace` | `equation-{equation_node_id}` (stable across preview and evaluated states) |
+| `node_intro` | `path-preview-intro-{node_id}` |
+| `equation` (stable) | `equation-{equation_node_id}` |
+| `equation` (preview/active legacy ids) | `path-preview-equation-*`, `node-activation-equation-*` |
 | `paragraph_context` | `paragraph-{node_id}` (live focus paragraph with `presentation.summary`) |
 | `engineering_reference` | `paragraph-{node_id}` (trace/reference prose) |
-| `recommendation` (lookup table) | `table-lookup-{node_id}` |
-| `validation_check` | `validation-{semantic_key}` (e.g. `validation-thin-wall-criterion`) |
+| `lookup_table_recommendation` | `table-lookup-{node_id}` |
+| `applicability` | `validation-{semantic_key}` (e.g. `validation-thin-wall-criterion`) |
 | `result_summary` | `result-summary-{workflow_slug}` |
 | `ask_archive` | `archived-ask-{parameter_id}-{submission_id}` (transcript storage only; excluded from center-panel scroll) |
 | `answer_archive` | `archived-answer-{parameter_id}-{submission_id}` (transcript storage only; excluded from center-panel scroll) |
@@ -89,19 +120,22 @@ Future: `guidance-{workflow_id}-{entry_id}-{activation_key}` when entry reuse is
 
 ## Default report order
 
+Authoritative tuple: `models/display_role.DISPLAY_ROLE_ORDER` → `contracts/center_panel_report_role_order.json`.
+
 1. `workflow_intro`
-2. `scope_assumption`
+2. `scope_assumption` (reserved)
 3. `branch_narration`
 4. `ask_archive` / `answer_archive` (transcript only; excluded from scroll)
 5. `engineering_reference`
 6. `paragraph_context`
 7. `input_context`
-8. `calculation_trace`
-9. `equation_preview`
-10. `validation_check`
-11. `result_summary`
-12. `recommendation`
-13. `next_workflows`
+8. `node_intro`
+9. `equation` (single slot — sort by stable id, then `display_state`)
+10. `applicability`
+11. `warning`
+12. `result_summary`
+13. `lookup_table_recommendation`
+14. `next_workflows`
 
 **Center-panel scroll exclusion:** `ask_archive` and `answer_archive` remain in `flow_guidance.transcript_blocks` for audit/history but are **not** merged into `ordered_scroll_blocks` or the desktop center-panel transcript. Users answer via the composer (`current_ask`), not the scroll area.
 
@@ -117,8 +151,9 @@ Within the same role: chronological append order. Preview-tier (non-equation): r
 
 1. Provenance enrich (`enrich_display_blocks_provenance`, row `value_provenance`)
 2. Reference dedupe (`select_primary_reference_chip` per cell)
-3. Block id dedupe (`dedupe_blocks_by_id_prefer_richer` — collapse legacy preview/trace ids)
-4. Role/order normalization (`sort_blocks_by_report_role` at API boundary)
+3. Block id dedupe (`dedupe_blocks_by_id_prefer_richer`)
+4. `resolve_display_block()` on each block (validate + infer; strip `internal_display_role`)
+5. Role/order normalization (`sort_blocks_by_report_role` at API boundary)
 
 `append_equation_trace_blocks` is **not** called on the live central-panel path.
 
@@ -128,12 +163,16 @@ Within the same role: chronological append order. Preview-tier (non-equation): r
 - **`engineering_reference`:** paragraph trace/reference prose from execution trace.
 - **Shape:** `id=paragraph-{node_id}`, `type=text`.
 
-### Equation preview / calculation trace
+### Equation blocks
 
+- **Canonical:** `display_role: equation` + `display_state` + `equation_content`.
 - **Stable id:** `equation-{equation_node_id}` — same block updates in place: symbolic → input table → substitution/result via `equation_display_trace`.
-- **Lifecycle:** `durable` — frontend `mergeDisplayOutputs` retains prior equations when focus advances.
-- **Legacy ids** (`path-preview-equation-*`, `equation-trace-*`) stripped during finalize dedupe.
+- **Lifecycle:** `display_state` in `{preview, active}` → `preview`; `evaluated` → `durable`.
+- **Center-panel live snapshot:** `mergeDisplayOutputs` includes preview/active equations from the **current API response** so the scroll area shows the in-progress equation and parameter table. Session transcript cache (`transcriptCache`) stores **durable blocks only** — preview equations are not persisted across reload.
+- **Progressive layout (single block):** symbolic line → input table → substituted line (when all inputs resolved) → evaluated result line. Parameter table remains visible after evaluation.
+- **Legacy ids** (`path-preview-equation-*`, `equation-trace-*`) may still appear on ids but roles are canonical only in API output.
 - **Row provenance:** at most one primary `reference_chips` entry per cell (`api/reference_links.select_primary_reference_chip`).
+- **Persisted trace keys:** `_equation_trace_keys` suffix `|equation` (migrate legacy `|equation_trace` via `scripts/migrate_persisted_display_roles.py`).
 
 ### Lookup / recommendation table
 
@@ -144,11 +183,11 @@ Within the same role: chronological append order. Preview-tier (non-equation): r
 ### Validation check
 
 - **Source:** `task.warnings` or trace-derived checks (e.g. thin-wall criterion from `task.outputs.thin_wall` + calculation trace).
-- **Shape:** `id=validation-{semantic_key}`, `type=text`, `display_role=validation_check`.
+- **Shape:** `id=validation-{semantic_key}`, `type=text`, `display_role=applicability`.
 
 ### Workflow results
 
-- **Shape:** `id=result-summary-{workflow_slug}`, `type=text`, `display_role=result_summary`.
+- **Shape:** `id=result-summary-{workflow_slug}`, `type=text`, `display_role=result_summary`, `result_kind=workflow`.
 - **Payload:** structured deterministic summary from `api/result_summary_display.py` (`primary_result`, `applied_conditions`, `warnings`, optional `runtime_narration`).
 - Loose `result-{output_key}` typed blocks are **not** emitted on the scroll path.
 
@@ -163,7 +202,7 @@ Legacy ids removed from builders: `minimum-thickness-equation`, `pipe-schedule-r
 ## Equation row provenance (Phase 4)
 
 - `value_provenance` is attached to equation `input_table.rows` inside `display_outputs` (preview-tier engineering blocks).
-- It is **not** a durable transcript block type; no `calculation_trace` or `engineering_reference` persistence in Phase 4.
+- It is **not** a durable transcript block type.
 - `reference_chips` nested under `value_provenance` are **API projection only** (same read path as Phase 3).
 - Legacy `value_reference` remains during migration; frontend prefers `value_provenance`.
 - Single-hop provenance only (`source_type`: `user_input`, `equation_output`, `table_lookup`, …).

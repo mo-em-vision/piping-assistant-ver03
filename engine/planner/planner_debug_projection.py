@@ -10,7 +10,7 @@ from typing import Any
 
 from engine.planner.plan_inspector import engineering_plan_from_dict
 from engine.planner.workflow_goal_metadata import workflow_title_for_goal
-from engine.reference.parameter_keys import load_parameter_node_metadata
+from engine.reference.parameter_keys import load_parameter_node_metadata, param_node_id_for_input
 from engine.reference.standards_reader import StandardsReader
 from models.engineering_plan import (
     EngineeringPlan,
@@ -23,6 +23,8 @@ from models.engineering_plan import (
 
 _STATUS_REASONS = frozenset(
     {
+        "awaiting parameter gathering",
+        "awaiting user input",
         "waiting for user input",
         "waiting for dependency",
         "ready for expansion",
@@ -33,10 +35,11 @@ _STATUS_REASONS = frozenset(
     }
 )
 
-_EXCLUDED_EVENT_TYPES = frozenset({"node_marked_not_applicable", "node_deferred"})
+_EXCLUDED_EVENT_TYPES = frozenset({"node_marked_not_applicable"})
+_BLOCKED_EVENT_TYPES = frozenset({"node_deferred"})
 
 
-def _display_name(
+def _human_label(
     node_id: str,
     *,
     title: str | None,
@@ -53,7 +56,11 @@ def _display_name(
     if reader is not None:
         try:
             record = reader.load(node_id)
-            loaded = str(record.metadata.get("title") or "").strip()
+            loaded = str(
+                record.metadata.get("name")
+                or record.metadata.get("title")
+                or ""
+            ).strip()
             if loaded:
                 return loaded
         except (FileNotFoundError, KeyError, OSError):
@@ -69,10 +76,12 @@ def _node_item(
     reader: StandardsReader | None,
     status_reason: str | None = None,
 ) -> dict[str, Any]:
+    """Debugger rows use node_id as display_name for traceability."""
     item: dict[str, Any] = {
         "node_id": node_id,
         "node_type": node_type,
-        "display_name": _display_name(node_id, title=title, reader=reader),
+        "display_name": node_id,
+        "label": _human_label(node_id, title=title, reader=reader),
     }
     if status_reason is not None:
         item["status_reason"] = status_reason
@@ -105,6 +114,35 @@ def _has_excluded_by_branch_event(traversal: PlannerTraversalState, node_id: str
     return False
 
 
+def _pending_status_reason(
+    plan: EngineeringPlan,
+    traversal: PlannerTraversalState,
+    item: TraversalPendingNode,
+) -> str:
+    reason_lower = str(item.reason or "").lower()
+    if item.node_type == "equation" and "parameter gathering" in reason_lower:
+        return "awaiting parameter gathering"
+    if item.waiting_on:
+        return "waiting for dependency"
+    if _has_excluded_by_branch_event(traversal, item.node_id):
+        return "excluded by branch"
+
+    req = _requirement_for_node(plan, item.node_id)
+    if req is not None:
+        if req.activation_status == "not_applicable" or req.status == "not_applicable":
+            return "blocked by condition"
+        if req.status == "resolved":
+            return "already satisfied"
+        if req.requirement_class == "user_input" and req.status == "missing":
+            return "awaiting user input"
+        if req.requirement_class == "equation_result" and req.status in {"missing", "blocked"}:
+            return "awaiting parameter gathering"
+
+    if "awaiting user input" in reason_lower:
+        return "awaiting user input"
+    return "unknown"
+
+
 def _status_reason_for_queue_node(
     plan: EngineeringPlan,
     traversal: PlannerTraversalState,
@@ -112,7 +150,10 @@ def _status_reason_for_queue_node(
     node_id: str,
     waiting_on: list[str],
     is_candidate: bool,
+    pending: TraversalPendingNode | None = None,
 ) -> str:
+    if pending is not None:
+        return _pending_status_reason(plan, traversal, pending)
     if waiting_on:
         return "waiting for dependency"
     if is_candidate:
@@ -127,7 +168,9 @@ def _status_reason_for_queue_node(
         if req.status == "resolved":
             return "already satisfied"
         if req.requirement_class == "user_input" and req.status == "missing":
-            return "waiting for user input"
+            return "awaiting user input"
+        if req.requirement_class == "equation_result" and req.status in {"missing", "blocked"}:
+            return "awaiting parameter gathering"
 
     return "unknown"
 
@@ -157,11 +200,27 @@ def _visited_previous_step(
     *,
     reader: StandardsReader | None,
 ) -> list[dict[str, Any]]:
+    resolved_events = [
+        event
+        for event in traversal.traversal_events
+        if event.event_type == "parameter_resolved" and event.node_id
+    ]
+    if resolved_events:
+        last = resolved_events[-1]
+        node_id = str(last.node_id)
+        node_type = "parameter" if node_id.startswith("PARAM-") else "unknown"
+        return [
+            _node_item(
+                node_id,
+                node_type,
+                title=None,
+                reader=reader,
+            )
+        ]
+
     current_id = traversal.current_active_node_id
     candidates = [
-        item
-        for item in traversal.expanded_nodes
-        if item.node_id != current_id
+        item for item in traversal.expanded_nodes if item.node_id != current_id
     ]
     if not candidates:
         return []
@@ -173,14 +232,9 @@ def _visited_previous_step(
     ]
 
 
-def _excluded_blocked(
-    plan: EngineeringPlan,
+def _node_metadata_maps(
     traversal: PlannerTraversalState,
-    *,
-    reader: StandardsReader | None,
-) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    seen: set[str] = set()
+) -> tuple[dict[str, str], dict[str, str | None]]:
     node_types: dict[str, str] = {}
     node_titles: dict[str, str | None] = {}
 
@@ -197,6 +251,18 @@ def _excluded_blocked(
         active = traversal.current_active_node
         node_types[active.node_id] = active.node_type
         node_titles[active.node_id] = active.title
+    return node_types, node_titles
+
+
+def _excluded_nodes(
+    plan: EngineeringPlan,
+    traversal: PlannerTraversalState,
+    *,
+    reader: StandardsReader | None,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    node_types, node_titles = _node_metadata_maps(traversal)
 
     for event in traversal.traversal_events:
         if event.event_type not in _EXCLUDED_EVENT_TYPES:
@@ -211,6 +277,114 @@ def _excluded_blocked(
                 node_types.get(node_id, "unknown"),
                 title=node_titles.get(node_id),
                 reader=reader,
+                status_reason="excluded by branch",
+            )
+        )
+    return rows
+
+
+def _blocked_nodes(
+    plan: EngineeringPlan,
+    traversal: PlannerTraversalState,
+    *,
+    reader: StandardsReader | None,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    node_types, node_titles = _node_metadata_maps(traversal)
+
+    for event in traversal.traversal_events:
+        if event.event_type not in _BLOCKED_EVENT_TYPES:
+            continue
+        node_id = event.node_id
+        if not node_id or node_id in seen:
+            continue
+        seen.add(node_id)
+        rows.append(
+            _node_item(
+                node_id,
+                node_types.get(node_id, "unknown"),
+                title=node_titles.get(node_id),
+                reader=reader,
+                status_reason="waiting for dependency",
+            )
+        )
+
+    for item in traversal.pending_expansion_nodes:
+        if not item.waiting_on or item.node_id in seen:
+            continue
+        seen.add(item.node_id)
+        rows.append(
+            _node_item(
+                item.node_id,
+                item.node_type,
+                title=item.title,
+                reader=reader,
+                status_reason=_pending_status_reason(plan, traversal, item),
+            )
+        )
+    return rows
+
+
+def _excluded_blocked(
+    plan: EngineeringPlan,
+    traversal: PlannerTraversalState,
+    *,
+    reader: StandardsReader | None,
+) -> list[dict[str, Any]]:
+    """Deprecated combined list — excluded first, then blocked."""
+    return _excluded_nodes(plan, traversal, reader=reader) + _blocked_nodes(
+        plan, traversal, reader=reader
+    )
+
+
+def _definition_equation_pending_items(
+    task: Any,
+    reader: StandardsReader | None,
+) -> list[dict[str, Any]]:
+    if task is None or reader is None:
+        return []
+    try:
+        from engine.graph.definition_equations import (
+            has_execution_trace,
+            pending_definition_equation_inputs,
+        )
+        from engine.graph.graph_engine import normalize_root_id
+        from engine.planner.tools import GraphTools
+    except ImportError:
+        return []
+
+    if not has_execution_trace(task):
+        return []
+
+    workflow_id = str(
+        task.outputs.get("workflow") or task.outputs.get("selected_root") or ""
+    ).strip()
+    if not workflow_id:
+        return []
+
+    slug = normalize_root_id(workflow_id)
+    graph = GraphTools(reader)
+    preview = graph.preview_plan(
+        task_id=task.task_id,
+        root_id=slug,
+        inputs=dict(task.fact_store.active_facts()),
+    )
+    pending_fields = pending_definition_equation_inputs(
+        task,
+        reader,
+        preview.execution_order,
+    )
+    rows: list[dict[str, Any]] = []
+    for field in pending_fields:
+        node_id = param_node_id_for_input(field)
+        rows.append(
+            _node_item(
+                node_id,
+                "parameter",
+                title=None,
+                reader=reader,
+                status_reason="awaiting user input",
             )
         )
     return rows
@@ -222,54 +396,79 @@ def _queue_leaf_nodes(
     *,
     reader: StandardsReader | None,
     excluded_ids: set[str],
+    task: Any | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     seen: set[str] = set()
 
-    def append_pending(item: TraversalPendingNode) -> None:
-        if item.node_id in seen or item.node_id in excluded_ids:
+    def append_row(
+        node_id: str,
+        node_type: str,
+        *,
+        title: str | None,
+        status_reason: str,
+    ) -> None:
+        if node_id in seen or node_id in excluded_ids:
             return
-        seen.add(item.node_id)
+        seen.add(node_id)
         rows.append(
             _node_item(
-                item.node_id,
-                item.node_type,
-                title=item.title,
+                node_id,
+                node_type,
+                title=title,
                 reader=reader,
-                status_reason=_status_reason_for_queue_node(
-                    plan,
-                    traversal,
-                    node_id=item.node_id,
-                    waiting_on=list(item.waiting_on),
-                    is_candidate=False,
-                ),
+                status_reason=status_reason,
             )
         )
 
-    def append_candidate(item: TraversalCandidateNode) -> None:
-        if item.node_id in seen or item.node_id in excluded_ids:
-            return
-        seen.add(item.node_id)
-        rows.append(
-            _node_item(
-                item.node_id,
-                item.node_type,
-                title=item.title,
-                reader=reader,
-                status_reason=_status_reason_for_queue_node(
-                    plan,
-                    traversal,
-                    node_id=item.node_id,
-                    waiting_on=[],
-                    is_candidate=True,
-                ),
-            )
+    equation_pending = [
+        item
+        for item in traversal.pending_expansion_nodes
+        if item.node_type == "equation"
+        or "parameter gathering" in str(item.reason or "").lower()
+    ]
+    other_pending = [
+        item for item in traversal.pending_expansion_nodes if item not in equation_pending
+    ]
+
+    for item in equation_pending:
+        append_row(
+            item.node_id,
+            item.node_type,
+            title=item.title,
+            status_reason=_pending_status_reason(plan, traversal, item),
         )
 
-    for item in traversal.pending_expansion_nodes:
-        append_pending(item)
+    for item in other_pending:
+        append_row(
+            item.node_id,
+            item.node_type,
+            title=item.title,
+            status_reason=_pending_status_reason(plan, traversal, item),
+        )
+
     for item in traversal.candidate_next_nodes:
-        append_candidate(item)
+        append_row(
+            item.node_id,
+            item.node_type,
+            title=item.title,
+            status_reason=_status_reason_for_queue_node(
+                plan,
+                traversal,
+                node_id=item.node_id,
+                waiting_on=[],
+                is_candidate=True,
+            ),
+        )
+
+    for item in _definition_equation_pending_items(task, reader):
+        append_row(
+            item["node_id"],
+            item["node_type"],
+            title=item.get("label"),
+            status_reason=str(item.get("status_reason") or "awaiting user input"),
+        )
+
     return rows
 
 
@@ -310,10 +509,22 @@ def _goals(plan: EngineeringPlan, *, reader: StandardsReader | None) -> dict[str
     return {"main_goal": main_goal, "subgoals": subgoals}
 
 
+def _empty_groups() -> dict[str, Any]:
+    return {
+        "visited_previous_step": [],
+        "queue_leaf_nodes": [],
+        "visited_from_beginning": [],
+        "excluded_nodes": [],
+        "blocked_nodes": [],
+        "excluded_blocked": [],
+    }
+
+
 def build_planner_debug_view(
     plan: EngineeringPlan,
     *,
     reader: StandardsReader | None = None,
+    task: Any | None = None,
 ) -> dict[str, Any]:
     """Workflow-agnostic minimal debugger view from plan.traversal and root goal."""
     goals = _goals(plan, reader=reader)
@@ -324,16 +535,17 @@ def build_planner_debug_view(
             "current_node": None,
             "next_queued_node": None,
             "goals": goals,
-            "groups": {
-                "visited_previous_step": [],
-                "queue_leaf_nodes": [],
-                "visited_from_beginning": [],
-                "excluded_blocked": [],
-            },
+            "groups": _empty_groups(),
         }
 
     excluded_ids = _excluded_node_ids(traversal)
-    queue = _queue_leaf_nodes(plan, traversal, reader=reader, excluded_ids=excluded_ids)
+    queue = _queue_leaf_nodes(
+        plan,
+        traversal,
+        reader=reader,
+        excluded_ids=excluded_ids,
+        task=task,
+    )
     current = _current_node_ref(traversal, reader=reader)
     next_queued = queue[0] if queue else None
     if next_queued is not None:
@@ -341,7 +553,11 @@ def build_planner_debug_view(
             "node_id": next_queued["node_id"],
             "node_type": next_queued["node_type"],
             "display_name": next_queued["display_name"],
+            "label": next_queued.get("label"),
         }
+
+    excluded = _excluded_nodes(plan, traversal, reader=reader)
+    blocked = _blocked_nodes(plan, traversal, reader=reader)
 
     return {
         "current_node": current,
@@ -351,7 +567,9 @@ def build_planner_debug_view(
             "visited_previous_step": _visited_previous_step(plan, traversal, reader=reader),
             "queue_leaf_nodes": queue,
             "visited_from_beginning": _visited_from_beginning(plan, traversal, reader=reader),
-            "excluded_blocked": _excluded_blocked(plan, traversal, reader=reader),
+            "excluded_nodes": excluded,
+            "blocked_nodes": blocked,
+            "excluded_blocked": excluded + blocked,
         },
     }
 
@@ -360,20 +578,22 @@ def build_planner_debug_projection(
     plan: EngineeringPlan,
     *,
     reader: StandardsReader | None = None,
+    task: Any | None = None,
 ) -> dict[str, Any]:
     """Read-only dev inspection view derived from engineering_plan. Never used for execution."""
-    return build_planner_debug_view(plan, reader=reader)
+    return build_planner_debug_view(plan, reader=reader, task=task)
 
 
 def build_planner_debug_projection_from_dict(
     raw: dict[str, Any],
     *,
     reader: StandardsReader | None = None,
+    task: Any | None = None,
 ) -> dict[str, Any] | None:
     plan = engineering_plan_from_dict(raw)
     if plan is None:
         return None
-    return build_planner_debug_projection(plan, reader=reader)
+    return build_planner_debug_projection(plan, reader=reader, task=task)
 
 
 def planner_debug_projection_for_task(
@@ -384,7 +604,7 @@ def planner_debug_projection_for_task(
     """Dev-only projection derived from task.outputs engineering_plan snapshot."""
     raw = task.outputs.get("engineering_plan")
     if isinstance(raw, dict) and "requirements" in raw and "root_goal" in raw:
-        return build_planner_debug_projection_from_dict(raw, reader=reader)
+        return build_planner_debug_projection_from_dict(raw, reader=reader, task=task)
     return None
 
 

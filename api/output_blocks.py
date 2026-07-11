@@ -6,19 +6,13 @@ import re
 from pathlib import Path
 from typing import Any
 
-from api.center_panel_contract import (
-    dedupe_blocks_by_id_inplace,
-    normalize_display_block_for_api,
-    sort_blocks_by_report_role,
-)
+from api.center_panel_contract import dedupe_blocks_by_id_inplace
 from api.display_block_metadata import (
-    DISPLAY_ROLE_APPLICABILITY,
-    DISPLAY_ROLE_RECOMMENDATION,
-    DISPLAY_ROLE_WARNING,
     dedupe_blocks_by_id_prefer_richer,
     is_stable_equation_display_block_id,
     tag_display_block,
 )
+from models.display_role import DisplayRole, resolve_display_block, sort_blocks_by_report_role
 from api.equation_evaluation_display import equation_display_blocks_for_task
 from api.node_display import build_activated_node_blocks
 from api.node_provenance import definition_node_id_for_task, enrich_display_blocks_provenance
@@ -79,10 +73,11 @@ def _finalize_display_blocks(
     blocks = dedupe_blocks_by_id_prefer_richer(blocks)
     blocks = dedupe_blocks_by_id_inplace(blocks)
 
+    resolved: list[dict[str, Any]] = []
     for block in blocks:
-        normalize_display_block_for_api(block)
+        resolved.append(resolve_display_block(block))
 
-    return sort_blocks_by_report_role(blocks)
+    return sort_blocks_by_report_role(resolved)
 
 
 def _enrich_reference_links(
@@ -268,7 +263,7 @@ def _validation_blocks_from_trace(
                 "content": content,
                 "variant": "body",
             },
-            display_role=DISPLAY_ROLE_APPLICABILITY,
+            display_role=DisplayRole.applicability.value,
         )
     )
     return blocks
@@ -379,7 +374,7 @@ def _warning_block(message: str) -> dict[str, Any]:
             "content": message,
             "variant": "warning",
         },
-        display_role=DISPLAY_ROLE_WARNING,
+        display_role=DisplayRole.warning.value,
     )
 
 
@@ -422,7 +417,11 @@ def _lookup_table_block(
 
     highlight = lookup.get("highlight")
     recommendation_summary = str(lookup.get("recommendation_summary") or "").strip()
-    display_role = DISPLAY_ROLE_RECOMMENDATION if highlight else "engineering_reference"
+    display_role = (
+        DisplayRole.lookup_table_recommendation.value
+        if highlight
+        else DisplayRole.engineering_reference.value
+    )
 
     block: dict[str, Any] = {
         "id": f"table-lookup-{node_id}",

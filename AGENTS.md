@@ -47,25 +47,6 @@ Structure → data flow → backend connection → visualization → interaction
 - Release gate: `cd desktopApp && npm run verify:release`
 - After changing standards markdown/YAML: `python scripts/build_graph_db.py` and `python scripts/build_standards_nodes_db.py` (or `python scripts/build_all_standards_dbs.py`) then re-run backend tests
 
-## Node Dev Studio (development only)
-
-Isolated graph node CRUD UI for editing YAML sources under `standards/*/nodes/`.
-
-**Full documentation:** [`docs/node_dev_studio.md`](docs/node_dev_studio.md)
-
-1. Start backend with dev studio enabled:
-   ```bash
-   set DEV_STUDIO_ENABLED=1
-   python -m api.server
-   ```
-2. Start the studio UI (browser only, no Electron):
-   ```bash
-   cd desktopApp && npm run dev:studio
-   ```
-3. Open `http://127.0.0.1:5173/studio.html`
-
-The studio writes YAML and syncs `*_graph.db` incrementally. It is excluded from release builds (`npm run build` does not include `studio.html` unless `VITE_DEV_STUDIO=true`).
-
 ## Developer Inspector (development only)
 
 Centralized debugging panel in the desktop app for execution trace, provenance, planner decisions, replay, and graph integrity checks.
@@ -77,7 +58,7 @@ Centralized debugging panel in the desktop app for execution trace, provenance, 
    set DEV_INSPECTION_ENABLED=1
    python -m api.server
    ```
-   (Unpackaged Electron builds set this automatically with `DEV_STUDIO_ENABLED`.)
+   (Unpackaged Electron builds set this automatically.)
 
 2. Run the desktop app in dev mode (`npm run dev` in `desktopApp/`).
 

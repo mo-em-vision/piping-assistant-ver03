@@ -109,7 +109,8 @@ def test_eq2_trace_updates_t_value_when_output_available(standards_reader) -> No
 
     trace = build_equation_trace_block(task, standards_reader, "304.1.1-a")
     assert trace is not None
-    assert trace.get("display_role") == "equation_trace"
+    assert trace.get("display_role") == "equation"
+    assert trace.get("display_state") == "evaluated"
     t_row = next(row for row in trace["input_table"]["rows"] if row["symbol"] == "t")
     assert t_row["value"] != AWAITING_USER_INPUT
     assert "2.000" in t_row["value"]

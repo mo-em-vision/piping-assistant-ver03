@@ -331,8 +331,10 @@ lookup_conditionals:
 | `EngineeringPlan.traversal` | Persist full state on `task.outputs.engineering_plan` |
 | `planner_inspector_summary` | Rebuilt from `engineering_plan` on each inspection payload — **not** from `goal_store` (backward compat) |
 | `planner_debug_projection` | **Preferred** read-only Dev Mode Planner tab contract — derived from `engineering_plan` only; never drives execution |
-| `current_active_node_id` | Must match next planner ask; follows phase order (assumptions → path → gathering → coefficients → equations) |
-| `pending_expansion_nodes` | Include nodes blocked by unresolved gates/branches with `waiting_on` + `reason` |
+| `current_active_node_id` | Must match next **askable** planner input (`user_input` / `branch_decision`); never an equation output PARAM while inputs are missing |
+| `pending_expansion_nodes` | Include equation nodes with `awaiting parameter gathering`, gatherable PARAM nodes, and branch-blocked nodes with `waiting_on` + `reason` |
+| `traversal_events` | Include `parameter_resolved` for resolved gatherable fields (visited-previous-step in debugger) |
+| `planner_debug_projection.groups` | `excluded_nodes`, `blocked_nodes`, `queue_leaf_nodes` with `status_reason`; rows use `node_id` as `display_name` for traceability |
 | `plan_validation.py` | Invariants after `finalize_engineering_plan()`; errors on `plan.debug` |
 
 ### API / inspector contract

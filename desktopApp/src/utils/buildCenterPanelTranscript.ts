@@ -3,8 +3,8 @@ import {
   guidanceTranscriptToDisplayBlocks,
   type FlowGuidancePresentationBlock,
 } from '@/utils/flowGuidanceTranscript'
-import { inferDisplayRole, isVolatileDisplayBlock } from '@/utils/displayBlockLifecycle'
-import { REPORT_ROLE_ORDER } from '@/utils/centerPanelContract'
+import { isVolatileDisplayBlock } from '@/utils/displayBlockLifecycle'
+import { blockDisplayRole, reportRoleIndex, REPORT_ROLE_ORDER } from '@/utils/displayRole'
 
 import type { WorkflowHistoryItem } from '@/components/workflow/buildWorkflowHistory'
 
@@ -22,18 +22,9 @@ function dedupeByBlockId(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
   return order.map((id) => winners.get(id)!)
 }
 
-function blockRole(block: DisplayOutputBlock): string {
-  return (block as { display_role?: string }).display_role ?? inferDisplayRole(block) ?? ''
-}
-
-function reportRoleIndex(displayRole: string): number {
-  const index = REPORT_ROLE_ORDER.indexOf(displayRole as (typeof REPORT_ROLE_ORDER)[number])
-  return index === -1 ? REPORT_ROLE_ORDER.length : index
-}
-
 function sortByReportRole(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
   return [...blocks]
-    .map((block, index) => ({ block, index, role: blockRole(block) }))
+    .map((block, index) => ({ block, index, role: blockDisplayRole(block) }))
     .sort((left, right) => {
       const roleDelta = reportRoleIndex(left.role) - reportRoleIndex(right.role)
       if (roleDelta !== 0) {
@@ -55,7 +46,7 @@ export function buildCenterPanelTranscript(
 ): WorkflowHistoryItem[] {
   void workflowId
   const allGuidance = guidanceTranscriptToDisplayBlocks(transcriptBlocks).filter((block) => {
-    const role = blockRole(block)
+    const role = blockDisplayRole(block)
     return role !== 'ask_archive' && role !== 'answer_archive'
   })
 
@@ -74,4 +65,4 @@ export function buildCenterPanelTranscript(
   }))
 }
 
-export { REPORT_ROLE_ORDER } from '@/utils/centerPanelContract'
+export { REPORT_ROLE_ORDER } from '@/utils/displayRole'

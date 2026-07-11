@@ -58,7 +58,7 @@ def _task_with_eq2_trace_key(task, *, include_t: bool = True) -> None:
         task.outputs["t"] = 2.0
         task.outputs["required_thickness"] = 2.0
     task.outputs["_equation_trace_keys"] = [
-        "pipe_wall_thickness_design|304.1.1-a|asme-b313-304-1-1-eq-2|equation_trace"
+        "pipe_wall_thickness_design|304.1.1-a|asme-b313-304-1-1-eq-2|equation"
     ]
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     task.active_nodes = ["304.1.1-a", "304.1.2-a"]

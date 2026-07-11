@@ -6,15 +6,12 @@ from typing import Any
 
 from api.display_block_metadata import (
     DISPLAY_CHANNEL_CURRENT_NODE_INTRO,
-    DISPLAY_ROLE_INTRO,
     tag_display_block,
 )
 from api.node_context import display_heading_for_node
 from engine.reference.paragraph_hierarchy import paragraph_reference
 from engine.reference.standards_reader import StandardsReader
-
-DISPLAY_ROLE_ENGINEERING_REFERENCE = "engineering_reference"
-DISPLAY_ROLE_PARAGRAPH_CONTEXT = "paragraph_context"
+from models.display_role import DisplayRole
 
 
 def _presentation_meta(metadata: dict[str, Any]) -> dict[str, Any]:
@@ -87,7 +84,7 @@ def build_paragraph_display_block(
     reader: StandardsReader,
     node_id: str,
     *,
-    display_role: str = DISPLAY_ROLE_ENGINEERING_REFERENCE,
+    display_role: str = DisplayRole.engineering_reference.value,
     block_id: str | None = None,
     content_suffix: str | None = None,
     display_channel: str | None = None,
@@ -121,7 +118,7 @@ def build_paragraph_display_block(
     block: dict[str, Any] = {
         "id": resolved_block_id,
         "type": "text",
-        "title": _paragraph_label(metadata, node_id) if display_role != DISPLAY_ROLE_INTRO else None,
+        "title": _paragraph_label(metadata, node_id) if display_role != DisplayRole.node_intro.value else None,
         "content": content,
         "variant": "body",
         "reference_links": [
@@ -133,12 +130,12 @@ def build_paragraph_display_block(
         ],
         "refs": {"node_id": node_id},
     }
-    if display_role == DISPLAY_ROLE_INTRO:
+    if display_role == DisplayRole.node_intro.value:
         block["reference_links_placement"] = "inline"
         block["content_suffix"] = content_suffix
 
     channel = display_channel
-    if display_role == DISPLAY_ROLE_INTRO and channel is None:
+    if display_role == DisplayRole.node_intro.value and channel is None:
         channel = DISPLAY_CHANNEL_CURRENT_NODE_INTRO
 
     return tag_display_block(
@@ -237,7 +234,7 @@ def paragraph_context_blocks_for_focus(
         block = build_paragraph_display_block(
             reader,
             node_id,
-            display_role=DISPLAY_ROLE_PARAGRAPH_CONTEXT,
+            display_role=DisplayRole.paragraph_context.value,
         )
         if block is not None:
             blocks.append(block)

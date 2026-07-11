@@ -36,7 +36,7 @@ metadata:
 
 - On **create or edit**, set `last_revision` to today's date and `edited_by` to the current editor (default `admin` when unknown).
 - Paragraph nodes also require `metadata.source_revision_year` (edition year from the governing standard).
-- Validators reject nodes missing `last_revision` or `edited_by`; Dev Studio stamps them automatically on save via `stamp_revision_metadata`.
+- Validators reject nodes missing `last_revision` or `edited_by`; use `stamp_revision_metadata` when authoring nodes programmatically.
 
 ## ASME B31.3 pack node ids (`asme-b313-` prefix)
 

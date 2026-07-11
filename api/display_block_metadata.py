@@ -4,42 +4,24 @@ from __future__ import annotations
 
 from typing import Any
 
-DISPLAY_ROLE_ACTIVATION = "activation"
-DISPLAY_ROLE_PREVIEW = "preview"
-DISPLAY_ROLE_EQUATION_TRACE = "equation_trace"
-DISPLAY_ROLE_SUBSTITUTED = "substituted"
-DISPLAY_ROLE_DERIVED = "derived"
-DISPLAY_ROLE_INTRO = "intro"
-DISPLAY_ROLE_CONCLUSION = "conclusion"
-DISPLAY_ROLE_APPLICABILITY = "applicability"
-DISPLAY_ROLE_RECOMMENDATION = "recommendation"
-DISPLAY_ROLE_RESULT = "result"
-DISPLAY_ROLE_WARNING = "warning"
-
-LIFECYCLE_DURABLE = "durable"
-LIFECYCLE_PREVIEW = "preview"
-LIFECYCLE_VOLATILE = "volatile"
+from models.display_role import (
+    DisplayRole,
+    DisplayState,
+    EquationContent,
+    LIFECYCLE_DURABLE,
+    LIFECYCLE_PREVIEW,
+    LIFECYCLE_VOLATILE,
+    display_state_index,
+    infer_display_state,
+    is_stable_equation_block_id,
+    lifecycle_for_equation_state,
+)
 
 DISPLAY_CHANNEL_CURRENT_EQUATION_PREVIEW = "current_equation_preview"
 DISPLAY_CHANNEL_CURRENT_NODE_INTRO = "current_node_intro"
 
-PREVIEW_TIER_ROLES = frozenset({DISPLAY_ROLE_ACTIVATION, DISPLAY_ROLE_PREVIEW})
-
-DURABLE_DISPLAY_ROLES = frozenset(
-    {
-        DISPLAY_ROLE_EQUATION_TRACE,
-        DISPLAY_ROLE_SUBSTITUTED,
-        DISPLAY_ROLE_DERIVED,
-        DISPLAY_ROLE_CONCLUSION,
-        DISPLAY_ROLE_APPLICABILITY,
-        DISPLAY_ROLE_RECOMMENDATION,
-        DISPLAY_ROLE_RESULT,
-        DISPLAY_ROLE_WARNING,
-    }
-)
-
 EQUATION_TRACE_KEYS_OUTPUT = "_equation_trace_keys"
-EQUATION_TRACE_ROLE_SUFFIX = "equation_trace"
+EQUATION_SEMANTIC_KEY_SUFFIX = "equation"
 
 
 def infer_display_channel(block: dict[str, Any]) -> str | None:
@@ -59,6 +41,10 @@ def infer_display_channel(block: dict[str, Any]) -> str | None:
     return None
 
 
+def is_stable_equation_display_block_id(block_id: str) -> bool:
+    return is_stable_equation_block_id(block_id)
+
+
 def infer_lifecycle(block: dict[str, Any]) -> str:
     explicit = block.get("lifecycle")
     if isinstance(explicit, str) and explicit.strip():
@@ -67,23 +53,21 @@ def infer_lifecycle(block: dict[str, Any]) -> str:
     if is_volatile_block(block):
         return LIFECYCLE_VOLATILE
 
-    role = infer_display_role(block)
-    if role in DURABLE_DISPLAY_ROLES:
-        return LIFECYCLE_DURABLE
+    role = str(block.get("display_role") or "").strip()
+    if role == DisplayRole.equation.value:
+        return lifecycle_for_equation_state(str(block.get("display_state") or ""))
 
     block_id = str(block.get("id") or "")
     if is_stable_equation_display_block_id(block_id):
-        return LIFECYCLE_DURABLE
+        state = str(block.get("display_state") or infer_display_state(block))
+        return lifecycle_for_equation_state(state)
     if block_id.startswith("path-preview-equation-") or block_id.startswith(
         "node-activation-equation-"
     ):
         return LIFECYCLE_PREVIEW
     if block_id.startswith("path-preview-intro-"):
         return LIFECYCLE_PREVIEW
-
-    if role in PREVIEW_TIER_ROLES:
-        return LIFECYCLE_PREVIEW
-    if role == DISPLAY_ROLE_INTRO and block_id.startswith("path-preview-intro-"):
+    if role == DisplayRole.node_intro.value and block_id.startswith("path-preview-intro-"):
         return LIFECYCLE_PREVIEW
 
     return LIFECYCLE_DURABLE
@@ -93,33 +77,34 @@ def tag_display_block(
     block: dict[str, Any],
     *,
     display_role: str,
+    display_state: str | None = None,
+    equation_content: str | None = None,
     equation_node_id: str | None = None,
     source_node_id: str | None = None,
     display_channel: str | None = None,
     history_eligible: bool | None = None,
     volatile: bool | None = None,
 ) -> dict[str, Any]:
-    block_id = str(block.get("id") or "")
-    lifecycle = infer_lifecycle(
-        {
-            **block,
-            "display_role": display_role,
-            "equation_node_id": equation_node_id or block.get("equation_node_id"),
-        }
-    )
-    if display_role in DURABLE_DISPLAY_ROLES:
-        lifecycle = LIFECYCLE_DURABLE
-    elif display_role in PREVIEW_TIER_ROLES:
-        lifecycle = LIFECYCLE_PREVIEW
-    elif display_role == DISPLAY_ROLE_INTRO:
+    block["display_role"] = display_role
+    if display_state is not None:
+        block["display_state"] = display_state
+    if equation_content is not None:
+        block["equation_content"] = equation_content
+
+    lifecycle = infer_lifecycle(block)
+    if display_role == DisplayRole.equation.value:
+        state = str(block.get("display_state") or infer_display_state(block))
+        block["display_state"] = state
+        block.setdefault("equation_content", EquationContent.symbolic.value)
+        lifecycle = lifecycle_for_equation_state(state)
+    elif display_role == DisplayRole.node_intro.value:
+        block_id = str(block.get("id") or "")
         lifecycle = (
             LIFECYCLE_PREVIEW
             if block_id.startswith("path-preview-intro-")
             else LIFECYCLE_DURABLE
         )
 
-    block["internal_display_role"] = display_role
-    block["display_role"] = display_role
     block["lifecycle"] = lifecycle
 
     if history_eligible is None:
@@ -142,80 +127,67 @@ def tag_display_block(
     return block
 
 
+def tag_equation_block(
+    block: dict[str, Any],
+    *,
+    display_state: str,
+    equation_content: str | None = None,
+    equation_node_id: str | None = None,
+    source_node_id: str | None = None,
+    display_channel: str | None = None,
+) -> dict[str, Any]:
+    return tag_display_block(
+        block,
+        display_role=DisplayRole.equation.value,
+        display_state=display_state,
+        equation_content=equation_content,
+        equation_node_id=equation_node_id,
+        source_node_id=source_node_id,
+        display_channel=display_channel,
+    )
+
+
 def infer_display_role(block: dict[str, Any]) -> str | None:
-    explicit = block.get("internal_display_role") or block.get("display_role")
-    if isinstance(explicit, str) and explicit.strip():
-        internal = explicit.strip()
-        from api.center_panel_contract import INTERNAL_TO_CONTRACT_DISPLAY_ROLE
+    from models.display_role import infer_display_fields_from_block, resolve_display_block
 
-        if internal in INTERNAL_TO_CONTRACT_DISPLAY_ROLE:
-            return internal
-        if internal in INTERNAL_TO_CONTRACT_DISPLAY_ROLE.values():
-            for key, value in INTERNAL_TO_CONTRACT_DISPLAY_ROLE.items():
-                if value == internal:
-                    return key
-        return internal
-
-    block_id = str(block.get("id") or "")
-    if block_id.startswith("node-activation-equation-"):
-        return DISPLAY_ROLE_ACTIVATION
-    if is_stable_equation_display_block_id(block_id):
-        return DISPLAY_ROLE_EQUATION_TRACE
-    if block_id.startswith("equation-trace-"):
-        return DISPLAY_ROLE_EQUATION_TRACE
-    if block_id.startswith("path-preview-equation-"):
-        return DISPLAY_ROLE_PREVIEW
-    if block_id.startswith("path-preview-intro-"):
-        return DISPLAY_ROLE_INTRO
-    if block_id.startswith("table-lookup-"):
-        if block.get("highlight_row"):
-            return DISPLAY_ROLE_RECOMMENDATION
-        return "engineering_reference"
-    if block_id.startswith("paragraph-"):
-        role = str(block.get("display_role") or block.get("internal_display_role") or "")
-        if role == "paragraph_context":
-            return "paragraph_context"
-        return "engineering_reference"
-    if block_id.startswith("validation-"):
-        return DISPLAY_ROLE_APPLICABILITY
-    if block_id == "planning-status":
-        return None
-    if str(block.get("type")) == "result":
-        return DISPLAY_ROLE_RESULT
-    if str(block.get("type")) == "warning" or block.get("variant") == "warning":
-        return DISPLAY_ROLE_WARNING
-    return None
+    resolved = resolve_display_block(block)
+    role = str(resolved.get("display_role") or "").strip()
+    return role or None
 
 
-def _preview_tier_quality_score(block: dict[str, Any]) -> int:
-    role = infer_display_role(block) or ""
+def _equation_block_quality_score(block: dict[str, Any]) -> int:
     score = 0
     if block.get("input_table"):
         score += 100
-    if role == DISPLAY_ROLE_PREVIEW:
+    state = str(block.get("display_state") or "")
+    score += display_state_index(state) * 10
+    content = str(block.get("equation_content") or "")
+    if content == EquationContent.evaluated.value:
+        score += 30
+    elif content == EquationContent.substituted.value:
+        score += 20
+    if block.get("equation_display_trace"):
         score += 50
-    elif role == DISPLAY_ROLE_ACTIVATION:
-        score += 10
-    elif str(block.get("id", "")).startswith("path-preview-equation-"):
-        score += 50
-    elif str(block.get("id", "")).startswith("node-activation-equation-"):
-        score += 10
     return score
 
 
 def _is_preview_tier_equation_bearing(block: dict[str, Any]) -> bool:
-    role = infer_display_role(block)
-    if role in DURABLE_DISPLAY_ROLES:
+    if str(block.get("display_role") or "") != DisplayRole.equation.value:
+        return False
+    state = str(block.get("display_state") or "")
+    if state == DisplayState.evaluated.value:
         return False
     lifecycle = infer_lifecycle(block)
-    if lifecycle != LIFECYCLE_PREVIEW and role not in PREVIEW_TIER_ROLES:
+    if lifecycle != LIFECYCLE_PREVIEW and state not in {
+        DisplayState.preview.value,
+        DisplayState.active.value,
+    }:
         return False
-    equation_node_id = str(block.get("equation_node_id") or "").strip()
-    return bool(equation_node_id)
+    return bool(str(block.get("equation_node_id") or "").strip())
 
 
-def dedupe_preview_tier_equations(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Collapse preview/activation duplicates sharing equation_node_id; keep durable results."""
+def dedupe_equation_blocks_by_node_id(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Collapse preview-tier equation duplicates sharing equation_node_id."""
     winners: dict[str, tuple[int, int, dict[str, Any]]] = {}
     drop_indices: set[int] = set()
 
@@ -224,7 +196,7 @@ def dedupe_preview_tier_equations(blocks: list[dict[str, Any]]) -> list[dict[str
             continue
 
         equation_node_id = str(block.get("equation_node_id") or "").strip()
-        score = _preview_tier_quality_score(block)
+        score = _equation_block_quality_score(block)
         existing = winners.get(equation_node_id)
         if existing is None:
             winners[equation_node_id] = (index, score, block)
@@ -247,24 +219,12 @@ def dedupe_preview_tier_equations(blocks: list[dict[str, Any]]) -> list[dict[str
         result.append(cleaned)
     return result
 
-
 def equation_display_block_id(equation_node_id: str) -> str:
-    """Stable center-panel id for an equation across preview and evaluated states."""
     return f"equation-{equation_node_id}"
 
 
 def equation_trace_block_id(source_node_id: str, equation_node_id: str) -> str:
-    """Legacy trace id; prefer equation_display_block_id for new blocks."""
     return f"equation-trace-{source_node_id}-{equation_node_id}"
-
-
-def is_stable_equation_display_block_id(block_id: str) -> bool:
-    block_id = str(block_id or "").strip()
-    if not block_id.startswith("equation-"):
-        return False
-    if block_id.startswith("equation-trace-"):
-        return False
-    return True
 
 
 def equation_trace_semantic_key(
@@ -273,14 +233,12 @@ def equation_trace_semantic_key(
     source_node_id: str,
     equation_node_id: str,
 ) -> str:
-    return (
-        f"{workflow_id}|{source_node_id}|{equation_node_id}|{EQUATION_TRACE_ROLE_SUFFIX}"
-    )
+    return f"{workflow_id}|{source_node_id}|{equation_node_id}|{EQUATION_SEMANTIC_KEY_SUFFIX}"
 
 
 def decode_equation_trace_semantic_key(key: str) -> tuple[str, str, str] | None:
     parts = str(key or "").split("|")
-    if len(parts) != 4 or parts[3] != EQUATION_TRACE_ROLE_SUFFIX:
+    if len(parts) != 4 or parts[3] not in {EQUATION_SEMANTIC_KEY_SUFFIX, "equation_trace"}:
         return None
     workflow_id, source_node_id, equation_node_id = parts[0], parts[1], parts[2]
     if not workflow_id or not source_node_id or not equation_node_id:
@@ -303,7 +261,6 @@ def _preview_equation_blocks(blocks: list[dict[str, Any]]) -> list[dict[str, Any
 
 
 def _evaluated_equation_trace_entries(task: Any) -> list[dict[str, str]]:
-    """Enumerate evaluated equations from execution trace (engineering truth)."""
     from engine.equation.display_trace_serializer import trace_from_dict
 
     trace_entries = getattr(task, "outputs", {}).get("_execution_trace")
@@ -334,7 +291,6 @@ def _evaluated_equation_trace_entries(task: Any) -> list[dict[str, str]]:
 
 
 def _persisted_equation_trace_entries(task: Any) -> list[dict[str, str]]:
-    """Decode durable equation trace keys persisted on the task."""
     workflow_id = str(getattr(task, "outputs", {}).get("workflow") or "").strip()
     if not workflow_id:
         return []
@@ -357,7 +313,6 @@ def _persisted_equation_trace_entries(task: Any) -> list[dict[str, str]]:
 
 
 def _all_equation_trace_entries(task: Any) -> list[dict[str, str]]:
-    """Merge execution-trace evaluations with persisted semantic keys."""
     seen: set[str] = set()
     merged: list[dict[str, str]] = []
     for item in _evaluated_equation_trace_entries(task):
@@ -383,7 +338,6 @@ def collect_equation_trace_keys(
     task: Any,
     blocks: list[dict[str, Any]],
 ) -> list[str]:
-    """Persist semantic keys for evaluated equations and durable trace keys."""
     del blocks
     workflow_id = str(getattr(task, "outputs", {}).get("workflow") or "").strip()
     if not workflow_id:
@@ -403,24 +357,25 @@ def collect_equation_trace_keys(
 def dedupe_competing_equation_preview_blocks(
     blocks: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Drop activation previews when a path preview exists for the same equation_node_id."""
-    path_preview_eq_ids = {
+    """Drop active-state equation blocks when preview exists for same equation_node_id."""
+    preview_eq_ids = {
         str(block.get("equation_node_id") or "").strip()
         for block in blocks
-        if str(block.get("id") or "").startswith("path-preview-equation-")
+        if str(block.get("display_role") or "") == DisplayRole.equation.value
+        and str(block.get("display_state") or "") == DisplayState.preview.value
         and str(block.get("equation_node_id") or "").strip()
     }
-    if not path_preview_eq_ids:
+    if not preview_eq_ids:
         return blocks
 
     result: list[dict[str, Any]] = []
     for block in blocks:
-        block_id = str(block.get("id") or "")
         equation_node_id = str(block.get("equation_node_id") or "").strip()
         if (
-            block_id.startswith("node-activation-equation-")
+            str(block.get("display_role") or "") == DisplayRole.equation.value
+            and str(block.get("display_state") or "") == DisplayState.active.value
             and equation_node_id
-            and equation_node_id in path_preview_eq_ids
+            and equation_node_id in preview_eq_ids
         ):
             continue
         result.append(block)
@@ -432,7 +387,6 @@ def append_equation_trace_blocks(
     task: Any,
     reader: Any,
 ) -> list[dict[str, Any]]:
-    """Legacy helper: merge canonical equation blocks from execution trace."""
     from api.equation_evaluation_display import equation_display_blocks_from_trace
 
     if task is None:
@@ -454,7 +408,6 @@ def append_equation_trace_blocks(
 
 
 def dedupe_blocks_by_id_prefer_richer(blocks: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Collapse by block id; keep the richer equation/table payload."""
     winners: dict[str, tuple[int, dict[str, Any]]] = {}
     order: list[str] = []
 
@@ -469,6 +422,8 @@ def dedupe_blocks_by_id_prefer_richer(blocks: list[dict[str, Any]]) -> list[dict
             value += 50
         if block.get("content"):
             value += 10
+        if str(block.get("display_state") or "") == DisplayState.evaluated.value:
+            value += 25
         return value
 
     for block in blocks:

@@ -59,7 +59,7 @@ describe('EquationOutput', () => {
     expect(container.querySelector('.output-equation__input-table .katex')).toBeTruthy()
   })
 
-  it('renders evaluated equation with substitution and result in one centered expression', () => {
+  it('renders legacy content-only equation as symbolic line', () => {
     const { container } = render(
       <EquationOutput
         block={{
@@ -77,7 +77,8 @@ describe('EquationOutput', () => {
     expect(container.textContent).toContain('= 2.252')
     expect(container.querySelector('.output-equation__leading-result')).toBeNull()
     expect(container.querySelector('.output-equation__input-table')).toBeNull()
-    expect(container.querySelector('.output-equation__math-row')?.children.length).toBe(1)
+    expect(container.querySelectorAll('.output-equation__math').length).toBe(1)
+    expect(container.querySelector('.output-equation__math--symbolic')).toBeTruthy()
   })
 
   it('opens table references from derived coefficient value links', () => {
@@ -418,8 +419,90 @@ describe('EquationOutput', () => {
     )
 
     expect(container.textContent).not.toContain('legacy content')
-    expect(container.querySelectorAll('.output-equation__math').length).toBe(2)
+    expect(container.querySelectorAll('.output-equation__math').length).toBe(3)
+    expect(container.querySelector('.output-equation__math--symbolic')).toBeTruthy()
+    expect(container.querySelector('.output-equation__math--substituted')).toBeTruthy()
+    expect(container.querySelector('.output-equation__math--result')).toBeTruthy()
     expect(container.textContent).toContain('7')
+  })
+
+  it('renders symbolic and input table during blocked parameter collection', () => {
+    const { container } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-preview-collecting',
+          type: 'equation',
+          content: 't_m = t + c',
+          display: 't_m = t + c',
+          equation_display_trace: {
+            equation_id: 'eq-2',
+            node_id: '304.1.1-a',
+            symbolic_latex: 't_m = t + c',
+            substituted_latex: null,
+            result_latex: null,
+            latex_source: 'metadata_display_text',
+            status: 'blocked',
+            inputs: [],
+            intermediate_values: [],
+            result: null,
+          },
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'definition', label: 'Definition', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+            ],
+            rows: [
+              { symbol: 't', definition: 'Required thickness', value: 'Awaiting user input' },
+            ],
+          },
+        }}
+      />,
+    )
+
+    expect(container.querySelector('.output-equation__math--symbolic')).toBeTruthy()
+    expect(container.querySelector('.output-equation__input-table')).toBeTruthy()
+    expect(container.querySelector('.output-equation__math--substituted')).toBeNull()
+    expect(container.querySelector('.output-equation__math--result')).toBeNull()
+  })
+
+  it('keeps input table visible after evaluation', () => {
+    const { container } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-trace-evaluated-with-table',
+          type: 'equation',
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'definition', label: 'Definition', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+            ],
+            rows: [{ symbol: 'P', definition: 'Design pressure', value: '8 bar' }],
+          },
+          equation_display_trace: {
+            equation_id: 'eq-3a',
+            node_id: '304.1.2-a',
+            symbolic_latex: 't = \\frac{PD}{2(SEW + PY)}',
+            substituted_latex: 't = \\frac{(8)(2)}{2((3)(4)(5) + (1)(6))}',
+            result_latex: '7\\ \\mathrm{mm}',
+            latex_source: 'metadata_display_text',
+            status: 'evaluated',
+            inputs: [],
+            intermediate_values: [],
+            result: {
+              symbol: 't',
+              value: 7,
+              unit: 'mm',
+              display_value: '7\\ \\mathrm{mm}',
+            },
+          },
+        }}
+      />,
+    )
+
+    expect(container.querySelector('.output-equation__input-table')).toBeTruthy()
+    expect(container.querySelectorAll('.output-equation__math').length).toBe(3)
   })
 })
 

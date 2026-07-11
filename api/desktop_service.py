@@ -99,11 +99,6 @@ class DesktopApiService:
             self._standards_reader = standards_reader_for_config(self.config)
         return self._standards_reader
 
-    def invalidate_standards_cache(self) -> None:
-        """Reload cached standards reader after dev studio graph edits."""
-        if self._standards_reader is not None:
-            self._standards_reader.reload()
-
     def _task_state(self, task, manager) -> dict[str, Any]:
         payload = task_state(
             task,

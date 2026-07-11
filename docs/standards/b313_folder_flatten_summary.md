@@ -31,13 +31,11 @@
 | `engine/reference/standards_markdown.py` | Dual yaml/md merge; column-0 frontmatter delimiter fix |
 | `engine/reference/standards_reader.py` | Direct flat path resolution (removed `/304.1/` shims) |
 | `scripts/build_standards_nodes_db.py` | Flat-path dedup; embedded-node alias rules |
-| `api/dev_studio/node_repository.py` | New nodes default to `nodes/{node_id}/` |
-
 ## Verification
 
 ```bash
 python scripts/build_all_standards_dbs.py
-python -m pytest tests/reference tests/executor/test_mawp_calculation.py tests/storage/test_standards_tables.py tests/api/test_standards_browse.py tests/api/test_dev_studio_crud.py
+python -m pytest tests/reference tests/executor/test_mawp_calculation.py tests/storage/test_standards_tables.py tests/api/test_standards_browse.py
 python -m pytest tests/api tests/mvp/test_desktop_mvp_workflow.py
 ```
 
