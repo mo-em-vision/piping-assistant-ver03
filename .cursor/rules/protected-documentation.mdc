@@ -1,0 +1,49 @@
+---
+description: Protected docs, audits, and standards knowledge — read registry each session; no edits without user approval
+alwaysApply: true
+---
+
+# Protected files
+
+## Session start
+
+At the beginning of each session, read the protected-files registry:
+
+[`docs/protected-files/registry.md`](../../docs/protected-files/registry.md)
+
+Use the **Protected glob patterns** table as the source of truth for paths that require owner approval before editing.
+
+## Protected paths (no edit without explicit user approval)
+
+| Pattern | Scope |
+| --- | --- |
+| `docs/**` | All project documentation |
+| `docs/protected-files/**` | This registry and policy |
+| `audits/**` | Standalone audit notes at repo root |
+| `knowledge/standards/**` | Standards knowledge packs (YAML/MD nodes, pack config, compiled `*.db` caches) |
+
+Full enumerated lists and maintenance rules: [`docs/protected-files/registry.md`](../../docs/protected-files/registry.md).
+
+## Always follow
+
+1. **Read before you write** — before significant planning, architecture, API, desktop, node, workflow, or standards work, read the relevant protected docs (start with `docs/rules.md`) and confirm the target path is not protected unless the user approved the edit.
+2. **No silent edits** — do not modify protected files unless the user explicitly requests that file or section in the current task.
+3. **Propose, don't patch** — if implementation suggests a protected-file update, describe **what**, **why**, and **which paths**; wait for approval.
+4. **Disclosure on every protected edit** — when proposing or performing an approved edit to any protected file, state explicitly in the response:
+   - **File(s):** full repo-relative path(s)
+   - **What:** sections, fields, or lines affected
+   - **Why:** user request, correction, or other justified reason
+5. **User-requested protected work is allowed** — when the user asks to update docs, audits, or standards nodes, edit only what they asked for and still state what and why before editing.
+
+## Minimum reads by task type
+
+| Task | Read |
+| --- | --- |
+| Any significant change | `docs/rules.md` |
+| Feature / plan | `docs/process/plan_review_gate.md`, `docs/core/3. component_responsibilities.md` |
+| Audit / as-built questions | `docs/audit/INDEX.md` |
+| Desktop | relevant `docs/desktopApp/*.md` |
+| Knowledge nodes | relevant `docs/node-templates/*.md` |
+| Standards pack content | relevant files under `knowledge/standards/` (read-only unless user approves edits) |
+
+Do not use protected files as a substitute for reading implementation code; use both.
