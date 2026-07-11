@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from api.paragraph_display import build_paragraph_display_block
+from api.paragraph_display import _paragraph_label, build_paragraph_display_block
+
+
+def test_paragraph_label_never_returns_raw_node_id() -> None:
+    assert _paragraph_label({}, "304.1.2-a") == ""
 
 
 def test_paragraph_block_uses_presentation_summary_and_reference_label(

@@ -35,7 +35,7 @@ def _paragraph_label(metadata: dict[str, Any], node_id: str) -> str:
     paragraph = paragraph_reference(metadata)
     if paragraph:
         return f"§{paragraph}"
-    return node_id
+    return ""
 
 
 def paragraph_reference_label(metadata: dict[str, Any], node_id: str) -> str:
@@ -118,7 +118,11 @@ def build_paragraph_display_block(
     block: dict[str, Any] = {
         "id": resolved_block_id,
         "type": "text",
-        "title": _paragraph_label(metadata, node_id) if display_role != DisplayRole.node_intro.value else None,
+        "title": (
+            (_paragraph_label(metadata, node_id) or None)
+            if display_role != DisplayRole.node_intro.value
+            else None
+        ),
         "content": content,
         "variant": "body",
         "reference_links": [

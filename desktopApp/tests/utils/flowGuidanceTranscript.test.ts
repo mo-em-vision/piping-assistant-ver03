@@ -4,7 +4,7 @@ import { buildCenterPanelTranscript } from '@/utils/buildCenterPanelTranscript'
 import { guidanceTranscriptToDisplayBlocks } from '@/utils/flowGuidanceTranscript'
 
 describe('input archive transcript rendering', () => {
-  it('renders ask_archive and answer_archive blocks from backend transcript', () => {
+  it('does not convert ask_archive or answer_archive blocks for center scroll', () => {
     const transcript = [
       {
         block_id: 'archived-ask-straight_pipe_section-FACT-001',
@@ -27,15 +27,10 @@ describe('input archive transcript rendering', () => {
     ]
 
     const blocks = guidanceTranscriptToDisplayBlocks(transcript)
-    expect(blocks).toHaveLength(2)
-    expect(blocks[0]?.display_role).toBe('ask_archive')
-    expect(blocks[1]?.display_role).toBe('answer_archive')
+    expect(blocks).toHaveLength(0)
 
     const items = buildCenterPanelTranscript([], transcript, 'pipe_wall_thickness_design')
-    expect(items.map((item) => item.block.id)).toEqual([
-      'archived-ask-straight_pipe_section-FACT-001',
-      'archived-answer-straight_pipe_section-FACT-001',
-    ])
+    expect(items).toHaveLength(0)
   })
 
   it('does not inject client-only archived-prompt display output blocks', () => {
@@ -59,7 +54,7 @@ describe('input archive transcript rendering', () => {
 
     const items = buildCenterPanelTranscript(displayOutputs, transcript, 'pipe_wall_thickness_design')
     const ids = items.map((item) => item.block.id)
-    expect(ids).toContain('archived-ask-nominal_pipe_size-FACT-002')
+    expect(ids).not.toContain('archived-ask-nominal_pipe_size-FACT-002')
     expect(ids).not.toContain('archived-prompt-nominal_pipe_size')
   })
 

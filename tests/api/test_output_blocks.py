@@ -517,3 +517,50 @@ def test_pressure_loading_internal_keeps_eq2_trace_and_adds_eq3a_preview(standar
     ]
     assert len(eq3a_blocks) == 1
     assert "planning-status" not in {block["id"] for block in state["display_outputs"]}
+
+
+def test_finalize_display_blocks_dedupes_preview_equation_by_node_id(standards_reader) -> None:
+    from api.output_blocks import _finalize_display_blocks
+    from models.display_role import DisplayRole, DisplayState
+
+    blocks = [
+        {
+            "id": "node-activation-equation-304.1.1-a-fallback",
+            "type": "equation",
+            "equation_node_id": "asme-b313-304-1-1-eq-2",
+            "display_role": DisplayRole.equation.value,
+            "display_state": DisplayState.active.value,
+            "lifecycle": "preview",
+            "variables": [{"symbol": "t"}],
+        },
+        {
+            "id": "path-preview-equation-304.1.1-a",
+            "type": "equation",
+            "equation_node_id": "asme-b313-304-1-1-eq-2",
+            "display_role": DisplayRole.equation.value,
+            "display_state": DisplayState.preview.value,
+            "lifecycle": "preview",
+            "input_table": {"columns": [], "rows": [{"symbol": "t"}]},
+        },
+        {
+            "id": "equation-asme-b313-304-1-1-eq-2",
+            "type": "equation",
+            "equation_node_id": "asme-b313-304-1-1-eq-2",
+            "display_role": DisplayRole.equation.value,
+            "display_state": DisplayState.evaluated.value,
+            "lifecycle": "durable",
+            "display": "t = 1.23 mm",
+        },
+    ]
+    result = _finalize_display_blocks(blocks, standards_reader)
+    result_ids = {block["id"] for block in result}
+    assert "node-activation-equation-304.1.1-a-fallback" not in result_ids
+    assert "equation-asme-b313-304-1-1-eq-2" in result_ids
+
+
+def test_warning_block_id_stable_across_calls() -> None:
+    from api.output_blocks import _warning_block, _warning_block_id
+
+    message = "Example validation warning"
+    assert _warning_block_id(message) == _warning_block_id(message)
+    assert _warning_block(message)["id"] == _warning_block_id(message)

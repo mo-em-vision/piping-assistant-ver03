@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import re
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,8 @@ from typing import Any
 from api.center_panel_contract import dedupe_blocks_by_id_inplace
 from api.display_block_metadata import (
     dedupe_blocks_by_id_prefer_richer,
+    dedupe_competing_equation_preview_blocks,
+    dedupe_equation_blocks_by_node_id,
     is_stable_equation_display_block_id,
     tag_display_block,
 )
@@ -71,6 +74,8 @@ def _finalize_display_blocks(
     enrich_display_blocks_provenance(blocks, reader, default_node_id=default_node_id)
     _enrich_reference_links(blocks, reader, task=task)
     blocks = _strip_legacy_equation_blocks(blocks)
+    blocks = dedupe_equation_blocks_by_node_id(blocks)
+    blocks = dedupe_competing_equation_preview_blocks(blocks)
     blocks = dedupe_blocks_by_id_prefer_richer(blocks)
     blocks = dedupe_blocks_by_id_inplace(blocks)
 
@@ -390,10 +395,15 @@ def _task_workflow_id(task: Task) -> str:
     return str(workflow) if workflow else ""
 
 
+def _warning_block_id(message: str) -> str:
+    digest = hashlib.sha256(message.encode("utf-8")).hexdigest()[:8]
+    return f"warning-{digest}"
+
+
 def _warning_block(message: str) -> dict[str, Any]:
     return tag_display_block(
         {
-            "id": f"warning-{abs(hash(message)) % 10_000}",
+            "id": _warning_block_id(message),
             "type": "text",
             "title": "Warning",
             "content": message,

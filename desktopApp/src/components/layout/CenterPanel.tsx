@@ -95,7 +95,6 @@ export function CenterPanel() {
   const workflowTitle =
     activeTaskState?.workflow_display?.display_title?.trim() ||
     activeTask.name ||
-    activeTaskState?.workflow_id?.replace(/_/g, ' ') ||
     'Workflow'
   const workflowSubtitle = activeTaskState?.workflow_display?.subtitle?.trim() || null
 

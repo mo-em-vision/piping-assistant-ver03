@@ -344,3 +344,45 @@ describe('CenterPanel workflow transcript', () => {
     expect(screen.queryByText('Thickness')).not.toBeInTheDocument()
   })
 })
+
+describe('CenterPanel header title', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    useChatStore.setState({
+      askAboutSelection: vi.fn().mockResolvedValue(undefined),
+    } as Partial<ReturnType<typeof useChatStore.getState>>)
+  })
+
+  it('does not render raw workflow_id when display metadata and task name are absent', () => {
+    useTaskStore.setState({
+      activeTask: {
+        id: 'task-minimal',
+        name: '',
+        description: '',
+        discipline: 'piping',
+        status: 'in_progress',
+      },
+      activeTaskState: {
+        task_id: 'task-minimal',
+        name: '',
+        workflow_id: 'pipe_wall_thickness_design',
+        discipline: 'piping',
+        description: '',
+        status: 'awaiting_input',
+        active_nodes: [],
+        progress: { timeline: [] },
+        display_outputs: [],
+        flow_guidance: { transcript_blocks: [] },
+      },
+      loading: false,
+      userError: null,
+    })
+
+    render(<CenterPanel />)
+
+    expect(
+      screen.queryByRole('heading', { name: 'pipe wall thickness design' }),
+    ).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Workflow' })).toBeInTheDocument()
+  })
+})
