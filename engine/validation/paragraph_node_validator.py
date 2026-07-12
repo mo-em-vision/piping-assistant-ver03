@@ -6,34 +6,11 @@ import re
 from typing import Any
 
 from engine.reference.graph_compile import validate_edge_item, validate_no_links_metadata
+from engine.reference.paragraph_authoring_policy import validator_fail_messages_for_frontmatter
 from engine.validation.node_revision_metadata import validate_revision_metadata
 from engine.validation.structural_edges import validate_no_structural_edges
 
 _SUBSECTION_ID_RE = re.compile(r"^(.+)-([a-z])$")
-
-_FORBIDDEN_FIELDS = frozenset(
-    {
-        "runtime_value",
-        "fact_value",
-        "user_input",
-        "execution_id",
-        "task_id",
-        "calculation_result",
-        "selected_for_execution",
-        "active_in_context",
-        "paragraph_class",
-        "applicability",
-        "limitations",
-        "exceptions",
-        "calculation_logic",
-        "validation_logic",
-        "introduced_parameters",
-        "referenced_equations",
-        "referenced_concepts",
-        "referenced_validation_rules",
-        "engineering_intent",
-    }
-)
 
 _KNOWN_AUTHORITIES = frozenset({"AUTH-ASME-B31.3", "AUTH-ASME-B36.10M", "AUTH-ASTM-A106"})
 
@@ -107,9 +84,7 @@ def validate_paragraph_node(meta: dict[str, Any]) -> list[str]:
     if not isinstance(metadata, dict) or not metadata.get("source_revision_year"):
         issues.append("metadata.source_revision_year required")
     issues.extend(validate_revision_metadata(meta))
-    for field in _FORBIDDEN_FIELDS:
-        if field in meta:
-            issues.append(f"forbidden field: {field}")
+    issues.extend(validator_fail_messages_for_frontmatter(meta))
     issues.extend(validate_no_structural_edges(meta, node_type="paragraph"))
     is_nomenclature = _is_nomenclature_paragraph(meta, metadata if isinstance(metadata, dict) else {})
     for item in meta.get("edges") or []:

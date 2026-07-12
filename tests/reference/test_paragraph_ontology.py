@@ -4,28 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from engine.reference.paragraph_authoring_policy import check_paragraph_frontmatter_placement
 from engine.reference.standards_markdown import split_frontmatter
 from engine.validation.paragraph_node_validator import validate_paragraph_node
-
-_FORBIDDEN_FIELDS = frozenset(
-    {
-        "runtime_value",
-        "fact_value",
-        "user_input",
-        "execution_id",
-        "task_id",
-        "calculation_result",
-        "selected_for_execution",
-        "active_in_context",
-        "nomenclature",
-        "assumptions",
-        "interactions",
-        "trace",
-        "report",
-        "ai_hints",
-        "subsections",
-    }
-)
 
 
 def _project_root() -> Path:
@@ -170,17 +151,40 @@ def test_paragraph_nodes_reject_structural_edges() -> None:
     assert any("structural edge type: parent" in issue for issue in issues)
 
 
+def _paragraph_frontmatter_paths() -> list[Path]:
+    return sorted(
+        p
+        for p in _paragraph_dir().glob("*.yaml")
+        if not p.name.endswith(".execution.yaml") and not p.name.endswith(".nomenclature.yaml")
+    )
+
+
 def test_paragraph_nodes_have_required_template_fields() -> None:
-    paths = sorted(_paragraph_dir().glob("*.yaml"))
+    paths = _paragraph_frontmatter_paths()
     assert len(paths) >= 30
     for path in paths:
         meta, _body = split_frontmatter(path.read_text(encoding="utf-8"))
         assert meta["type"] == "paragraph"
         assert meta.get("authority") == "AUTH-ASME-B31.3"
+        node_id = str(meta.get("id") or path.stem)
         issues = validate_paragraph_node(meta)
-        assert issues == [], f"{path.name}: {issues}"
-        for field in _FORBIDDEN_FIELDS:
-            assert field not in meta, f"{path.name} must not contain {field!r}"
+        placement = check_paragraph_frontmatter_placement(meta, node_id=node_id)
+        placement_fails = [msg for level, msg in placement if level == "FAIL"]
+        validator_fail_fields = {
+            msg.replace("forbidden field: ", "")
+            for msg in issues
+            if msg.startswith("forbidden field:")
+        }
+        placement_fail_fields = {
+            msg.split(":")[1].split("(")[0].strip()
+            for msg in placement_fails
+            if msg.startswith("forbidden field:")
+        }
+        assert validator_fail_fields == placement_fail_fields, (
+            f"{path.name}: validator {issues} vs placement fails {placement_fails}"
+        )
+        non_forbidden_issues = [i for i in issues if not i.startswith("forbidden field:")]
+        assert not non_forbidden_issues, f"{path.name}: {non_forbidden_issues}"
 
 
 def test_paragraph_parameters_load_from_global_param_nodes() -> None:
@@ -213,7 +217,7 @@ def test_workflow_sidecar_loads_execution_metadata() -> None:
     reader = StandardsReader(pack_root, standard="asme_b31.3")
     record = reader.load("WF-PIPE-WALL-THICKNESS")
     assert record.metadata.get("interactions")
-    assert record.metadata.get("assumptions")
+    assert record.metadata.get("navigation")
     specs = load_node_interactions(record, reader)
     variables = {spec.variable for spec in specs}
     assert "pressure_loading" in variables

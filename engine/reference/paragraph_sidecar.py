@@ -5,24 +5,8 @@ from typing import Any
 
 import yaml
 
+from engine.reference.paragraph_authoring_policy import EXECUTION_SIDECAR_KEYS
 from engine.reference.standards_markdown import split_frontmatter
-
-_EXECUTION_KEYS = (
-    "interactions",
-    "assumptions",
-    "applicability",
-    "provisional_assumptions",
-    "parameter_defaults",
-    "inputs",
-    "depends_on",
-    "equations",
-    "validation_rules",
-    "conditions",
-    "kind",
-    "outputs",
-    "lookups",
-    "notes",
-)
 
 
 def paragraph_sidecar_dir(record_path: Path, node_id: str) -> Path:
@@ -66,7 +50,7 @@ def merge_paragraph_sidecar_metadata(
     for path in (sidecar_dir / "execution.yaml", flat_execution):
         if path.is_file():
             data = _load_yaml(path)
-            for key in _EXECUTION_KEYS:
+            for key in EXECUTION_SIDECAR_KEYS:
                 if key in data and data[key]:
                     merged[key] = data[key]
             break

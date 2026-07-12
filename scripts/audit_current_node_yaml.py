@@ -33,12 +33,17 @@ from engine.validation.unit_node_validator import validate_unit_node
 from engine.validation.validation_rule_node_validator import validate_validation_rule_node
 from engine.validation.workflow_node_validator import validate_workflow_node
 
-# Sidecar loader key sets (mirrors loader modules — not Markdown).
-from engine.reference.paragraph_sidecar import _EXECUTION_KEYS as PARAGRAPH_EXEC_KEYS
+from engine.reference.paragraph_authoring_policy import (
+    EXECUTION_SIDECAR_KEYS,
+    check_paragraph_frontmatter_migration,
+    check_paragraph_sidecar_surface,
+    classify_edge_target,
+)
 from engine.reference.equation_sidecar import _EXECUTION_KEYS as EQUATION_EXEC_KEYS
 from engine.reference.workflow_sidecar import _RUNTIME_KEYS as WORKFLOW_RUNTIME_KEYS
 
 REPORT_PATH = PROJECT_ROOT / "audits" / "reports" / "nodes" / "current-node-yaml-audit.md"
+PARAGRAPH_REPORT_PATH = PROJECT_ROOT / "audits" / "reports" / "nodes" / "paragraph-node-audit.md"
 
 NODE_DISCOVERY_ROOTS = [
     PROJECT_ROOT / "knowledge" / "standards" / "asme" / "asme_b31.3" / "nodes",
@@ -92,6 +97,14 @@ _CONCEPT_CLASSES = frozenset(
 
 
 @dataclass
+class AuditFinding:
+    severity: str
+    code: str = ""
+    message: str = ""
+    key: str = ""
+
+
+@dataclass
 class AuditRow:
     rel_path: str
     node_id: str = ""
@@ -102,9 +115,13 @@ class AuditRow:
     role: str = ""
     result: str = "PASS"
     problems: list[str] = field(default_factory=list)
+    findings: list[AuditFinding] = field(default_factory=list)
 
-    def add(self, level: str, msg: str) -> None:
+    def add(self, level: str, msg: str, *, code: str = "", key: str = "") -> None:
         self.problems.append(msg)
+        self.findings.append(
+            AuditFinding(severity=level, code=code, message=msg, key=key)
+        )
         if level == "FAIL":
             self.result = "FAIL"
         elif level == "WARN" and self.result != "FAIL":
@@ -209,6 +226,37 @@ def _build_node_index(section_a_paths: list[Path]) -> dict[str, dict[str, Any]]:
     return index
 
 
+def _build_repo_wide_node_index(section_a_paths: list[Path]) -> set[str]:
+    return set(_build_node_index(section_a_paths).keys())
+
+
+def _load_paragraph_execution_sidecar(paragraph_path: Path, node_id: str) -> dict[str, Any]:
+    flat = paragraph_path.parent / f"{node_id}.execution.yaml"
+    nested = paragraph_path.parent / node_id / "execution.yaml"
+    for path in (flat, nested):
+        if path.is_file():
+            data, _ = _load_meta(path)
+            return data if isinstance(data, dict) else {}
+    return {}
+
+
+def _paragraph_placement_checks(
+    meta: dict[str, Any],
+    path: Path,
+    row: AuditRow,
+) -> None:
+    node_id = str(meta.get("id") or path.stem)
+    for level, msg in check_paragraph_frontmatter_migration(meta, node_id=node_id):
+        row.add(level, msg, code="paragraph_frontmatter_migration")
+
+    sidecar_data = _load_paragraph_execution_sidecar(path, node_id)
+    if sidecar_data:
+        for level, msg in check_paragraph_sidecar_surface(
+            meta, sidecar_data, node_id=node_id
+        ):
+            row.add(level, msg, code="paragraph_sidecar_surface")
+
+
 def _validator_for_type(node_type: str) -> tuple[str, Callable[[dict[str, Any]], list[str]] | None]:
     mapping: dict[str, tuple[str, Callable[[dict[str, Any]], list[str]] | None]] = {
         "paragraph": ("validate_paragraph_node", validate_paragraph_node),
@@ -223,7 +271,11 @@ def _validator_for_type(node_type: str) -> tuple[str, Callable[[dict[str, Any]],
     return mapping.get(node_type, ("none", None))
 
 
-def _generic_node_checks(meta: dict[str, Any], path: Path, node_index: dict[str, dict[str, Any]]) -> list[tuple[str, str]]:
+def _generic_node_checks(
+    meta: dict[str, Any],
+    path: Path,
+    repo_index: set[str],
+) -> list[tuple[str, str]]:
     issues: list[tuple[str, str]] = []
     node_id = str(meta.get("id") or path.stem).strip()
     if not node_id:
@@ -244,12 +296,16 @@ def _generic_node_checks(meta: dict[str, Any], path: Path, node_index: dict[str,
     for item in meta.get("edges") or []:
         if isinstance(item, dict):
             target = str(item.get("target") or "").strip()
-            edge_issues = validate_edge_item(item, source_node_type=str(meta.get("type") or ""), allow_legacy=False)
+            edge_type = str(item.get("type") or "").strip()
+            edge_issues = validate_edge_item(
+                item, source_node_type=str(meta.get("type") or ""), allow_legacy=False
+            )
             for msg in edge_issues:
                 issues.append(("FAIL", msg))
-            if target and target not in node_index and not target.startswith(("UNIT-", "DIM-", "CONCEPT-", "AUTH-", "PARAM-")):
-                if not any(target.startswith(p) for p in ("asme-b313-", "304.", "302.", "A10", "A31", "A53", "A10")):
-                    issues.append(("WARN", f"edge target not in node index: {target}"))
+            for level, msg in classify_edge_target(
+                target, edge_type, repo_index=repo_index
+            ):
+                issues.append((level, msg))
     return issues
 
 
@@ -282,7 +338,7 @@ def _audit_dimension(meta: dict[str, Any]) -> list[str]:
     return issues
 
 
-def _audit_section_a(paths: list[Path]) -> list[AuditRow]:
+def _audit_section_a(paths: list[Path], repo_index: set[str]) -> list[AuditRow]:
     node_index = _build_node_index(paths)
     unit_nodes = {k: v for k, v in node_index.items() if str(v.get("type")) == "unit"}
     rows: list[AuditRow] = []
@@ -313,11 +369,12 @@ def _audit_section_a(paths: list[Path]) -> list[AuditRow]:
         row.validator = val_name
 
         if validator:
+            validate_input = meta if canonical == "paragraph" else normalized
             if canonical == "unit":
-                for msg in validator(normalized, known_nodes=unit_nodes):
+                for msg in validator(validate_input, known_nodes=unit_nodes):
                     row.add("FAIL", msg)
             else:
-                for msg in validator(normalized):
+                for msg in validator(validate_input):
                     row.add("FAIL", msg)
         elif canonical == "concept":
             row.validator = "ontology_concept_checks"
@@ -335,7 +392,10 @@ def _audit_section_a(paths: list[Path]) -> list[AuditRow]:
         else:
             row.add("WARN", "no validator mapped")
 
-        for level, msg in _generic_node_checks(normalized, path, node_index):
+        if canonical == "paragraph":
+            _paragraph_placement_checks(meta, path, row)
+
+        for level, msg in _generic_node_checks(normalized, path, repo_index):
             row.add(level, msg)
 
         if canonical == "concept":
@@ -370,7 +430,7 @@ def _parent_node_id(path: Path) -> str:
 
 def _audit_section_b(paths: list[Path], node_index: dict[str, dict[str, Any]]) -> list[AuditRow]:
     rows: list[AuditRow] = []
-    allowed_para = set(PARAGRAPH_EXEC_KEYS)
+    allowed_para = set(EXECUTION_SIDECAR_KEYS)
     allowed_eq = set(EQUATION_EXEC_KEYS)
 
     for path in paths:
@@ -379,6 +439,8 @@ def _audit_section_b(paths: list[Path], node_index: dict[str, dict[str, Any]]) -
         row = AuditRow(rel_path=rel, contract=contract, validator="sidecar_loader_keys")
         parent_id = _parent_node_id(path)
         row.parent = parent_id
+        if contract.startswith("paragraph"):
+            row.role = "paragraph-sidecar"
 
         try:
             data, _ = _load_meta(path)
@@ -401,7 +463,7 @@ def _audit_section_b(paths: list[Path], node_index: dict[str, dict[str, Any]]) -
             if unknown:
                 row.add("WARN", f"unrecognized keys for equation sidecar: {sorted(unknown)}")
         else:
-            unknown = set(data.keys()) - allowed_para - {"metadata", "subsections"}
+            unknown = set(data.keys()) - allowed_para - {"metadata"}
             if unknown:
                 row.add("WARN", f"unrecognized keys for paragraph sidecar: {sorted(unknown)}")
 
@@ -575,6 +637,7 @@ def render_report(
             "- Production table nodes use `type: lookup`, not `table`.",
             "- `material_catalog` (`MAT-catalog.yaml`) is not in `CANONICAL_NODE_TYPES`.",
             "- Flat `{id}.execution.yaml` files are loaded as sidecars but may also match node discovery if given frontmatter.",
+            "- Paragraph field placement policy: `engine/reference/paragraph_authoring_policy.py`.",
             "- Paragraph frontmatter validators forbid fields that paragraph execution sidecars merge at compile time.",
             "- Types `text`, `quantity`, `designation`, `table` have no dedicated validators — audit uses revision + generic checks only.",
             "- Human-readable contract documents are not parsed by this audit script; validators remain enforcement authority.",
@@ -584,34 +647,152 @@ def render_report(
     return "\n".join(lines) + "\n"
 
 
+def _is_paragraph_row(row: AuditRow) -> bool:
+    if row.canonical_type == "paragraph":
+        return True
+    if row.role == "paragraph-sidecar":
+        return True
+    if "/nodes/paragraph/" in row.rel_path and row.contract.startswith("paragraph"):
+        return True
+    return False
+
+
+def _filter_rows_by_pack(rows: list[AuditRow], pack: str) -> list[AuditRow]:
+    if not pack:
+        return rows
+    slug = pack.replace(".", "_").replace("-", "_")
+    return [
+        r
+        for r in rows
+        if pack in r.rel_path or slug in r.rel_path.replace("-", "_").replace(".", "_")
+    ]
+
+
+def render_paragraph_report(rows: list[AuditRow]) -> str:
+    overall = _overall_status(rows)
+    pass_n = sum(1 for r in rows if r.result == "PASS")
+    warn_n = sum(1 for r in rows if r.result == "WARN")
+    fail_n = sum(1 for r in rows if r.result == "FAIL")
+    info_n = sum(
+        1 for r in rows for f in r.findings if f.severity == "INFO"
+    )
+
+    lines: list[str] = [
+        "# Paragraph Node YAML Audit",
+        "",
+        f"**Overall status:** {overall}",
+        "",
+        "_Filtered projection of the full node YAML audit — same findings, paragraph scope only._",
+        "",
+        "## Summary",
+        "",
+        f"- Paragraph files inspected: {len(rows)}",
+        f"- Passing: {pass_n}",
+        f"- Warnings: {warn_n}",
+        f"- Failing: {fail_n}",
+        f"- Informational findings: {info_n}",
+        "",
+        "## Enforcement policy",
+        "",
+        "- Phase 1: `SIDECAR_ONLY_KEYS` in frontmatter → WARN (migration required).",
+        "- `FORBIDDEN_PARAGRAPH_FRONTMATTER` keys (e.g. `applicability`) → FAIL immediately.",
+        "- Registered external/unmodeled `related_to` targets → INFO.",
+        "- Policy module: `engine/reference/paragraph_authoring_policy.py`.",
+        "",
+        "---",
+        "",
+        "## Paragraph frontmatter inventory",
+        "",
+        "| YAML file | Node ID | Validator | Result | Problems |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        if row.canonical_type == "paragraph":
+            prob = "; ".join(row.problems) if row.problems else "—"
+            lines.append(
+                f"| `{row.rel_path}` | `{row.node_id}` | `{row.validator}` | **{row.result}** | {prob} |"
+            )
+
+    sidecar_rows = [r for r in rows if r.role == "paragraph-sidecar"]
+    if sidecar_rows:
+        lines.extend(
+            [
+                "",
+                "## Paragraph sidecar inventory",
+                "",
+                "| YAML file | Parent node | Contract | Result | Problems |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+        )
+        for row in sidecar_rows:
+            prob = "; ".join(row.problems) if row.problems else "—"
+            lines.append(
+                f"| `{row.rel_path}` | `{row.parent}` | `{row.contract}` | **{row.result}** | {prob} |"
+            )
+
+    return "\n".join(lines) + "\n"
+
+
+def run_audit() -> tuple[list[AuditRow], list[AuditRow], list[AuditRow], list[AuditRow]]:
+    section_a_paths = _discover_section_a()
+    section_b_paths = _discover_section_b()
+    section_c_paths = _discover_section_c()
+    section_d_paths = _discover_section_d()
+
+    repo_index = _build_repo_wide_node_index(section_a_paths)
+    node_index = _build_node_index(section_a_paths)
+    wf_index = {k: v for k, v in node_index.items() if str(v.get("type")) == "workflow"}
+
+    section_a = _audit_section_a(section_a_paths, repo_index)
+    section_b = _audit_section_b(section_b_paths, node_index)
+    section_c = _audit_section_c(section_c_paths, wf_index)
+    section_d = _audit_section_d(section_d_paths)
+    return section_a, section_b, section_c, section_d
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit knowledge/workflow YAML files.")
     parser.add_argument(
         "--output",
         type=Path,
         default=REPORT_PATH,
-        help="Report output path",
+        help="Full audit report output path",
+    )
+    parser.add_argument(
+        "--paragraph-report",
+        type=Path,
+        default=PARAGRAPH_REPORT_PATH,
+        help="Paragraph-filtered audit report output path",
+    )
+    parser.add_argument(
+        "--filter",
+        choices=("all", "paragraph"),
+        default="all",
+        help="When 'paragraph', also write paragraph projection (audit runs once)",
+    )
+    parser.add_argument(
+        "--pack",
+        default="",
+        help="Optional pack slug filter for paragraph projection (e.g. asme_b31.3)",
     )
     args = parser.parse_args()
 
-    section_a_paths = _discover_section_a()
-    section_b_paths = _discover_section_b()
-    section_c_paths = _discover_section_c()
-    section_d_paths = _discover_section_d()
-
-    node_index = _build_node_index(section_a_paths)
-    wf_index = {k: v for k, v in node_index.items() if str(v.get("type")) == "workflow"}
-
-    section_a = _audit_section_a(section_a_paths)
-    section_b = _audit_section_b(section_b_paths, node_index)
-    section_c = _audit_section_c(section_c_paths, wf_index)
-    section_d = _audit_section_d(section_d_paths)
+    section_a, section_b, section_c, section_d = run_audit()
+    all_rows = section_a + section_b + section_c + section_d
 
     report = render_report(section_a, section_b, section_c, section_d)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(report, encoding="utf-8")
-    print(f"Wrote {args.output} ({len(section_a)+len(section_b)+len(section_c)+len(section_d)} files)")
-    return 0 if _overall_status(section_a + section_b + section_c + section_d) != "FAIL" else 1
+    print(f"Wrote {args.output} ({len(all_rows)} files)")
+
+    para_rows = [r for r in section_a + section_b if _is_paragraph_row(r)]
+    para_rows = _filter_rows_by_pack(para_rows, args.pack)
+    para_report = render_paragraph_report(para_rows)
+    args.paragraph_report.parent.mkdir(parents=True, exist_ok=True)
+    args.paragraph_report.write_text(para_report, encoding="utf-8")
+    print(f"Wrote {args.paragraph_report} ({len(para_rows)} paragraph files)")
+
+    return 0 if _overall_status(all_rows) != "FAIL" else 1
 
 
 if __name__ == "__main__":

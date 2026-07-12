@@ -61,9 +61,21 @@ Sidecars (execution, nomenclature, runtime) live beside or under the parent node
 | `dimension` | `tests/units/test_physical_dimensions.py` |
 | `text`, `quantity`, `designation`, `table` | Contract + `validate_revision_metadata`; run `python scripts/audit_current_node_yaml.py` |
 
+Paragraph-specific audit (filtered projection of the same audit run):
+
+```bash
+python scripts/audit_current_node_yaml.py --filter paragraph
+python scripts/audit_current_node_yaml.py --filter paragraph --pack asme_b31.3
+```
+
+Reports: `audits/reports/nodes/current-node-yaml-audit.md` (full) and `audits/reports/nodes/paragraph-node-audit.md` (paragraph projection).
+
+Paragraph field placement policy: `engine/reference/paragraph_authoring_policy.py`. Phase 1: SIDECAR_ONLY keys in frontmatter → WARN. Phase 2: flip `SIDECAR_ONLY_ENFORCEMENT` to `"fail"` after migration.
+
 Run targeted tests after edits:
 
 ```bash
+python -m pytest tests/reference/test_paragraph_authoring_policy.py tests/reference/test_paragraph_audit_process.py tests/reference/test_paragraph_ontology.py -q
 python -m pytest tests/reference/test_concept_ontology.py tests/units/test_physical_dimensions.py -q
 python -m pytest tests/graph -q
 ```

@@ -48,12 +48,12 @@ applicability:
 
 ## 7. Required fields
 
-No fields are strictly required in an empty sidecar. When present, keys must conform to the loader key set:
+No fields are strictly required in an empty sidecar. When present, keys must conform to `EXECUTION_SIDECAR_KEYS` from `engine/reference/paragraph_authoring_policy.py`:
 
 ```text
 interactions, assumptions, applicability, provisional_assumptions,
 parameter_defaults, inputs, depends_on, equations, validation_rules,
-conditions, kind, outputs, lookups, notes
+conditions, kind, outputs, lookups, notes, subsections
 ```
 
 At least one key should be non-empty when the sidecar file exists.
@@ -115,6 +115,7 @@ Graph expansion merges execution keys into paragraph metadata before evaluating 
 
 ## 15. Implementation evidence appendix
 
-- Loader keys: `engine/reference/paragraph_sidecar.py` — `_EXECUTION_KEYS`, `merge_paragraph_sidecar_metadata`, `paragraph_sidecar_dir`
+- Loader keys: `engine/reference/paragraph_authoring_policy.py` — `EXECUTION_SIDECAR_KEYS`
+- Sidecar merge: `engine/reference/paragraph_sidecar.py` — `merge_paragraph_sidecar_metadata`, `paragraph_sidecar_dir`
 - Applicability parse: `engine/reference/paragraph_sidecar.py` — `parse_applicability_as_interactions`
 - Frontmatter forbidden overlap: `engine/validation/paragraph_node_validator.py` — `_FORBIDDEN_FIELDS` includes `applicability`

@@ -99,14 +99,29 @@ Do **not** set `text.source_language` — inherited from `pack.yaml`.
 
 ## 9. Forbidden fields
 
+Field placement is enforced by `engine/reference/paragraph_authoring_policy.py`:
+
+| Category | Phase 1 severity | Meaning |
+| --- | --- | --- |
+| `FORBIDDEN_RUNTIME_STATE_KEYS` | FAIL | Task/runtime mutable state — never in knowledge YAML |
+| `FORBIDDEN_PARAGRAPH_FRONTMATTER` | FAIL | Legacy/wrong-layer fields — use edges or sidecars |
+| `SIDECAR_ONLY_KEYS` | WARN | Belong in `{id}.execution.yaml` only (FAIL after promotion) |
+
+Hard-fail frontmatter keys include:
+
 ```text
 runtime_value, fact_value, user_input, execution_id, task_id,
 calculation_result, selected_for_execution, active_in_context,
 paragraph_class, applicability, limitations, exceptions,
 calculation_logic, validation_logic, introduced_parameters,
 referenced_equations, referenced_concepts, referenced_validation_rules,
-engineering_intent, text.source_language
+engineering_intent, trace, report, ai_hints, text.source_language
 ```
+
+SIDECAR_ONLY keys (WARN in phase 1): `interactions`, `assumptions`, `applicability`,
+`provisional_assumptions`, `parameter_defaults`, `inputs`, `depends_on`, `equations`,
+`validation_rules`, `conditions`, `kind`, `outputs`, `lookups`, `notes`, `subsections`,
+`nomenclature` — see policy module for permitted destinations.
 
 Also forbidden:
 
@@ -139,10 +154,14 @@ Graph expansion reads sidecar `applicability`, `assumptions`, and `interactions`
 
 1. Parse YAML frontmatter.
 2. Run `validate_paragraph_node(meta)` from `engine/validation/paragraph_node_validator.py`.
-3. Confirm `authority` is a known `AUTH-*` value.
-4. For nomenclature paragraphs, confirm edge types are restricted.
-5. If sidecars exist, validate against sidecar contracts.
-6. Rebuild pack graph: `python scripts/build_graph_db.py`.
+3. Run `check_paragraph_frontmatter_placement(meta)` from `engine/reference/paragraph_authoring_policy.py` for WARN-level SIDECAR_ONLY migration debt.
+4. Confirm `authority` is a known `AUTH-*` value.
+5. For nomenclature paragraphs, confirm edge types are restricted.
+6. If sidecars exist, validate against sidecar contracts and check for duplicate/split authoring surfaces.
+7. Rebuild pack graph: `python scripts/build_graph_db.py`.
+8. Run paragraph audit: `python scripts/audit_current_node_yaml.py --filter paragraph`.
+
+**Enforcement policy (phase 1):** `assumptions` and `parameter_defaults` in frontmatter emit WARN (migration required), not validator FAIL. `applicability` in frontmatter remains FAIL. Phase 2 promotes SIDECAR_ONLY frontmatter keys to FAIL when `SIDECAR_ONLY_ENFORCEMENT = "fail"` in the policy module and all known violations are migrated.
 
 ## 13. Common authoring mistakes
 
@@ -162,7 +181,8 @@ Graph expansion reads sidecar `applicability`, `assumptions`, and `interactions`
 
 ## 15. Implementation evidence appendix
 
-- Validator: `engine/validation/paragraph_node_validator.py` — `validate_paragraph_node`, `_KNOWN_AUTHORITIES`, `_FORBIDDEN_FIELDS`, `_NOMENCLATURE_FORBIDDEN_EDGE_TYPES`
-- Sidecar merge: `engine/reference/paragraph_sidecar.py` — `merge_paragraph_sidecar_metadata`, `_EXECUTION_KEYS`
+- Policy: `engine/reference/paragraph_authoring_policy.py` — placement categories, `check_paragraph_frontmatter_placement`, `classify_edge_target`, `EXTERNAL_UNMODELED_REF_REGISTRY`
+- Validator: `engine/validation/paragraph_node_validator.py` — `validate_paragraph_node`, `validator_fail_messages_for_frontmatter`
+- Sidecar merge: `engine/reference/paragraph_sidecar.py` — `merge_paragraph_sidecar_metadata`, `EXECUTION_SIDECAR_KEYS` from policy
 - Structural edges: `engine/validation/structural_edges.py` — `validate_no_structural_edges`
 - Revision: `engine/validation/node_revision_metadata.py` — `validate_revision_metadata`
