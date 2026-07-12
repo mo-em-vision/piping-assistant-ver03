@@ -1,0 +1,26 @@
+---
+id: PARAM-required-reinforcement-area
+type: parameter
+key: required_reinforcement_area
+name: Required Reinforcement Area
+parameter_class: calculated_quantity
+description: >
+  Required reinforcement area A_1 for a welded branch connection under internal
+  or external pressure, per ASME B31.3 §304.3.3(b) eq. (6).
+canonical_symbol: A_1
+aliases:
+  - required reinforcement area
+  - reinforcement area
+  - A_1
+introduced_by:
+  - asme-b313-304-3-3-b
+edges:
+  - type: used_by
+    target: asme-b313-304-3-3-eq-6
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-12
+  edited_by: admin
+  canonical_unit: UNIT-mm2
+---

@@ -26,7 +26,9 @@ edges:
   - type: belongs_to_authority
     target: AUTH-ASME-B31.3
   - type: references_table
-    target: asme-b313-table-302-3-3C
+    target: asme-b313-table-302-3-3-1
+  - type: references_table
+    target: asme-b313-table-302-3-3-2
   - type: references_table
     target: asme-b313-table-A-2
 metadata:

@@ -39,7 +39,13 @@ def test_reader_validate_passes_for_wall_thickness(standards_reader: StandardsRe
     assert result.passed, [issue.message for issue in result.issues]
 
 
-def test_reader_nested_note_path(standards_reader: StandardsReader) -> None:
-    path = standards_reader.find_node_path("asme-b313-note-302-3-3C-1")
+def test_reader_nested_table_note_path(standards_reader: StandardsReader) -> None:
+    path = standards_reader.find_node_path("asme-b313-table-302-3-3-1-note-1")
     assert path is not None
-    assert "asme-b313-note-302-3-3C-1" in path.as_posix()
+    assert "asme-b313-table-302-3-3-1-note-1" in path.as_posix()
+
+
+def test_reader_nested_table_path(standards_reader: StandardsReader) -> None:
+    path = standards_reader.find_node_path("asme-b313-table-302-3-3-1")
+    assert path is not None
+    assert "asme-b313-table-302-3-3-1" in path.as_posix()

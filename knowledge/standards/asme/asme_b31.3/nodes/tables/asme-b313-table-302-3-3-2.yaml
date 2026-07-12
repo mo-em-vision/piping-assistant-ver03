@@ -1,0 +1,43 @@
+---
+id: asme-b313-table-302-3-3-2
+type: table
+key: b313_table_302_3_3_2
+name: Acceptance Levels for Castings
+table_class: acceptance_criteria_table
+authority: AUTH-ASME-B31.3
+edition: 2024
+description: Acceptance levels for castings per Table 302.3.3-2 (para. 302.3.3-c).
+standard: asme_b31.3
+source:
+  pack: asme_b31.3
+  yaml: nodes/tables/asme-b313-table-302-3-3-2.yaml
+  tables_db: tables.db
+  table_number: 302.3.3-2
+  table_id: asme_b31.3_302.3.3-2
+table_number: 302.3.3-2
+status: draft
+paragraph: 302.3.3-c, Table 302.3.3-2
+section: '302.3'
+topic: quality_factor
+revision_year: 2024
+columns:
+  - id: material_examined_thickness_T
+    title: Material Examined Thickness, T
+  - id: applicable_standard
+    title: Applicable Standard
+  - id: acceptance_level_or_class
+    title: Acceptance Level (or Class)
+  - id: acceptable_discontinuities
+    title: Acceptable Discontinuities
+data:
+  storage: tables_db
+  path: tables.db
+edges:
+  - type: belongs_to_authority
+    target: AUTH-ASME-B31.3
+  - type: depends_on
+    target: 302.3.3-c
+metadata:
+  last_revision: 2026-07-12
+  edited_by: admin
+---

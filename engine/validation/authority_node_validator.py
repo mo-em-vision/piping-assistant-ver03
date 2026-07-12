@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from engine.reference.graph_compile import validate_no_links_metadata
+from engine.reference.graph_compile import validate_edge_item, validate_no_links_metadata
 from engine.validation.node_revision_metadata import validate_revision_metadata
 
 ALLOWED_AUTHORITY_CLASSES = frozenset(
@@ -65,4 +65,10 @@ def validate_authority_node(meta: dict[str, Any]) -> list[str]:
     for field in _FORBIDDEN_FIELDS:
         if field in meta:
             issues.append(f"forbidden field: {field}")
+
+    for item in meta.get("edges") or []:
+        if isinstance(item, dict):
+            issues.extend(
+                validate_edge_item(item, source_node_type="authority", allow_legacy=False)
+            )
     return issues

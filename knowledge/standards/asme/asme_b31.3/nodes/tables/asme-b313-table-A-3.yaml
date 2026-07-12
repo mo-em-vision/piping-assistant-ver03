@@ -29,8 +29,8 @@ inputs:
   source: user_input
   unit: dimensionless
 returns:
-- parameter: PARAM-weld-joint-efficiency
-  symbol: E
+- parameter: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
+  symbol: E_j
 lookup:
   table: asme-b313-table-A-3
   keys:
@@ -39,7 +39,7 @@ lookup:
   lookup_rule: material_and_joint_category
 edges:
 - type: returns_parameter
-  target: PARAM-weld-joint-efficiency
+  target: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
 - type: requires_parameter
   target: PARAM-material-grade
 - type: requires_parameter

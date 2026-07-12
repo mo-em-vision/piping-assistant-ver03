@@ -1,15 +1,15 @@
 # Paragraph Node YAML Audit
 
-**Overall status:** FAIL
+**Overall status:** WARN
 
 _Filtered projection of the full node YAML audit — same findings, paragraph scope only._
 
 ## Summary
 
 - Paragraph files inspected: 30
-- Passing: 26
+- Passing: 27
 - Warnings: 3
-- Failing: 1
+- Failing: 0
 - Informational findings: 8
 
 ## Enforcement policy
@@ -25,7 +25,7 @@ _Filtered projection of the full node YAML audit — same findings, paragraph sc
 
 | YAML file | Node ID | Validator | Result | Problems |
 | --- | --- | --- | --- | --- |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.3-a.yaml` | `302.3.3-a` | `validate_paragraph_node` | **FAIL** | broken resolved reference: PARAM-casting-quality-factor |
+| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.3-a.yaml` | `302.3.3-a` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.3-b.yaml` | `302.3.3-b` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.3-c.yaml` | `302.3.3-c` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.5-a.yaml` | `302.3.5-a` | `validate_paragraph_node` | **PASS** | — |

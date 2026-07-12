@@ -20,6 +20,8 @@ edges:
     target: AUTH-ASME-B31.3
   - type: references_equation
     target: asme-b313-304-3-3-eq-6
+  - type: introduces_parameter
+    target: PARAM-required-reinforcement-area
 metadata:
   status: draft
   source_revision_year: 2024

@@ -43,7 +43,7 @@ def test_fresh_plan_phases_and_input_strategy() -> None:
         "REQ-metallurgical_group_lookup",
         "REQ-allowable_stress_lookup",
         "REQ-temperature_coefficient_Y_lookup",
-        "REQ-weld_joint_efficiency_lookup",
+        "REQ-basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes_lookup",
         lookup_requirement_id(WELD_W_FIELD),
     ]
 

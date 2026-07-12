@@ -1,0 +1,66 @@
+---
+id: asme-b313-table-302-3-3-1
+standard: asme_b31.3
+source:
+  pack: asme_b31.3
+  yaml: nodes/tables/asme-b313-table-302-3-3-1.yaml
+  tables_db: tables.db
+  table_id: asme_b31.3_302.3.3-1
+type: lookup
+title: Increased Casting Quality Factors, E_c
+table_number: 302.3.3-1
+status: draft
+paragraph: 302.3.3-c, Table 302.3.3-1
+section: '302.3'
+topic: quality_factor
+revision_year: 2024
+columns:
+  - id: supplementary_examination
+    title: Supplementary Examination
+  - id: quality_factor_E_c
+    title: Factor, E_c
+inputs:
+  - id: supplementary_examination
+    name: supplementary_examination
+    description: Supplementary examination combination (Table 302.3.3-1)
+    required: true
+    source: user_input
+    unit: dimensionless
+returns:
+  - parameter: PARAM-basic-casting-quality-factor
+    symbol: E_c
+lookup:
+  table: asme-b313-table-302-3-3-1
+  keys:
+    - supplementary_examination
+  lookup_rule: examination_combination
+notes:
+  - id: note_1
+    node_id: asme-b313-table-302-3-3-1-note-1
+  - id: note_2a
+    node_id: asme-b313-table-302-3-3-1-note-2a
+  - id: note_2b
+    node_id: asme-b313-table-302-3-3-1-note-2b
+  - id: note_3a
+    node_id: asme-b313-table-302-3-3-1-note-3a
+  - id: note_3b
+    node_id: asme-b313-table-302-3-3-1-note-3b
+edges:
+  - type: depends_on
+    target: 302.3.3-c
+  - type: has_table_note
+    target: asme-b313-table-302-3-3-1-note-1
+  - type: has_table_note
+    target: asme-b313-table-302-3-3-1-note-2a
+  - type: has_table_note
+    target: asme-b313-table-302-3-3-1-note-2b
+  - type: has_table_note
+    target: asme-b313-table-302-3-3-1-note-3a
+  - type: has_table_note
+    target: asme-b313-table-302-3-3-1-note-3b
+  - type: returns_parameter
+    target: PARAM-basic-casting-quality-factor
+metadata:
+  last_revision: 2026-07-12
+  edited_by: admin
+---

@@ -23,14 +23,18 @@ A parameter node defines a reusable engineering field — its semantic meaning, 
 
 Pack-local parameters are discouraged; prefer global `PARAM-*` nodes referenced from standards content.
 
-## 5. ID convention
+## ID convention
 
 | Field | Rule |
 | --- | --- |
-| `id` | `PARAM-{kebab-case-slug}` |
-| `key` | Underscore machine key (`allowable_stress`) |
-| `name` | Title Case matching slug semantics |
+| `id` | `PARAM-{kebab-case-slug}` derived from `name` (lowercase words, hyphen-separated) |
+| `key` | Underscore form of the id slug: `PARAM-{slug}` → `{slug_with_underscores}` |
+| `name` | Title Case human label; must match the words in the id slug |
 | `introduced_by` | Pack-qualified paragraph ids (`asme-b313-304-1-1-b`) |
+
+Derive slugs with `param_id_from_name()` / `param_key_from_param_id()` in
+`engine/reference/parameter_keys.py`. The validator rejects `id`/`key` pairs that
+do not match `name`.
 
 ## 6. Copyable minimal YAML skeleton
 
@@ -140,7 +144,8 @@ Graph expansion activates parameters on the expanded path and reads `applicabili
 - `knowledge/global/parameters/nodes/PARAM-allowable-stress.yaml`
 - `knowledge/global/parameters/nodes/PARAM-internal-design-gage-pressure.yaml`
 - `knowledge/global/parameters/nodes/PARAM-pressure-loading.yaml`
-- `knowledge/global/parameters/nodes/PARAM-weld-joint-efficiency.yaml`
+- `knowledge/global/parameters/nodes/PARAM-basic-casting-quality-factor.yaml`
+- `knowledge/global/parameters/nodes/PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes.yaml`
 
 ## 15. Implementation evidence appendix
 

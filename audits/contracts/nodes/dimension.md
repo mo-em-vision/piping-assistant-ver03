@@ -119,12 +119,20 @@ Nomenclature resolver loads dimension nodes to validate parameter unit compatibi
 
 ## 12. Validation procedure
 
-No dedicated `dimension_node_validator.py`. Validate via:
+Dedicated validator: `engine/validation/dimension_node_validator.py`
 
-1. Confirm required fields and revision metadata.
-2. Run `tests/units/test_physical_dimensions.py` — checks `dimension_kind`, `canonical_unit`, and `allows_unit` targets exist.
-3. Confirm every `allows_unit` target is an existing `UNIT-*` file.
-4. For categorical dimensions, confirm no canonical unit and empty allowed units.
+Audit projection:
+
+```bash
+python scripts/audit_current_node_yaml.py --filter dimension
+```
+
+Reports: `audits/reports/nodes/dimension-node-audit.md` (dimension projection) and `audits/reports/nodes/current-node-yaml-audit.md` (full run).
+
+Tests:
+
+1. `tests/reference/test_dimension_audit_process.py`
+2. `tests/units/test_physical_dimensions.py` — unit conversion smoke (`test_velocity_units_compile_and_convert`)
 
 ## 13. Common authoring mistakes
 
@@ -143,7 +151,8 @@ No dedicated `dimension_node_validator.py`. Validate via:
 
 ## 15. Implementation evidence appendix
 
-- Tests: `tests/units/test_physical_dimensions.py` — `test_physical_dimension_nodes_reference_existing_units`
+- Validator: `engine/validation/dimension_node_validator.py`
+- Tests: `tests/units/test_physical_dimensions.py`, `tests/reference/test_dimension_audit_process.py`
 - Allowed units query: `engine/reference/graph_edge_schema.py` — `dimension_allowed_unit_ids`
 - Nomenclature: `engine/reference/nomenclature_resolver.py` — `_load_dimension_node`
 - Parameter binding: `engine/reference/parameter_metadata.py`

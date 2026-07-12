@@ -8,7 +8,7 @@ import yaml
 from engine.reference.node_authoring_policy import LEGACY_SIDECAR_COMPAT
 from engine.reference.node_block_extractor import extract_and_flatten_node_metadata
 from engine.reference.paragraph_authoring_policy import EXECUTION_SIDECAR_KEYS
-from engine.reference.standards_markdown import split_frontmatter
+from engine.reference.parameter_keys import LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY
 
 
 def paragraph_sidecar_dir(record_path: Path, node_id: str) -> Path:
@@ -144,7 +144,8 @@ def _param_to_field(param_id: str) -> str:
     "internal_design_gage_pressure": "internal_design_gage_pressure",
         "outside_diameter": "outside_diameter",
         "allowable_stress": "allowable_stress",
-        "weld_joint_efficiency": "weld_joint_efficiency",
+        LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY: LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
+        "weld_joint_efficiency": LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
         "weld_joint_strength_reduction_factor_w": "weld_joint_strength_reduction_factor_W",
         "temperature_coefficient_y": "temperature_coefficient_Y",
         "corrosion_allowance": "corrosion_allowance",

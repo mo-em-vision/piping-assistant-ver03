@@ -5,7 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 from engine.graph.graph_engine import GraphEngine
-from engine.graph.lookup_parameter_resolution import lookup_resolution_for_parameter
+from engine.graph.lookup_parameter_resolution import (
+    lookup_resolution_for_parameter,
+    prerequisite_input_keys,
+)
+from engine.reference.parameter_keys import LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY
 from engine.reference.standards_reader import StandardsReader
 
 
@@ -34,7 +38,9 @@ def test_weld_joint_efficiency_infers_table_lookup_from_graph() -> None:
     micro = GraphEngine()._micro_engine(reader)
     assert micro is not None
 
-    resolution = lookup_resolution_for_parameter(micro.store, "PARAM-weld-joint-efficiency")
+    resolution = lookup_resolution_for_parameter(
+        micro.store, "PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes"
+    )
     assert resolution is not None
     assert resolution["method"] == "table_lookup"
     assert "material_grade" in resolution["keys"]
@@ -75,7 +81,7 @@ def test_required_user_inputs_do_not_include_lookup_derived_coefficients() -> No
         task_inputs=inputs,
     )
     assert "temperature_coefficient_Y" not in missing
-    assert "weld_joint_efficiency" not in missing
+    assert LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY not in missing
     assert "weld_joint_strength_reduction_factor_W" not in missing
 
 
@@ -121,7 +127,7 @@ def test_prerequisite_input_keys_returns_lookup_keys_for_table_derived_parameter
         "material_grade",
         "design_temperature",
     ]
-    assert prerequisite_input_keys(micro.store, "weld_joint_efficiency") == [
+    assert prerequisite_input_keys(micro.store, LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY) == [
         "material_grade",
         "pipe_construction_type",
     ]

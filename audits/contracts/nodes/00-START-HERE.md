@@ -22,6 +22,7 @@ Nodes are **not** task state. Values, user inputs, goal progress, and validation
 | Broad engineering idea grouping parameters | `concept` | [concept.md](concept.md) |
 | Governing standard, code, or specification | `authority` | [authority.md](authority.md) |
 | Explanatory prose block | `text` | [text.md](text.md) |
+| Standards table footnote | `table_note` | [table-note.md](table-note.md) |
 | Physical quantity definition (legacy/embed) | `quantity` | [quantity.md](quantity.md) |
 | Named classification (NPS, schedule, grade) | `designation` | [designation.md](designation.md) |
 
@@ -36,7 +37,7 @@ Read [01-shared-node-contract.md](01-shared-node-contract.md) before authoring a
 | Standards pack lookups / tables | `knowledge/standards/<publisher>/<pack>/nodes/tables/{id}.yaml` |
 | Standards pack validation rules | `knowledge/standards/<publisher>/<pack>/nodes/validation_rule/{id}.yaml` |
 | Global parameters | `knowledge/global/parameters/nodes/PARAM-*.yaml` |
-| Global units / dimensions / concepts / authorities | `knowledge/global/{units,dimensions,concepts,authorities}/nodes/` |
+| Global units / dimensions / concepts / designations / authorities | `knowledge/global/{units,dimensions,concepts,designations,authorities}/nodes/` |
 | Workflows | `workflows/{slug}.yaml` with nested `runtime` block in the same file |
 | Pack defaults | `knowledge/standards/<publisher>/<pack>/pack.yaml` |
 
@@ -56,10 +57,8 @@ Shared datasets (large tables, SQLite caches, registries) remain separate files 
 
 | Node types with dedicated validators | Command / module |
 | --- | --- |
-| `paragraph`, `parameter`, `equation`, `lookup`, `validation_rule`, `workflow`, `unit`, `authority` | `engine/validation/*_node_validator.py` (also exercised in pytest) |
-| `concept` | `tests/reference/test_concept_ontology.py` |
-| `dimension` | `tests/units/test_physical_dimensions.py` |
-| `text`, `quantity`, `designation`, `table` | Contract + `validate_revision_metadata`; run `python scripts/audit_current_node_yaml.py` |
+| `paragraph`, `parameter`, `equation`, `lookup`, `validation_rule`, `workflow`, `unit`, `authority`, `table_note`, `dimension`, `concept`, `designation` | `engine/validation/*_node_validator.py` (also exercised in pytest) |
+| `text`, `quantity`, `table` | Contract + `validate_revision_metadata`; run `python scripts/audit_current_node_yaml.py` |
 
 Paragraph-specific audit (filtered projection of the same audit run):
 
@@ -68,7 +67,17 @@ python scripts/audit_current_node_yaml.py --filter paragraph
 python scripts/audit_current_node_yaml.py --filter paragraph --pack asme_b31.3
 ```
 
-Reports: `audits/reports/nodes/current-node-yaml-audit.md` (full) and `audits/reports/nodes/paragraph-node-audit.md` (paragraph projection).
+Reports: `audits/reports/nodes/current-node-yaml-audit.md` (full), `audits/reports/nodes/paragraph-node-audit.md` (paragraph projection), `audits/reports/nodes/dimension-node-audit.md` (dimension projection), `audits/reports/nodes/concept-node-audit.md` (concept projection), `audits/reports/nodes/designation-node-audit.md` (designation projection), `audits/reports/nodes/authority-node-audit.md` (authority projection), `audits/reports/nodes/workflow-node-audit.md` (workflow projection), and `audits/reports/nodes/validation-rule-node-audit.md` (validation rule projection).
+
+Concept audit:
+
+```bash
+python scripts/audit_current_node_yaml.py --filter concept
+python scripts/audit_current_node_yaml.py --filter designation
+python scripts/audit_current_node_yaml.py --filter authority
+python scripts/audit_current_node_yaml.py --filter workflow
+python scripts/audit_current_node_yaml.py --filter validation_rule
+```
 
 Paragraph field placement policy: `engine/reference/paragraph_authoring_policy.py`. Execution metadata must live under the nested `execution` block in the primary paragraph YAML.
 
@@ -77,6 +86,7 @@ Run targeted tests after edits:
 ```bash
 python -m pytest tests/reference/test_paragraph_authoring_policy.py tests/reference/test_paragraph_audit_process.py tests/reference/test_paragraph_ontology.py -q
 python -m pytest tests/reference/test_concept_ontology.py tests/units/test_physical_dimensions.py -q
+python -m pytest tests/reference/test_authority_ontology.py tests/reference/test_authority_audit_process.py -q
 python -m pytest tests/graph -q
 ```
 

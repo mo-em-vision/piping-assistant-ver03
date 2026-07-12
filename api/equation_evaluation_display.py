@@ -25,7 +25,10 @@ from engine.reference.formula_display import (
     load_equation_context,
     resolve_equation_display_variables,
 )
-from engine.reference.parameter_keys import param_node_id_for_input
+from engine.reference.parameter_keys import (
+    LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
+    param_node_id_for_input,
+)
 from engine.reference.parameter_value_source import (
     apply_value_provenance_to_row,
     resolve_parameter_value_reference,
@@ -593,7 +596,10 @@ def _output_display_value(task: Task, input_id: str) -> str | None:
         return format_thickness_result_display(float(value), "mm")
     output_key_groups: dict[str, tuple[str, ...]] = {
         "allowable_stress": ("allowable_stress", "S"),
-        "weld_joint_efficiency": ("weld_joint_efficiency", "E"),
+        LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY: (
+            LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
+            "E_j",
+        ),
         "weld_joint_strength_reduction_factor_W": ("weld_joint_strength_reduction_factor_W", "W"),
         "temperature_coefficient_Y": ("temperature_coefficient_Y", "Y"),
         "internal_design_gage_pressure": ("internal_design_gage_pressure", "P"),

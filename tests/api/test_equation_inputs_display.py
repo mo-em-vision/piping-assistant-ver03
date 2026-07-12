@@ -16,7 +16,10 @@ from api.equation_inputs_display import (
     primary_formula_inputs_complete,
 )
 from api.output_blocks import build_display_outputs
-from engine.reference.parameter_keys import parameter_node_description
+from engine.reference.parameter_keys import (
+    LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
+    parameter_node_description,
+)
 from tests.helpers.facts import fact_get_value, populate_task_facts
 from tests.helpers.goals import task_with_planning
 from models.fact import SourceType, ValidationStatus
@@ -204,8 +207,8 @@ def test_weld_joint_efficiency_includes_joint_category_in_table() -> None:
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
         ),
-        "weld_joint_efficiency": EngineeringInput(
-            input_id="weld_joint_efficiency",
+        LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY: EngineeringInput(
+            input_id=LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
             value=1.0,
             unit="dimensionless",
             source=InputSource.TABLE,
@@ -214,10 +217,12 @@ def test_weld_joint_efficiency_includes_joint_category_in_table() -> None:
     })
 
     rows = build_formula_inputs_table_rows(task)
-    assert rows[5]["symbol"] == "E"
-    assert rows[5]["definition"] == parameter_node_description(input_id="weld_joint_efficiency")
-    assert rows[5]["value"].startswith("1.0 (ASME B31.3 Table A-2")
-    assert "Table A-3" in rows[5]["value"]
+    assert rows[5]["symbol"] == "E_j"
+    assert rows[5]["definition"] == parameter_node_description(
+        input_id=LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY
+    )
+    assert rows[5]["value"].startswith("1.0 (ASME B31.3 Table A-3")
+    assert "Table A-2" not in rows[5]["value"]
     assert rows[5]["value"].endswith("seamless)")
 
 
@@ -265,8 +270,8 @@ def test_build_formula_inputs_table_rows_include_coefficients() -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test04", status=TaskStatus.AWAITING_INPUT)
     populate_task_facts(task, {
-        "weld_joint_efficiency": EngineeringInput(
-            input_id="weld_joint_efficiency",
+        LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY: EngineeringInput(
+            input_id=LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
             value=1.0,
             unit="dimensionless",
             source=InputSource.USER,
@@ -296,8 +301,10 @@ def test_build_formula_inputs_table_rows_include_coefficients() -> None:
         "value": "193 MPa",
     }
     assert rows[5] == {
-        "symbol": "E",
-        "definition": parameter_node_description(input_id="weld_joint_efficiency"),
+        "symbol": "E_j",
+        "definition": parameter_node_description(
+            input_id=LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY
+        ),
         "value": "1.0",
     }
     assert rows[6] == {

@@ -15,10 +15,10 @@ requires:
   required: true
   description: Stress value from Table A-1
   parameter: PARAM-allowable-stress
-- symbol: E
+- symbol: E_j
   required: true
-  description: Quality factor from Tables A-2 and A-3
-  parameter: PARAM-weld-joint-efficiency
+  description: Quality factor from Table A-3
+  parameter: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
 - symbol: W
   required: true
   description: Weld strength reduction factor per para. 302.3.5-e
@@ -43,8 +43,8 @@ edges:
   target: PARAM-allowable-stress
   alias: S
 - type: requires_parameter
-  target: PARAM-weld-joint-efficiency
-  alias: E
+  target: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
+  alias: E_j
 - type: requires_parameter
   target: PARAM-weld-strength-reduction-factor-W
   alias: W
@@ -81,9 +81,9 @@ variables:
     symbol: S
     description: Stress value from Table A-1
     unit: Pa
-  E:
-    symbol: E
-    description: Quality factor from Tables A-2 and A-3
+  E_j:
+    symbol: E_j
+    description: Quality factor from Table A-3
     unit: dimensionless
   W:
     symbol: W

@@ -1,0 +1,30 @@
+---
+id: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
+type: parameter
+key: basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes
+name: Basic Quality Factors for Longitudinal Weld Joints in Pipes and Tubes
+parameter_class: factor
+dimension: DIM-dimensionless
+description: >
+  Basic quality factor E_j from Table A-3 for longitudinal weld joints in pipes
+  and tubes, used in pressure design equations per ASME B31.3 §304.1.1 and §304.1.2.
+canonical_symbol: E_j
+aliases:
+  - longitudinal weld joint quality factor
+  - weld joint quality factor
+  - E_j
+  - joint efficiency
+  - weld joint efficiency
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: has_dimension
+    target: DIM-dimensionless
+  - type: used_by
+    target: asme-b313-table-A-3
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-12
+  edited_by: admin
+---

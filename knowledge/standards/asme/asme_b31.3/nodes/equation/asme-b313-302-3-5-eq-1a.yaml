@@ -2,10 +2,10 @@
 id: asme-b313-302-3-5-eq-1a
 type: equation
 key: asme-b313-302-3-5-eq-1a
-name: Allowable Displacement Stress Range
+name: Allowable Displacement Stress Range, S_A
 equation_class: calculation
 calculation_kind: function
-description: Allowable Displacement Stress Range
+description: Allowable Displacement Stress Range, S_A
 authority:
   authorized_by:
   - 302.3.5-d

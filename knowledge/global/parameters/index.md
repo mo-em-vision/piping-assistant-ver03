@@ -27,7 +27,8 @@ Parameter nodes define **contextual engineering roles** — not values, units, r
 | `PARAM-material-grade` | categorical | `DIM-material-designation` | [`CONCEPT-material`](../concepts/nodes/CONCEPT-material.yaml) |
 | `PARAM-metallurgical-group` | selection | — | [`CONCEPT-material`](../concepts/nodes/CONCEPT-material.yaml) |
 | `PARAM-pipe-construction-type` | selection | — | [`CONCEPT-pipe-construction`](../concepts/nodes/CONCEPT-pipe-construction.yaml) |
-| `PARAM-weld-joint-efficiency` | factor | `DIM-dimensionless` | [`CONCEPT-weld-joint-efficiency`](../concepts/nodes/CONCEPT-weld-joint-efficiency.yaml) |
+| `PARAM-basic-casting-quality-factor` | factor | `DIM-dimensionless` | — |
+| `PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes` | factor | `DIM-dimensionless` | [`CONCEPT-weld-joint-efficiency`](../concepts/nodes/CONCEPT-weld-joint-efficiency.yaml) |
 | `PARAM-temperature-coefficient-Y` | coefficient | `DIM-dimensionless` | [`CONCEPT-temperature-coefficient`](../concepts/nodes/CONCEPT-temperature-coefficient.yaml) |
 | `PARAM-nominal-pipe-size` | selection | — | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
 | `PARAM-pressure-loading` | selection | — | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
@@ -38,6 +39,11 @@ Parameter nodes define **contextual engineering roles** — not values, units, r
 | `PARAM-inside-diameter` | geometric_quantity | `DIM-length` | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
 | `PARAM-external-design-pressure` | physical_quantity | `DIM-pressure` | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
 | `PARAM-maximum-allowable-working-pressure` | calculated_quantity | `DIM-pressure` | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
+| `PARAM-allowable-displacement-stress-range` | calculated_quantity | `DIM-pressure` | [`CONCEPT-stress`](../concepts/nodes/CONCEPT-stress.yaml) |
+| `PARAM-stress-range-factor` | factor | `DIM-dimensionless` | [`CONCEPT-stress`](../concepts/nodes/CONCEPT-stress.yaml) |
+| `PARAM-required-reinforcement-area` | calculated_quantity | — | — |
+| `PARAM-run-excess-thickness-area` | calculated_quantity | — | — |
+| `PARAM-excess-thickness-in-the-branch-pipe-wall` | calculated_quantity | — | — |
 
 Parameter nodes define **contextual roles only** — no `value`, `unit`, `resolution`, or runtime state (see template forbidden fields). Composer UI hints live in `metadata` (`composer_input`, `composer_options`, `canonical_unit`, `default_value`) — see [`docs/rules.md`](../../../docs/rules.md) §17.
 

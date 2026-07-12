@@ -2,15 +2,13 @@
 id: 302.3.3-a
 type: paragraph
 key: b313_302_3_3_a
-title: Casting Quality Factor — General
+title: Casting Quality Factor, E_c
 authority: AUTH-ASME-B31.3
 edition: 2024
 paragraph_number: 302.3.3-a
 text:
   original: >
-    (a) General. The casting quality factors, E_c, defined herein shall be used for cast
-    components not having pressure–temperature ratings established by standards in
-    Table 326.1.
+    (a) General. The casting quality factors, Ec, defined herein shall be used for cast components not having pressure– temperature ratings established by standards Table 326.1.1-1.
 hierarchy:
   parent: '302.3'
   children: []
@@ -18,7 +16,7 @@ edges:
   - type: belongs_to_authority
     target: AUTH-ASME-B31.3
   - type: introduces_parameter
-    target: PARAM-casting-quality-factor
+    target: PARAM-basic-casting-quality-factor
 metadata:
   status: draft
   source_revision_year: 2024

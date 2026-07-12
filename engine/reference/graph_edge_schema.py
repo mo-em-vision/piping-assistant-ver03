@@ -104,6 +104,8 @@ REVERSE_EDGE_TYPE: dict[str, str] = {
     "next": "previous",
     "previous": "next",
     "related_to": "related_to",
+    "note_for_table": "has_table_note",
+    "has_table_note": "note_for_table",
     "derived_from": "derived_from",
     "alias_of": "alias_of",
     "has_dimension": "dimension_of",

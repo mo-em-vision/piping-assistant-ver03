@@ -98,24 +98,21 @@ def test_subsection_source_payload_for_302_3_3_b(standards_reader: StandardsRead
     assert "Increased Quality Factors" not in payload["body"]
 
 
-def test_node_source_payload_for_302_3_3c_note_1(standards_reader: StandardsReader) -> None:
-    payload = node_source_payload(standards_reader, "asme-b313-note-302-3-3C-1")
+def test_node_source_payload_for_302_3_3_1_note_1(standards_reader: StandardsReader) -> None:
+    payload = node_source_payload(standards_reader, "asme-b313-table-302-3-3-1-note-1")
 
-    assert payload["node_id"] == "asme-b313-note-302-3-3C-1"
-    assert payload["paragraph"] == "Table 302.3.3C, Note (1)"
-    # Note nodes are metadata stubs; prose is aggregated on the table payload
-    # (see tests/api/test_table_context.py::test_table_source_payload_for_table_302_3_3c).
+    assert payload["node_id"] == "asme-b313-table-302-3-3-1-note-1"
+    assert payload["paragraph"] == "Table 302.3.3-1, Note (1)"
+    assert "B46.1" in payload["body"]
     assert payload["title"]
     assert payload["revision_year"] == 2024
 
 
-def test_node_source_payload_for_302_3_3c_note_2a(standards_reader: StandardsReader) -> None:
+def test_node_source_payload_accepts_legacy_note_alias(standards_reader: StandardsReader) -> None:
     payload = node_source_payload(standards_reader, "asme-b313-note-302-3-3C-2a")
 
-    assert payload["node_id"] == "asme-b313-note-302-3-3C-2a"
-    assert payload["paragraph"] == "Table 302.3.3C, Note (2)(a)"
-    assert payload["title"]
-    assert payload["revision_year"] == 2024
+    assert payload["node_id"] == "asme-b313-table-302-3-3-1-note-2a"
+    assert "Magnetic particle" in payload["body"]
 
 
 def test_subsection_source_payload_for_302_3_3_c(standards_reader: StandardsReader) -> None:

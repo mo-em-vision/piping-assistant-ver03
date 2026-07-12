@@ -114,12 +114,24 @@ Validation engine evaluates `expression`, `conditions`, and `requires` against c
 
 ## 12. Validation procedure
 
-1. Parse YAML frontmatter (merge equation sidecar if shared execution file).
-2. Run `validate_validation_rule_node(meta)` from `engine/validation/validation_rule_node_validator.py`.
+Dedicated validator: `engine/validation/validation_rule_node_validator.py`.
+
+Audit projection:
+
+```bash
+python scripts/audit_current_node_yaml.py --filter validation_rule
+```
+
+Report: `audits/reports/nodes/validation-rule-node-audit.md`.
+
+Checks:
+
+1. Parse YAML frontmatter (merge equation sidecar when shared execution file is present).
+2. Run `validate_validation_rule_node(meta)`.
 3. Run `validate_authority_authorization(meta, node_type="validation_rule")`.
 4. Confirm `validates` or `validates_parameter` edge exists.
-5. Validate edges; reject `calculates_parameter`.
-6. Run validation-related pytest modules.
+5. Validate edges; reject `calculates_parameter` and structural edges.
+6. Run `tests/reference/test_validation_rule_ontology.py` and `tests/reference/test_validation_rule_audit_process.py`.
 
 ## 13. Common authoring mistakes
 
@@ -139,7 +151,8 @@ Validation engine evaluates `expression`, `conditions`, and `requires` against c
 
 ## 15. Implementation evidence appendix
 
-- Validator: `engine/validation/validation_rule_node_validator.py` — `validate_validation_rule_node`
+- Validator: `engine/validation/validation_rule_node_validator.py` — `validate_validation_rule_node`; audit `--filter validation_rule` → `audits/reports/nodes/validation-rule-node-audit.md`
+- Tests: `tests/reference/test_validation_rule_ontology.py`, `tests/reference/test_validation_rule_audit_process.py`
 - Authority: `engine/validation/authority_authorization.py` — `validate_authority_authorization`
 - Sidecar merge (shared with equation): `engine/reference/equation_sidecar.py` — `merge_equation_sidecar_metadata`
 - Structural edges: `engine/validation/structural_edges.py`

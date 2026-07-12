@@ -98,12 +98,12 @@ const minimalValidPlan = {
       required_by: [],
       depends_on: [],
     },
-    'REQ-weld_joint_efficiency_lookup': {
-      id: 'REQ-weld_joint_efficiency_lookup',
-      key: 'lookup-weld_joint_efficiency',
-      field: 'weld_joint_efficiency',
-      title: 'Weld Joint Efficiency',
-      parameter_node_id: 'PARAM-weld-joint-efficiency',
+    'REQ-basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes_lookup': {
+      id: 'REQ-basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes_lookup',
+      key: 'lookup-basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes',
+      field: 'basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes',
+      title: 'Basic Quality Factors for Longitudinal Weld Joints in Pipes and Tubes',
+      parameter_node_id: 'PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes',
       requirement_class: 'table_lookup',
       status: 'missing',
       phase: 'coefficient_resolution',

@@ -8,7 +8,7 @@ A text node stores human-readable explanatory prose — workflow initiation copy
 
 - You need initiation or explanatory prose in the center panel.
 - An equation or section needs an introductory paragraph separate from the authoritative standard text.
-- You are authoring table notes or captions (`kind: note`).
+- You are authoring table notes or captions (`kind: note`) — prefer `table_note` for standards table footnotes; see [table-note.md](table-note.md).
 
 ## 3. Do not use this node when
 
@@ -28,7 +28,7 @@ A text node stores human-readable explanatory prose — workflow initiation copy
 
 | Field | Rule |
 | --- | --- |
-| `id` | Descriptive slug (`pipe-wall-init-text`, `asme-b313-note-302-3-3C-1`) |
+| `id` | Descriptive slug (`pipe-wall-init-text`, `asme-b313-table-302-3-3-1-note-1`) |
 | `role` | `initiation`, `equation_intro`, `result_explanation`, or `caption` |
 | `kind` | Optional variant (`section`, `note`) |
 
@@ -130,7 +130,7 @@ No dedicated validator. Validate manually:
 
 ## 14. Current repository examples
 
-- `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-note-302-3-3C-1.yaml`
+- `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1-note-1.yaml` (see [table-note.md](table-note.md) for table footnotes)
 - `workflows/WF-PIPE-WALL-THICKNESS/runtime.yaml` (embedded `texts:` entries)
 - Standalone example id pattern: `B313-eq-2-intro`
 

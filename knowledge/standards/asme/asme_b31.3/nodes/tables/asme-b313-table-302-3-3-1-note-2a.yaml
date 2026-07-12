@@ -1,0 +1,24 @@
+---
+id: asme-b313-table-302-3-3-1-note-2a
+type: table_note
+standard: asme_b31.3
+source:
+  pack: asme_b31.3
+  yaml: nodes/tables/asme-b313-table-302-3-3-1-note-2a.yaml
+title: Table 302.3.3-1 — Note (2)(a)
+note_code: 2a
+status: draft
+paragraph: Table 302.3.3-1, Note (2)(a)
+section: '302.3'
+topic: quality_factor
+revision_year: 2024
+text: >
+  Magnetic particle examination in accordance with Article 7 of ASME BPVC Section V,
+  or equivalent.
+edges:
+  - type: note_for_table
+    target: asme-b313-table-302-3-3-1
+metadata:
+  last_revision: 2026-07-12
+  edited_by: admin
+---

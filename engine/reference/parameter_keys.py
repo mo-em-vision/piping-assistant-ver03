@@ -11,6 +11,12 @@ from models.task import Task
 # Matches ``key`` on knowledge/global/parameters/nodes/PARAM-material-grade.yaml
 MATERIAL_GRADE_KEY = "material_grade"
 INTERNAL_DESIGN_GAGE_PRESSURE_KEY = "internal_design_gage_pressure"
+LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY = (
+    "basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes"
+)
+LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_PARAM = (
+    "PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes"
+)
 
 # Legacy keys still accepted when reading stored facts or submitted payloads.
 LEGACY_PARAMETER_KEY_ALIASES: dict[str, str] = {
@@ -20,6 +26,7 @@ LEGACY_PARAMETER_KEY_ALIASES: dict[str, str] = {
     "design_pressure": INTERNAL_DESIGN_GAGE_PRESSURE_KEY,
     "joint_category": "pipe_construction_type",
     "measured_wall_thickness": "actual_wall_thickness",
+    "weld_joint_efficiency": LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
 }
 
 
@@ -112,6 +119,45 @@ def param_node_id_for_input(input_id: str) -> str:
     if canonical.upper().startswith("PARAM-"):
         return canonical
     return f"PARAM-{canonical.replace('_', '-')}"
+
+
+def param_slug_from_name(name: str) -> str:
+    """Derive the PARAM id slug from the human ``name`` (lowercase kebab-case words)."""
+    text = re.sub(r"[^a-z0-9]+", "-", str(name or "").strip().casefold())
+    return re.sub(r"-+", "-", text).strip("-")
+
+
+def param_id_from_name(name: str) -> str:
+    slug = param_slug_from_name(name)
+    return f"PARAM-{slug}" if slug else ""
+
+
+def param_key_from_param_id(param_node_id: str) -> str:
+    slug = str(param_node_id or "").strip()
+    if slug.upper().startswith("PARAM-"):
+        slug = slug[6:]
+    return slug.replace("-", "_")
+
+
+def validate_parameter_identity_fields(meta: dict[str, Any]) -> list[str]:
+    """Ensure ``id``, ``key``, and ``name`` follow the shared naming convention."""
+    issues: list[str] = []
+    node_id = str(meta.get("id") or "").strip()
+    key = str(meta.get("key") or "").strip()
+    name = str(meta.get("name") or "").strip()
+    if not node_id or not key or not name:
+        return issues
+    expected_id = param_id_from_name(name)
+    expected_key = param_key_from_param_id(expected_id)
+    if node_id != expected_id:
+        issues.append(
+            f"id must match name slug: expected {expected_id!r} from name {name!r}"
+        )
+    if key != expected_key:
+        issues.append(
+            f"key must match id slug: expected {expected_key!r} from id {node_id!r}"
+        )
+    return issues
 
 
 def param_display_name_from_id(param_node_id: str) -> str:

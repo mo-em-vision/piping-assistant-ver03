@@ -5,12 +5,12 @@ key: pipe_construction_type
 name: Pipe Construction Type
 parameter_class: selection
 description: >
-  Pipe product or longitudinal joint construction type used to resolve weld
-  joint quality factor E from Tables A-2 and A-3 (e.g. seamless, welded, ERW).
+  Pipe product or longitudinal joint construction type used to resolve quality
+  factor E_j from Table A-3 (e.g. seamless, welded, ERW).
 question: >
   Select the pipe construction or longitudinal joint type.
-  This is used as a lookup key to resolve quality factor E from Tables A-2 and A-3 —
-  do not enter E directly.
+  This is used as a lookup key to resolve quality factor E_j from Table A-3 —
+  do not enter E_j directly.
 canonical_symbol: joint_category
 aliases:
   - pipe construction type
@@ -20,8 +20,6 @@ aliases:
 introduced_by:
   - asme-b313-304-1-2-a
 edges:
-  - type: used_by
-    target: asme-b313-table-A-2
   - type: used_by
     target: asme-b313-table-A-3
 metadata:

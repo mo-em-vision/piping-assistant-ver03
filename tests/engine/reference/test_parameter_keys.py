@@ -62,6 +62,42 @@ def test_active_material_grade_fact_reads_legacy_material_fact() -> None:
     assert fact_scalar_value(fact) == "astm_a106_gr_b"
 
 
+def test_param_id_and_key_derive_from_name() -> None:
+    from engine.reference.parameter_keys import (
+        param_id_from_name,
+        param_key_from_param_id,
+        validate_parameter_identity_fields,
+    )
+
+    name = "Basic Quality Factors for Longitudinal Weld Joints in Pipes and Tubes"
+    param_id = param_id_from_name(name)
+    assert param_id == (
+        "PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes"
+    )
+    assert param_key_from_param_id(param_id) == (
+        "basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes"
+    )
+    assert validate_parameter_identity_fields(
+        {
+            "id": param_id,
+            "key": param_key_from_param_id(param_id),
+            "name": name,
+        }
+    ) == []
+
+
+def test_weld_joint_efficiency_legacy_alias_canonicalizes() -> None:
+    from engine.reference.parameter_keys import (
+        LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
+        canonical_parameter_key,
+    )
+
+    assert (
+        canonical_parameter_key("weld_joint_efficiency")
+        == LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY
+    )
+
+
 def test_fact_for_task_input_resolves_joint_category_from_pipe_construction_type() -> None:
     from models.fact import fact_from_user_submission
 

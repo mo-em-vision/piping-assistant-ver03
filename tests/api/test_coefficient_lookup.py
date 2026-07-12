@@ -6,6 +6,7 @@ from pathlib import Path
 
 from api.parameter_definitions import submit_task_input
 from engine.executor.coefficient_lookup import apply_coefficient_lookups
+from engine.reference.parameter_keys import LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY
 from engine.state.state_manager import TaskStateManager
 from models.fact import SourceType, ValidationStatus, fact_scalar_value
 from models.input import EngineeringInput, InputSource, InputStatus
@@ -59,8 +60,8 @@ def test_joint_category_submission_resolves_weld_joint_efficiency_from_table(
                 InputSource.USER,
                 status=InputStatus.CONFIRMED,
             ),
-            "weld_joint_efficiency": EngineeringInput(
-                "weld_joint_efficiency",
+            LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY: EngineeringInput(
+                LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
                 1.0,
                 "dimensionless",
                 InputSource.DEFAULT,
@@ -69,7 +70,7 @@ def test_joint_category_submission_resolves_weld_joint_efficiency_from_table(
                 requires_confirmation=True,
             ),
         },
-        missing=["pipe_construction_type", "weld_joint_efficiency"],
+        missing=["pipe_construction_type", LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY],
     )
 
     submit_task_input(
@@ -82,13 +83,13 @@ def test_joint_category_submission_resolves_weld_joint_efficiency_from_table(
     )
 
     task = manager.get_task("coeff-submit-test01")
-    efficiency = task.fact_store.active_fact("weld_joint_efficiency")
+    efficiency = task.fact_store.active_fact(LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY)
     assert efficiency is not None
     assert efficiency.validation.status == ValidationStatus.CONFIRMED
     assert efficiency.source.source_type == SourceType.TABLE_LOOKUP
     assert fact_scalar_value(efficiency) == 1.0
     planning = planning_projection(task)
-    assert "weld_joint_efficiency" not in (
+    assert LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY not in (
         planning["phase_missing"].get("coefficient_resolution") or []
     )
 
@@ -118,8 +119,8 @@ def test_apply_coefficient_lookups_waits_for_confirmed_joint_category(
                 default="seamless",
                 requires_confirmation=True,
             ),
-            "weld_joint_efficiency": EngineeringInput(
-                "weld_joint_efficiency",
+            LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY: EngineeringInput(
+                LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
                 1.0,
                 "dimensionless",
                 InputSource.DEFAULT,
@@ -132,7 +133,7 @@ def test_apply_coefficient_lookups_waits_for_confirmed_joint_category(
 
     apply_coefficient_lookups(task, standards_root)
 
-    efficiency = task.fact_store.active_fact("weld_joint_efficiency")
+    efficiency = task.fact_store.active_fact(LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY)
     assert efficiency is not None
     assert efficiency.validation.status == ValidationStatus.PENDING
     set_fact_from_input(
@@ -146,7 +147,7 @@ def test_apply_coefficient_lookups_waits_for_confirmed_joint_category(
         ),
     )
     apply_coefficient_lookups(task, standards_root)
-    efficiency = task.fact_store.active_fact("weld_joint_efficiency")
+    efficiency = task.fact_store.active_fact(LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY)
     assert efficiency is not None
     assert efficiency.validation.status == ValidationStatus.CONFIRMED
     assert efficiency.source.source_type == SourceType.TABLE_LOOKUP

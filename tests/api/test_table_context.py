@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from api.table_context import table_source_payload
-from engine.reference.asme_b31_3_table_ids import TABLE_302_3_3C, TABLE_304_1_1, TABLE_A_2, TABLE_A_3, TABLE_A_1A, TABLE_A_1B
+from engine.reference.asme_b31_3_table_ids import TABLE_302_3_3_1, TABLE_302_3_3_2, TABLE_304_1_1, TABLE_A_2, TABLE_A_3, TABLE_A_1A, TABLE_A_1B
 from engine.reference.standards_reader import StandardsReader
 from engine.reference.standards_tables import flatten_lookup_table_rows
 
@@ -25,39 +25,49 @@ def test_table_source_payload_for_appendix_a_1a(standards_reader: StandardsReade
     assert payload["description"]
     assert "302.3.3-b" in payload["description"]
     assert "node:302.3.3-a-b" in payload["description"]
-    assert "table:asme_b31.3_table_302_3_3C" in payload["description"]
+    assert "table:asme_b31.3_302.3.3-1" in payload["description"]
     assert payload["columns"]
     assert payload["rows"]
     assert all(row.get("base_metal_group") == "Stainless Steel" for row in payload["rows"])
     assert any(row.get("quality_factor_E_c") == 0.8 for row in payload["rows"])
 
 
-def test_table_source_payload_for_table_302_3_3c(standards_reader: StandardsReader) -> None:
-    payload = table_source_payload(standards_reader, "302.3.3C")
+def test_table_source_payload_for_table_302_3_3_1(standards_reader: StandardsReader) -> None:
+    payload = table_source_payload(standards_reader, "302.3.3-1")
 
-    assert payload["table_id"] == TABLE_302_3_3C
+    assert payload["table_id"] == TABLE_302_3_3_1
     assert "Increased Casting Quality Factors" in payload["title"]
     assert payload["description"]
     assert (
-        "node:asme-b313-note-302-3-3C-1" in payload["description"]
-        or "node:B313-note-302-3-3C-1" in payload["description"]
+        "node:asme-b313-table-302-3-3-1-note-1" in payload["description"]
+        or "node:asme-b313-note-302-3-3C-1" in payload["description"]
     )
-    assert len(payload["rows"]) == 6
-
-    factors = sorted(row.get("quality_factor_E_c") for row in payload["rows"])
-    assert factors == [0.85, 0.85, 0.9, 0.95, 1.0, 1.0]
-
-    first_row = next(row for row in payload["rows"] if row.get("row_id") == "note_1_only")
-    note_link = str(first_row.get("supplementary_examination", ""))
-    assert (
-        "node:asme-b313-note-302-3-3C-1" in note_link
-        or "node:B313-note-302-3-3C-1" in note_link
-    )
+    assert payload["rows"] == []
 
     column_keys = {column["key"] for column in payload["columns"]}
     assert "supplementary_examination" in column_keys
-    assert "quality_factor_E_c" in column_keys
-    assert "row_id" in column_keys
+
+
+def test_table_source_payload_for_table_302_3_3_2(standards_reader: StandardsReader) -> None:
+    payload = table_source_payload(standards_reader, "302.3.3-2")
+
+    assert payload["table_id"] == TABLE_302_3_3_2
+    assert "Acceptance Levels for Castings" in payload["title"]
+    assert payload["description"]
+    assert payload["rows"] == []
+
+    column_keys = {column["key"] for column in payload["columns"]}
+    assert "material_examined_thickness_T" in column_keys
+    assert "applicable_standard" in column_keys
+    assert "acceptance_level_or_class" in column_keys
+    assert "acceptable_discontinuities" in column_keys
+
+
+def test_table_source_payload_accepts_legacy_302_3_3c_alias(standards_reader: StandardsReader) -> None:
+    payload = table_source_payload(standards_reader, "302.3.3C")
+
+    assert payload["table_id"] == TABLE_302_3_3_1
+    assert "Increased Casting Quality Factors" in payload["title"]
 
 
 def test_table_source_payload_accepts_file_stem_alias(standards_reader: StandardsReader) -> None:

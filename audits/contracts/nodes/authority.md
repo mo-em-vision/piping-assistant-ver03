@@ -98,6 +98,7 @@ Also forbidden:
 | `contains_paragraph` | paragraph id | Standard content inventory |
 | `contains_table` | table / lookup id | Tabular content |
 | `contains_rule` | validation rule id | Rule inventory |
+| `constrains_parameter` | `PARAM-*` | Parameters governed by this standard (e.g. NPS, schedule, OD, thickness) |
 | `references_authority` | `AUTH-*` | Cross-standard reference |
 | `refines_authority` | `AUTH-*` | Narrower scope |
 | `conflicts_with_authority` | `AUTH-*` | Documented conflicts |
@@ -110,11 +111,23 @@ Authority Context stores `active_authorities[].authority_id` referencing `AUTH-*
 
 ## 12. Validation procedure
 
+Dedicated validator: `engine/validation/authority_node_validator.py`.
+
+Audit projection:
+
+```bash
+python scripts/audit_current_node_yaml.py --filter authority
+```
+
+Report: `audits/reports/nodes/authority-node-audit.md`.
+
+Checks:
+
 1. Parse YAML frontmatter.
-2. Run `validate_authority_node(meta)` from `engine/validation/authority_node_validator.py`.
+2. Run `validate_authority_node(meta)`.
 3. Confirm `authority_class` in `ALLOWED_AUTHORITY_CLASSES`.
-4. Confirm contained paragraph/table ids exist when `edges` are authored.
-5. Run authority-related pytest modules.
+4. Confirm typed `edges` and that contained paragraph/table targets exist in the repository index.
+5. Run `tests/reference/test_authority_ontology.py` and `tests/reference/test_authority_audit_process.py`.
 
 ## 13. Common authoring mistakes
 
@@ -132,8 +145,5 @@ Authority Context stores `active_authorities[].authority_id` referencing `AUTH-*
 
 ## 15. Implementation evidence appendix
 
-- Validator: `engine/validation/authority_node_validator.py` — `validate_authority_node`, `ALLOWED_AUTHORITY_CLASSES`
-- Paragraph known set: `engine/validation/paragraph_node_validator.py` — `_KNOWN_AUTHORITIES`
-- Authorization block: `engine/validation/authority_authorization.py`
-- Runtime model: `models/authority_context.py`
-- Validator: `engine/validation/authority_node_validator.py`
+- Validator: `engine/validation/authority_node_validator.py` — `validate_authority_node`, `ALLOWED_AUTHORITY_CLASSES`; audit `--filter authority` → `audits/reports/nodes/authority-node-audit.md`
+- Tests: `tests/reference/test_authority_ontology.py`, `tests/reference/test_authority_audit_process.py`

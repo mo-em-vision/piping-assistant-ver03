@@ -8,6 +8,7 @@ from typing import Any
 
 from engine.messaging.formula_parameter_prompt import classify_formula_parameters
 from engine.reference.parameter_keys import (
+    LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
     MATERIAL_GRADE_KEY,
     active_fact_for_key,
     active_material_grade_fact,
@@ -36,7 +37,7 @@ FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str], ...] = (
     ("nominal_pipe_size", "NPS"),
     ("outside_diameter", "D"),
     ("allowable_stress", "S"),
-    ("weld_joint_efficiency", "E"),
+    (LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY, "E_j"),
     ("weld_joint_strength_reduction_factor_W", "W"),
     ("temperature_coefficient_Y", "Y"),
 )
@@ -55,7 +56,7 @@ MAWP_FORMULA_INPUT_DISPLAY_ROWS: tuple[tuple[str, str], ...] = (
     ("corrosion_allowance", "c"),
     ("outside_diameter", "D"),
     ("allowable_stress", "S"),
-    ("weld_joint_efficiency", "E"),
+    (LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY, "E_j"),
     ("weld_joint_strength_reduction_factor_W", "W"),
     ("temperature_coefficient_Y", "Y"),
 )
@@ -65,7 +66,7 @@ _SYMBOL_TO_INPUT_ID: dict[str, str] = {
     "D": "outside_diameter",
     "NPS": "nominal_pipe_size",
     "S": "allowable_stress",
-    "E": "weld_joint_efficiency",
+    "E_j": LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
     "W": "weld_joint_strength_reduction_factor_W",
     "Y": "temperature_coefficient_Y",
     "T": "design_temperature",
@@ -304,18 +305,20 @@ def _allowable_stress_display_value(task: Task, *, standards_root: Path | None =
     return display
 
 
-def _weld_joint_efficiency_display_value(task: Task, *, standards_root: Path | None = None) -> str | None:
-    display = _input_display_value_from_input(task, "weld_joint_efficiency")
+def _longitudinal_weld_joint_quality_factor_display_value(
+    task: Task, *, standards_root: Path | None = None
+) -> str | None:
+    display = _input_display_value_from_input(task, LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY)
     if not display:
         return None
-    if not _is_table_sourced(task, "weld_joint_efficiency"):
+    if not _is_table_sourced(task, LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY):
         return display
     if not _fact_has_displayable_value(active_fact_for_key(task, "pipe_construction_type")):
         return None
     joint_category = _joint_category_label(task)
     if not joint_category:
         return None
-    return f"{display} ({_table_citation_label('A-2', standards_root=standards_root)} / {_table_citation_label('A-3', standards_root=standards_root)}, {joint_category})"
+    return f"{display} ({_table_citation_label('A-3', standards_root=standards_root)}, {joint_category})"
 
 
 def _weld_joint_strength_reduction_factor_W_display_value(
@@ -358,8 +361,13 @@ def _input_display_value(task: Task, input_id: str, *, standards_root: Path | No
         return _outside_diameter_display_value(task)
     if input_id == "allowable_stress":
         return _allowable_stress_display_value(task, standards_root=standards_root)
-    if input_id == "weld_joint_efficiency":
-        return _weld_joint_efficiency_display_value(task, standards_root=standards_root)
+    if input_id in {
+        LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
+        "weld_joint_efficiency",
+    }:
+        return _longitudinal_weld_joint_quality_factor_display_value(
+            task, standards_root=standards_root
+        )
     if input_id == "weld_joint_strength_reduction_factor_W":
         return _weld_joint_strength_reduction_factor_W_display_value(task, standards_root=standards_root)
     if input_id == "temperature_coefficient_Y":

@@ -16,9 +16,7 @@ aliases:
   - joint quality factor
 edges:
   - type: has_parameter
-    target: PARAM-weld-joint-efficiency
-  - type: used_by
-    target: asme-b313-table-A-2
+    target: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
   - type: used_by
     target: asme-b313-table-A-3
 metadata:

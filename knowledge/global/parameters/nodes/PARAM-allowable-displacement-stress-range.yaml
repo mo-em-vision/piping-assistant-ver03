@@ -1,0 +1,30 @@
+---
+id: PARAM-allowable-displacement-stress-range
+type: parameter
+key: allowable_displacement_stress_range
+name: Allowable Displacement Stress Range
+parameter_class: calculated_quantity
+dimension: DIM-pressure
+description: >
+  Allowable displacement stress range S_A for piping systems under cyclic
+  displacement loading, calculated per ASME B31.3 §302.3.5(d) eq. (1a) or (1b).
+canonical_symbol: S_A
+aliases:
+  - allowable displacement stress range
+  - displacement stress range
+  - S_A
+introduced_by:
+  - asme-b313-302-3-5-d
+edges:
+  - type: has_dimension
+    target: DIM-pressure
+  - type: used_by
+    target: asme-b313-302-3-5-eq-1a
+  - type: used_by
+    target: asme-b313-302-3-5-eq-1b
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-12
+  edited_by: admin
+---

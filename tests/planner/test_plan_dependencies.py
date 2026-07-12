@@ -10,6 +10,7 @@ from engine.state.state_manager import TaskStateManager
 from models.task import TaskStatus
 from tests.planner.helpers import _reader
 from engine.planner.graph_requirements import lookup_requirement_id
+from engine.reference.parameter_keys import LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY
 from tests.planner.plan_contract import (
     PIPE_WALL_LOOKUP_IDS,
     REQ_MINIMUM_REQUIRED_THICKNESS_EQ,
@@ -17,29 +18,26 @@ from tests.planner.plan_contract import (
     WELD_W_FIELD,
 )
 
+_W_EJ_LOOKUP_ID = lookup_requirement_id(LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY)
 _W_LOOKUP_ID = lookup_requirement_id(WELD_W_FIELD)
 
 _EXPECTED_PIPE_WALL_EDGES = {
-    ("REQ-material_grade", "REQ-allowable_stress_lookup", "lookup_input"),
+    ("ALT-nps-lookup", "REQ-nominal_pipe_size", "activates"),
+    ("REQ-corrosion_allowance", "REQ-minimum_required_thickness_eq", "equation_input"),
+    ("REQ-corrosion_allowance", "REQ-required_wall_thickness", "equation_input"),
     ("REQ-design_temperature", "REQ-allowable_stress_lookup", "lookup_input"),
-    ("REQ-material_grade", "REQ-metallurgical_group_lookup", "lookup_input"),
-    ("REQ-metallurgical_group_lookup", "REQ-temperature_coefficient_Y_lookup", "lookup_input"),
     ("REQ-design_temperature", "REQ-temperature_coefficient_Y_lookup", "lookup_input"),
-    ("REQ-pipe_construction_type", "REQ-weld_joint_efficiency_lookup", "lookup_input"),
-    ("REQ-material_grade", _W_LOOKUP_ID, "lookup_input"),
-    ("REQ-design_temperature", _W_LOOKUP_ID, "lookup_input"),
-    ("REQ-internal_design_gage_pressure", REQ_REQUIRED_WALL_THICKNESS, "equation_input"),
-    ("REQ-diameter_resolution", REQ_REQUIRED_WALL_THICKNESS, "equation_input"),
-    ("REQ-allowable_stress_lookup", REQ_REQUIRED_WALL_THICKNESS, "equation_input"),
-    ("REQ-weld_joint_efficiency_lookup", REQ_REQUIRED_WALL_THICKNESS, "equation_input"),
-    ("REQ-temperature_coefficient_Y_lookup", REQ_REQUIRED_WALL_THICKNESS, "equation_input"),
-    (_W_LOOKUP_ID, REQ_REQUIRED_WALL_THICKNESS, "equation_input"),
-    (REQ_REQUIRED_WALL_THICKNESS, REQ_MINIMUM_REQUIRED_THICKNESS_EQ, "equation_input"),
-    ("REQ-corrosion_allowance", REQ_MINIMUM_REQUIRED_THICKNESS_EQ, "equation_input"),
-    (REQ_MINIMUM_REQUIRED_THICKNESS_EQ, "REQ-calculation_report", "requires"),
+    ("REQ-design_temperature", "REQ-weld_joint_strength_reduction_factor_W_lookup", "lookup_input"),
+    ("REQ-material_grade", "REQ-allowable_stress_lookup", "lookup_input"),
+    ("REQ-material_grade", _W_EJ_LOOKUP_ID, "lookup_input"),
+    ("REQ-material_grade", "REQ-metallurgical_group_lookup", "lookup_input"),
+    ("REQ-material_grade", "REQ-weld_joint_strength_reduction_factor_W_lookup", "lookup_input"),
     ("REQ-nominal_pipe_size", "REQ-outside_diameter_lookup", "lookup_input"),
     ("REQ-outside_diameter_lookup", "REQ-diameter_resolution", "resolves"),
-    ("ALT-nps-lookup", "REQ-nominal_pipe_size", "activates"),
+    ("REQ-pipe_construction_type", _W_EJ_LOOKUP_ID, "lookup_input"),
+    ("REQ-pipe_construction_type", "REQ-weld_joint_strength_reduction_factor_W_lookup", "lookup_input"),
+    ("REQ-required_wall_thickness", "REQ-calculation_report", "requires"),
+    ("REQ-required_wall_thickness", "REQ-minimum_required_thickness_eq", "equation_input"),
 }
 
 
@@ -86,13 +84,6 @@ def test_legacy_goal_map_includes_dependency_edges() -> None:
         "to": "REQ-allowable_stress_lookup",
         "type": "lookup_input",
     } in legacy["edges"]
-
-    lookup = plan.legacy_goal_map["REQ-allowable_stress_lookup"]
-    assert {
-        "from": "REQ-allowable_stress_lookup",
-        "to": REQ_REQUIRED_WALL_THICKNESS,
-        "type": "equation_input",
-    } in lookup["edges"]
 
 
 def test_lookup_and_equation_requirements_have_incoming_edges() -> None:

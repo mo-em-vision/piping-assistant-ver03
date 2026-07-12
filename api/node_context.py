@@ -81,6 +81,8 @@ def _authority_text(metadata: dict[str, Any], body: str) -> str:
     text_block = metadata.get("text") or {}
     if isinstance(text_block, dict):
         return str(text_block.get("original") or "").strip()
+    if isinstance(text_block, str):
+        return text_block.strip()
     return ""
 
 

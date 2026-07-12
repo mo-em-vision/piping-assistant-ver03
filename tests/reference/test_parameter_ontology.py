@@ -119,8 +119,8 @@ def test_pipe_construction_type_parameter_is_selection() -> None:
     assert meta.get("parameter_class") == "selection"
     assert meta.get("key") == "pipe_construction_type"
     assert _introduced_by_targets(meta) == ["asme-b313-304-1-2-a"]
-    assert "asme-b313-table-A-2" in edge_targets(meta, "used_by")
     assert "asme-b313-table-A-3" in edge_targets(meta, "used_by")
+    assert "asme-b313-table-A-2" not in edge_targets(meta, "used_by")
 
 
 def test_material_grade_parameter_is_categorical() -> None:
@@ -143,17 +143,43 @@ def test_metallurgical_group_parameter_is_selection() -> None:
     assert "MAT-catalog" in edge_targets(meta, "used_by")
 
 
-def test_weld_joint_efficiency_parameter_is_factor() -> None:
-    path = _parameters_dir() / "PARAM-weld-joint-efficiency.yaml"
+def test_basic_casting_quality_factor_parameter_is_factor() -> None:
+    path = _parameters_dir() / "PARAM-basic-casting-quality-factor.yaml"
     meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
     assert meta.get("parameter_class") == "factor"
-    assert meta.get("key") == "weld_joint_efficiency"
-    assert meta.get("canonical_symbol") == "E"
+    assert meta.get("key") == "basic_casting_quality_factor"
+    assert meta.get("canonical_symbol") == "E_c"
+    assert meta.get("name") == "Basic Casting Quality Factor"
+    assert meta.get("dimension") == "DIM-dimensionless"
+    assert edge_targets(meta, "has_dimension") == ["DIM-dimensionless"]
+    assert "asme-b313-302-3-3-a" in _introduced_by_targets(meta)
+    assert edge_targets(meta, "used_by") == ["asme-b313-table-A-2"]
+
+
+def test_longitudinal_weld_joint_quality_factor_parameter_is_factor() -> None:
+    from engine.reference.parameter_keys import (
+        LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
+        LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_PARAM,
+        param_id_from_name,
+        param_key_from_param_id,
+    )
+
+    path = (
+        _parameters_dir()
+        / "PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes.yaml"
+    )
+    meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+    assert meta.get("parameter_class") == "factor"
+    assert meta.get("key") == LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY
+    assert meta.get("id") == LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_PARAM
+    assert meta.get("canonical_symbol") == "E_j"
     assert meta.get("dimension") == "DIM-dimensionless"
     assert edge_targets(meta, "has_dimension") == ["DIM-dimensionless"]
     assert _introduced_by_targets(meta) == ["asme-b313-304-1-1-b"]
-    assert "asme-b313-table-A-2" in edge_targets(meta, "used_by")
-    assert "asme-b313-table-A-3" in edge_targets(meta, "used_by")
+    assert edge_targets(meta, "used_by") == ["asme-b313-table-A-3"]
+    name = str(meta.get("name") or "")
+    assert meta.get("id") == param_id_from_name(name)
+    assert meta.get("key") == param_key_from_param_id(str(meta.get("id") or ""))
 
 
 def test_temperature_coefficient_y_parameter_is_coefficient() -> None:
@@ -229,7 +255,8 @@ def test_parameter_pack_compiles() -> None:
         "PARAM-design-temperature",
         "PARAM-allowable-stress",
         "PARAM-pipe-construction-type",
-        "PARAM-weld-joint-efficiency",
+        "PARAM-basic-casting-quality-factor",
+        "PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes",
         "PARAM-temperature-coefficient-Y",
         "PARAM-weld-strength-reduction-factor-W",
         "PARAM-outside-diameter",

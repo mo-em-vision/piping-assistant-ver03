@@ -16,6 +16,7 @@ CANONICAL_NODE_TYPES = frozenset(
         "quantity",
         "designation",
         "text",
+        "table_note",
         "unit",
         "dimension",
         "concept",
@@ -197,6 +198,8 @@ def expansion_priority_order(node_type: str, metadata: dict[str, Any]) -> int:
     if ctype == "paragraph":
         return 8
     if ctype == "text":
+        return 8
+    if ctype == "table_note":
         return 8
     if ctype == "unit":
         return 9

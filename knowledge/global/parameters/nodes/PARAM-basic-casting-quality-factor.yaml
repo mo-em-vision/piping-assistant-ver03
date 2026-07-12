@@ -1,0 +1,30 @@
+---
+id: PARAM-basic-casting-quality-factor
+type: parameter
+key: basic_casting_quality_factor
+name: Basic Casting Quality Factor
+parameter_class: factor
+dimension: DIM-dimensionless
+description: >
+  Basic casting quality factor E_c from Table A-2 used for cast components not
+  having pressure-temperature ratings established by standards in Table 326.1,
+  per ASME B31.3 §302.3.3.
+canonical_symbol: E_c
+aliases:
+  - basic casting quality factor
+  - casting quality factor
+  - E_c
+introduced_by:
+  - asme-b313-302-3-3-a
+  - asme-b313-304-1-1-b
+edges:
+  - type: has_dimension
+    target: DIM-dimensionless
+  - type: used_by
+    target: asme-b313-table-A-2
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-12
+  edited_by: admin
+---

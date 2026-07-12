@@ -87,21 +87,21 @@ describe('StandardsTableViewer', () => {
         payload={{
           ...SAMPLE_TABLE,
           description:
-            'See [para. 302.3.3(b)](node:B313-302.3.3/b) and [Table 302.3.3C](table:asme_b31.3_table_302_3_3C).',
+            'See [para. 302.3.3(b)](node:B313-302.3.3/b) and [Table 302.3.3-1](table:asme_b31.3_302.3.3-1).',
         }}
       />,
     )
 
     expect(screen.queryByRole('button', { name: 'para. 302.3.3(b)' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Table 302.3.3C' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Table 302.3.3-1' })).not.toBeInTheDocument()
   })
 
   it('renders supplementary_examination cells with clickable note links', () => {
     render(
       <StandardsTableViewer
         payload={{
-          table_id: 'asme_b31.3_table_302_3_3C',
-          title: 'Table 302.3.3C',
+          table_id: 'asme_b31.3_302.3.3-1',
+          title: 'Increased Casting Quality Factors, E_c',
           standard: 'ASME B31.3',
           source_path: 'asme_b313_tables.db',
           columns: [
@@ -110,11 +110,11 @@ describe('StandardsTableViewer', () => {
           ],
           rows: [
             {
-              supplementary_examination: '[(1)](node:B313-note-302-3-3C-1)',
+              supplementary_examination: '[(1)](node:asme-b313-table-302-3-3-1-note-1)',
               quality_factor_E_c: 0.85,
             },
           ],
-          hover_excerpt: 'Table 302.3.3C',
+          hover_excerpt: 'Table 302.3.3-1',
         }}
       />,
     )

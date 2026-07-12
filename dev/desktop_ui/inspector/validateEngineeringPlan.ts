@@ -49,7 +49,7 @@ const LEGACY_REQUIREMENT_FIELDS = new Set([
 
 const PIPE_WALL_LOOKUP_IDS = [
   'REQ-allowable_stress_lookup',
-  'REQ-weld_joint_efficiency_lookup',
+  'REQ-basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes_lookup',
   'REQ-temperature_coefficient_Y_lookup',
   'REQ-weld_strength_reduction_factor_W_lookup',
   'REQ-metallurgical_group_lookup',

@@ -24,8 +24,8 @@ if str(_ROOT) not in sys.path:
 
 from engine.reference.asme_b31_3_table_ids import (
 
-    TABLE_302_3_3C,
-
+    TABLE_302_3_3_1,
+    TABLE_302_3_3_2,
     TABLE_302_3_5_1,
 
     TABLE_304_1_1_1,
@@ -73,90 +73,25 @@ _TABLE_A_2_DESCRIPTION = (
     "These quality factors are determined in accordance with "
     "[para. 302.3.3-b](node:302.3.3-a-b). See also "
     "[para. 302.3.3-c](node:302.3.3-a-c) and "
-    "[Table 302.3.3C](table:asme_b31.3_table_302_3_3C) for increased quality factors "
+    "[Table 302.3.3-1](table:asme_b31.3_302.3.3-1) for increased quality factors "
     "applicable in special cases. Specifications are ASTM."
 )
 
-_TABLE_302_3_3C_DESCRIPTION = (
+_TABLE_302_3_3_1_DESCRIPTION = (
     "Increased casting quality factors per "
     "[para. 302.3.3-c](node:302.3.3-a-c). "
     "Notes to this table: "
-    "[(1)](node:B313-note-302-3-3C-1), "
-    "[(2)(a)](node:B313-note-302-3-3C-2a), "
-    "[(2)(b)](node:B313-note-302-3-3C-2b), "
-    "[(3)(a)](node:B313-note-302-3-3C-3a), "
-    "[(3)(b)](node:B313-note-302-3-3C-3b)."
+    "[(1)](node:asme-b313-table-302-3-3-1-note-1), "
+    "[(2)(a)](node:asme-b313-table-302-3-3-1-note-2a), "
+    "[(2)(b)](node:asme-b313-table-302-3-3-1-note-2b), "
+    "[(3)(a)](node:asme-b313-table-302-3-3-1-note-3a), "
+    "[(3)(b)](node:asme-b313-table-302-3-3-1-note-3b)."
 )
 
-_TABLE_302_3_3C_ROWS = [
-    {
-        "row_id": "note_1_only",
-        "supplementary_examination": "[(1)](node:B313-note-302-3-3C-1)",
-        "quality_factor_E_c": 0.85,
-        "requires_note_1": True,
-        "requires_note_2_surface": False,
-        "requires_note_3_volume": False,
-    },
-    {
-        "row_id": "note_2_surface_only",
-        "supplementary_examination": (
-            "[(2)(a)](node:B313-note-302-3-3C-2a) or "
-            "[(2)(b)](node:B313-note-302-3-3C-2b)"
-        ),
-        "quality_factor_E_c": 0.85,
-        "requires_note_1": False,
-        "requires_note_2_surface": True,
-        "requires_note_3_volume": False,
-    },
-    {
-        "row_id": "note_3_volume_only",
-        "supplementary_examination": (
-            "[(3)(a)](node:B313-note-302-3-3C-3a) or "
-            "[(3)(b)](node:B313-note-302-3-3C-3b)"
-        ),
-        "quality_factor_E_c": 0.95,
-        "requires_note_1": False,
-        "requires_note_2_surface": False,
-        "requires_note_3_volume": True,
-    },
-    {
-        "row_id": "note_1_and_2_surface",
-        "supplementary_examination": (
-            "[(1)](node:B313-note-302-3-3C-1) and "
-            "[(2)(a)](node:B313-note-302-3-3C-2a) or "
-            "[(2)(b)](node:B313-note-302-3-3C-2b)"
-        ),
-        "quality_factor_E_c": 0.90,
-        "requires_note_1": True,
-        "requires_note_2_surface": True,
-        "requires_note_3_volume": False,
-    },
-    {
-        "row_id": "note_1_and_3_volume",
-        "supplementary_examination": (
-            "[(1)](node:B313-note-302-3-3C-1) and "
-            "[(3)(a)](node:B313-note-302-3-3C-3a) or "
-            "[(3)(b)](node:B313-note-302-3-3C-3b)"
-        ),
-        "quality_factor_E_c": 1.00,
-        "requires_note_1": True,
-        "requires_note_2_surface": False,
-        "requires_note_3_volume": True,
-    },
-    {
-        "row_id": "note_2_surface_and_3_volume",
-        "supplementary_examination": (
-            "[(2)(a)](node:B313-note-302-3-3C-2a) or "
-            "[(2)(b)](node:B313-note-302-3-3C-2b) and "
-            "[(3)(a)](node:B313-note-302-3-3C-3a) or "
-            "[(3)(b)](node:B313-note-302-3-3C-3b)"
-        ),
-        "quality_factor_E_c": 1.00,
-        "requires_note_1": False,
-        "requires_note_2_surface": True,
-        "requires_note_3_volume": True,
-    },
-]
+_TABLE_302_3_3_2_DESCRIPTION = (
+    "Acceptance levels for castings per "
+    "[para. 302.3.3-c](node:302.3.3-a-c)."
+)
 
 
 
@@ -591,35 +526,43 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
 
     database.upsert_table(
-
-        table_id=TABLE_302_3_3C,
-
-        title="Table 302.3.3C — Increased Casting Quality Factors, E_c",
-
+        table_id=TABLE_302_3_3_1,
+        title="Increased Casting Quality Factors, E_c",
         version="1.0",
-
-        keys=["row_id"],
-
+        keys=["supplementary_examination"],
         layout="flat_rows",
-
-        source_node="B313-table-302-3-3C",
-
-        metadata={"description": _TABLE_302_3_3C_DESCRIPTION},
-
+        source_node="asme-b313-table-302-3-3-1",
+        metadata={"description": _TABLE_302_3_3_1_DESCRIPTION},
         aliases=[
-
+            "302.3.3-1",
             "302.3.3C",
-
             "table_302_3_3C",
-
-            "nodes/B313-table-302-3-3C/tables/302.3.3C.yaml",
-
-            "nodes/B313-table-302-3-3C/tables/302.3.3C",
-
+            "asme_b31.3_table_302_3_3C",
+            "B313-table-302-3-3C",
+            "nodes/tables/asme-b313-table-302-3-3-1.yaml",
         ],
+        rows=[],
+    )
 
-        rows=_TABLE_302_3_3C_ROWS,
-
+    database.upsert_table(
+        table_id=TABLE_302_3_3_2,
+        title="Acceptance Levels for Castings",
+        version="1.0",
+        keys=[
+            "material_examined_thickness_T",
+            "applicable_standard",
+            "acceptance_level_or_class",
+            "acceptable_discontinuities",
+        ],
+        layout="flat_rows",
+        source_node="asme-b313-table-302-3-3-2",
+        metadata={"description": _TABLE_302_3_3_2_DESCRIPTION},
+        aliases=[
+            "302.3.3-2",
+            "302.3.3D",
+            "nodes/tables/asme-b313-table-302-3-3-2.yaml",
+        ],
+        rows=[],
     )
 
 

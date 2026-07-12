@@ -128,11 +128,23 @@ Planner reads runtime sidecar `navigation` for phase order and gate fields. Grap
 
 ## 12. Validation procedure
 
-1. Parse workflow frontmatter only (not runtime sidecar) for schema validation.
-2. Run `validate_workflow_node(meta)` from `engine/validation/workflow_node_validator.py`.
-3. Confirm forbidden runtime fields are absent from frontmatter.
-4. Validate runtime sidecar separately per workflow-runtime contract.
-5. Run `python -m pytest tests/mvp/test_desktop_mvp_workflow.py` for integration.
+Dedicated validator: `engine/validation/workflow_node_validator.py`.
+
+Audit projection:
+
+```bash
+python scripts/audit_current_node_yaml.py --filter workflow
+```
+
+Report: `audits/reports/nodes/workflow-node-audit.md`.
+
+Checks:
+
+1. Parse workflow frontmatter (primary YAML).
+2. Run `validate_workflow_node(meta)`.
+3. Confirm forbidden runtime fields are absent from frontmatter top level (must be under `runtime`).
+4. Validate legacy workflow runtime sidecars separately per [workflow-runtime.md](sidecars/workflow-runtime.md) when present.
+5. Run `tests/reference/test_workflow_ontology.py` and `tests/mvp/test_desktop_mvp_workflow.py` for integration.
 
 ## 13. Common authoring mistakes
 
@@ -151,7 +163,8 @@ Planner reads runtime sidecar `navigation` for phase order and gate fields. Grap
 
 ## 15. Implementation evidence appendix
 
-- Validator: `engine/validation/workflow_node_validator.py` — `validate_workflow_node`, `ALLOWED_WORKFLOW_CLASSES`, `_FORBIDDEN_FIELDS`
+- Validator: `engine/validation/workflow_node_validator.py` — `validate_workflow_node`, `ALLOWED_WORKFLOW_CLASSES`, `_FORBIDDEN_FIELDS`; audit `--filter workflow` → `audits/reports/nodes/workflow-node-audit.md`
+- Tests: `tests/reference/test_workflow_ontology.py`, `tests/reference/test_workflow_audit_process.py`
 - Sidecar: `engine/reference/workflow_sidecar.py` — `merge_workflow_sidecar_metadata`, `_RUNTIME_KEYS`, `_PROJECT_RUNTIME_WORKFLOW_IDS`
 - Graph build: `engine/graph/graph_builder.py` — workflow sidecar merge at compile
 - Legacy aliases: `engine/reference/b313_legacy_aliases.py`

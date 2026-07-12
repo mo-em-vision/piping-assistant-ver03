@@ -9,6 +9,7 @@ from engine.reference.asme_b313_node_ids import (
     is_qualified_paragraph_ref,
     qualify_cross_pack_ref,
 )
+from engine.reference.parameter_keys import validate_parameter_identity_fields
 from engine.validation.node_revision_metadata import validate_revision_metadata
 
 ALLOWED_PARAMETER_CLASSES = frozenset(
@@ -57,6 +58,7 @@ def validate_parameter_node(meta: dict[str, Any]) -> list[str]:
         issues.append(f"unknown parameter_class: {parameter_class}")
     if not meta.get("description"):
         issues.append("missing description")
+    issues.extend(validate_parameter_identity_fields(meta))
     issues.extend(validate_revision_metadata(meta))
     issues.extend(validate_no_links_metadata(meta))
     for ref in meta.get("introduced_by") or []:

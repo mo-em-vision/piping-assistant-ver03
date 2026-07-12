@@ -37,6 +37,10 @@ edges:
     target: asme-b313-302-3-5-eq-1b
   - type: references_equation
     target: asme-b313-302-3-5-eq-1c
+  - type: introduces_parameter
+    target: PARAM-allowable-displacement-stress-range
+  - type: introduces_parameter
+    target: PARAM-stress-range-factor
   - type: references_concept
     target: CONCEPT-stress
 metadata:

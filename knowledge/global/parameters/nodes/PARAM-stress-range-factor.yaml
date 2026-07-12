@@ -1,0 +1,31 @@
+---
+id: PARAM-stress-range-factor
+type: parameter
+key: stress_range_factor
+name: Stress Range Factor
+parameter_class: factor
+dimension: DIM-dimensionless
+description: >
+  Stress range factor f used in the allowable displacement stress range equations
+  per ASME B31.3 §302.3.5(d) eq. (1c).
+canonical_symbol: f
+aliases:
+  - stress range factor
+  - displacement stress range factor
+introduced_by:
+  - asme-b313-302-3-5-d
+edges:
+  - type: has_dimension
+    target: DIM-dimensionless
+  - type: used_by
+    target: asme-b313-302-3-5-eq-1c
+  - type: used_by
+    target: asme-b313-302-3-5-eq-1a
+  - type: used_by
+    target: asme-b313-302-3-5-eq-1b
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-12
+  edited_by: admin
+---

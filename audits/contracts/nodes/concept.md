@@ -114,13 +114,17 @@ Graph compilation indexes concept-parameter groupings for traceability and searc
 
 ## 12. Validation procedure
 
-No dedicated validator module. Run:
+Dedicated validator: `engine/validation/concept_node_validator.py`
 
-1. `python -m pytest tests/reference/test_concept_ontology.py`
-2. Confirm `concept_class` in `_VALID_CONCEPT_CLASSES`.
-3. Confirm forbidden fields absent.
-4. For `physical_quantity` / `geometric_quantity`, confirm `dimension` present.
-5. Validate edges via graph compile when adding new relationships.
+Audit projection:
+
+```bash
+python scripts/audit_current_node_yaml.py --filter concept
+```
+
+Reports: `audits/reports/nodes/concept-node-audit.md` (concept projection) and `audits/reports/nodes/current-node-yaml-audit.md` (full run).
+
+Tests: `tests/reference/test_concept_ontology.py`, `tests/reference/test_concept_audit_process.py`
 
 ## 13. Common authoring mistakes
 
@@ -139,7 +143,8 @@ No dedicated validator module. Run:
 
 ## 15. Implementation evidence appendix
 
-- Tests: `tests/reference/test_concept_ontology.py` — `_VALID_CONCEPT_CLASSES`, `_FORBIDDEN_CONCEPT_CLASSES`, `_FORBIDDEN_FIELDS`
+- Validator: `engine/validation/concept_node_validator.py`
+- Tests: `tests/reference/test_concept_ontology.py`, `tests/reference/test_concept_audit_process.py`
 - Revision: `engine/validation/node_revision_metadata.py` — `validate_revision_metadata`
 - Edge targets: `engine/reference/graph_edge_schema.py` — `edge_targets`
 - Ontology tests: `tests/reference/test_concept_ontology.py`

@@ -36,7 +36,7 @@ requires:
 - symbol: E
   required: true
   description: Quality factor from Tables A-2 and A-3
-  parameter: PARAM-weld-joint-efficiency
+  parameter: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
 validates:
 - symbol: thick_wall_special_consideration_required
   parameter: PARAM-thick-wall-special-consideration-required
@@ -69,7 +69,7 @@ edges:
   target: PARAM-allowable-stress
   alias: S
 - type: requires_parameter
-  target: PARAM-weld-joint-efficiency
+  target: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
   alias: E
 - type: validates_parameter
   target: PARAM-thick-wall-special-consideration-required
@@ -101,7 +101,7 @@ execution:
       unit: Pa
     E:
       symbol: E
-      parameter: PARAM-weld-joint-efficiency
+      parameter: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
       description: Quality factor from Tables A-2 and A-3
       unit: dimensionless
   outputs:

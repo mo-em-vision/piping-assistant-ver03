@@ -14,10 +14,16 @@ def standards_reader(project_root: Path) -> StandardsReader:
     return StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
 
 
-def test_find_node_path_resolves_flat_302_3_3c_note(standards_reader: StandardsReader) -> None:
-    path = standards_reader.find_node_path("asme-b313-note-302-3-3C-1")
+def test_find_node_path_resolves_table_note(standards_reader: StandardsReader) -> None:
+    path = standards_reader.find_node_path("asme-b313-table-302-3-3-1-note-1")
     assert path is not None
-    assert path.name == "asme-b313-note-302-3-3C-1.yaml"
+    assert path.name == "asme-b313-table-302-3-3-1-note-1.yaml"
+
+
+def test_find_node_path_resolves_flat_302_3_3_1_table(standards_reader: StandardsReader) -> None:
+    path = standards_reader.find_node_path("asme-b313-table-302-3-3-1")
+    assert path is not None
+    assert path.name == "asme-b313-table-302-3-3-1.yaml"
 
 
 def test_find_node_path_resolves_flat_304_paragraph_node(standards_reader: StandardsReader) -> None:

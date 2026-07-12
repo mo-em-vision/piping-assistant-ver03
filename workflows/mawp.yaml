@@ -27,7 +27,7 @@ expected_parameters:
 - PARAM-metallurgical-group
 - PARAM-design-temperature
 - PARAM-pipe-construction-type
-- PARAM-weld-joint-efficiency
+- PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
 - PARAM-weld-strength-reduction-factor-W
 - PARAM-temperature-coefficient-Y
 - PARAM-allowable-stress
@@ -60,7 +60,7 @@ phases:
   purpose: Resolve coefficients required by the MAWP equation.
   required_parameters:
   - PARAM-pipe-construction-type
-  - PARAM-weld-joint-efficiency
+  - PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
   - PARAM-weld-strength-reduction-factor-W
 - key: execution_assumptions
   purpose: Resolve execution assumptions.
@@ -141,7 +141,7 @@ runtime:
     required: true
     source: node_output
     unit: Pa
-  - id: weld_joint_efficiency
+  - id: basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes
     name: E
     description: Quality factor from Tables A-2 and A-3
     required: true
@@ -218,7 +218,7 @@ runtime:
     citations:
     - node_id: asme-b313-table-A-1
   - symbol: E
-    input_id: weld_joint_efficiency
+    input_id: basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes
     introduced_here: true
     description: Quality factor from Tables A-2 and A-3.
   - symbol: W

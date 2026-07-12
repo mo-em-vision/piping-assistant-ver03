@@ -15,9 +15,11 @@ Navigation only. Paragraph content lives in flat `nodes/paragraph/{id}.yaml` fil
 |---------|------|-------------|
 | 302.3.3-a | `nodes/paragraph/302.3.3-a.yaml` | Casting quality factor — general |
 | 302.3.3-b | `nodes/paragraph/302.3.3-b.yaml` | Basic quality factors (Table A-2) |
-| 302.3.3-c | `nodes/paragraph/302.3.3-c.yaml` | Increased quality factors (Table 302.3.3C) |
+| 302.3.3-c | `nodes/paragraph/302.3.3-c.yaml` | Increased quality factors (Tables 302.3.3-1, 302.3.3-2) |
 | 302.3.5-a … 302.3.5-f | `nodes/paragraph/302.3.5-*.yaml` | Limits of calculated stresses (W in `302.3.5-e`) |
-| B313-table-302-3-3C | `nodes/tables/B313-table-302-3-3C.yaml` | Table 302.3.3C increased casting quality factors |
+| asme-b313-table-302-3-3-1 | `nodes/tables/asme-b313-table-302-3-3-1.yaml` | Table 302.3.3-1 increased casting quality factors |
+| asme-b313-table-302-3-3-1-note-* | `nodes/tables/asme-b313-table-302-3-3-1-note-*.yaml` | Table 302.3.3-1 footnotes |
+| asme-b313-table-302-3-3-2 | `nodes/tables/asme-b313-table-302-3-3-2.yaml` | Table 302.3.3-2 acceptance levels for castings |
 | B313-table-302-3-5-1 | `nodes/tables/B313-table-302-3-5-1.yaml` | Table 302.3.5-1 weld strength reduction lookup |
 
 ## Section 304 — Pressure design

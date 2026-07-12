@@ -12,11 +12,21 @@ def _strip_b313(node_id: str) -> str:
 
 
 _NOTE_REMAP = {
-    "table-302-3-3C-note1": "asme-b313-note-302-3-3C-1",
-    "table-302-3-3C-note2a": "asme-b313-note-302-3-3C-2a",
-    "table-302-3-3C-note2b": "asme-b313-note-302-3-3C-2b",
-    "table-302-3-3C-note3a": "asme-b313-note-302-3-3C-3a",
-    "table-302-3-3C-note3b": "asme-b313-note-302-3-3C-3b",
+    "table-302-3-3C-note1": "asme-b313-table-302-3-3-1-note-1",
+    "table-302-3-3C-note2a": "asme-b313-table-302-3-3-1-note-2a",
+    "table-302-3-3C-note2b": "asme-b313-table-302-3-3-1-note-2b",
+    "table-302-3-3C-note3a": "asme-b313-table-302-3-3-1-note-3a",
+    "table-302-3-3C-note3b": "asme-b313-table-302-3-3-1-note-3b",
+    "asme-b313-note-302-3-3C-1": "asme-b313-table-302-3-3-1-note-1",
+    "asme-b313-note-302-3-3C-2a": "asme-b313-table-302-3-3-1-note-2a",
+    "asme-b313-note-302-3-3C-2b": "asme-b313-table-302-3-3-1-note-2b",
+    "asme-b313-note-302-3-3C-3a": "asme-b313-table-302-3-3-1-note-3a",
+    "asme-b313-note-302-3-3C-3b": "asme-b313-table-302-3-3-1-note-3b",
+    "B313-note-302-3-3C-1": "asme-b313-table-302-3-3-1-note-1",
+    "B313-note-302-3-3C-2a": "asme-b313-table-302-3-3-1-note-2a",
+    "B313-note-302-3-3C-2b": "asme-b313-table-302-3-3-1-note-2b",
+    "B313-note-302-3-3C-3a": "asme-b313-table-302-3-3-1-note-3a",
+    "B313-note-302-3-3C-3b": "asme-b313-table-302-3-3-1-note-3b",
 }
 
 _TABLE_REMAP = {
@@ -25,7 +35,9 @@ _TABLE_REMAP = {
     "B313-table-A-1A": "asme-b313-table-A-2",
     "table-A-1B": "asme-b313-table-A-3",
     "B313-table-A-1B": "asme-b313-table-A-3",
-    "table-302-3-3C": "asme-b313-table-302-3-3C",
+    "table-302-3-3C": "asme-b313-table-302-3-3-1",
+    "table-302-3-3-1": "asme-b313-table-302-3-3-1",
+    "table-302-3-3-2": "asme-b313-table-302-3-3-2",
     "table-302-3-5": "asme-b313-table-302-3-5-1",
     "B313-table-302-3-5": "asme-b313-table-302-3-5-1",
     "table-304-1-1": "asme-b313-table-304-1-1-1",
@@ -33,7 +45,9 @@ _TABLE_REMAP = {
     "B313-table-A-1": "asme-b313-table-A-1",
     "B313-table-A-2": "asme-b313-table-A-2",
     "B313-table-A-3": "asme-b313-table-A-3",
-    "B313-table-302-3-3C": "asme-b313-table-302-3-3C",
+    "B313-table-302-3-3C": "asme-b313-table-302-3-3-1",
+    "B313-table-302-3-3-1": "asme-b313-table-302-3-3-1",
+    "B313-table-302-3-3-2": "asme-b313-table-302-3-3-2",
     "B313-table-302-3-5-1": "asme-b313-table-302-3-5-1",
     "B313-table-304-1-1-1": "asme-b313-table-304-1-1-1",
 }

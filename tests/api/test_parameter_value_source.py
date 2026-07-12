@@ -86,20 +86,38 @@ def test_allowable_stress_value_reference_opens_table(standards_reader) -> None:
     assert standards_reader.tables_database.resolve_table_id(reference["node_id"]) is not None
 
 
-def test_weld_joint_efficiency_value_reference_opens_table(standards_reader) -> None:
+def test_basic_casting_quality_factor_value_reference_opens_table(standards_reader) -> None:
     manager = TaskStateManager()
-    task = manager.create_task("value-ref-e", status=TaskStatus.AWAITING_INPUT)
-    task.active_nodes = ["asme-b313-table-A-2", "304.1.2-a"]
+    task = manager.create_task("value-ref-ec", status=TaskStatus.AWAITING_INPUT)
+    task.active_nodes = ["asme-b313-table-A-2", "302.3.3-a"]
 
     reference = resolve_parameter_value_reference(
         standards_reader,
-        "PARAM-weld-joint-efficiency",
+        "PARAM-basic-casting-quality-factor",
         task,
     )
     assert reference is not None
     assert reference["label"].startswith("ASME B31.3 Table A-2")
     assert reference["reference_kind"] == "table"
     assert reference["node_id"] == "asme_b31.3_A-2"
+
+
+def test_longitudinal_weld_joint_quality_factor_value_reference_opens_table(
+    standards_reader,
+) -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("value-ref-ej", status=TaskStatus.AWAITING_INPUT)
+    task.active_nodes = ["asme-b313-table-A-3", "304.1.2-a"]
+
+    reference = resolve_parameter_value_reference(
+        standards_reader,
+        "PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes",
+        task,
+    )
+    assert reference is not None
+    assert reference["label"].startswith("ASME B31.3 Table A-3")
+    assert reference["reference_kind"] == "table"
+    assert reference["node_id"] == "asme_b31.3_A-3"
 
 
 def test_temperature_coefficient_value_reference_opens_table(standards_reader) -> None:

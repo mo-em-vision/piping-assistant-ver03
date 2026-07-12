@@ -2,6 +2,23 @@
 
 When authoring or editing global parameters, lookup tables, workflow runtime sidecars, or engine code that reads/writes Facts:
 
+## Name / id / key convention
+
+Parameter nodes must keep **`name`**, **`id`**, and **`key`** aligned:
+
+1. Start from the human **`name`** (e.g. `Basic Casting Quality Factor`).
+2. Derive **`id`**: `PARAM-{kebab-case-slug-from-name}`.
+3. Derive **`key`**: id slug with hyphens replaced by underscores.
+
+Examples:
+
+| `name` | `id` | `key` |
+| --- | --- | --- |
+| Basic Casting Quality Factor | `PARAM-basic-casting-quality-factor` | `basic_casting_quality_factor` |
+| Basic Quality Factors for Longitudinal Weld Joints in Pipes and Tubes | `PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes` | `basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes` |
+
+Helpers: `param_id_from_name()`, `param_key_from_param_id()`, `validate_parameter_identity_fields()` in `engine/reference/parameter_keys.py`. Enforced by `validate_parameter_node()`.
+
 ## Canonical key
 
 Use the **`key`** field from `knowledge/global/parameters/nodes/PARAM-*.yaml` as the runtime parameter id everywhere:

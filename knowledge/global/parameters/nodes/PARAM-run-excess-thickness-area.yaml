@@ -1,0 +1,26 @@
+---
+id: PARAM-run-excess-thickness-area
+type: parameter
+key: run_excess_thickness_area
+name: Run Excess Thickness Area
+parameter_class: calculated_quantity
+description: >
+  Available reinforcement area A_2 from excess thickness in the run pipe wall,
+  per ASME B31.3 §304.3.3(c) eq. (7).
+canonical_symbol: A_2
+aliases:
+  - run excess thickness area
+  - run pipe excess thickness area
+  - A_2
+introduced_by:
+  - asme-b313-304-3-3-c
+edges:
+  - type: used_by
+    target: asme-b313-304-3-3-eq-7
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-12
+  edited_by: admin
+  canonical_unit: UNIT-mm2
+---

@@ -35,6 +35,10 @@ edges:
     target: asme-b313-304-3-3-eq-7
   - type: references_equation
     target: asme-b313-304-3-3-eq-8
+  - type: introduces_parameter
+    target: PARAM-run-excess-thickness-area
+  - type: introduces_parameter
+    target: PARAM-excess-thickness-in-the-branch-pipe-wall
   - type: references_validation_rule
     target: asme-b313-304-3-3-valrule-6a
   - type: related_to

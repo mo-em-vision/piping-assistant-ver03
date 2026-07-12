@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Total files inspected: 131
-- Passing: 88
-- Warnings: 28
-- Failing: 15
+- Total files inspected: 138
+- Passing: 106
+- Warnings: 20
+- Failing: 12
 
 ### Section totals
 
-- A. Node YAML: 126 files (FAIL)
+- A. Node YAML: 133 files (FAIL)
 - B. Node sidecar YAML: 0 files (PASS)
 - C. Workflow configuration YAML: 0 files (PASS)
 - D. Pack/catalog YAML: 5 files (WARN)
@@ -25,8 +25,9 @@
 - `lookup`: 10
 - `material_catalog`: 1
 - `paragraph`: 30
-- `parameter`: 24
-- `text`: 5
+- `parameter`: 30
+- `table`: 1
+- `table_note`: 5
 - `unit`: 13
 - `validation_rule`: 4
 - `workflow`: 2
@@ -38,30 +39,34 @@
 | YAML file | Node ID | Canonical type | Validator | Result | Problems |
 | --- | --- | --- | --- | --- | --- |
 | `knowledge/global/authorities/nodes/AUTH-ASME-B31.3.yaml` | `AUTH-ASME-B31.3` | `authority` | `validate_authority_node` | **PASS** | — |
-| `knowledge/global/authorities/nodes/AUTH-ASME-B36.10M.yaml` | `AUTH-ASME-B36.10M` | `authority` | `validate_authority_node` | **WARN** | edge target not in repository index: PARAM-nominal-wall-thickness |
+| `knowledge/global/authorities/nodes/AUTH-ASME-B36.10M.yaml` | `AUTH-ASME-B36.10M` | `authority` | `validate_authority_node` | **PASS** | — |
 | `knowledge/global/authorities/nodes/AUTH-ASTM-A106.yaml` | `AUTH-ASTM-A106` | `authority` | `validate_authority_node` | **PASS** | — |
-| `knowledge/global/concepts/nodes/CONCEPT-allowable-stress.yaml` | `CONCEPT-allowable-stress` | `concept` | `ontology_concept_checks` | **PASS** | — |
-| `knowledge/global/concepts/nodes/CONCEPT-corrosion.yaml` | `CONCEPT-corrosion` | `concept` | `ontology_concept_checks` | **PASS** | — |
-| `knowledge/global/concepts/nodes/CONCEPT-material.yaml` | `CONCEPT-material` | `concept` | `ontology_concept_checks` | **PASS** | — |
-| `knowledge/global/concepts/nodes/CONCEPT-pipe-construction.yaml` | `CONCEPT-pipe-construction` | `concept` | `ontology_concept_checks` | **PASS** | — |
-| `knowledge/global/concepts/nodes/CONCEPT-pipe-diameter.yaml` | `CONCEPT-pipe-diameter` | `concept` | `ontology_concept_checks` | **PASS** | — |
-| `knowledge/global/concepts/nodes/CONCEPT-pressure.yaml` | `CONCEPT-pressure` | `concept` | `ontology_concept_checks` | **PASS** | — |
-| `knowledge/global/concepts/nodes/CONCEPT-stress.yaml` | `CONCEPT-stress` | `concept` | `ontology_concept_checks` | **PASS** | — |
-| `knowledge/global/concepts/nodes/CONCEPT-temperature-coefficient.yaml` | `CONCEPT-temperature-coefficient` | `concept` | `ontology_concept_checks` | **PASS** | — |
-| `knowledge/global/concepts/nodes/CONCEPT-temperature.yaml` | `CONCEPT-temperature` | `concept` | `ontology_concept_checks` | **PASS** | — |
-| `knowledge/global/concepts/nodes/CONCEPT-wall-thickness.yaml` | `CONCEPT-wall-thickness` | `concept` | `ontology_concept_checks` | **PASS** | — |
-| `knowledge/global/concepts/nodes/CONCEPT-weld-joint-efficiency.yaml` | `CONCEPT-weld-joint-efficiency` | `concept` | `ontology_concept_checks` | **PASS** | — |
-| `knowledge/global/dimensions/nodes/DIM-dimensionless.yaml` | `DIM-dimensionless` | `dimension` | `ontology_dimension_checks` | **PASS** | — |
-| `knowledge/global/dimensions/nodes/DIM-length.yaml` | `DIM-length` | `dimension` | `ontology_dimension_checks` | **PASS** | — |
-| `knowledge/global/dimensions/nodes/DIM-material-designation.yaml` | `DIM-material-designation` | `dimension` | `ontology_dimension_checks` | **PASS** | — |
-| `knowledge/global/dimensions/nodes/DIM-pressure.yaml` | `DIM-pressure` | `dimension` | `ontology_dimension_checks` | **PASS** | — |
-| `knowledge/global/dimensions/nodes/DIM-temperature.yaml` | `DIM-temperature` | `dimension` | `ontology_dimension_checks` | **PASS** | — |
-| `knowledge/global/dimensions/nodes/DIM-velocity.yaml` | `DIM-velocity` | `dimension` | `ontology_dimension_checks` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-allowable-stress.yaml` | `CONCEPT-allowable-stress` | `concept` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-corrosion.yaml` | `CONCEPT-corrosion` | `concept` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-material.yaml` | `CONCEPT-material` | `concept` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-pipe-construction.yaml` | `CONCEPT-pipe-construction` | `concept` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-pipe-diameter.yaml` | `CONCEPT-pipe-diameter` | `concept` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-pressure.yaml` | `CONCEPT-pressure` | `concept` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-stress.yaml` | `CONCEPT-stress` | `concept` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-temperature-coefficient.yaml` | `CONCEPT-temperature-coefficient` | `concept` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-temperature.yaml` | `CONCEPT-temperature` | `concept` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-wall-thickness.yaml` | `CONCEPT-wall-thickness` | `concept` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-weld-joint-efficiency.yaml` | `CONCEPT-weld-joint-efficiency` | `concept` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/dimensions/nodes/DIM-dimensionless.yaml` | `DIM-dimensionless` | `dimension` | `validate_dimension_node` | **PASS** | — |
+| `knowledge/global/dimensions/nodes/DIM-length.yaml` | `DIM-length` | `dimension` | `validate_dimension_node` | **PASS** | — |
+| `knowledge/global/dimensions/nodes/DIM-material-designation.yaml` | `DIM-material-designation` | `dimension` | `validate_dimension_node` | **PASS** | — |
+| `knowledge/global/dimensions/nodes/DIM-pressure.yaml` | `DIM-pressure` | `dimension` | `validate_dimension_node` | **PASS** | — |
+| `knowledge/global/dimensions/nodes/DIM-temperature.yaml` | `DIM-temperature` | `dimension` | `validate_dimension_node` | **PASS** | — |
+| `knowledge/global/dimensions/nodes/DIM-velocity.yaml` | `DIM-velocity` | `dimension` | `validate_dimension_node` | **PASS** | — |
 | `knowledge/global/materials/nodes/MAT-catalog.yaml` | `MAT-catalog` | `material_catalog` | `none` | **WARN** | non-canonical type material_catalog; no validator mapped |
 | `knowledge/global/parameters/nodes/PARAM-actual-wall-thickness.yaml` | `PARAM-actual-wall-thickness` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: asme-b313-304-1-1-a |
+| `knowledge/global/parameters/nodes/PARAM-allowable-displacement-stress-range.yaml` | `PARAM-allowable-displacement-stress-range` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-allowable-stress.yaml` | `PARAM-allowable-stress` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: asme-b313-304-1-2-a |
+| `knowledge/global/parameters/nodes/PARAM-basic-casting-quality-factor.yaml` | `PARAM-basic-casting-quality-factor` | `parameter` | `validate_parameter_node` | **PASS** | — |
+| `knowledge/global/parameters/nodes/PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes.yaml` | `PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-corrosion-allowance.yaml` | `PARAM-corrosion-allowance` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-design-temperature.yaml` | `PARAM-design-temperature` | `parameter` | `validate_parameter_node` | **PASS** | — |
+| `knowledge/global/parameters/nodes/PARAM-excess-thickness-in-the-branch-pipe-wall.yaml` | `PARAM-excess-thickness-in-the-branch-pipe-wall` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-external-design-pressure.yaml` | `PARAM-external-design-pressure` | `parameter` | `validate_parameter_node` | **FAIL** | introduced_by paragraph reference must use pack-qualified id, not bare: 304.1.3 |
 | `knowledge/global/parameters/nodes/PARAM-geometry-input-mode.yaml` | `PARAM-geometry-input-mode` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-inside-diameter.yaml` | `PARAM-inside-diameter` | `parameter` | `validate_parameter_node` | **FAIL** | introduced_by paragraph reference must use pack-qualified id, not bare: 304.1.2-a |
@@ -75,13 +80,15 @@
 | `knowledge/global/parameters/nodes/PARAM-pipe-construction-type.yaml` | `PARAM-pipe-construction-type` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-pipe-schedule.yaml` | `PARAM-pipe-schedule` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: B3610-table-2-1 |
 | `knowledge/global/parameters/nodes/PARAM-pressure-loading.yaml` | `PARAM-pressure-loading` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: asme-b313-304-1-2-a; edge target not in repository index: asme-b313-304-1-3 |
+| `knowledge/global/parameters/nodes/PARAM-required-reinforcement-area.yaml` | `PARAM-required-reinforcement-area` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-required-wall-thickness.yaml` | `PARAM-required-wall-thickness` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: asme-b313-304-1-1-a; edge target not in repository index: asme-b313-304-1-2-a; edge target not in repository index: asme-b313-304-1-2-b |
+| `knowledge/global/parameters/nodes/PARAM-run-excess-thickness-area.yaml` | `PARAM-run-excess-thickness-area` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-straight-pipe-section.yaml` | `PARAM-straight-pipe-section` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: asme-b313-304-1-1-a |
-| `knowledge/global/parameters/nodes/PARAM-temperature-coefficient-Y.yaml` | `PARAM-temperature-coefficient-Y` | `parameter` | `validate_parameter_node` | **PASS** | — |
+| `knowledge/global/parameters/nodes/PARAM-stress-range-factor.yaml` | `PARAM-stress-range-factor` | `parameter` | `validate_parameter_node` | **PASS** | — |
+| `knowledge/global/parameters/nodes/PARAM-temperature-coefficient-Y.yaml` | `PARAM-temperature-coefficient-Y` | `parameter` | `validate_parameter_node` | **FAIL** | id must match name slug: expected 'PARAM-temperature-coefficient-y' from name 'Temperature Coefficient Y'; key must match id slug: expected 'temperature_coefficient_y' from id 'PARAM-temperature-coefficient-Y' |
 | `knowledge/global/parameters/nodes/PARAM-thin-wall-applicability.yaml` | `PARAM-thin-wall-applicability` | `parameter` | `validate_parameter_node` | **FAIL** | introduced_by paragraph reference must use pack-qualified id, not bare: 304.1.2-a |
 | `knowledge/global/parameters/nodes/PARAM-wall-thickness-basis.yaml` | `PARAM-wall-thickness-basis` | `parameter` | `validate_parameter_node` | **PASS** | — |
-| `knowledge/global/parameters/nodes/PARAM-weld-joint-efficiency.yaml` | `PARAM-weld-joint-efficiency` | `parameter` | `validate_parameter_node` | **PASS** | — |
-| `knowledge/global/parameters/nodes/PARAM-weld-strength-reduction-factor-W.yaml` | `PARAM-weld-strength-reduction-factor-W` | `parameter` | `validate_parameter_node` | **PASS** | — |
+| `knowledge/global/parameters/nodes/PARAM-weld-strength-reduction-factor-W.yaml` | `PARAM-weld-strength-reduction-factor-W` | `parameter` | `validate_parameter_node` | **FAIL** | id must match name slug: expected 'PARAM-weld-strength-reduction-factor-w' from name 'Weld Strength Reduction Factor W'; key must match id slug: expected 'weld_strength_reduction_factor_w' from id 'PARAM-weld-strength-reduction-factor-W' |
 | `knowledge/global/units/nodes/UNIT-K.yaml` | `UNIT-K` | `unit` | `validate_unit_node` | **FAIL** | unknown equation referenced by converts_to: EQ-unit-K-to-degC; unknown equation referenced by converts_to: EQ-unit-K-to-degF |
 | `knowledge/global/units/nodes/UNIT-MPa.yaml` | `UNIT-MPa` | `unit` | `validate_unit_node` | **PASS** | — |
 | `knowledge/global/units/nodes/UNIT-Pa.yaml` | `UNIT-Pa` | `unit` | `validate_unit_node` | **PASS** | — |
@@ -101,18 +108,18 @@
 | `knowledge/global/units/nodes/equation/EQ-unit-degC-to-degF.yaml` | `EQ-unit-degC-to-degF` | `equation` | `validate_equation_node` | **PASS** | — |
 | `knowledge/global/units/nodes/equation/EQ-unit-degF-to-K.yaml` | `EQ-unit-degF-to-K` | `equation` | `validate_equation_node` | **PASS** | — |
 | `knowledge/global/units/nodes/equation/EQ-unit-degF-to-degC.yaml` | `EQ-unit-degF-to-degC` | `equation` | `validate_equation_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-302-3-5-eq-1a.yaml` | `asme-b313-302-3-5-eq-1a` | `equation` | `validate_equation_node` | **WARN** | edge target not in repository index: PARAM-allowable-displacement-stress-range |
-| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-302-3-5-eq-1b.yaml` | `asme-b313-302-3-5-eq-1b` | `equation` | `validate_equation_node` | **WARN** | edge target not in repository index: PARAM-allowable-displacement-stress-range |
-| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-302-3-5-eq-1c.yaml` | `asme-b313-302-3-5-eq-1c` | `equation` | `validate_equation_node` | **WARN** | edge target not in repository index: PARAM-stress-range-factor |
+| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-302-3-5-eq-1a.yaml` | `asme-b313-302-3-5-eq-1a` | `equation` | `validate_equation_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-302-3-5-eq-1b.yaml` | `asme-b313-302-3-5-eq-1b` | `equation` | `validate_equation_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-302-3-5-eq-1c.yaml` | `asme-b313-302-3-5-eq-1c` | `equation` | `validate_equation_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-304-1-1-eq-2.yaml` | `asme-b313-304-1-1-eq-2` | `equation` | `validate_equation_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-304-1-2-eq-3a.yaml` | `asme-b313-304-1-2-eq-3a` | `equation` | `validate_equation_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-304-1-2-eq-3b.yaml` | `asme-b313-304-1-2-eq-3b` | `equation` | `validate_equation_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-304-3-3-eq-6.yaml` | `asme-b313-304-3-3-eq-6` | `equation` | `validate_equation_node` | **WARN** | edge target not in repository index: PARAM-required-reinforcement-area |
-| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-304-3-3-eq-7.yaml` | `asme-b313-304-3-3-eq-7` | `equation` | `validate_equation_node` | **WARN** | edge target not in repository index: PARAM-run-excess-thickness-area |
-| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-304-3-3-eq-8.yaml` | `asme-b313-304-3-3-eq-8` | `equation` | `validate_equation_node` | **WARN** | edge target not in repository index: PARAM-branch-excess-thickness-area |
+| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-304-3-3-eq-6.yaml` | `asme-b313-304-3-3-eq-6` | `equation` | `validate_equation_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-304-3-3-eq-7.yaml` | `asme-b313-304-3-3-eq-7` | `equation` | `validate_equation_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-304-3-3-eq-8.yaml` | `asme-b313-304-3-3-eq-8` | `equation` | `validate_equation_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-mawp-pressure.yaml` | `asme-b313-mawp-pressure` | `equation` | `validate_equation_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-pressure-design-thickness.yaml` | `asme-b313-pressure-design-thickness` | `equation` | `validate_equation_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.3-a.yaml` | `302.3.3-a` | `paragraph` | `validate_paragraph_node` | **FAIL** | broken resolved reference: PARAM-casting-quality-factor |
+| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.3-a.yaml` | `302.3.3-a` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.3-b.yaml` | `302.3.3-b` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.3-c.yaml` | `302.3.3-c` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.5-a.yaml` | `302.3.5-a` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
@@ -142,21 +149,22 @@
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.3.3-f.yaml` | `304.3.3-f` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.3.yaml` | `304.3` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.yaml` | `304` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-note-302-3-3C-1.yaml` | `asme-b313-note-302-3-3C-1` | `text` | `revision_only` | **WARN** | no dedicated validator for type text |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-note-302-3-3C-2a.yaml` | `asme-b313-note-302-3-3C-2a` | `text` | `revision_only` | **WARN** | no dedicated validator for type text |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-note-302-3-3C-2b.yaml` | `asme-b313-note-302-3-3C-2b` | `text` | `revision_only` | **WARN** | no dedicated validator for type text |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-note-302-3-3C-3a.yaml` | `asme-b313-note-302-3-3C-3a` | `text` | `revision_only` | **WARN** | no dedicated validator for type text |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-note-302-3-3C-3b.yaml` | `asme-b313-note-302-3-3C-3b` | `text` | `revision_only` | **WARN** | no dedicated validator for type text |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3C.yaml` | `asme-b313-table-302-3-3C` | `lookup` | `validate_lookup_node` | **FAIL** | lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: quality_factor |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1-note-1.yaml` | `asme-b313-table-302-3-3-1-note-1` | `table_note` | `validate_table_note_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1-note-2a.yaml` | `asme-b313-table-302-3-3-1-note-2a` | `table_note` | `validate_table_note_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1-note-2b.yaml` | `asme-b313-table-302-3-3-1-note-2b` | `table_note` | `validate_table_note_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1-note-3a.yaml` | `asme-b313-table-302-3-3-1-note-3a` | `table_note` | `validate_table_note_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1-note-3b.yaml` | `asme-b313-table-302-3-3-1-note-3b` | `table_note` | `validate_table_note_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1.yaml` | `asme-b313-table-302-3-3-1` | `lookup` | `validate_lookup_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-2.yaml` | `asme-b313-table-302-3-3-2` | `table` | `revision_only` | **WARN** | no dedicated validator for type table |
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-5-1.yaml` | `asme-b313-table-302-3-5-1` | `lookup` | `validate_lookup_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-304-1-1-1.yaml` | `asme-b313-table-304-1-1-1` | `lookup` | `validate_lookup_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-1.yaml` | `asme-b313-table-A-1` | `lookup` | `validate_lookup_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-2.yaml` | `asme-b313-table-A-2` | `lookup` | `validate_lookup_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-3.yaml` | `asme-b313-table-A-3` | `lookup` | `validate_lookup_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-1-valrule-a.yaml` | `asme-b313-304-1-1-valrule-a` | `validation_rule` | `validate_validation_rule_node` | **FAIL** | duplicate 'display' in top level and execution block; edge target not in repository index: PARAM-wall-thickness-adequacy |
+| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-1-valrule-a.yaml` | `asme-b313-304-1-1-valrule-a` | `validation_rule` | `validate_validation_rule_node` | **WARN** | edge target not in repository index: PARAM-wall-thickness-adequacy |
 | `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-2-valrule-a.yaml` | `asme-b313-304-1-2-valrule-a` | `validation_rule` | `validate_validation_rule_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-2-valrule-b.yaml` | `asme-b313-304-1-2-valrule-b` | `validation_rule` | `validate_validation_rule_node` | **FAIL** | duplicate 'display' in top level and execution block; edge target not in repository index: PARAM-thick-wall-special-consideration-required |
-| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-3-3-valrule-6a.yaml` | `asme-b313-304-3-3-valrule-6a` | `validation_rule` | `validate_validation_rule_node` | **FAIL** | duplicate 'display' in top level and execution block; edge target not in repository index: PARAM-reinforcement-adequate |
+| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-2-valrule-b.yaml` | `asme-b313-304-1-2-valrule-b` | `validation_rule` | `validate_validation_rule_node` | **WARN** | edge target not in repository index: PARAM-thick-wall-special-consideration-required |
+| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-3-3-valrule-6a.yaml` | `asme-b313-304-3-3-valrule-6a` | `validation_rule` | `validate_validation_rule_node` | **WARN** | edge target not in repository index: PARAM-reinforcement-adequate |
 | `knowledge/standards/astm/nodes/A105.yaml` | `A105` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: material_properties |
 | `knowledge/standards/astm/nodes/A106.yaml` | `A106` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: mechanical_properties |
 | `knowledge/standards/astm/nodes/A312.yaml` | `A312` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: mechanical_properties |
@@ -193,6 +201,10 @@
 - One primary YAML per node: nested `execution` / `runtime` blocks in primary files.
 - `material_catalog` (`MAT-catalog.yaml`) is not in `CANONICAL_NODE_TYPES`.
 - Legacy node-owned sidecars are rejected when `LEGACY_SIDECAR_COMPAT` is false.
-- Types `text`, `quantity`, `designation`, `table` have no dedicated validators — audit uses revision + generic checks only.
+- Types `text`, `quantity`, `table` have no dedicated validators — audit uses revision + generic checks only.
+- `designation` uses `validate_designation_node` (see `audits/contracts/nodes/designation.md`).
+- `table_note` uses `validate_table_note_node` (see `audits/contracts/nodes/table-note.md`).
+- `dimension` uses `validate_dimension_node` (see `audits/contracts/nodes/dimension.md`).
+- `concept` uses `validate_concept_node` (see `audits/contracts/nodes/concept.md`).
 - Human-readable contract documents are not parsed by this audit script; validators remain enforcement authority.
 

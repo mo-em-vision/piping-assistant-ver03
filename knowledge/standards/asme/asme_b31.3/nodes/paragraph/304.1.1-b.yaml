@@ -112,7 +112,11 @@ edges:
 
   - type: introduces_parameter
 
-    target: PARAM-weld-joint-efficiency
+    target: PARAM-basic-casting-quality-factor
+
+  - type: introduces_parameter
+
+    target: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
 
   - type: introduces_parameter
 

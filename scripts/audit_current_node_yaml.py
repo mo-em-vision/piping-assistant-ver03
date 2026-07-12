@@ -24,11 +24,15 @@ from engine.reference.node_sources import _SIDECAR_FILENAMES, iter_node_source_p
 from engine.reference.node_types import CANONICAL_NODE_TYPES, normalize_node_metadata
 from engine.reference.standards_markdown import split_frontmatter
 from engine.validation.authority_node_validator import validate_authority_node
+from engine.validation.concept_node_validator import validate_concept_node
+from engine.validation.designation_node_validator import validate_designation_node
+from engine.validation.dimension_node_validator import validate_dimension_node
 from engine.validation.equation_node_validator import validate_equation_node
 from engine.validation.lookup_node_validator import validate_lookup_node
 from engine.validation.node_revision_metadata import validate_revision_metadata
 from engine.validation.parameter_node_validator import validate_parameter_node
 from engine.validation.paragraph_node_validator import validate_paragraph_node
+from engine.validation.table_note_node_validator import validate_table_note_node
 from engine.validation.unit_node_validator import validate_unit_node
 from engine.validation.validation_rule_node_validator import validate_validation_rule_node
 from engine.validation.workflow_node_validator import validate_workflow_node
@@ -46,6 +50,14 @@ from engine.reference.workflow_sidecar import _RUNTIME_KEYS as WORKFLOW_RUNTIME_
 
 REPORT_PATH = PROJECT_ROOT / "audits" / "reports" / "nodes" / "current-node-yaml-audit.md"
 PARAGRAPH_REPORT_PATH = PROJECT_ROOT / "audits" / "reports" / "nodes" / "paragraph-node-audit.md"
+DIMENSION_REPORT_PATH = PROJECT_ROOT / "audits" / "reports" / "nodes" / "dimension-node-audit.md"
+CONCEPT_REPORT_PATH = PROJECT_ROOT / "audits" / "reports" / "nodes" / "concept-node-audit.md"
+DESIGNATION_REPORT_PATH = PROJECT_ROOT / "audits" / "reports" / "nodes" / "designation-node-audit.md"
+AUTHORITY_REPORT_PATH = PROJECT_ROOT / "audits" / "reports" / "nodes" / "authority-node-audit.md"
+WORKFLOW_REPORT_PATH = PROJECT_ROOT / "audits" / "reports" / "nodes" / "workflow-node-audit.md"
+VALIDATION_RULE_REPORT_PATH = (
+    PROJECT_ROOT / "audits" / "reports" / "nodes" / "validation-rule-node-audit.md"
+)
 
 NODE_DISCOVERY_ROOTS = [
     PROJECT_ROOT / "knowledge" / "standards" / "asme" / "asme_b31.3" / "nodes",
@@ -54,6 +66,7 @@ NODE_DISCOVERY_ROOTS = [
     PROJECT_ROOT / "knowledge" / "global" / "units" / "nodes",
     PROJECT_ROOT / "knowledge" / "global" / "dimensions" / "nodes",
     PROJECT_ROOT / "knowledge" / "global" / "concepts" / "nodes",
+    PROJECT_ROOT / "knowledge" / "global" / "designations" / "nodes",
     PROJECT_ROOT / "knowledge" / "global" / "authorities" / "nodes",
     PROJECT_ROOT / "knowledge" / "global" / "materials" / "nodes",
 ]
@@ -77,23 +90,6 @@ RUNTIME_FIELD_BANS = frozenset(
         "execution_id",
         "task_id",
         "calculation_result",
-    }
-)
-
-_CONCEPT_CLASSES = frozenset(
-    {
-        "physical_quantity",
-        "geometric_quantity",
-        "material",
-        "fluid",
-        "component",
-        "condition",
-        "coefficient",
-        "factor",
-        "selection",
-        "failure_mode",
-        "inspection_method",
-        "authority_concept",
     }
 )
 
@@ -269,6 +265,10 @@ def _validator_for_type(node_type: str) -> tuple[str, Callable[[dict[str, Any]],
         "workflow": ("validate_workflow_node", validate_workflow_node),
         "unit": ("validate_unit_node", validate_unit_node),
         "authority": ("validate_authority_node", validate_authority_node),
+        "dimension": ("validate_dimension_node", validate_dimension_node),
+        "concept": ("validate_concept_node", validate_concept_node),
+        "designation": ("validate_designation_node", validate_designation_node),
+        "table_note": ("validate_table_note_node", validate_table_note_node),
     }
     return mapping.get(node_type, ("none", None))
 
@@ -311,38 +311,13 @@ def _generic_node_checks(
     return issues
 
 
-def _audit_concept(meta: dict[str, Any]) -> list[str]:
-    issues: list[str] = []
-    if meta.get("type") != "concept":
-        issues.append("type must be 'concept'")
-    if not str(meta.get("id") or "").startswith("CONCEPT-"):
-        issues.append("id must start with CONCEPT-")
-    cc = str(meta.get("concept_class") or "")
-    if cc and cc not in _CONCEPT_CLASSES:
-        issues.append(f"unknown concept_class: {cc}")
-    for key in ("key", "name", "description"):
-        if not meta.get(key):
-            issues.append(f"missing {key}")
-    issues.extend(validate_revision_metadata(meta))
-    return issues
-
-
-def _audit_dimension(meta: dict[str, Any]) -> list[str]:
-    issues: list[str] = []
-    if meta.get("type") != "dimension":
-        issues.append("type must be 'dimension'")
-    if not str(meta.get("id") or "").startswith("DIM-"):
-        issues.append("id must start with DIM-")
-    for key in ("key", "name", "dimension_kind", "description"):
-        if not meta.get(key):
-            issues.append(f"missing {key}")
-    issues.extend(validate_revision_metadata(meta))
-    return issues
-
-
 def _audit_section_a(paths: list[Path], repo_index: set[str]) -> list[AuditRow]:
     node_index = _build_node_index(paths)
     unit_nodes = {k: v for k, v in node_index.items() if str(v.get("type")) == "unit"}
+    known_unit_ids = set(unit_nodes)
+    known_dimension_ids = {
+        k for k, v in node_index.items() if str(v.get("type")) == "dimension"
+    }
     rows: list[AuditRow] = []
     concept_ids: dict[str, str] = {}
 
@@ -375,18 +350,16 @@ def _audit_section_a(paths: list[Path], repo_index: set[str]) -> list[AuditRow]:
             if canonical == "unit":
                 for msg in validator(validate_input, known_nodes=unit_nodes):
                     row.add("FAIL", msg)
+            elif canonical == "dimension":
+                for msg in validator(validate_input, known_unit_ids=known_unit_ids):
+                    row.add("FAIL", msg)
+            elif canonical == "concept":
+                for msg in validator(validate_input, known_dimension_ids=known_dimension_ids):
+                    row.add("FAIL", msg)
             else:
                 for msg in validator(validate_input):
                     row.add("FAIL", msg)
-        elif canonical == "concept":
-            row.validator = "ontology_concept_checks"
-            for msg in _audit_concept(normalized):
-                row.add("FAIL", msg)
-        elif canonical == "dimension":
-            row.validator = "ontology_dimension_checks"
-            for msg in _audit_dimension(normalized):
-                row.add("FAIL", msg)
-        elif canonical in {"text", "quantity", "designation", "table"}:
+        elif canonical in {"text", "quantity", "table"}:
             row.validator = "revision_only"
             row.add("WARN", f"no dedicated validator for type {canonical}")
             for msg in validate_revision_metadata(normalized):
@@ -658,11 +631,378 @@ def render_report(
             "- One primary YAML per node: nested `execution` / `runtime` blocks in primary files.",
             "- `material_catalog` (`MAT-catalog.yaml`) is not in `CANONICAL_NODE_TYPES`.",
             "- Legacy node-owned sidecars are rejected when `LEGACY_SIDECAR_COMPAT` is false.",
-            "- Types `text`, `quantity`, `designation`, `table` have no dedicated validators — audit uses revision + generic checks only.",
+            "- Types `text`, `quantity`, `table` have no dedicated validators — audit uses revision + generic checks only.",
+            "- `designation` uses `validate_designation_node` (see `audits/contracts/nodes/designation.md`).",
+            "- `table_note` uses `validate_table_note_node` (see `audits/contracts/nodes/table-note.md`).",
+            "- `dimension` uses `validate_dimension_node` (see `audits/contracts/nodes/dimension.md`).",
+            "- `concept` uses `validate_concept_node` (see `audits/contracts/nodes/concept.md`).",
             "- Human-readable contract documents are not parsed by this audit script; validators remain enforcement authority.",
             "",
         ]
     )
+    return "\n".join(lines) + "\n"
+
+
+def _is_validation_rule_row(row: AuditRow) -> bool:
+    if row.canonical_type == "validation_rule":
+        return True
+    rel = row.rel_path.replace("\\", "/")
+    if "/validation_rule/" in rel:
+        return True
+    return False
+
+
+def render_validation_rule_report(section_a: list[AuditRow], section_b: list[AuditRow]) -> str:
+    primary_rows = [r for r in section_a if r.canonical_type == "validation_rule"]
+    sidecar_rows = [
+        r
+        for r in section_b
+        if "/validation_rule/" in r.rel_path.replace("\\", "/") or "valrule" in r.rel_path
+    ]
+    rows = primary_rows + sidecar_rows
+    overall = _overall_status(rows) if rows else "PASS"
+    pass_n = sum(1 for r in rows if r.result == "PASS")
+    warn_n = sum(1 for r in rows if r.result == "WARN")
+    fail_n = sum(1 for r in rows if r.result == "FAIL")
+
+    lines: list[str] = [
+        "# Validation Rule Node YAML Audit",
+        "",
+        f"**Overall status:** {overall}",
+        "",
+        "_Filtered projection aligned with `audits/contracts/nodes/validation-rule.md`._",
+        "",
+        "## Summary",
+        "",
+        f"- Validation rule primary files inspected: {len(primary_rows)}",
+        f"- Validation rule sidecar files inspected: {len(sidecar_rows)}",
+        f"- Passing: {pass_n}",
+        f"- Warnings: {warn_n}",
+        f"- Failing: {fail_n}",
+        "",
+        "## Enforcement policy",
+        "",
+        "- Validator: `engine/validation/validation_rule_node_validator.py`.",
+        "- Authority: `validate_authority_authorization` on `authority.authorized_by`.",
+        "- Required: `validates` list or `validates_parameter` edge; `rule_class: validation`.",
+        "- Forbidden: `calculates_parameter` edges, structural edges, runtime value fields.",
+        "- Edge targets resolved against repository index; missing PARAM targets surface as WARN.",
+        "- Supplementary tests: `tests/reference/test_validation_rule_ontology.py`.",
+        "",
+        "---",
+        "",
+        "## Validation rule primary YAML inventory",
+        "",
+        "| YAML file | Node ID | Validator | Result | Problems |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    if not primary_rows:
+        lines.append("| _none_ | — | — | **PASS** | No validation rule YAML found |")
+    for row in primary_rows:
+        prob = "; ".join(row.problems) if row.problems else "—"
+        lines.append(
+            f"| `{row.rel_path}` | `{row.node_id}` | `{row.validator}` | **{row.result}** | {prob} |"
+        )
+
+    if sidecar_rows:
+        lines.extend(
+            [
+                "",
+                "## Validation rule sidecar inventory",
+                "",
+                "| YAML file | Parent node | Contract | Result | Problems |",
+                "| --- | --- | --- | --- | --- |",
+            ]
+        )
+        for row in sidecar_rows:
+            prob = "; ".join(row.problems) if row.problems else "—"
+            lines.append(
+                f"| `{row.rel_path}` | `{row.parent}` | `{row.contract}` | **{row.result}** | {prob} |"
+            )
+    return "\n".join(lines) + "\n"
+
+
+def _is_workflow_row(row: AuditRow) -> bool:
+    if row.canonical_type == "workflow":
+        return True
+    rel = row.rel_path.replace("\\", "/")
+    if rel.startswith("workflows/"):
+        return True
+    if row.contract == "workflow-runtime.md":
+        return True
+    return False
+
+
+def render_workflow_report(section_a: list[AuditRow], section_c: list[AuditRow]) -> str:
+    primary_rows = [r for r in section_a if r.canonical_type == "workflow"]
+    sidecar_rows = list(section_c)
+    rows = primary_rows + sidecar_rows
+    overall = _overall_status(rows) if rows else "PASS"
+    pass_n = sum(1 for r in rows if r.result == "PASS")
+    warn_n = sum(1 for r in rows if r.result == "WARN")
+    fail_n = sum(1 for r in rows if r.result == "FAIL")
+
+    lines: list[str] = [
+        "# Workflow Node YAML Audit",
+        "",
+        f"**Overall status:** {overall}",
+        "",
+        "_Filtered projection aligned with `audits/contracts/nodes/workflow.md` "
+        "and `audits/contracts/nodes/sidecars/workflow-runtime.md`._",
+        "",
+        "## Summary",
+        "",
+        f"- Workflow primary files inspected: {len(primary_rows)}",
+        f"- Workflow runtime sidecar files inspected: {len(sidecar_rows)}",
+        f"- Passing: {pass_n}",
+        f"- Warnings: {warn_n}",
+        f"- Failing: {fail_n}",
+        "",
+        "## Enforcement policy",
+        "",
+        "- Validator: `engine/validation/workflow_node_validator.py`.",
+        "- Placement: runtime keys must live under nested `runtime` block (`workflow_authoring_policy`).",
+        "- Filename convention: `workflows/{machine-key}.yaml` (stem may differ from `WF-*` id).",
+        "- Supplementary tests: `tests/reference/test_workflow_ontology.py`.",
+        "",
+        "---",
+        "",
+        "## Workflow primary YAML inventory",
+        "",
+        "| YAML file | Node ID | Validator | Result | Problems |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    if not primary_rows:
+        lines.append("| _none_ | — | — | **PASS** | No workflow primary YAML found |")
+    for row in primary_rows:
+        prob = "; ".join(row.problems) if row.problems else "—"
+        lines.append(
+            f"| `{row.rel_path}` | `{row.node_id}` | `{row.validator}` | **{row.result}** | {prob} |"
+        )
+
+    lines.extend(
+        [
+            "",
+            "## Workflow runtime sidecar inventory",
+            "",
+            "| YAML file | Parent workflow | Contract | Result | Problems |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+    )
+    if not sidecar_rows:
+        lines.append(
+            "| _none_ | — | — | **PASS** | Runtime metadata uses nested `runtime` block in primary YAML |"
+        )
+    for row in sidecar_rows:
+        prob = "; ".join(row.problems) if row.problems else "—"
+        lines.append(
+            f"| `{row.rel_path}` | `{row.parent}` | `{row.contract}` | **{row.result}** | {prob} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _is_authority_row(row: AuditRow) -> bool:
+    if row.canonical_type == "authority":
+        return True
+    return "/global/authorities/nodes/" in row.rel_path.replace("\\", "/")
+
+
+def render_authority_report(rows: list[AuditRow]) -> str:
+    overall = _overall_status(rows) if rows else "PASS"
+    pass_n = sum(1 for r in rows if r.result == "PASS")
+    warn_n = sum(1 for r in rows if r.result == "WARN")
+    fail_n = sum(1 for r in rows if r.result == "FAIL")
+
+    lines: list[str] = [
+        "# Authority Node YAML Audit",
+        "",
+        f"**Overall status:** {overall}",
+        "",
+        "_Filtered projection aligned with `audits/contracts/nodes/authority.md`._",
+        "",
+        "## Summary",
+        "",
+        f"- Authority files inspected: {len(rows)}",
+        f"- Passing: {pass_n}",
+        f"- Warnings: {warn_n}",
+        f"- Failing: {fail_n}",
+        "",
+        "## Enforcement policy",
+        "",
+        "- Validator: `engine/validation/authority_node_validator.py`.",
+        "- Required: `AUTH-*` id, `key`, `name`, `authority_class`, `description`, revision metadata.",
+        "- Forbidden: runtime activation/value fields and top-level `links`.",
+        "- Edge targets resolved against repository index (`classify_edge_target`).",
+        "- Supplementary tests: `tests/reference/test_authority_ontology.py`.",
+        "",
+        "---",
+        "",
+        "## Authority node inventory",
+        "",
+        "| YAML file | Node ID | Validator | Result | Problems |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        prob = "; ".join(row.problems) if row.problems else "—"
+        lines.append(
+            f"| `{row.rel_path}` | `{row.node_id}` | `{row.validator}` | **{row.result}** | {prob} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _is_designation_row(row: AuditRow) -> bool:
+    if row.canonical_type == "designation":
+        return True
+    return "/global/designations/nodes/" in row.rel_path.replace("\\", "/")
+
+
+def render_designation_report(rows: list[AuditRow]) -> str:
+    overall = _overall_status(rows) if rows else "PASS"
+    pass_n = sum(1 for r in rows if r.result == "PASS")
+    warn_n = sum(1 for r in rows if r.result == "WARN")
+    fail_n = sum(1 for r in rows if r.result == "FAIL")
+
+    lines: list[str] = [
+        "# Designation Node YAML Audit",
+        "",
+        f"**Overall status:** {overall}",
+        "",
+        "_Filtered projection aligned with `audits/contracts/nodes/designation.md`._",
+        "",
+        "## Summary",
+        "",
+        f"- Designation files inspected: {len(rows)}",
+        f"- Passing: {pass_n}",
+        f"- Warnings: {warn_n}",
+        f"- Failing: {fail_n}",
+        "",
+        "## Enforcement policy",
+        "",
+        "- Validator: `engine/validation/designation_node_validator.py`.",
+        "- Required: `name`, `symbol`; forbidden: `dimension`, runtime value fields.",
+        "- Active gatherable designation semantics live on `PARAM-*` nodes per contract.",
+        "",
+        "---",
+        "",
+        "## Designation node inventory",
+        "",
+        "| YAML file | Node ID | Validator | Result | Problems |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    if not rows:
+        lines.append("| _none_ | — | — | **PASS** | No `type: designation` nodes authored yet |")
+    for row in rows:
+        prob = "; ".join(row.problems) if row.problems else "—"
+        lines.append(
+            f"| `{row.rel_path}` | `{row.node_id}` | `{row.validator}` | **{row.result}** | {prob} |"
+        )
+    lines.extend(
+        [
+            "",
+            "## Related parameter nodes (designation semantics)",
+            "",
+            "No standalone designation YAML is required when parameters carry designation "
+            "semantics — see `PARAM-nominal-pipe-size`, `PARAM-pipe-schedule`, "
+            "`PARAM-material-grade`.",
+            "",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def _is_concept_row(row: AuditRow) -> bool:
+    if row.canonical_type == "concept":
+        return True
+    return "/global/concepts/nodes/" in row.rel_path.replace("\\", "/")
+
+
+def render_concept_report(rows: list[AuditRow]) -> str:
+    overall = _overall_status(rows)
+    pass_n = sum(1 for r in rows if r.result == "PASS")
+    warn_n = sum(1 for r in rows if r.result == "WARN")
+    fail_n = sum(1 for r in rows if r.result == "FAIL")
+
+    lines: list[str] = [
+        "# Concept Node YAML Audit",
+        "",
+        f"**Overall status:** {overall}",
+        "",
+        "_Filtered projection aligned with `audits/contracts/nodes/concept.md`._",
+        "",
+        "## Summary",
+        "",
+        f"- Concept files inspected: {len(rows)}",
+        f"- Passing: {pass_n}",
+        f"- Warnings: {warn_n}",
+        f"- Failing: {fail_n}",
+        "",
+        "## Enforcement policy",
+        "",
+        "- Validator: `engine/validation/concept_node_validator.py`.",
+        "- `concept_class` must be in the allowed ontology list; `category` / `categorical` forbidden.",
+        "- Physical/geometric concepts require `dimension` and matching `has_dimension` edge.",
+        "- Supplementary tests: `tests/reference/test_concept_ontology.py`.",
+        "",
+        "---",
+        "",
+        "## Concept node inventory",
+        "",
+        "| YAML file | Node ID | Validator | Result | Problems |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        prob = "; ".join(row.problems) if row.problems else "—"
+        lines.append(
+            f"| `{row.rel_path}` | `{row.node_id}` | `{row.validator}` | **{row.result}** | {prob} |"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def _is_dimension_row(row: AuditRow) -> bool:
+    if row.canonical_type == "dimension":
+        return True
+    return "/global/dimensions/nodes/" in row.rel_path.replace("\\", "/")
+
+
+def render_dimension_report(rows: list[AuditRow]) -> str:
+    overall = _overall_status(rows)
+    pass_n = sum(1 for r in rows if r.result == "PASS")
+    warn_n = sum(1 for r in rows if r.result == "WARN")
+    fail_n = sum(1 for r in rows if r.result == "FAIL")
+
+    lines: list[str] = [
+        "# Dimension Node YAML Audit",
+        "",
+        f"**Overall status:** {overall}",
+        "",
+        "_Filtered projection aligned with `audits/contracts/nodes/dimension.md`._",
+        "",
+        "## Summary",
+        "",
+        f"- Dimension files inspected: {len(rows)}",
+        f"- Passing: {pass_n}",
+        f"- Warnings: {warn_n}",
+        f"- Failing: {fail_n}",
+        "",
+        "## Enforcement policy",
+        "",
+        "- Validator: `engine/validation/dimension_node_validator.py`.",
+        "- Physical/dimensionless: `canonical_unit` and `allows_unit` edges must reference existing `UNIT-*` nodes.",
+        "- Categorical: no `canonical_unit` and no `allows_unit` edges.",
+        "- Supplementary test: `tests/units/test_physical_dimensions.py`.",
+        "",
+        "---",
+        "",
+        "## Dimension node inventory",
+        "",
+        "| YAML file | Node ID | Validator | Result | Problems |",
+        "| --- | --- | --- | --- | --- |",
+    ]
+    for row in rows:
+        prob = "; ".join(row.problems) if row.problems else "—"
+        lines.append(
+            f"| `{row.rel_path}` | `{row.node_id}` | `{row.validator}` | **{row.result}** | {prob} |"
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -784,10 +1124,55 @@ def main() -> int:
         help="Paragraph-filtered audit report output path",
     )
     parser.add_argument(
+        "--dimension-report",
+        type=Path,
+        default=DIMENSION_REPORT_PATH,
+        help="Dimension-filtered audit report output path",
+    )
+    parser.add_argument(
+        "--concept-report",
+        type=Path,
+        default=CONCEPT_REPORT_PATH,
+        help="Concept-filtered audit report output path",
+    )
+    parser.add_argument(
+        "--authority-report",
+        type=Path,
+        default=AUTHORITY_REPORT_PATH,
+        help="Authority-filtered audit report output path",
+    )
+    parser.add_argument(
+        "--validation-rule-report",
+        type=Path,
+        default=VALIDATION_RULE_REPORT_PATH,
+        help="Validation-rule-filtered audit report output path",
+    )
+    parser.add_argument(
+        "--workflow-report",
+        type=Path,
+        default=WORKFLOW_REPORT_PATH,
+        help="Workflow-filtered audit report output path",
+    )
+    parser.add_argument(
+        "--designation-report",
+        type=Path,
+        default=DESIGNATION_REPORT_PATH,
+        help="Designation-filtered audit report output path",
+    )
+    parser.add_argument(
         "--filter",
-        choices=("all", "paragraph"),
+        choices=(
+            "all",
+            "paragraph",
+            "dimension",
+            "concept",
+            "designation",
+            "authority",
+            "workflow",
+            "validation_rule",
+        ),
         default="all",
-        help="When 'paragraph', also write paragraph projection (audit runs once)",
+        help="When set, also write that type projection (audit runs once)",
     )
     parser.add_argument(
         "--pack",
@@ -810,6 +1195,46 @@ def main() -> int:
     args.paragraph_report.parent.mkdir(parents=True, exist_ok=True)
     args.paragraph_report.write_text(para_report, encoding="utf-8")
     print(f"Wrote {args.paragraph_report} ({len(para_rows)} paragraph files)")
+
+    dim_rows = [r for r in section_a if _is_dimension_row(r)]
+    dim_report = render_dimension_report(dim_rows)
+    args.dimension_report.parent.mkdir(parents=True, exist_ok=True)
+    args.dimension_report.write_text(dim_report, encoding="utf-8")
+    print(f"Wrote {args.dimension_report} ({len(dim_rows)} dimension files)")
+
+    concept_rows = [r for r in section_a if _is_concept_row(r)]
+    concept_report = render_concept_report(concept_rows)
+    args.concept_report.parent.mkdir(parents=True, exist_ok=True)
+    args.concept_report.write_text(concept_report, encoding="utf-8")
+    print(f"Wrote {args.concept_report} ({len(concept_rows)} concept files)")
+
+    designation_rows = [r for r in section_a if _is_designation_row(r)]
+    designation_report = render_designation_report(designation_rows)
+    args.designation_report.parent.mkdir(parents=True, exist_ok=True)
+    args.designation_report.write_text(designation_report, encoding="utf-8")
+    print(f"Wrote {args.designation_report} ({len(designation_rows)} designation files)")
+
+    authority_rows = [r for r in section_a if _is_authority_row(r)]
+    authority_report = render_authority_report(authority_rows)
+    args.authority_report.parent.mkdir(parents=True, exist_ok=True)
+    args.authority_report.write_text(authority_report, encoding="utf-8")
+    print(f"Wrote {args.authority_report} ({len(authority_rows)} authority files)")
+
+    workflow_report = render_workflow_report(section_a, section_c)
+    workflow_rows = [r for r in section_a if r.canonical_type == "workflow"] + section_c
+    args.workflow_report.parent.mkdir(parents=True, exist_ok=True)
+    args.workflow_report.write_text(workflow_report, encoding="utf-8")
+    print(f"Wrote {args.workflow_report} ({len(workflow_rows)} workflow files)")
+
+    valrule_report = render_validation_rule_report(section_a, section_b)
+    valrule_rows = [r for r in section_a if r.canonical_type == "validation_rule"] + [
+        r
+        for r in section_b
+        if "/validation_rule/" in r.rel_path.replace("\\", "/") or "valrule" in r.rel_path
+    ]
+    args.validation_rule_report.parent.mkdir(parents=True, exist_ok=True)
+    args.validation_rule_report.write_text(valrule_report, encoding="utf-8")
+    print(f"Wrote {args.validation_rule_report} ({len(valrule_rows)} validation rule files)")
 
     return 0 if _overall_status(all_rows) != "FAIL" else 1
 

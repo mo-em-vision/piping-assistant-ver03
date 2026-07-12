@@ -7,6 +7,7 @@ from engine.planner.graph_requirements import (
     lookup_requirement_id,
     requirement_id,
 )
+from engine.reference.parameter_keys import LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY
 
 WELD_W_FIELD = "weld_joint_strength_reduction_factor_W"
 
@@ -14,7 +15,7 @@ PIPE_WALL_LOOKUP_IDS = (
     lookup_requirement_id("allowable_stress"),
     lookup_requirement_id("metallurgical_group"),
     lookup_requirement_id("temperature_coefficient_Y"),
-    lookup_requirement_id("weld_joint_efficiency"),
+    lookup_requirement_id(LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY),
     lookup_requirement_id(WELD_W_FIELD),
 )
 
@@ -53,7 +54,7 @@ LOOKUP_SOURCES = {
     lookup_requirement_id("allowable_stress"): "asme-b313-table-A-1",
     lookup_requirement_id("metallurgical_group"): "MAT-catalog",
     lookup_requirement_id("temperature_coefficient_Y"): "asme-b313-table-304-1-1-1",
-    lookup_requirement_id("weld_joint_efficiency"): "asme-b313-table-A-2",
+    lookup_requirement_id(LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY): "asme-b313-table-A-3",
     lookup_requirement_id(WELD_W_FIELD): "asme-b313-table-302-3-5-1",
 }
 

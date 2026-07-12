@@ -96,12 +96,23 @@ Parameters with `parameter_class: categorical` or `material_designation` store r
 
 ## 12. Validation procedure
 
-No dedicated validator. Validate manually:
+Dedicated validator: `engine/validation/designation_node_validator.py`.
 
-1. Confirm `type: designation` and required `symbol`.
+Audit projection:
+
+```bash
+python scripts/audit_current_node_yaml.py --filter designation
+```
+
+Report: `audits/reports/nodes/designation-node-audit.md`.
+
+Checks:
+
+1. Confirm `type: designation` and required `name`, `symbol`.
 2. Confirm no `dimension` or runtime value fields.
-3. Confirm linked `PARAM-*` exists when referenced.
-4. Prefer `PARAM-nominal-pipe-size` pattern for active gatherable fields.
+3. Confirm revision metadata (`metadata.last_revision`, `metadata.edited_by`).
+4. Validate typed `edges` (no top-level `links`).
+5. Prefer `PARAM-nominal-pipe-size` pattern for active gatherable fields when semantics are runtime-facing.
 
 ## 13. Common authoring mistakes
 
@@ -125,6 +136,7 @@ Related parameter nodes carrying designation semantics:
 
 ## 15. Implementation evidence appendix
 
-- Validator: none dedicated; ontology patterns from `tests/reference/test_knowledge_node_links.py`
+- Validator: `engine/validation/designation_node_validator.py`; audit `--filter designation` → `audits/reports/nodes/designation-node-audit.md`
+- Tests: `tests/reference/test_designation_audit_process.py`
 - Parameter classes: `engine/validation/parameter_node_validator.py` — `material_designation`, `categorical` in `ALLOWED_PARAMETER_CLASSES`
 - Dimension for designations: `knowledge/global/dimensions/nodes/DIM-material-designation.yaml`

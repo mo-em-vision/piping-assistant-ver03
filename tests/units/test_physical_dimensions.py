@@ -8,6 +8,7 @@ import pytest
 
 from engine.reference.graph_edge_schema import dimension_allowed_unit_ids
 from engine.reference.standards_markdown import split_frontmatter
+from engine.validation.dimension_node_validator import validate_dimension_node
 
 
 def _project_root() -> Path:
@@ -24,20 +25,16 @@ def test_physical_dimension_nodes_reference_existing_units() -> None:
     unit_ids = _unit_ids()
     for path in sorted(dims_dir.glob("DIM-*.yaml")):
         meta, _body = split_frontmatter(path.read_text(encoding="utf-8"))
-        assert meta["type"] == "dimension"
-        assert meta.get("dimension_kind") in {"physical", "dimensionless", "categorical"}
+        issues = validate_dimension_node(meta, known_unit_ids=unit_ids)
+        assert issues == [], f"{path.name}: {issues}"
         kind = str(meta.get("dimension_kind", "")).strip()
         if kind == "categorical":
             assert meta.get("canonical_unit") in {None, "null"}
             assert dimension_allowed_unit_ids(meta) == []
             continue
         canonical = str(meta.get("canonical_unit") or "").strip()
-        assert canonical in unit_ids
         allowed = dimension_allowed_unit_ids(meta)
-        assert allowed, f"{path.name} must declare allowed units"
         assert canonical in allowed, f"{path.name} canonical_unit must be in allows_unit edges"
-        for unit_id in allowed:
-            assert unit_id in unit_ids, f"{path.name} allows unknown unit {unit_id!r}"
 
 
 def test_velocity_units_compile_and_convert() -> None:

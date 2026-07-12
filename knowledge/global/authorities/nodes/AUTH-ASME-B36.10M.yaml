@@ -7,9 +7,7 @@ authority_class: dimensional_standard
 publisher: ASME
 title: Welded and Seamless Wrought Steel Pipe
 description: 'Dimensional standard defining sizes, outside diameters, wall thicknesses,
-  and schedules for welded and seamless wrought steel pipe.
-
-  '
+  and schedules for welded and seamless wrought steel pipe.'
 scope:
   domain:
   - piping
@@ -20,9 +18,13 @@ contains:
   - TABLE-B36.10M-pipe-dimensions
 edges:
 - type: constrains_parameter
+  target: PARAM-nominal-pipe-size
+- type: constrains_parameter
+  target: PARAM-pipe-schedule
+- type: constrains_parameter
   target: PARAM-outside-diameter
 - type: constrains_parameter
-  target: PARAM-nominal-wall-thickness
+  target: PARAM-actual-wall-thickness
 metadata:
   status: active
   version: 1

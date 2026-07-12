@@ -11,6 +11,10 @@ from engine.reference.node_authoring_policy import LEGACY_SIDECAR_COMPAT
 from engine.reference.node_block_extractor import extract_nested_blocks
 from engine.reference.standards_markdown import split_frontmatter
 
+from engine.reference.parameter_keys import (
+    LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
+    LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_PARAM,
+)
 from engine.reference.workflow_authoring_policy import WORKFLOW_RUNTIME_KEYS as _RUNTIME_KEYS
 
 _PARAM_TO_FIELD: dict[str, str] = {
@@ -23,7 +27,8 @@ _PARAM_TO_FIELD: dict[str, str] = {
     "PARAM-metallurgical-group": "metallurgical_group",
     "PARAM-design-temperature": "design_temperature",
     "PARAM-external-design-pressure": "external_design_pressure",
-    "PARAM-weld-joint-efficiency": "weld_joint_efficiency",
+    "PARAM-basic-casting-quality-factor": "basic_casting_quality_factor",
+    LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_PARAM: LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
     "PARAM-weld-strength-reduction-factor-W": "weld_joint_strength_reduction_factor_W",
     "PARAM-temperature-coefficient-Y": "temperature_coefficient_Y",
     "PARAM-pipe-construction-type": "pipe_construction_type",

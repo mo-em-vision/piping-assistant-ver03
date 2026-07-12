@@ -6,6 +6,11 @@ from pathlib import Path
 
 from engine.reference.graph_edge_schema import edge_targets
 from engine.reference.standards_markdown import split_frontmatter
+from engine.validation.concept_node_validator import (
+    FORBIDDEN_CONCEPT_CLASSES,
+    VALID_CONCEPT_CLASSES,
+    validate_concept_node,
+)
 from engine.validation.node_revision_metadata import validate_revision_metadata
 
 _FORBIDDEN_FIELDS = frozenset(
@@ -25,24 +30,8 @@ _FORBIDDEN_FIELDS = frozenset(
 
 _PHYSICAL_CLASSES = frozenset({"physical_quantity", "geometric_quantity"})
 
-_VALID_CONCEPT_CLASSES = frozenset(
-    {
-        "physical_quantity",
-        "geometric_quantity",
-        "material",
-        "fluid",
-        "component",
-        "condition",
-        "coefficient",
-        "factor",
-        "selection",
-        "failure_mode",
-        "inspection_method",
-        "authority_concept",
-    }
-)
-
-_FORBIDDEN_CONCEPT_CLASSES = frozenset({"category", "categorical"})
+_VALID_CONCEPT_CLASSES = VALID_CONCEPT_CLASSES
+_FORBIDDEN_CONCEPT_CLASSES = FORBIDDEN_CONCEPT_CLASSES
 
 
 def _project_root() -> Path:
@@ -56,18 +45,8 @@ def _concepts_dir() -> Path:
 def test_concept_nodes_have_required_fields() -> None:
     for path in sorted(_concepts_dir().glob("CONCEPT-*.yaml")):
         meta, _body = split_frontmatter(path.read_text(encoding="utf-8"))
-        assert meta["type"] == "concept"
-        assert str(meta["id"]).startswith("CONCEPT-")
-        assert meta.get("key")
-        assert meta.get("name")
-        assert meta.get("concept_class")
-        concept_class = str(meta.get("concept_class", "")).strip()
-        assert concept_class in _VALID_CONCEPT_CLASSES, path.name
-        assert concept_class not in _FORBIDDEN_CONCEPT_CLASSES, path.name
-        assert meta.get("description")
-        assert validate_revision_metadata(meta) == [], path.name
-        for field in _FORBIDDEN_FIELDS:
-            assert field not in meta, f"{path.name} must not contain {field!r}"
+        issues = validate_concept_node(meta)
+        assert issues == [], f"{path.name}: {issues}"
 
 
 def test_physical_concepts_reference_dimensions() -> None:
@@ -109,9 +88,10 @@ def test_factor_concept_weld_joint_efficiency() -> None:
     assert meta.get("concept_class") == "factor"
     assert meta.get("dimension") in {None, "null"}
     assert edge_targets(meta, "has_dimension") == []
-    assert edge_targets(meta, "has_parameter") == ["PARAM-weld-joint-efficiency"]
-    assert "asme-b313-table-A-2" in edge_targets(meta, "used_by")
-    assert "asme-b313-table-A-3" in edge_targets(meta, "used_by")
+    assert edge_targets(meta, "has_parameter") == [
+        "PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes"
+    ]
+    assert edge_targets(meta, "used_by") == ["asme-b313-table-A-3"]
 
 
 def test_coefficient_concept_temperature_coefficient() -> None:

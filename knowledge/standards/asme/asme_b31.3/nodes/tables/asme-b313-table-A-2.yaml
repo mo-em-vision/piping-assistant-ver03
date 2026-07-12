@@ -22,8 +22,8 @@ inputs:
   source: user_input
   unit: dimensionless
 returns:
-- parameter: PARAM-weld-joint-efficiency
-  symbol: E
+- parameter: PARAM-basic-casting-quality-factor
+  symbol: E_c
 lookup:
   table: asme-b313-table-A-2
   keys:
@@ -33,7 +33,7 @@ edges:
 - type: depends_on
   target: 302.3.3-b
 - type: returns_parameter
-  target: PARAM-weld-joint-efficiency
+  target: PARAM-basic-casting-quality-factor
 - type: requires_parameter
   target: PARAM-material-grade
 metadata:

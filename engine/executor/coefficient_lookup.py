@@ -12,7 +12,12 @@ from engine.reference.coefficient_resolver import (
     lookup_y_coefficient,
 )
 from engine.reference.standards_paths import resolve_standard_pack
-from engine.reference.parameter_keys import MATERIAL_GRADE_KEY, parameter_is_ready, read_fact_value
+from engine.reference.parameter_keys import (
+    LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
+    MATERIAL_GRADE_KEY,
+    parameter_is_ready,
+    read_fact_value,
+)
 from engine.state.task_facts import active_facts, fact_unit, store_lookup_numeric_fact
 from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready, fact_scalar_value
 from models.task import Task
@@ -20,16 +25,16 @@ from models.task import Task
 from engine.reference.asme_b31_3_table_ids import (
     TABLE_302_3_5,
     TABLE_304_1_1,
-    TABLE_A_2,
+    TABLE_A_3,
 )
 
 B31_3_SLUG = "asme_b31.3"
-A2_TABLE_REF = f"{B31_3_SLUG}/{TABLE_A_2}"
+A3_TABLE_REF = f"{B31_3_SLUG}/{TABLE_A_3}"
 W_TABLE_REF = f"{B31_3_SLUG}/{TABLE_302_3_5}"
 Y_TABLE_REF = f"{B31_3_SLUG}/{TABLE_304_1_1}"
 
 _COEFFICIENT_FIELDS = (
-    "weld_joint_efficiency",
+    LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
     "weld_joint_strength_reduction_factor_W",
     "temperature_coefficient_Y",
 )
@@ -135,7 +140,7 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
     temperature_ready = _input_ready(existing_inputs, "design_temperature")
 
     if material_ready and joint_ready:
-        existing = task.fact_store.active_fact("weld_joint_efficiency")
+        existing = task.fact_store.active_fact(LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY)
         if _should_auto_apply(existing):
             try:
                 e_value = lookup_quality_factor(
@@ -148,13 +153,13 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
             if e_value is not None:
                 _set_table_coefficient(
                     task,
-                    input_id="weld_joint_efficiency",
-                    symbol="E",
+                    input_id=LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
+                    symbol="E_j",
                     value=e_value,
                     description=(
-                        f"Quality factor from Tables A-2/A-3 for {material} ({joint_category})"
+                        f"Quality factor E_j from Table A-3 for {material} ({joint_category})"
                     ),
-                    table_ref=A2_TABLE_REF,
+                    table_ref=A3_TABLE_REF,
                 )
 
     if material_ready and joint_ready and temperature_ready:

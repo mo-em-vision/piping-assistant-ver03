@@ -31,6 +31,9 @@ TABLE_304_1_1 = TABLE_304_1_1_1
 TABLE_302_3_5_1 = asme_b31_3_table_id("302.3.5-1")
 # 2024 revision renamed Table 302.3.5 to Table 302.3.5-1.
 TABLE_302_3_5 = TABLE_302_3_5_1
-TABLE_302_3_3C = asme_b31_3_table_id("table_302_3_3C")
+TABLE_302_3_3_1 = asme_b31_3_table_id("302.3.3-1")
+TABLE_302_3_3_2 = asme_b31_3_table_id("302.3.3-2")
+# Legacy alias for pre-2024 Table 302.3.3C numbering.
+TABLE_302_3_3C = TABLE_302_3_3_1
 # Legacy alias; canonical id is TABLE_A_1.
 TABLE_MATERIAL_ALLOWABLE_STRESS = TABLE_A_1

@@ -1,0 +1,27 @@
+---
+id: PARAM-excess-thickness-in-the-branch-pipe-wall
+type: parameter
+key: excess_thickness_in_the_branch_pipe_wall
+name: Excess Thickness in the Branch Pipe Wall
+parameter_class: calculated_quantity
+description: >
+  Available reinforcement area A_3 from excess thickness in the branch pipe wall,
+  per ASME B31.3 §304.3.3(c) eq. (8).
+canonical_symbol: A_3
+aliases:
+  - excess thickness in the branch pipe wall
+  - branch excess thickness area
+  - branch pipe excess thickness area
+  - A_3
+introduced_by:
+  - asme-b313-304-3-3-c
+edges:
+  - type: used_by
+    target: asme-b313-304-3-3-eq-8
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-12
+  edited_by: admin
+  canonical_unit: UNIT-mm2
+---

@@ -29,13 +29,13 @@ requires:
   description: Smaller angle between axes of branch and run
 calculates:
 - symbol: A_3
-  parameter: PARAM-branch-excess-thickness-area
+  parameter: PARAM-excess-thickness-in-the-branch-pipe-wall
 edges:
-- type: requires_parameter
-  target: PARAM-corrosion-allowance
-  alias: c
-- type: calculates_parameter
-  target: PARAM-branch-excess-thickness-area
+  - type: requires_parameter
+    target: PARAM-corrosion-allowance
+    alias: c
+  - type: calculates_parameter
+    target: PARAM-excess-thickness-in-the-branch-pipe-wall
 metadata:
   status: active
   version: 1

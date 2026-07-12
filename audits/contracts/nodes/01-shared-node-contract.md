@@ -28,7 +28,7 @@ You need runtime task state (Facts, Goals, user values). Those belong in Executi
 | --- | --- |
 | Stability | `id` never changes after publication; rename by adding a new node and deprecating the old one. |
 | Filename | `nodes/<kind>/{id}.yaml` — no extra prefixes in the path. |
-| Canonical `type` | Must match one of the fourteen canonical kinds in `engine/reference/node_types.py`. |
+| Canonical `type` | Must match one of the canonical kinds in `engine/reference/node_types.py`. |
 | Pack prefixes | Standards equations use `asme-b313-*`; global params use `PARAM-*`; workflows use `WF-*`; etc. — see per-type contracts. |
 
 ## 6. Copyable minimal YAML skeleton
