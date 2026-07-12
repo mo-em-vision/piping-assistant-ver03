@@ -99,7 +99,36 @@ def test_unresolved_lookup_row_has_table_lookup_provenance(standards_reader) -> 
     )
     assert provenance["source_type"] == "table_lookup"
     assert provenance["status"] == "pending_derived"
-    assert "Table" in provenance["label"] or "table" in provenance["label"].lower()
+    assert provenance["label"] == "Resolved from"
+    assert provenance.get("source_ref", {}).get("table_id") == "asme_b31.3_A-1"
+
+
+def test_lookup_row_reference_chip_uses_full_table_citation(standards_reader) -> None:
+    from api.reference_links import enrich_row_provenance_dict
+
+    manager = TaskStateManager()
+    task = manager.create_task("prov-s-chip", status=TaskStatus.AWAITING_INPUT)
+    task.active_nodes = ["asme-b313-table-A-1", "304.1.2-a"]
+
+    row = enrich_row_provenance_dict(
+        {
+            "symbol": "S",
+            "parameter": "Allowable Stress",
+            "value": "",
+            "parameter_id": "PARAM-allowable-stress",
+            "value_provenance": build_value_provenance(
+                standards_reader,
+                "PARAM-allowable-stress",
+                task,
+                display_value="",
+            ),
+        },
+        standards_reader,
+        task=task,
+    )
+    chips = (row.get("value_provenance") or {}).get("reference_chips") or []
+    assert chips
+    assert chips[0]["label"].startswith("ASME B31.3 Table A-1")
 
 
 def test_unresolved_user_input_row_awaits_user(standards_reader) -> None:
@@ -226,14 +255,14 @@ def test_api_projection_keeps_definition_reference_separate_from_row_chips(stand
         task=task,
     )
     definition_reference = row.get("definition_reference") or {}
-    assert definition_reference.get("label") == "§304.1.1"
+    assert definition_reference.get("label") == "ASME B31.3 §304.1.1"
     def_node_id = str(definition_reference.get("node_id") or "")
     provenance = row.get("value_provenance") or {}
     row_chips = provenance.get("reference_chips") or []
     assert row_chips, "expected value-side reference chips on the row"
     for chip in row_chips:
         assert chip.get("id") != def_node_id
-        assert str(chip.get("label") or "") != "§304.1.1"
+        assert str(chip.get("label") or "") != "ASME B31.3 §304.1.1"
 
 
 def test_phase1_through_phase3_guards_still_pass() -> None:

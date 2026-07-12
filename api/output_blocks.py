@@ -47,7 +47,7 @@ def build_display_outputs(
     blocks.extend(_workflow_scope_blocks(task, planning, resolved_reader))
     blocks.extend(_paragraph_context_blocks(task, planning, resolved_reader, trace=trace_list))
     blocks.extend(_equation_display_blocks(task, planning, resolved_reader, trace=trace_list))
-    blocks.extend(_input_waiting_blocks(task))
+    blocks.extend(_input_waiting_blocks(task, blocks))
     blocks.extend(_validation_blocks_from_trace(trace_list, task))
 
     if has_trace:
@@ -148,8 +148,13 @@ def _warning_blocks_from_task(task: Task) -> list[dict[str, Any]]:
     return [_warning_block(message) for message in task.warnings]
 
 
-def _input_waiting_blocks(task: Task) -> list[dict[str, Any]]:
+def _input_waiting_blocks(
+    task: Task,
+    existing_blocks: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
     if task.status != TaskStatus.AWAITING_INPUT:
+        return []
+    if _equation_blocks_show_awaiting_input(existing_blocks or []):
         return []
     from engine.messaging.center_panel_copy import GENERIC_INPUT_WAITING_MESSAGE
 
@@ -166,6 +171,24 @@ def _input_waiting_blocks(task: Task) -> list[dict[str, Any]]:
             volatile=True,
         )
     ]
+
+
+def _equation_blocks_show_awaiting_input(blocks: list[dict[str, Any]]) -> bool:
+    from api.equation_inputs_display import AWAITING_USER_INPUT
+
+    for block in blocks:
+        if block.get("type") != "equation":
+            continue
+        table = block.get("input_table") or {}
+        for row in table.get("rows") or []:
+            if not isinstance(row, dict):
+                continue
+            if str(row.get("value") or "").strip() == AWAITING_USER_INPUT:
+                return True
+            provenance = row.get("value_provenance") or {}
+            if isinstance(provenance, dict) and provenance.get("status") == "awaiting_user_input":
+                return True
+    return False
 
 
 def _workflow_scope_blocks(

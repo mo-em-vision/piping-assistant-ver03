@@ -1,5 +1,6 @@
 import { DisplayMath, EngineeringMathText, InlineMath, isEngineeringSymbol } from '@/components/math/engineeringMath'
 import { ReferenceChipList } from '@/components/outputs/ReferenceChipList'
+import { InlineCitationText } from '@/components/standards/InlineCitationText'
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 import { equationPresentationLines } from '@/utils/equationPresentationLines'
 
@@ -50,18 +51,6 @@ function renderInputTableCell(columnKey: string, value: string, pending = false)
   )
 }
 
-function renderReferenceLink(reference: ReferenceLinkDto) {
-  const referenceKind = reference.reference_kind === 'table' ? 'table' : 'node'
-  return (
-    <StandardReferenceLink
-      referenceKind={referenceKind}
-      referenceId={reference.node_id}
-      nodeId={reference.node_id}
-      label={reference.label}
-    />
-  )
-}
-
 function provenanceChips(row: EquationInputTableRowDto): ReferenceChipDto[] | undefined {
   const nested = row.value_provenance?.reference_chips
   if (nested?.length) {
@@ -70,29 +59,24 @@ function provenanceChips(row: EquationInputTableRowDto): ReferenceChipDto[] | un
   return row.reference_chips
 }
 
-function renderRowReferenceChips(chips?: ReferenceChipDto[]) {
-  return <ReferenceChipList chips={chips} className="reference-chip-list--inline" />
-}
-
 function primaryChip(chips?: ReferenceChipDto[]): ReferenceChipDto | undefined {
   return chips?.[0]
 }
 
 function renderProvenanceTrail(provenance: ValueProvenanceDto, row: EquationInputTableRowDto) {
-  const chips = provenanceChips(row)
-  const chip = primaryChip(chips)
+  const chip = primaryChip(provenanceChips(row))
+  const reference = row.value_reference
+
   return (
     <span className="output-equation__value-provenance">
-      <span className="output-equation__value-provenance-label">{provenance.label}</span>
-      {chip ? (
-        <>
-          {' '}
-          {renderRowReferenceChips([chip])}
-        </>
-      ) : null}
-      {provenance.detail ? (
-        <span className="output-equation__value-provenance-detail"> {provenance.detail}</span>
-      ) : null}
+      <InlineCitationText
+        className="output-equation__value-provenance-label"
+        label={provenance.label}
+        linkLabel={chip?.label ?? reference?.label}
+        chip={chip}
+        link={!chip ? reference : undefined}
+        detail={provenance.detail}
+      />
     </span>
   )
 }
@@ -121,15 +105,26 @@ function collectRowReferenceKeys(row: EquationInputTableRowDto): Set<string> {
 }
 
 function renderValueReference(row: EquationInputTableRowDto) {
-  const chips = provenanceChips(row)
-  const chip = primaryChip(chips)
-  if (chip) {
-    return renderRowReferenceChips([chip])
-  }
+  const chip = primaryChip(provenanceChips(row))
   const reference = row.value_reference
-  if (reference) {
-    return renderReferenceLink(reference)
+  const provenance = row.value_provenance
+
+  if (provenance) {
+    return renderProvenanceTrail(provenance, row)
   }
+
+  if (chip) {
+    return (
+      <InlineCitationText chip={chip} linkLabel={chip.label} />
+    )
+  }
+
+  if (reference) {
+    return (
+      <InlineCitationText link={reference} linkLabel={reference.label} />
+    )
+  }
+
   return null
 }
 
@@ -188,7 +183,7 @@ function renderDescriptionCell(row: EquationInputTableRowDto) {
     <span className="output-equation__definition-cell">
       {description ? <EngineeringMathText text={description} /> : null}
       {description ? ' — ' : null}
-      {renderReferenceLink(reference)}
+      <InlineCitationText link={reference} linkLabel={reference.label} />
     </span>
   )
 }
@@ -212,26 +207,58 @@ function renderUnitCell(row: EquationInputTableRowDto) {
 function renderSourceCell(row: EquationInputTableRowDto) {
   const provenance = row.value_provenance
   const sourceText = String(row.source ?? '').trim()
-  const chips = provenanceChips(row)
+  const chip = primaryChip(provenanceChips(row))
 
-  if (!sourceText && !chips?.length && !provenance) {
+  if (!sourceText && !chip && !provenance) {
     return <span className="output-equation__input-empty">{EMPTY_CELL}</span>
   }
 
-  return (
-    <span className="output-equation__source-cell">
-      {sourceText ? <EngineeringMathText text={sourceText} /> : null}
-      {chips?.length ? (
-        <span className="output-equation__source-chips">
-          {sourceText ? ' ' : null}
-          {renderRowReferenceChips(chips)}
-        </span>
-      ) : null}
-      {!sourceText && !chips?.length && provenance ? (
-        <span className="output-equation__value-provenance-label">{provenance.label}</span>
-      ) : null}
-    </span>
-  )
+  if (provenance && chip) {
+    return (
+      <span className="output-equation__source-cell">
+        <InlineCitationText
+          label={provenance.label}
+          linkLabel={chip.label}
+          chip={chip}
+          detail={provenance.detail}
+        />
+      </span>
+    )
+  }
+
+  if (provenance && !chip) {
+    return (
+      <span className="output-equation__source-cell">
+        <InlineCitationText label={provenance.label} detail={provenance.detail} />
+      </span>
+    )
+  }
+
+  if (sourceText && chip) {
+    return (
+      <span className="output-equation__source-cell">
+        <InlineCitationText label={sourceText} linkLabel={chip.label} chip={chip} />
+      </span>
+    )
+  }
+
+  if (sourceText) {
+    return (
+      <span className="output-equation__source-cell">
+        <EngineeringMathText text={sourceText} />
+      </span>
+    )
+  }
+
+  if (chip) {
+    return (
+      <span className="output-equation__source-cell">
+        <InlineCitationText chip={chip} linkLabel={chip.label} />
+      </span>
+    )
+  }
+
+  return <span className="output-equation__input-empty">{EMPTY_CELL}</span>
 }
 
 function renderInputTableRowCell(
@@ -358,14 +385,14 @@ export function EquationOutput({ block }: EquationOutputProps) {
       {presentation.result ? renderMathLine(block.id, 'result', presentation.result) : null}
       {isEvaluated ? inputTable : null}
       {!block.input_table && footerChips.length ? (
-        <ReferenceChipList chips={footerChips} />
+        <ReferenceChipList chips={footerChips} className="reference-chip-list--inline" />
       ) : null}
       {!block.input_table && block.nomenclature_reference ? (
         <p className="output-equation__nomenclature-ref">
-          Symbols defined in{' '}
-          <StandardReferenceLink
-            nodeId={block.nomenclature_reference.node_id}
-            label={block.nomenclature_reference.label}
+          <InlineCitationText
+            prefix="Symbols defined in"
+            link={block.nomenclature_reference}
+            linkLabel={block.nomenclature_reference.label}
           />
         </p>
       ) : null}

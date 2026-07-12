@@ -75,7 +75,7 @@ def _sort_required_inputs(
     return sorted(required, key=sort_key)
 
 
-_DEFINITION_PHASE_INPUTS = frozenset({"corrosion_allowance"})
+from engine.graph.workflow_adapters import DEFINITION_PHASE_INPUTS as _DEFINITION_PHASE_INPUTS
 
 
 def _edges_from_plan(plan: ExecutionPlan) -> list[GraphEdgeRecord]:

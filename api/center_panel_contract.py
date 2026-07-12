@@ -15,9 +15,11 @@ from models.display_role import (
     sort_blocks_by_report_role,
 )
 
-_CONTRACT_PATH = (
-    Path(__file__).resolve().parents[1] / "contracts" / "center_panel_report_role_order.json"
-)
+def _resolve_contract_path() -> Path:
+    return Path(__file__).resolve().parents[1] / "contracts" / "center_panel_report_role_order.json"
+
+
+_CONTRACT_PATH = _resolve_contract_path()
 
 
 def load_report_role_order() -> tuple[str, ...]:

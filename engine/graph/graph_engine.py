@@ -77,14 +77,6 @@ def legacy_graph_traversal_enabled(reader: StandardsReader) -> bool:
     return not reader.graph_store.available
 
 
-# Legacy workflow slug → micro-graph workflow node id (resolved at execution time only)
-_LEGACY_ROOT_ALIASES: dict[str, str] = {
-    "pipe_wall_thickness_design": "B313-WF-PIPE-WALL-THICKNESS",
-    "mawp_design": "B313-WF-MAWP",
-    "B313-PIPE-WALL-THICKNESS-DESIGN": "B313-WF-PIPE-WALL-THICKNESS",
-}
-
-
 def normalize_root_id(root_ref: str) -> str:
     """Convert root path references to workflow slug ids."""
     text = root_ref.strip().strip("/")
@@ -101,8 +93,9 @@ def normalize_root_id(root_ref: str) -> str:
 
 def resolve_workflow_node_id(root_ref: str) -> str:
     """Map legacy slug to micro-graph workflow node id when applicable."""
-    slug = normalize_root_id(root_ref)
-    return _LEGACY_ROOT_ALIASES.get(slug, slug)
+    from engine.graph.workflow_adapters import resolve_workflow_node_id as _adapter_resolve
+
+    return _adapter_resolve(root_ref, normalize=normalize_root_id)
 
 
 class GraphEngine:

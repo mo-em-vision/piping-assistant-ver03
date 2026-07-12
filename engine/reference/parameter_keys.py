@@ -108,7 +108,10 @@ def active_material_grade_fact(task: Task) -> Fact | None:
 
 def param_node_id_for_input(input_id: str) -> str:
     """Return global PARAM-* node id for a runtime input / fact key."""
-    return f"PARAM-{canonical_parameter_key(input_id).replace('_', '-')}"
+    canonical = canonical_parameter_key(input_id)
+    if canonical.upper().startswith("PARAM-"):
+        return canonical
+    return f"PARAM-{canonical.replace('_', '-')}"
 
 
 def param_display_name_from_id(param_node_id: str) -> str:

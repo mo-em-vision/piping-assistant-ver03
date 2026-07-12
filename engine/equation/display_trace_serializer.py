@@ -100,6 +100,9 @@ def enrich_equation_block(
     enriched.setdefault("display_role", "equation")
     enriched["equation_display_trace"] = trace_to_dict(trace)
 
+    if trace.title and not str(enriched.get("title") or "").strip():
+        enriched["title"] = trace.title
+
     if trace.status == "evaluated":
         enriched["display_state"] = "evaluated"
         enriched["equation_content"] = "evaluated"

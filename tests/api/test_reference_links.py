@@ -41,8 +41,8 @@ def test_enrich_display_output_uses_equation_node_id_chip(reader: StandardsReade
         },
         reader,
     )
-    assert eq2["reference_chips"][0]["label"] == "Eq. (2)"
-    assert eq3a["reference_chips"][0]["label"] == "Eq. (3a)"
+    assert eq2["reference_chips"][0]["label"] == "ASME B31.3 Eq. (2)"
+    assert eq3a["reference_chips"][0]["label"] == "ASME B31.3 Eq. (3a)"
 
 
 def test_node_id_ref_resolves_to_paragraph_label(reader: StandardsReader) -> None:
@@ -50,7 +50,7 @@ def test_node_id_ref_resolves_to_paragraph_label(reader: StandardsReader) -> Non
     assert len(chips) == 1
     chip = chips[0]
     assert chip["ref_type"] == "node"
-    assert chip["label"].startswith("§304.1.2")
+    assert chip["label"].startswith("ASME B31.3 §304.1.2")
     assert chip["label"] != "304.1.2-a"
     assert chip["target"]["node_id"] == "304.1.2-a"
 
@@ -96,7 +96,7 @@ def test_enrich_presentation_block_adds_chips_without_mutating_refs(reader: Stan
     assert enriched["block_id"] == "guidance-test"
     assert enriched["refs"] == {"node_id": "304.1.1-a"}
     assert enriched["reference_chips"]
-    assert enriched["reference_chips"][0]["label"].startswith("§304.1.1")
+    assert enriched["reference_chips"][0]["label"].startswith("ASME B31.3 §304.1.1")
 
 
 def test_legacy_reference_links_resolve_to_chips(reader: StandardsReader) -> None:
@@ -105,7 +105,34 @@ def test_legacy_reference_links_resolve_to_chips(reader: StandardsReader) -> Non
         reader,
     )
     assert len(chips) == 1
-    assert chips[0]["label"].startswith("§304.1.2")
+    assert chips[0]["label"].startswith("ASME B31.3 §304.1.2")
+
+
+def test_table_id_ref_resolves_to_db_table_id(reader: StandardsReader) -> None:
+    chips = resolve_reference_chips({"table_id": "asme_b31.3_A-2"}, reader)
+    assert len(chips) == 1
+    chip = chips[0]
+    assert chip["ref_type"] == "table"
+    assert chip["id"] == "asme_b31.3_A-2"
+    assert chip["label"] == "ASME B31.3 Table A-2"
+    assert chip["target"]["table_id"] == "asme_b31.3_A-2"
+
+
+def test_legacy_table_reference_chip_uses_db_table_id(reader: StandardsReader) -> None:
+    chips = resolve_reference_chips_from_legacy_links(
+        [
+            {
+                "node_id": "asme_b31.3_A-2",
+                "label": "ASME B31.3 Table A-2",
+                "reference_kind": "table",
+            }
+        ],
+        reader,
+    )
+    assert len(chips) == 1
+    assert chips[0]["id"] == "asme_b31.3_A-2"
+    assert chips[0]["target"]["table_id"] == "asme_b31.3_A-2"
+    assert "(para." not in chips[0]["label"]
 
 
 def test_enrich_row_provenance_keeps_definition_reference_separate(reader: StandardsReader) -> None:

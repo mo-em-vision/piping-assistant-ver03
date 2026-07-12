@@ -257,7 +257,7 @@ def test_allowable_stress_value_includes_asme_b31_3_lookup_context() -> None:
     rows = build_formula_inputs_table_rows(task)
     stress_row = next(row for row in rows if row["symbol"] == "S")
     assert stress_row["value"] == (
-        "193 MPa (ASME B31.3 Table A-1 (para. 302.3.5-d), ASTM A106 Grade B @ 400 °F)"
+        "193 MPa (ASME B31.3 Table A-1, ASTM A106 Grade B @ 400 °F)"
     )
 
 

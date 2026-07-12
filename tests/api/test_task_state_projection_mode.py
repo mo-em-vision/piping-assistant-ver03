@@ -42,6 +42,9 @@ def test_interactive_task_state_omits_debug_projections() -> None:
     assert "legacy_goal_map" not in payload
     assert "canonical" not in payload
     assert "inspector_summary" not in payload
+    outputs = payload.get("outputs") or {}
+    assert "_execution_trace" not in outputs
+    assert "_expansion_traversal_trace" not in outputs
 
 
 def test_full_task_state_includes_debug_projections() -> None:

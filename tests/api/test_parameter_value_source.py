@@ -24,7 +24,7 @@ def test_build_value_provenance_equation_output_pending(standards_reader) -> Non
     )
     assert provenance["source_type"] == "equation_output"
     assert provenance["status"] == "pending_derived"
-    assert provenance["label"] == ""
+    assert provenance["label"] == "Defined in"
 
 
 def test_required_wall_thickness_references_internal_pressure_paragraph(standards_reader) -> None:
@@ -80,7 +80,7 @@ def test_allowable_stress_value_reference_opens_table(standards_reader) -> None:
         task,
     )
     assert reference is not None
-    assert reference["label"] == "Table A-1"
+    assert reference["label"].startswith("ASME B31.3 Table A-1")
     assert reference["reference_kind"] == "table"
     assert reference["node_id"] == "asme_b31.3_A-1"
     assert standards_reader.tables_database.resolve_table_id(reference["node_id"]) is not None
@@ -97,7 +97,7 @@ def test_weld_joint_efficiency_value_reference_opens_table(standards_reader) -> 
         task,
     )
     assert reference is not None
-    assert reference["label"] == "Table A-2"
+    assert reference["label"].startswith("ASME B31.3 Table A-2")
     assert reference["reference_kind"] == "table"
     assert reference["node_id"] == "asme_b31.3_A-2"
 
@@ -113,6 +113,6 @@ def test_temperature_coefficient_value_reference_opens_table(standards_reader) -
         task,
     )
     assert reference is not None
-    assert reference["label"] == "Table 304.1.1-1"
+    assert reference["label"].startswith("ASME B31.3 Table 304.1.1-1")
     assert reference["reference_kind"] == "table"
     assert reference["node_id"] == "asme_b31.3_table_304_1_1_1"

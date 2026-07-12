@@ -10,7 +10,7 @@ The reviews give a non-technical project owner, CEO, or product manager a plain-
 - **Free of doc/architecture conflicts**
 - **Safe** to build
 - **Testable** with clear acceptance criteria
-- **Ready** for implementation
+- **Ready** for human review
 
 Both sections live **inside Cursor's plan output** — not in a separate script, not in an external tool, not hidden in a side file.
 
@@ -31,6 +31,17 @@ Both sections live **inside Cursor's plan output** — not in a separate script,
 
 ---
 
+## Who assigns status
+
+| Actor | May assign | May not assign |
+| --- | --- | --- |
+| **Cursor** | **READY_FOR_REVIEW**, **REVISE**, **BLOCKED** | **APPROVED** |
+| **Project owner** | **APPROVED**, **REVISE**, **BLOCKED** | — |
+
+Cursor must not self-certify a plan as **APPROVED**. **READY_FOR_REVIEW** means the draft is ready for human review — not permission to implement.
+
+---
+
 ## Workflow
 
 ```
@@ -42,15 +53,26 @@ Architecture Consistency Review (inside the plan)
       ↓
 Plan Review Gate (inside the plan)
       ↓
-┌─────────────┬──────────────┬─────────────┐
-│  APPROVED   │    REVISE    │   BLOCKED   │
-└─────────────┴──────────────┴─────────────┘
-      ↓              ↓              ↓
- Implement      Revise plan    Resolve decisions
-                                 with stakeholder
+┌──────────────────┬──────────────┬─────────────┐
+│ READY_FOR_REVIEW │    REVISE    │   BLOCKED   │
+└──────────────────┴──────────────┴─────────────┘
+      ↓                    ↓              ↓
+ Project owner         Revise plan    Resolve decisions
+ reviews → APPROVED?                      with stakeholder
+      ↓
+ User gives explicit
+ implementation instruction
+      ↓
+ Implement
 ```
 
-**Implementation is not allowed** when the Architecture Consistency Review is not **CLEAR**, or when the Plan Review Gate status is **REVISE** or **BLOCKED**.
+**Implementation is not allowed** when:
+
+- Architecture Consistency Review is not **CLEAR**
+- Plan Review Gate is **REVISE** or **BLOCKED**
+- Gate is **READY_FOR_REVIEW** (awaiting owner approval)
+- Project owner has not granted **APPROVED**
+- User has not given an explicit implementation instruction after approval
 
 ---
 
@@ -67,7 +89,15 @@ Required **before** the Plan Review Gate. Full template: [`.cursor/rules/plan-re
 | **NEEDS_DECISION** | Two sources of truth conflict with no clear winner |
 | **BLOCKED** | Implementation would violate `docs/rules.md` |
 
-If status is not **CLEAR**, the Plan Review Gate must be **REVISE** or **BLOCKED**, not **APPROVED**.
+If status is not **CLEAR**, Cursor must not set the gate to **READY_FOR_REVIEW** or **APPROVED**.
+
+### NEEDS_DOC_UPDATE sequence
+
+1. **Phase 0 — documentation only** (no feature implementation).
+2. Apply listed doc/rule/audit fixes.
+3. Repeat Architecture Consistency Review.
+4. Require **CLEAR**.
+5. Cursor sets **READY_FOR_REVIEW** → project owner grants **APPROVED** → user gives explicit implementation instruction.
 
 ### Required fields
 
@@ -84,15 +114,15 @@ If status is not **CLEAR**, the Plan Review Gate must be **REVISE** or **BLOCKED
 
 ### Compliance checklist
 
-Answer all ten questions in [`.cursor/rules/plan-review-gate.mdc`](../../.cursor/rules/plan-review-gate.mdc). Any violation → Plan Review Gate must not be **APPROVED**.
+Answer all ten questions in [`.cursor/rules/plan-review-gate.mdc`](../../.cursor/rules/plan-review-gate.mdc). Any violation → Cursor sets gate to **REVISE** or **BLOCKED**.
 
 ---
 
 ## Plan Review Gate status definitions
 
-### APPROVED
+### READY_FOR_REVIEW (Cursor only)
 
-- Architecture Consistency Review status is **CLEAR** (or required doc updates are included in the plan)
+- Architecture Consistency Review status is **CLEAR**
 - Scope is clear and appropriately sized
 - Architecture boundaries are respected
 - Tests are defined (general + workflow + regression + user-visible)
@@ -100,7 +130,14 @@ Answer all ten questions in [`.cursor/rules/plan-review-gate.mdc`](../../.cursor
 - Acceptance criteria are in plain English
 - No unresolved product/architecture decisions
 
-**Implementation Permission:** "Implementation allowed."
+**Implementation Permission (Cursor):** "Implementation not allowed — plan is **READY_FOR_REVIEW**; awaiting project-owner approval."
+
+### APPROVED (project owner only)
+
+- Same readiness criteria as **READY_FOR_REVIEW**
+- Project owner has reviewed and accepted the plan
+
+**Implementation Permission:** "Implementation allowed." — still requires an explicit user implementation instruction before Cursor writes production code.
 
 ### REVISE
 
@@ -122,7 +159,7 @@ Answer all ten questions in [`.cursor/rules/plan-review-gate.mdc`](../../.cursor
 
 Every Plan Review Gate must include these headings in order:
 
-1. **Status** — APPROVED / REVISE / BLOCKED
+1. **Status** — READY_FOR_REVIEW / REVISE / BLOCKED (Cursor) or APPROVED / REVISE / BLOCKED (project owner)
 2. **Plain-English Summary** — 3–6 bullets
 3. **Business/User Impact**
 4. **Architecture Alignment**
@@ -161,13 +198,13 @@ Reviewers (human or Cursor) should verify the plan against existing docs — **d
 | Report | Output formatting | Engineering values |
 | Flow Guidance | Traversal narration | Engineering truth |
 | Messaging | Deterministic ask copy | Navigation |
-| CLI / Desktop | Render blocks, collect input | Engineering rules |
+| Desktop / API / chat | Render blocks, collect input | Engineering rules |
 
 ---
 
 ## Status assignment rules
 
-| Condition | Status |
+| Condition | Cursor status |
 | --- | --- |
 | Architecture Consistency Review not **CLEAR** | REVISE or BLOCKED |
 | Tests missing from plan | REVISE |
@@ -179,6 +216,7 @@ Reviewers (human or Cursor) should verify the plan against existing docs — **d
 | Guidance/prompts in wrong layer | REVISE |
 | Scope too broad without split steps | REVISE or BLOCKED |
 | Missing product decision | BLOCKED |
+| Plan looks sound and consistency review is **CLEAR** | **READY_FOR_REVIEW** (never **APPROVED**) |
 
 ---
 
@@ -208,8 +246,9 @@ See full example in [`.cursor/rules/plan-review-gate.mdc`](../../.cursor/rules/p
 When reading a Cursor plan:
 
 1. Scroll to **Architecture Consistency Review** first — check **Status**.
-2. If not **CLEAR**, send the plan back before checking the gate.
+2. If not **CLEAR**, send the plan back before checking the gate (or approve Phase 0 doc-only work only).
 3. Scroll to **Plan Review Gate** — check **Status** and **Implementation Permission**.
-4. If not APPROVED, do not approve implementation — send the plan back for revision.
-5. Use **Business/User Impact** and **Main Risks** for stakeholder communication.
-6. Use **Missing Decisions** as the agenda for the next planning conversation.
+4. If **READY_FOR_REVIEW**, review and set **APPROVED**, **REVISE**, or **BLOCKED**.
+5. After **APPROVED**, give an explicit implementation instruction before Cursor codes.
+6. Use **Business/User Impact** and **Main Risks** for stakeholder communication.
+7. Use **Missing Decisions** as the agenda for the next planning conversation.

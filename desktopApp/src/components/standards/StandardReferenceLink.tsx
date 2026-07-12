@@ -10,6 +10,8 @@ import { buildTableViewerContext } from '@/utils/tableViewerContext'
 
 import './StandardReferenceLink.css'
 
+export type StandardReferenceLinkVariant = 'inline' | 'chip'
+
 interface StandardReferenceLinkProps {
   referenceKind?: StandardsReferenceKind
   referenceId?: string
@@ -19,6 +21,7 @@ interface StandardReferenceLinkProps {
   viewerContext?: TableViewerContext | NodeViewerContext
   /** When false, open the reference tab without leaving the current panel view. */
   activateTab?: boolean
+  variant?: StandardReferenceLinkVariant
 }
 
 export function StandardReferenceLink({
@@ -29,6 +32,7 @@ export function StandardReferenceLink({
   label,
   viewerContext,
   activateTab = true,
+  variant = 'inline',
 }: StandardReferenceLinkProps) {
   const resolvedId = referenceId ?? nodeId ?? ''
   const openReferenceTab = useRightPanelStore((state) => state.openReferenceTab)
@@ -42,11 +46,16 @@ export function StandardReferenceLink({
         ? { subsectionId }
         : undefined)
 
+  const buttonClass =
+    variant === 'chip'
+      ? 'standard-reference-link__button standard-reference-link__button--chip'
+      : 'standard-reference-link__button standard-reference-link__button--inline'
+
   return (
     <span className="standard-reference-link">
       <button
         type="button"
-        className="standard-reference-link__button"
+        className={buttonClass}
         onClick={() => {
           useUiStore.setState({ rightCollapsed: false })
           openReferenceTab(resolvedId, label, referenceKind, resolvedViewerContext, {

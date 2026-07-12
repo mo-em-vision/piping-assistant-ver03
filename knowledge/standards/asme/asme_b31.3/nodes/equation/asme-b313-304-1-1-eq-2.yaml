@@ -5,7 +5,7 @@ key: asme-b313-304-1-1-eq-2
 name: Minimum Required Pipe Wall Thickness
 equation_class: calculation
 calculation_kind: function
-description: Minimum Required Pipe Wall Thickness
+description: The following equation determines the minimum required pipe wall thickness.
 authority:
   authorized_by:
   - 304.1.1-a

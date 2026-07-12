@@ -195,7 +195,7 @@ $$`
     )
 
     const link = screen.getByRole('button', { name: '§304.1.2' })
-    expect(link).toHaveClass('standard-reference-link__button')
+    expect(link).toHaveClass('standard-reference-link__button--inline')
 
     fireEvent.click(link)
 
@@ -208,7 +208,7 @@ $$`
     )
 
     const link = screen.getByRole('button', { name: 'Table A-2' })
-    expect(link).toHaveClass('standard-reference-link__button')
+    expect(link).toHaveClass('standard-reference-link__button--inline')
 
     fireEvent.click(link)
 

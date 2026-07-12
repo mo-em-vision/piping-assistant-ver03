@@ -1,44 +1,37 @@
 ---
-description: Agent workflow and coding standards — follow docs/rules.md
+description: Agent workflow — read docs/rules.md (source of truth)
 alwaysApply: true
 ---
 
 # Agent rules
 
-Read and follow `docs/rules.md` before significant work. That file is the source of truth; do not contradict it.
+Read and follow [`docs/rules.md`](docs/rules.md) before significant work. That file is the **sole source of truth** for agent rules; do not contradict it.
 
 Apply it when planning, coding, debugging, adding dependencies, writing tests, or editing nodes and workflows.
 
-## Sections (read the full doc for detail)
+## When to re-read `docs/rules.md`
 
-1. **Read before you write** — inspect target files and existing patterns first.
-2. **Think before you code** — state assumptions and tradeoffs; ask when unclear.
-3. **Simplicity** — minimum code for the current problem; no premature abstraction.
-4. **Surgical changes** — smallest justified diff; match existing style.
-5. **Verifications** — prove fixes with failing tests; test real behavior.
-6. **Goal-driven execution** — define success criteria and plan multi-step work first.
-7. **Debugging** — reproduce, read errors fully, change one thing at a time.
-8. **Dependencies** — prefer stdlib/existing code; justify new packages.
-9. **Communication** — explain what and why; flag uncertainty precisely.
-10. **Common failure modes** — stop if you drift into kitchen-sink refactors or wrong abstractions.
-11. **Node structure** — workflows from root nodes only; graph traversal reads node data; use node templates; confirm template changes with the user.
-12. **User-facing prompts** — planner owns navigation (what to ask); `engine/messaging/` owns prompt copy (how to phrase it). Resolve via `build_parameter_input_prompt()`; defaults in `workflow_parameter_prompts.py`. Do not add prompt strings to `engine/planner/`.
-13. **Graph-driven workflow paths** — no hardcoded branches, steps, or parameter lists in engine/API/UI; paths from node expansion, assumptions, and edge `when` clauses. Replan after each input. See `docs/rules.md` §13 and `.cursor/rules/graph-expansion.mdc`.
-14. **Parameter key consistency** — lookup `inputs[].id`, fact keys, and workflow lists match `PARAM-*` `key`; see `docs/rules.md` §14 and `.cursor/rules/parameter-key-consistency.mdc`.
-15. **Derived parameter value display** — unresolved values produced by equations or lookups show a `value_reference` link in equation input tables, not "Awaiting user input"; see `docs/rules.md` §15.
-16. **Lookup-derived parameters** — table lookup outputs (E, W, Y, S, …) are resolved from lookup keys via graph `returns_parameter` edges; do not ask users to confirm invented defaults; see `docs/rules.md` §16.
-17. **PARAM-driven composer metadata** — every gatherable parameter needs a `PARAM-*` node; composer label/type/units/options come from node metadata only (no engine fallbacks); see `docs/rules.md` §17 and `.cursor/rules/param-composer-metadata.mdc`.
-18. **Lookup conditionals** — table boundary/clamp rules on output `PARAM-*` nodes via `lookup_conditionals`; generic interpreter in `engine/graph/lookup_conditionals.py` only; see `docs/rules.md` §18 and `.cursor/rules/lookup-conditionals.mdc`.
-19. **Planner traversal debug state** — `PlannerTraversalState` on `EngineeringPlan` for inspector debugging; derived in `planner_traversal.py`; does not drive paths; inspector reads `engineering_plan`; see `docs/rules.md` §19.
-20. **Engineering plan validation** — `validate_engineering_plan()` invariants on normalized plan output; rejects flat `GOAL-*`/`REQ-*` maps; see `docs/rules.md` §20.
-21. **Flow Guidance Layer** — traversal narration in `presentation/guidance/workflows/` via `GuidanceResolver`; `ResponseComposer` merges guidance with `engine/messaging/` prompts; `presentation_blocks` owned by `PresentationResponse` (not workflow state); `transcript_blocks` append-only display history; see `docs/rules.md` §21.
-22. **Plan Review Gate** — every feature plan must include a **Plan Review Gate** section after Architecture Consistency Review; status APPROVED / REVISE / BLOCKED; write for non-technical reviewers; do not implement until APPROVED; see `docs/process/plan_review_gate.md`, `.cursor/rules/plan-review-gate.mdc`, `.cursor/rules/feature-planning.mdc`.
-23. **Architecture Consistency Review** — every feature plan must include an **Architecture Consistency Review** before the Plan Review Gate; status CLEAR / NEEDS_DOC_UPDATE / NEEDS_DECISION / BLOCKED; surfaces doc/architecture conflicts in plain English; see `docs/rules.md` §23.
+| Task | Sections |
+| --- | --- |
+| Any significant change | Skim full doc; §1–§10 always |
+| Parameter asks / composer copy | §12, §17 |
+| Graph paths / expansion | §13, `.cursor/rules/graph-expansion.mdc` |
+| Parameter keys / lookup display | §14–§16 |
+| Planner inspector / validation | §19–§20 |
+| Presentation / transcript / block lifecycle | §21, §25 |
+| Feature planning | §22–§23, `.cursor/rules/plan-review-gate.mdc` |
+| Equation display trace | §24 |
 
-For node, standards, or workflow work, re-read **§11**, **§13**, **§14**, and **§18** in `docs/rules.md` before editing.
+## Specialized cursor rules (pointers only)
 
-For parameter asks, material autocomplete, or workflow composer copy, re-read **§12** and **§17** in `docs/rules.md` before editing.
+These extend `docs/rules.md` — they do not replace it:
 
-For traversal narration and CLI transcript blocks, re-read **§21** in `docs/rules.md` before editing.
+- `.cursor/rules/graph-expansion.mdc` — §13
+- `.cursor/rules/parameter-key-consistency.mdc` — §14
+- `.cursor/rules/param-composer-metadata.mdc` — §17
+- `.cursor/rules/lookup-conditionals.mdc` — §18
+- `.cursor/rules/plan-review-gate.mdc` — §22–§23
+- `.cursor/rules/paragraph-subsection-naming.mdc` — §11
+- `.cursor/rules/feature-planning.mdc` — planning workflow
 
-For feature plans and non-trivial changes, include the **Architecture Consistency Review** (§23) and **Plan Review Gate** (§22) per `.cursor/rules/plan-review-gate.mdc` before writing production code.
+For feature plans and non-trivial changes, include **Architecture Consistency Review** (§23) and **Plan Review Gate** (§22) per `plan-review-gate.mdc` before writing production code.

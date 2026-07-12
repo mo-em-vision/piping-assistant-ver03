@@ -180,25 +180,6 @@ def emit_equation_blocks(
 
     rows: list[dict[str, Any]] = []
     requires = eq_meta.get("requires") or []
-    # #region agent log
-    import json as _json
-    import time as _time
-
-    with open("debug-12f291.log", "a", encoding="utf-8") as _f:
-        _f.write(
-            _json.dumps(
-                {
-                    "sessionId": "12f291",
-                    "hypothesisId": "A",
-                    "location": "display_emitter.py:emit_equation_blocks",
-                    "message": "resolving equation requires",
-                    "data": {"equation_id": equation_id, "requires_count": len(requires)},
-                    "timestamp": int(_time.time() * 1000),
-                }
-            )
-            + "\n"
-        )
-    # #endregion
     for item in requires:
         binding = resolve_require_binding(store, item)
         if binding is None:

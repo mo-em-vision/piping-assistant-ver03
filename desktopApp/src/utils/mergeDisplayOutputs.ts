@@ -62,16 +62,40 @@ function partitionByLifecycle(blocks: DisplayOutputBlock[]): {
   return { durable, preview }
 }
 
-function collectIncomingPreviewEquations(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
+function mergePreviewEquationBlocks(
+  previewPrevious: DisplayOutputBlock[],
+  previewIncoming: DisplayOutputBlock[],
+  durableEquationKeys: Set<string>,
+): DisplayOutputBlock[] {
   const byKey = new Map<string, DisplayOutputBlock>()
-  for (const block of blocks) {
+
+  for (const block of previewPrevious) {
+    if (!isPreviewEquationBlock(block)) {
+      continue
+    }
+    const key = mergeEquationTraceHistoryKey(block)
+    if (!isStablePreviewEquationKey(key) || durableEquationKeys.has(key)) {
+      continue
+    }
+    byKey.set(key, block)
+  }
+
+  for (const block of previewIncoming) {
     if (!isPreviewEquationBlock(block)) {
       continue
     }
     const key = mergeEquationTraceHistoryKey(block) ?? block.id
+    if (durableEquationKeys.has(key)) {
+      continue
+    }
     byKey.set(key, block)
   }
+
   return Array.from(byKey.values())
+}
+
+function isStablePreviewEquationKey(key: string | null): key is string {
+  return Boolean(key?.startsWith('equation-'))
 }
 
 function collectInputWaitingBlocks(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
@@ -81,7 +105,7 @@ function collectInputWaitingBlocks(blocks: DisplayOutputBlock[]): DisplayOutputB
 /**
  * Merge display outputs by lifecycle:
  * - durable blocks update/append by stable block id only
- * - preview equation blocks from the incoming snapshot only (keyed by stable equation id)
+ * - preview equation blocks keyed by stable equation id; retain visited previews from previous
  * - other preview blocks replace by display_channel when present
  * - volatile blocks are dropped except ephemeral input_waiting from the incoming snapshot
  */
@@ -93,10 +117,17 @@ export function mergeDisplayOutputs(
   const filteredIncoming = withoutVolatileBlocks(incoming)
   const inputWaiting = collectInputWaitingBlocks(incoming)
 
-  const { durable: durablePrevious } = partitionByLifecycle(filteredPrevious)
-  const { durable: durableIncoming, preview: previewIncoming } = partitionByLifecycle(filteredIncoming)
+  const { durable: durablePrevious, preview: previewPrevious } =
+    partitionByLifecycle(filteredPrevious)
+  const { durable: durableIncoming, preview: previewIncoming } =
+    partitionByLifecycle(filteredIncoming)
 
   const mergedDurable = mergeDurableBlocks(durablePrevious, durableIncoming)
+  const durableEquationKeys = new Set(
+    mergedDurable
+      .map((block) => mergeEquationTraceHistoryKey(block))
+      .filter((key): key is string => key != null),
+  )
 
   const previewByChannel = new Map<string, DisplayOutputBlock>()
   for (const block of previewIncoming) {
@@ -107,7 +138,11 @@ export function mergeDisplayOutputs(
     previewByChannel.set(channel, block)
   }
 
-  const previewEquations = collectIncomingPreviewEquations(previewIncoming)
+  const previewEquations = mergePreviewEquationBlocks(
+    previewPrevious,
+    previewIncoming,
+    durableEquationKeys,
+  )
 
   return [
     ...mergedDurable,

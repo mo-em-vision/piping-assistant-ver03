@@ -114,6 +114,13 @@ def equation_evaluation_in_progress(
     return False
 
 
+def _equation_display_heading(metadata: dict[str, Any]) -> tuple[str | None, str | None]:
+    """User-facing equation title and description from equation node metadata."""
+    title = str(metadata.get("name") or metadata.get("title") or "").strip() or None
+    description = str(metadata.get("description") or metadata.get("purpose") or "").strip() or None
+    return title, description
+
+
 def build_equation_evaluation_block(
     task: Task,
     reader: StandardsReader,
@@ -146,11 +153,12 @@ def build_equation_evaluation_block(
         rows = _legacy_variable_rows(reader, resolved.get("variables") or [], task)
 
     resolved_block_id = block_id or equation_display_block_id(equation_id)
+    equation_title, equation_description = _equation_display_heading(eq_record.metadata)
 
     block: dict[str, Any] = {
         "id": resolved_block_id,
         "type": "equation",
-        "title": None,
+        "title": equation_title,
         "content": _display_to_latex(display),
         "display": display,
         "input_table": {
@@ -158,6 +166,8 @@ def build_equation_evaluation_block(
             "rows": rows,
         },
     }
+    if equation_description:
+        block["context_intro"] = equation_description
 
     nomenclature_reference = resolve_equation_display_variables(reader, equation_id).get(
         "nomenclature_reference"
@@ -209,7 +219,12 @@ def build_equation_evaluation_block(
 
         context = build_equation_context_from_paragraph(reader, focus_node_id)
         if context:
-            tagged.update(context)
+            paragraph_intro = str(context.get("context_intro") or "").strip()
+            if paragraph_intro and not str(tagged.get("context_intro") or "").strip():
+                tagged["context_intro"] = paragraph_intro
+            lead = str(context.get("context_lead") or "").strip()
+            if lead:
+                tagged["context_lead"] = lead
 
     return tagged
 

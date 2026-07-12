@@ -79,5 +79,6 @@ describe('input archive transcript rendering', () => {
 
     expect(blocks[0]?.reference_chips).toHaveLength(1)
     expect(blocks[0]?.reference_chips?.[0]?.label).toBe('§304.1.1')
+    expect(blocks[0]?.reference_links_placement).toBe('inline')
   })
 })

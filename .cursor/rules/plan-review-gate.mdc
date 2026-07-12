@@ -7,7 +7,9 @@ alwaysApply: true
 
 Every Cursor feature plan **must** include a visible **Architecture Consistency Review** section and a **Plan Review Gate** section inside the plan itself — not in a separate file, not hidden, not deferred until implementation.
 
-**Do not implement** until the Architecture Consistency Review status is **CLEAR** (or required doc updates are completed) and the Plan Review Gate status is **APPROVED**.
+**Do not implement** until the Architecture Consistency Review status is **CLEAR**, the project owner grants **APPROVED**, and the user gives an explicit implementation instruction.
+
+**Cursor may assign READY_FOR_REVIEW, REVISE, or BLOCKED — not APPROVED.**
 
 Full process: [`docs/process/plan_review_gate.md`](docs/process/plan_review_gate.md). Architecture source of truth: [`docs/rules.md`](docs/rules.md) §22–§23, [`docs/core/3. component_responsibilities.md`](docs/core/3.%20component_responsibilities.md).
 
@@ -32,14 +34,22 @@ Every plan must include this section **before** the Plan Review Gate.
 
 ### Status values
 
-| Status | Meaning | Plan Review Gate |
+| Status | Meaning | Cursor gate action |
 | --- | --- | --- |
-| **CLEAR** | No architectural conflicts | May proceed to gate |
-| **NEEDS_DOC_UPDATE** | Docs inconsistent; intended architecture is clear | Gate must be **REVISE** |
-| **NEEDS_DECISION** | Conflicting sources of truth | Gate must be **REVISE** or **BLOCKED** |
-| **BLOCKED** | Would violate `docs/rules.md` | Gate must be **BLOCKED** |
+| **CLEAR** | No architectural conflicts | May set **READY_FOR_REVIEW** |
+| **NEEDS_DOC_UPDATE** | Docs inconsistent; intended architecture is clear | **Phase 0 doc-only** — see sequence below |
+| **NEEDS_DECISION** | Conflicting sources of truth | **REVISE** or **BLOCKED** |
+| **BLOCKED** | Would violate `docs/rules.md` | **BLOCKED** |
 
-If status is not **CLEAR**, the Plan Review Gate must not be **APPROVED**.
+If status is not **CLEAR**, Cursor must not set the gate to **READY_FOR_REVIEW** or **APPROVED**.
+
+### NEEDS_DOC_UPDATE sequence
+
+1. **Phase 0 — documentation only** (no feature implementation).
+2. Apply listed doc/rule/audit fixes.
+3. Repeat Architecture Consistency Review.
+4. Require **CLEAR**.
+5. Cursor sets **READY_FOR_REVIEW** → project owner grants **APPROVED** → user gives explicit implementation instruction.
 
 ### Required format
 
@@ -63,7 +73,7 @@ If status is not **CLEAR**, the Plan Review Gate must not be **APPROVED**.
 1. Does this plan introduce hardcoded workflow fields, branch IDs, paragraph IDs, or frontend engineering logic?
 2. Does this plan ask for lookup-derived outputs instead of lookup keys?
 3. Does this plan bypass `PARAM-*` metadata for gatherable parameters?
-4. Does this plan put prompt copy in the planner, graph engine, execution layer, CLI, API serializers, or frontend?
+4. Does this plan put prompt copy in the planner, graph engine, execution layer, API serializers, or frontend?
 5. Does this plan put traversal narration outside the Flow Guidance Layer?
 6. Does this plan add fixed required input lists where graph expansion should decide active inputs?
 7. Does this plan use old node layout instructions as if they are current?
@@ -71,17 +81,18 @@ If status is not **CLEAR**, the Plan Review Gate must not be **APPROVED**.
 9. Does this plan use legacy planner/goal maps as canonical output?
 10. Does this plan require doc/rule/test updates before implementation?
 
-If any answer indicates a violation, the Plan Review Gate must not be **APPROVED**.
+If any answer indicates a violation, Cursor must set the gate to **REVISE** or **BLOCKED**.
 
 ---
 
 ## Plan Review Gate status values
 
-| Status | Meaning | Implementation |
+| Status | Who sets | Implementation |
 | --- | --- | --- |
-| **APPROVED** | Safe, aligned, testable, ready | Allowed |
-| **REVISE** | Plan must be corrected first | **Not allowed** |
-| **BLOCKED** | Too unclear, too broad, or violates architecture | **Not allowed** |
+| **READY_FOR_REVIEW** | Cursor | **Not allowed** — awaiting project-owner review |
+| **REVISE** | Cursor or owner | **Not allowed** |
+| **BLOCKED** | Cursor or owner | **Not allowed** |
+| **APPROVED** | **Project owner only** | Allowed after explicit user implementation instruction |
 
 ---
 
@@ -94,7 +105,7 @@ Copy this structure into every plan. Fill every section.
 
 ## Status
 
-APPROVED / REVISE / BLOCKED
+READY_FOR_REVIEW / REVISE / BLOCKED
 
 ## Plain-English Summary
 
@@ -109,7 +120,7 @@ APPROVED / REVISE / BLOCKED
 Answer in plain English:
 
 - Does this plan keep engineering truth out of the wrong layers?
-- Does it respect the Planner, Graph Engine, Execution, Validation, Report, Guidance, and CLI boundaries?
+- Does it respect the Planner, Graph Engine, Execution, Validation, Report, Guidance, and Desktop/API boundaries?
 - Does it avoid hardcoding workflow-specific behavior into general components?
 - Does it avoid using UI/output fixes to change engineering logic?
 
@@ -140,12 +151,14 @@ If none: "No major missing decisions."
 
 ## Implementation Permission
 
-Exactly one of:
+Exactly one of (Cursor):
 
-- "Implementation allowed."
+- "Implementation not allowed — plan is **READY_FOR_REVIEW**; awaiting project-owner approval."
 - "Implementation not allowed until the plan is revised."
 - "Implementation blocked until the missing decision is resolved."
 ```
+
+Only the project owner may write "Implementation allowed." with status **APPROVED**.
 
 ---
 
@@ -154,25 +167,26 @@ Exactly one of:
 Use these rules when choosing status:
 
 1. **Always generate** the Architecture Consistency Review and Plan Review Gate inside the plan itself.
-2. **Architecture Consistency Review first** — if not **CLEAR**, gate must be **REVISE** or **BLOCKED**.
+2. **Architecture Consistency Review first** — if not **CLEAR**, gate must be **REVISE** or **BLOCKED** (or Phase 0 for NEEDS_DOC_UPDATE).
 3. **Do not hide** the review in a separate file unless the user explicitly asks.
 4. **Write for project managers** — explain risks, missing pieces, and corrections in business/product/architecture language.
-5. **Do not implement** until consistency review is **CLEAR** and gate status is **APPROVED**.
-6. **Broad features** → split into smaller implementation steps; if unsplit, status is **REVISE** or **BLOCKED**.
-7. **Tests missing** from the plan → status **REVISE**.
-8. **Architecture boundaries unclear** → status **REVISE**.
-9. **Plan modifies unrelated layers** → status **REVISE** or **BLOCKED**.
-10. **UI/output problem solved by changing Planner, Graph, Execution, or engineering nodes** → status **REVISE** unless clearly justified in Architecture Alignment.
-11. **General feature tested only with one real workflow** → status **REVISE**. Require generic/synthetic behavior tests **plus** one real workflow integration test.
-12. **Plan risks hardcoding to `pipe_wall_thickness_design`** → status **REVISE**.
-13. **User-facing explanations, guidance, prompts, or screen output** — verify Flow Guidance Layer rules ([`docs/rules.md` §21](docs/rules.md#21-flow-guidance-layer-traversal-narration)):
+5. **Do not implement** until consistency review is **CLEAR**, owner grants **APPROVED**, and user gives explicit implementation instruction.
+6. **Never self-approve** — Cursor sets **READY_FOR_REVIEW** at best.
+7. **Broad features** → split into smaller implementation steps; if unsplit, status is **REVISE** or **BLOCKED**.
+8. **Tests missing** from the plan → status **REVISE**.
+9. **Architecture boundaries unclear** → status **REVISE**.
+10. **Plan modifies unrelated layers** → status **REVISE** or **BLOCKED**.
+11. **UI/output problem solved by changing Planner, Graph, Execution, or engineering nodes** → status **REVISE** unless clearly justified in Architecture Alignment.
+12. **General feature tested only with one real workflow** → status **REVISE**. Require generic/synthetic behavior tests **plus** one real workflow integration test.
+13. **Plan risks hardcoding to `pipe_wall_thickness_design`** → status **REVISE**.
+14. **User-facing explanations, guidance, prompts, or screen output** — verify Flow Guidance Layer rules ([`docs/rules.md` §21](docs/rules.md#21-flow-guidance-layer-traversal-narration)):
     - Traversal narration → Flow Guidance Layer (`presentation/guidance/workflows/`, `GuidanceResolver`)
     - Deterministic parameter prompts → `engine/messaging/`
-    - CLI displays structured blocks only
+    - Desktop/API/chat display structured blocks only
     - `presentation_blocks` and `transcript_blocks` stay separate; transcript is append-only
-14. **Calculations, validation, graph traversal, or engineering nodes** — engineering truth must remain deterministic and traceable.
-15. **Plan must state** which files are allowed to change and which must not change.
-16. **Plan must state** acceptance criteria in plain English.
+15. **Calculations, validation, graph traversal, or engineering nodes** — engineering truth must remain deterministic and traceable.
+16. **Plan must state** which files are allowed to change and which must not change.
+17. **Plan must state** acceptance criteria in plain English.
 
 ---
 
@@ -189,7 +203,7 @@ When filling **Architecture Alignment**, check against existing docs — do not 
 | **Report** | Format structured results | Modify engineering values |
 | **Flow Guidance** | Traversal narration, composed presentation blocks | Engineering truth, planner navigation |
 | **Messaging** | Deterministic prompt text | Which parameter is active |
-| **CLI / Desktop** | Display structured blocks, collect input | Engineering logic, graph traversal |
+| **Desktop / API / chat** | Display structured blocks, collect input | Engineering logic, graph traversal |
 | **Frontend** | Visualization, stores, API calls | Calculations, standards logic, workflow branching |
 
 Graph-driven paths: [`docs/rules.md` §13](docs/rules.md#13-graph-driven-workflow-paths), [`.cursor/rules/graph-expansion.mdc`](.cursor/rules/graph-expansion.mdc).
@@ -245,7 +259,7 @@ The plan is not aligned yet. It mixes workflow navigation with screen presentati
 ## Documentation / Rules Updates Required
 
 - Update Flow Guidance Layer rules.
-- Update CLI output rules for append-only transcript behavior.
+- Update transcript append-only behavior in API/chat orchestration docs.
 
 ## Out of Scope
 

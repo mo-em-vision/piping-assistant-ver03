@@ -9,7 +9,6 @@ source:
 type: lookup
 title: Weld Joint Strength Reduction Factor, W
 table_number: 302.3.5-1
-paragraph_number: 302.3.5-e
 status: draft
 revision_year: 2024
 inputs:

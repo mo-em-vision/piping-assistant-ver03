@@ -104,6 +104,34 @@ describe('withPreservedDisplayOutputs', () => {
     ])
   })
 
+  it('retains stable preview equation when focus advances in session', () => {
+    const previewEq2: DisplayOutputBlock = {
+      id: 'equation-asme-b313-304-1-1-eq-2',
+      type: 'equation',
+      lifecycle: 'preview',
+      display_role: 'equation',
+      display_state: 'preview',
+      equation_node_id: 'asme-b313-304-1-1-eq-2',
+      source_node_id: '304.1.1-a',
+      content: 't_m = t + c',
+      display: 't_m = t + c',
+    }
+
+    const previous = createTaskState({
+      display_outputs: [previewEq2],
+    })
+    const incoming = createTaskState({
+      display_outputs: [stableEq3Block],
+    })
+
+    const merged = withPreservedDisplayOutputs(previous, incoming)
+
+    expect(merged.display_outputs.map((block) => block.id)).toEqual([
+      'equation-asme-b313-304-1-2-eq-3a',
+      'equation-asme-b313-304-1-1-eq-2',
+    ])
+  })
+
   it('strips legacy preview equations from cache and merges durable incoming blocks', () => {
     const taskId = 'pipe-wall-thickness-test01'
     saveTranscriptCache(taskId, [legacyPreviewEquation, durableExplanation])

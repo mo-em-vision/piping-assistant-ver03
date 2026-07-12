@@ -181,7 +181,8 @@ def test_gate_phase_single_eq3a_preview_before_thickness_eval(
     ]
     assert len(preview_eq) == 1
     assert preview_eq[0].get("id") == EQ_3A_BLOCK_ID
-    assert not str(preview_eq[0].get("context_intro") or "").strip()
+    assert str(preview_eq[0].get("title") or "").strip()
+    assert str(preview_eq[0].get("context_intro") or "").strip()
     assert "paragraph-304.1.2-a" in block_ids
     assert not any(str(block.get("equation_node_id")) == EQ_2_ID for block in blocks)
     assert not any(str(block.get("id", "")).startswith("equation-trace-") for block in blocks)

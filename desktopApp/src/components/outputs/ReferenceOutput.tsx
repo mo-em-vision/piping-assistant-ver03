@@ -1,4 +1,4 @@
-import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
+import { InlineCitationText } from '@/components/standards/InlineCitationText'
 
 import type { ReferenceOutputBlock } from '@/types/backend/outputs'
 
@@ -16,10 +16,13 @@ export function ReferenceOutput({ block }: ReferenceOutputProps) {
       {block.excerpt ? <p className="output-reference__excerpt">{block.excerpt}</p> : null}
       {block.source_node ? (
         <p className="output-reference__source">
-          Source:{' '}
-          <StandardReferenceLink
-            nodeId={block.source_node}
-            label={block.paragraph ? `§${block.paragraph}` : block.source_node}
+          <InlineCitationText
+            prefix="Source:"
+            link={{
+              node_id: block.source_node,
+              label: block.paragraph ? `§${block.paragraph}` : block.source_node,
+            }}
+            linkLabel={block.paragraph ? `§${block.paragraph}` : block.source_node}
           />
         </p>
       ) : null}

@@ -7,7 +7,7 @@ Ver03 is a **Python engineering backend** plus an **Electron + React desktop cli
 1. Read and follow `docs/rules.md` (workflow, verification, debugging, node structure, **§12 planner vs messaging prompts**, **§13 graph-driven workflow paths**, **§21 Flow Guidance Layer**).
 2. Read the relevant doc under `docs/desktopApp/` (start with `14_desktop_app_implementation_roadmap.md`).
 3. Inspect existing code in the target area (stores, `api/`, `desktopApp/src/`).
-4. Propose a short plan for non-trivial changes (files, approach, risks) with an **Architecture Consistency Review** and **Plan Review Gate** (`docs/process/plan_review_gate.md`, `docs/rules.md` §22–§23). Do not implement until consistency review is **CLEAR** and gate status is **APPROVED**.
+4. Propose a short plan for non-trivial changes (files, approach, risks) with an **Architecture Consistency Review** and **Plan Review Gate** (`docs/process/plan_review_gate.md`, `docs/rules.md` §22–§23). Cursor sets **READY_FOR_REVIEW** at most. Do not implement until consistency review is **CLEAR**, the project owner grants **APPROVED**, and you give an explicit implementation instruction.
 
 ## Architecture boundaries
 

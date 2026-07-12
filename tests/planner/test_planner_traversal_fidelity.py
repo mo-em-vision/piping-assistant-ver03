@@ -68,7 +68,7 @@ def test_pipe_wall_plan_includes_equation_awaiting_parameter_gathering() -> None
     equation_row = next(
         row for row in projection["groups"]["queue_leaf_nodes"] if row["node_id"] == equation_id
     )
-    assert equation_row["status_reason"] == "awaiting parameter gathering"
+    assert equation_row["status_reason"] == "waiting_for_upstream_equation"
 
 
 def test_rebuilt_traversal_emits_parameter_resolved_events() -> None:

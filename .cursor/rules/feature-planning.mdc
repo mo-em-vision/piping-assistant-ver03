@@ -31,7 +31,7 @@ Architecture Consistency Review  ← mandatory, inside the plan
         ↓
 Plan Review Gate  ← mandatory, inside the plan
         ↓
-CLEAR + APPROVED? ──no──→ revise plan (do not implement)
+CLEAR + owner APPROVED + explicit implement instruction? ──no──→ revise plan or await review (do not implement)
         │
        yes
         ↓
@@ -89,14 +89,14 @@ If tests are missing or only cover one workflow for a general change → Plan Re
 
 | Plan Review Gate status | Action |
 | --- | --- |
-| **APPROVED** (and Architecture Consistency Review **CLEAR**) | May implement |
+| **READY_FOR_REVIEW** (Cursor) / **APPROVED** (owner, Architecture Consistency Review **CLEAR**) | May implement after explicit user instruction |
 | **REVISE** | Stop. Revise plan. Do not edit production code. |
 | **BLOCKED** | Stop. Resolve missing decisions with user. Do not implement. |
 
-When the user says "implement" but the plan lacks an Architecture Consistency Review, lacks a Plan Review Gate, consistency review is not **CLEAR**, or gate status is not APPROVED:
+When the user says "implement" but the plan lacks an Architecture Consistency Review, lacks a Plan Review Gate, consistency review is not **CLEAR**, gate status is not owner-**APPROVED**, or Cursor self-assigned **APPROVED**:
 
 1. Add or update both sections in the plan response.
-2. Do not write production code until consistency review is **CLEAR** and gate is **APPROVED**.
+2. Do not write production code until consistency review is **CLEAR**, owner grants **APPROVED**, and the user explicitly instructs implementation.
 
 ---
 

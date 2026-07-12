@@ -305,25 +305,6 @@ class DesktopApiService:
         return {"recent_tasks": recent_tasks}
 
     def get_task(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
-        # #region agent log
-        import json as _json
-        import time as _time
-
-        with open("debug-12f291.log", "a", encoding="utf-8") as _f:
-            _f.write(
-                _json.dumps(
-                    {
-                        "sessionId": "12f291",
-                        "hypothesisId": "A",
-                        "location": "desktop_service.py:get_task",
-                        "message": "get_task start",
-                        "data": {"task_id": task_id, "session_id": session_id},
-                        "timestamp": int(_time.time() * 1000),
-                    }
-                )
-                + "\n"
-            )
-        # #endregion
         store = self._store_for(session_id)
         manager = store.load_state_manager()
         try:
@@ -333,24 +314,7 @@ class DesktopApiService:
         task, dirty = self._prepare_task_for_projection(task, manager)
         if dirty:
             self._save_manager(manager, session_id)
-        payload = self._task_state(task, manager)
-        # #region agent log
-        with open("debug-12f291.log", "a", encoding="utf-8") as _f:
-            _f.write(
-                _json.dumps(
-                    {
-                        "sessionId": "12f291",
-                        "hypothesisId": "A",
-                        "location": "desktop_service.py:get_task",
-                        "message": "get_task success",
-                        "data": {"task_id": task_id, "status": payload.get("status")},
-                        "timestamp": int(_time.time() * 1000),
-                    }
-                )
-                + "\n"
-            )
-        # #endregion
-        return payload
+        return self._task_state(task, manager)
 
     def get_workflow_state(self, task_id: str, session_id: str | None = None) -> dict[str, Any]:
         from api.serializers import workflow_state_payload

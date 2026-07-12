@@ -1,29 +1,34 @@
 import { ChatMarkdownContent } from '@/components/chat/ChatMarkdownContent'
-import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
+import { InlineCitationList } from '@/components/standards/InlineCitationText'
 import type { ChatMessageDto, ChatSource } from '@/types/backend/chat'
+import type { ReferenceChipDto } from '@/types/backend/outputs'
 
 interface ChatMessageProps {
   message: ChatMessageDto
 }
 
-function sourceReferenceKind(source: ChatSource): 'node' | 'table' {
-  if (source.kind === 'node') {
-    return 'node'
-  }
-  return 'table'
-}
+function sourceToChip(source: ChatSource): ReferenceChipDto {
+  const referenceId =
+    source.kind === 'node'
+      ? source.node_id ?? source.id
+      : source.table_id ?? source.id
 
-function sourceReferenceId(source: ChatSource): string {
-  if (source.kind === 'node') {
-    return source.node_id ?? source.id
+  return {
+    ref_type: source.kind === 'table' ? 'table' : 'node',
+    id: source.id,
+    label: source.label,
+    target:
+      source.kind === 'table'
+        ? { table_id: referenceId, node_id: referenceId }
+        : { node_id: referenceId },
   }
-  return source.table_id ?? source.id
 }
 
 export function ChatMessage({ message }: ChatMessageProps) {
   const roleClass = message.role === 'user' ? 'chat-message--user' : 'chat-message--assistant'
   const label = message.role === 'user' ? 'You' : 'Assistant'
   const sources = message.sources ?? []
+  const sourceChips = sources.map(sourceToChip)
 
   return (
     <article className={`chat-message ${roleClass}`}>
@@ -34,18 +39,10 @@ export function ChatMessage({ message }: ChatMessageProps) {
         ) : (
           message.content
         )}
-        {message.role === 'assistant' && sources.length > 0 ? (
-          <div className="chat-message__sources" data-testid="chat-message-sources">
-            <span className="chat-message__sources-label">Sources:</span>
-            {sources.map((source) => (
-              <StandardReferenceLink
-                key={`${source.kind}:${source.id}`}
-                referenceKind={sourceReferenceKind(source)}
-                referenceId={sourceReferenceId(source)}
-                label={source.label}
-              />
-            ))}
-          </div>
+        {message.role === 'assistant' && sourceChips.length > 0 ? (
+          <p className="chat-message__sources" data-testid="chat-message-sources">
+            <InlineCitationList prefix="Sources:" chips={sourceChips} />
+          </p>
         ) : null}
       </div>
     </article>

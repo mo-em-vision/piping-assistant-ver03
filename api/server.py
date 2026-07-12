@@ -633,31 +633,6 @@ def main() -> None:
     instance_id = os.environ.get("BACKEND_INSTANCE_ID") or str(uuid.uuid4())
     service = DesktopApiService.from_project_root(project_root)
     handler = create_handler(service, backend_instance_id=instance_id)
-    # #region agent log
-    import time as _time
-    from engine.graph import display_emitter as _display_emitter
-
-    with open("debug-12f291.log", "a", encoding="utf-8") as _f:
-        _f.write(
-            json.dumps(
-                {
-                    "sessionId": "12f291",
-                    "hypothesisId": "F",
-                    "location": "server.py:main",
-                    "message": "backend startup",
-                    "data": {
-                        "instance_id": instance_id,
-                        "display_emitter": _display_emitter.__file__,
-                        "has_resolve_require_binding": hasattr(
-                            _display_emitter, "resolve_require_binding"
-                        ),
-                    },
-                    "timestamp": int(_time.time() * 1000),
-                }
-            )
-            + "\n"
-        )
-    # #endregion
     server = HTTPServer((host, port), handler)
     print(f"API server listening on http://{host}:{port}", flush=True)
     server.serve_forever()

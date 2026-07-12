@@ -13,11 +13,11 @@ parameter_class: geometric_quantity
 dimension: DIM-length
 
 description: >
-  Outside diameter D of the pipe used in pressure design thickness equations.
-  May be entered directly or looked up from nominal pipe size per ASME B36.10.
+  outside diameter of pipe as listed in tables of standards or specifications or as measured
 question: >
-  Please provide the outside diameter of the pipe (mm or in) so the required
-  wall thickness can be calculated.
+  Enter the outside diameter D of the pipe.
+  This value is used in the pressure design thickness equation.
+  Examples: 10 mm, 1/2 in, 20 in.
 
 canonical_symbol: D
 

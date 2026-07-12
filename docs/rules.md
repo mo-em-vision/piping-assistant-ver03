@@ -1,6 +1,8 @@
 # Engineering Desktop — Agent and Implementation Rules
 
-Source of truth for Cursor agents and contributors. `.cursor/rules/agent-rules.mdc` mirrors the section list here; do not contradict this file.
+Source of truth for Cursor agents and contributors. `.cursor/rules/agent-rules.mdc` points here; do not contradict this file.
+
+`docs/rules.md`, `.cursor/rules/**`, node templates, and architecture decision documents are protected files. Agents must not modify them unless the approved task explicitly lists them as allowed files. When a conflict is found, report it and propose an amendment instead of editing the rule.
 
 ---
 
@@ -30,7 +32,15 @@ Smallest justified diff. Match existing naming, types, and style. Avoid drive-by
 
 ## 5. Verifications
 
-Prove fixes with tests that exercise real behavior. After API/backend changes: `python -m pytest tests/api tests/mvp/test_desktop_mvp_workflow.py`. After desktop UI changes: `cd desktopApp && npm run test:run` and MVP smoke when relevant.
+Prove fixes with tests that exercise real behavior — not code inspection alone.
+
+| Stage | When | Action |
+| --- | --- | --- |
+| **1. Targeted** | Every change | Run tests that cover the changed behavior first (new or existing). |
+| **2. Subsystem** | Before completing the task | Run the relevant subsystem suite (e.g. `tests/api/…`, `tests/planner/…`, `tests/presentation/…`, `desktopApp` unit tests for the touched area). |
+| **3. Smoke** | Cross-layer or user-visible workflow changes | Run MVP/release smoke when relevant: `python -m pytest tests/mvp/test_desktop_mvp_workflow.py`; `cd desktopApp && npm run verify:mvp` or `verify:release` when desktop behavior changed. |
+
+**Report** every required test command that was not run and why. **Never** claim verification based only on reading code.
 
 ---
 
@@ -38,7 +48,7 @@ Prove fixes with tests that exercise real behavior. After API/backend changes: `
 
 Define success criteria and a short plan for non-trivial work before coding.
 
-Every feature plan must include an **Architecture Consistency Review** (§23; status CLEAR / NEEDS_DOC_UPDATE / NEEDS_DECISION / BLOCKED) and a **Plan Review Gate** (§22; status APPROVED / REVISE / BLOCKED) before implementation. Do not implement until the consistency review is **CLEAR** (or doc updates are done) and the gate is **APPROVED**. See **§22**, **§23**, and [`docs/process/plan_review_gate.md`](process/plan_review_gate.md).
+Every feature plan must include an **Architecture Consistency Review** (§23; status CLEAR / NEEDS_DOC_UPDATE / NEEDS_DECISION / BLOCKED) and a **Plan Review Gate** (§22). Cursor may assign **READY_FOR_REVIEW**, **REVISE**, or **BLOCKED** — not **APPROVED**. Do not implement until the consistency review is **CLEAR**, the project owner grants **APPROVED**, and the user gives an explicit implementation instruction. See **§22**, **§23**, and [`docs/process/plan_review_gate.md`](process/plan_review_gate.md).
 
 ---
 
@@ -106,10 +116,11 @@ Order inside that function (do not bypass or reorder without updating docs and t
 4. Legacy `phase_questions` on planning (backward compatibility only)
 5. Final messaging fallback from PARAM metadata (`name`, `symbol`, `input_examples`)
 
-### Desktop vs CLI prompt paths
+### Desktop / API prompt paths
 
-- **Desktop workflow composer** — canonical source is `task_state.current_ask.prompt` and `parameter.guidance` (both from `build_parameter_input_prompt`).
-- **CLI / transcript** — may additionally use `flow_guidance.active_prompt` from `ResponseComposer` (multi-block formula or step prompts). The composer does not author prompt copy.
+- **Desktop workflow composer** — `task_state.current_ask.short_prompt` is the composer question (from `build_short_parameter_input_prompt()` / PARAM `metadata.short_question`). `task_state.current_ask.prompt` is the full messaging prompt from `build_parameter_input_prompt()` (guidance, formula context, numbered gate copy). `parameter.guidance` mirrors the full prompt path.
+- **Chat / API presentation** — `task_state.flow_guidance.active_prompt` from `ResponseComposer` supplies the current ask block for multi-block formula or step prompts. The composer merges messaging output; it does not author prompt copy.
+- **Transcript history** — `transcript_blocks` are append-only display history (§21, §25). Prior prompts remain in transcript; they are not re-resolved from `active_prompt`. Composer prompts do not belong inside equation scroll blocks.
 
 ### Do not
 
@@ -183,7 +194,7 @@ Full rule file: `.cursor/rules/graph-expansion.mdc`. Design detail: `docs/core/1
 | --- | --- |
 | `PARAM-*` node | `key: material_grade` (machine-safe, stable) |
 | Lookup table YAML | `inputs[].id: material_grade` when bound to `PARAM-material-grade` |
-| Workflow `runtime.yaml` | Same key in phase field lists |
+| Workflow `runtime.yaml` | Same key when the parameter legitimately appears in gate or ordering metadata (`assumption_gate_fields`, `navigation.phases` gate fields) — not as a substitute for graph expansion (§13) |
 | Facts / API submit | Store under canonical `key` (`material_grade`) |
 | Material catalog | `material_id` is a catalog token (e.g. `astm_a106_gr_b`), not the parameter key |
 
@@ -205,13 +216,29 @@ Do **not** introduce shortened or legacy keys (`material`) in new YAML. Legacy a
 
 - Backend: `engine/reference/parameter_value_source.py` — `resolve_parameter_value_reference()` / `resolve_input_value_reference()`.
 - API equation rows: `api/equation_evaluation_display.py`, `api/equation_inputs_display.py` attach `value_reference` (`node_id`, `label`, `paragraph`) when no display value exists.
-- Frontend: `EquationOutput` renders `value_reference` with `StandardReferenceLink` in the Value column (same link component as definition references).
+- Frontend: `EquationOutput` renders provenance with `InlineCitationText` — prefix text plus an inline hyperlink for the citation (center panel, right panel, chat use the same pattern).
+
+### Inline prose reference links
+
+Standard references must be **clickable inside the sentence** that cites them — not as detached chip buttons or a separate `"Standard reference"` control beside plain text.
+
+| Rule | Requirement |
+| --- | --- |
+| Composition | Prefix text stays plain (`Resolved from`, `Defined in`, `Source:`); only the citation span is linked |
+| Label | Full standard path (e.g. `ASME B31.3 Table A-1`, `ASME B31.3 §304.1.2`) — not short `Table A-1` alone or generic `"Standard reference"` when resolvable |
+| Visual | Inline hyperlink style (underlined, no chip icon/chrome) in center panel, right panel, and chat |
+| Backend | `value_provenance.label` = prefix only; `reference_chips[].label` = full linkable citation (`api/reference_links.py`) |
+| Frontend | `InlineCitationText` + `StandardReferenceLink variant="inline"` |
+
+Wrong: `Resolved from Table A-1` [Standard reference]  
+Correct: `Resolved from `**`ASME B31.3 Table A-1`** (only the citation is clickable)
 
 ### Do not
 
 - Label derived quantities (e.g. pressure design thickness `t` required by §304.1.1 eq. 2) as awaiting user input when the graph already names the producing equation/paragraph.
 - Hardcode paragraph ids in display code; resolve producers via `calculates_parameter` / `returns_parameter` edges and active-path filtering (`_node_active_on_path`).
 - Duplicate producer-resolution logic in the frontend.
+- Render references as detached chip rows below prose or as a separate generic link label beside duplicated citation text.
 
 ### Design references
 
@@ -228,16 +255,16 @@ Do **not** introduce shortened or legacy keys (`material`) in new YAML. Legacy a
 | Layer | Rule |
 | --- | --- |
 | Lookup node | `returns_parameter` edge to the global `PARAM-*` node; `lookup.keys` / `inputs[].id` name the prerequisite parameters |
-| Parameter node | Describes the symbol only — no `default: 1.0` or confirmation prompts for table-derived values |
+| Parameter node | Describes the symbol only — no `default`, `metadata.default_value`, or confirmation prompts for table-derived values |
 | `required_user_inputs()` | Excludes lookup outputs; includes only unresolved **lookup keys** (via `lookup_resolution_for_parameter`) |
 | Coefficient / lookup execution | `apply_coefficient_lookups` / lookup engine writes table-sourced facts after keys are confirmed |
 | Workflow `runtime.yaml` | Phase lists name lookup **dependencies** (e.g. `pipe_construction_type`), not derived coefficients (`weld_joint_efficiency`) |
-| Messaging | Prompt copy asks for lookup keys; never "confirm E = 1.0" unless the node explicitly authors that default |
+| Messaging | Prompt copy asks for lookup keys only — never "confirm E = 1.0" or similar for table-derived outputs |
 
 ### Do not
 
 - Propose or confirm table-derived coefficients (E, W, Y, S, …) before their lookup keys are satisfied.
-- Use `source: default` / `requires_confirmation` on sidecar inputs for lookup outputs.
+- Author `default`, `metadata.default_value`, `source: default`, or `requires_confirmation` on lookup-output `PARAM-*` nodes or sidecar inputs.
 - Add execution-assumption confirmation specs for lookup-derived parameter nodes in engine code.
 - Author `introduces_parameter` to informal names (`quality_factor`) instead of `returns_parameter` → `PARAM-*`.
 
@@ -330,12 +357,26 @@ lookup_conditionals:
 | `engine/planner/planner_traversal.py` | Derive traversal from requirements, `input_strategy`, graph preview, path decisions |
 | `EngineeringPlan.traversal` | Persist full state on `task.outputs.engineering_plan` |
 | `planner_inspector_summary` | Rebuilt from `engineering_plan` on each inspection payload — **not** from `goal_store` (backward compat) |
-| `planner_debug_projection` | **Preferred** read-only Dev Mode Planner tab contract — derived from `engineering_plan` only; never drives execution |
+| `planner_debug_projection` | Read-only Dev Mode Planner tab contract — derived from `engineering_plan` only; never drives execution |
 | `current_active_node_id` | Must match next **askable** planner input (`user_input` / `branch_decision`); never an equation output PARAM while inputs are missing |
-| `pending_expansion_nodes` | Include equation nodes with `awaiting parameter gathering`, gatherable PARAM nodes, and branch-blocked nodes with `waiting_on` + `reason` |
-| `traversal_events` | Include `parameter_resolved` for resolved gatherable fields (visited-previous-step in debugger) |
-| `planner_debug_projection.groups` | `excluded_nodes`, `blocked_nodes`, `queue_leaf_nodes` with `status_reason`; rows use `node_id` as `display_name` for traceability |
-| `plan_validation.py` | Invariants after `finalize_engineering_plan()`; errors on `plan.debug` |
+| `pending_expansion_nodes` | **Single pending queue** on `PlannerTraversalState`. Each item has `status_reason` and optional `waiting_on`. Holds gatherable PARAM nodes, equations awaiting inputs, and branch-waiting nodes — not ruled-out exclusions |
+| `expanded_nodes` | Nodes already visited/expanded in this planner walk |
+| `traversal_events` | Include `parameter_resolved` for resolved gatherable fields |
+| `plan_validation.py` | Generic invariants after `finalize_engineering_plan()`; errors on `plan.debug` |
+
+### Pending queue contract (no duplicate membership)
+
+A node id may appear in **at most one** live traversal bucket among: `current_active_node_id`, `pending_expansion_nodes`, `expanded_nodes`, or excluded (ruled-out expansion).
+
+| Bucket | Meaning |
+| --- | --- |
+| `pending_expansion_nodes` | Queued / blocked / awaiting-input nodes with `status_reason` (+ `waiting_on` when blocked on another node or gate) |
+| `expanded_nodes` | Already handled in this walk |
+| Excluded | Ruled out by expansion or branch — **must not** also appear in `pending_expansion_nodes` |
+
+`planner_debug_projection.groups.queue_leaf_nodes` is a **derived inspector view** from `pending_expansion_nodes` and traversal events — not a second authoritative queue. `blocked_nodes` is deprecated (empty); blocked nodes appear only in the pending queue with an explicit `status_reason`.
+
+Named projection groups: `visited_previous_step`, `queue_leaf_nodes`, `visited_from_beginning`, `excluded_nodes` (plus deprecated empty `blocked_nodes` for backward compat).
 
 ### API / inspector contract
 
@@ -344,7 +385,7 @@ lookup_conditionals:
 | `engineering_plan` | Canonical normalized plan (`plan.to_dict()`) — **source of truth** |
 | `engineering_plan_view` | Human-readable inspector summary (phases, overview) |
 | `planner_inspector_summary` | Compact planner debug (backward compat): root goal, phase, inputs, traversal summary |
-| `planner_debug_projection` | **Preferred** Dev Mode Planner tab UI contract — seven readable sections; `raw_planner_state` for Advanced JSON only |
+| `planner_debug_projection` | Preferred Dev Mode Planner tab UI contract; `raw_planner_state` for Advanced JSON only |
 | `legacy_goal_map` | Optional backward-compatible `goal_store` projection (`GOAL-*` / `REQ-*` keys) — debug panel only |
 
 Do not expose the legacy goal map as `engineering_plan` or as the default planner output.
@@ -379,8 +420,9 @@ Dev UI: **Planner / Workflow Debug** tab (`PlannerDevPanel`) reads **`planner_de
 - `engine/planner/planner_debug_projection.py` — `build_planner_debug_projection`, `planner_debug_projection_for_task`
 - `dev/desktop_ui/inspector/PlannerDevPanel.tsx` — renders projection sections only
 - `models/engineering_plan.py` — `PlannerTraversalState` types
-- `docs/developer tools/developer_inspection_framework.md` — Planner tab
-- `tests/planner/test_planner_traversal.py`, `tests/planner/test_fresh_pipe_wall_normalized_plan.py`, `tests/planner/test_planner_debug_projection.py`
+- `docs/developer_inspection_framework.md` — Planner tab
+- `tests/planner/test_planner_traversal.py`, `tests/planner/test_planner_debug_projection.py`
+- Workflow-specific acceptance: [`docs/workflows/pipe_wall_thickness/acceptance_contract.md`](workflows/pipe_wall_thickness/acceptance_contract.md)
 
 ---
 
@@ -395,17 +437,13 @@ Dev UI: **Planner / Workflow Debug** tab (`PlannerDevPanel`) reads **`planner_de
 | `blocked_by` / `provisional_blocked_by` | Every id must exist in `requirements` |
 | Dependencies | Endpoints: requirement id, root goal id, or alternative id (`activates` source only) |
 | Requirements | No legacy fields (`satisfaction`, `state`, `metadata`, `edges`, …) |
-| `REQ-diameter_resolution` | Two alternatives: direct OD (`ALT-direct-outside-diameter`) and NPS lookup (`ALT-nps-lookup`) |
-| Root blocking | Must not hard-block on both `REQ-outside_diameter` and `REQ-nominal_pipe_size` |
-| Fresh pipe wall | Hard-block only gate reqs; `next_fields == ["straight_pipe_section"]`; phase `expansion_assumptions` |
-| After straight pipe | Hard-block only `REQ-pressure_loading`; next `pressure_loading`; phase `path_decisions` |
-| Conditional branch | Internal-pressure requirements `conditional` until `pressure_loading` resolved |
 | `single_next_question` | `next_fields.length <= 1`; at most one active phase; next field in `current_phase` |
-| Pipe wall lookups | S, Y, E, W, metallurgical group lookup requirements present |
-| Pipe wall equations | `REQ-required_wall_thickness`, `REQ-minimum_required_thickness_eq` present |
 | Traversal | Active node required; pending ∩ expanded = ∅; branch paragraphs not expanded before branch resolves |
+| Alternatives | Each alternative id must exist; diameter and lookup-input dependency rules enforced in `plan_validation.py` |
 
-Validation runs in `build_pipe_wall_engineering_plan()` **after** `finalize_engineering_plan()` (dependencies populated). Failures are stored on `plan.debug.validation_errors` / `validation_warnings` and surfaced in the Planner dev tab.
+Validation runs after `finalize_engineering_plan()` (dependencies populated). Failures are stored on `plan.debug.validation_errors` / `validation_warnings` and surfaced in the Planner dev tab.
+
+Workflow-specific requirement ids, phase expectations, and test inventories for `pipe_wall_thickness_design` live in [`docs/workflows/pipe_wall_thickness/acceptance_contract.md`](workflows/pipe_wall_thickness/acceptance_contract.md) — not in this section.
 
 | API | Role |
 | --- | --- |
@@ -415,21 +453,21 @@ Validation runs in `build_pipe_wall_engineering_plan()` **after** `finalize_engi
 
 ### Tests
 
-- `tests/planner/test_fresh_pipe_wall_normalized_plan.py` — fresh initiation acceptance
-- `tests/planner/test_plan_validation.py` — dependency and diameter invariants
+- `tests/planner/test_plan_validation.py` — generic dependency and structure invariants
 - `tests/planner/test_planner_output_shape.py` — canonical vs `legacy_goal_map`
 - `dev/desktop_ui/tests/validateEngineeringPlan.test.tsx` — client validator
+- Workflow acceptance tests: [`docs/workflows/pipe_wall_thickness/acceptance_contract.md`](workflows/pipe_wall_thickness/acceptance_contract.md)
 
 ### Design references
 
 - `engine/planner/plan_validation.py`
-- `.cursor/rules/agent-rules.mdc` — cite §19–§20 for planner inspector work
+- `docs/rules.md` §19–§20 — planner inspector and validation rules
 
 ---
 
 ## 21. Flow Guidance Layer (traversal narration)
 
-**User-facing traversal narration lives in the Flow Guidance Layer — not in the planner, graph engine, engineering nodes, CLI, or deterministic parameter prompt builders.**
+**User-facing traversal narration lives in the Flow Guidance Layer — not in the planner, graph engine, engineering nodes, desktop/API presentation code, or deterministic parameter prompt builders.**
 
 The Flow Guidance Layer explains *why* the system is moving through a workflow, *why* a node is being evaluated, and *what* the user should expect next. It is presentation-only data and code.
 
@@ -469,7 +507,7 @@ Structured `GuidanceBlock` objects (`source: "guidance"`). Blocks may **referenc
 | `transcript_blocks`   | **Append-only** historical conversation/output blocks                                                                                   |
 | `active_prompt`       | The current deterministic ask block produced by `engine/messaging/`. It is not guidance YAML and is not historical transcript content until displayed/appended. |
 
-Output must be **UI-neutral** structured blocks (dict/JSON-serializable). CLI may render first; API/Desktop consume the same shape later.
+Output must be **UI-neutral** structured blocks (dict/JSON-serializable). Desktop, API, and chat orchestration consume the same `PresentationResponse` shape via `task_state.flow_guidance` and chat-turn payloads.
 
 ### Distinction: `presentation_blocks` vs `transcript_blocks`
 
@@ -482,6 +520,8 @@ Output must be **UI-neutral** structured blocks (dict/JSON-serializable). CLI ma
 
 Changing `presentation_blocks` after a phase advance must **not** erase `transcript_blocks`. Do **not** attach presentation state directly to workflow state.
 
+Block identity, in-place updates, equation atomic units, and scroll ordering: **§25**.
+
 ### Guidance YAML (`presentation/guidance/workflows/`)
 
 **Allowed:** traversal narration, branch context, “what happens next” prose, references to node/equation/table/paragraph ids.
@@ -493,7 +533,7 @@ Changing `presentation_blocks` after a phase advance must **not** erase `transcr
 - Equation bodies, LaTeX, or formula text (reference `equation_id` only)
 - Verbatim paragraph engineering text from knowledge nodes
 - Planner `PlannerTraversalState.message` strings
-- Hardcoded CLI orchestrator strings
+- Hardcoded chat-orchestrator or API presentation strings outside `presentation/guidance/` and `engine/messaging/`
 
 Guidance templates are **presentation data**, not engineering truth.
 
@@ -514,7 +554,7 @@ ResponseComposer **combines** guidance with these prompts; it does not replace t
 | Planner (`engine/planner/`)      | Yes                                                                     |
 | Graph Engine (`engine/graph/`)   | Yes                                                                     |
 | Engineering nodes (`knowledge/`) | Yes (intrinsic assets only: paragraph text, equation intro, `ai_hints`) |
-| CLI (`cli/`)                     | Removed — desktop API only                                              |
+| API / Desktop / chat orchestration | Display structured blocks, collect input                              |
 | Workflow state / task model      | Yes — do not make workflow state a presentation store                   |
 
 State/session storage may persist `transcript_blocks`, but it must **not** derive engineering meaning from them. Transcript blocks are display history only.
@@ -544,44 +584,6 @@ State/session storage may persist `transcript_blocks`, but it must **not** deriv
 
 ---
 
-## 24. Equation display trace (evaluated equation substitution)
-
-**Every evaluated equation must expose a canonical `equation_display_trace` object built in the execution layer and rendered by API/presentation/frontend without client-side substitution.**
-
-| Layer | Owns |
-| --- | --- |
-| Execution (`engine/equation/`, `engine/executor/node_runner.py`) | Build `equation_display_trace` from equation metadata, resolved facts, `CalculationResult`, optional `render_steps` enrichment |
-| API (`api/equation_display_trace_serializer.py`, `api/equation_evaluation_display.py`) | Serialize trace onto `EquationOutputBlock`; legacy pipe-wall substitution blocks remain as fallback during migration |
-| Presentation (`engine/presentation/blocks.py`, `engine/graph/display_emitter.py`) | Same trace object on equation result blocks |
-| Frontend (`EquationOutput`) | Render `equation_display_trace` only; no engineering formatting or symbol substitution in TypeScript |
-
-### Canonical field
-
-- `equation_display_trace` on execution trace payloads and equation output blocks.
-- `EquationOutputBlock` mirrors the trace schema; do not invent competing display fields.
-
-### LaTeX source priority
-
-1. `display_latex` metadata
-2. Authored `display.text` (equation content only)
-3. SymPy reconstruction (mark `latex_source: sympy_generated`)
-
-Shared formatting: `engine/equation/latex_format.py` (`\mathrm{}` units, numeric display strings).
-
-### Do not
-
-- Build per-equation KaTeX substitution strings in `api/equation_inputs_display.py` for new equations (legacy pipe-wall helpers are migration-only).
-- Reconstruct substitutions in the frontend.
-- Store presentation-only equation state on `WorkflowState`.
-
-### Design references
-
-- `models/equation_display_trace.py` — canonical dataclasses
-- `engine/equation/equation_display_trace_builder.py` — generic builder
-- `docs/rules.md` §15–§16 — input provenance (`source_type`: `user_input`, `table_lookup`, `equation_output`)
-
----
-
 ## 22. Plan Review Gate
 
 Every Cursor feature plan must include a visible **Plan Review Gate** section inside the plan itself — **after** the Architecture Consistency Review (§23), before any implementation begins.
@@ -591,13 +593,23 @@ Every Cursor feature plan must include a visible **Plan Review Gate** section in
 **Cursor rules:** `.cursor/rules/plan-review-gate.mdc`, `.cursor/rules/feature-planning.mdc`  
 **Process doc:** `docs/process/plan_review_gate.md`
 
-### Status
+### Who assigns status
 
-| Status | Implementation |
-| --- | --- |
-| **APPROVED** | Allowed |
-| **REVISE** | Not allowed — correct the plan first |
-| **BLOCKED** | Not allowed — resolve missing decisions first |
+| Actor | May assign | May not assign |
+| --- | --- | --- |
+| **Cursor** | **READY_FOR_REVIEW**, **REVISE**, **BLOCKED** | **APPROVED** |
+| **Project owner** | **APPROVED**, **REVISE**, **BLOCKED** | — |
+
+Cursor self-certification is not allowed. A plan Cursor marks **READY_FOR_REVIEW** is a draft for human review — not permission to implement.
+
+### Status meanings
+
+| Status | Cursor may set | Implementation |
+| --- | --- | --- |
+| **READY_FOR_REVIEW** | Yes | Not allowed — awaits project-owner review |
+| **REVISE** | Yes | Not allowed — correct the plan first |
+| **BLOCKED** | Yes | Not allowed — resolve missing decisions first |
+| **APPROVED** | **No** | Allowed **only** after project owner grants approval **and** the user gives an explicit implementation instruction |
 
 ### Required plan sections (before the gate)
 
@@ -605,15 +617,25 @@ Every Cursor feature plan must include a visible **Plan Review Gate** section in
 - Allowed files/modules vs out-of-scope layers
 - Acceptance criteria in plain English
 - Test plan (general, workflow-specific, regression, user-visible output)
-- **Architecture Consistency Review** (§23) — status must be **CLEAR** (or required doc updates completed) before **APPROVED**
+- **Architecture Consistency Review** (§23) — status must be **CLEAR** before seeking **APPROVED**
 
 ### Required gate sections
 
 Status, Plain-English Summary, Business/User Impact, Architecture Alignment, Main Risks, Missing Decisions, Test Coverage Required, Documentation / Rules Updates Required, Out of Scope, Implementation Permission.
 
+### Implementation Permission (Cursor)
+
+Cursor must end with exactly one of:
+
+- "Implementation not allowed — plan is **READY_FOR_REVIEW**; awaiting project-owner approval."
+- "Implementation not allowed until the plan is revised."
+- "Implementation blocked until the missing decision is resolved."
+
+Only the project owner may write "Implementation allowed." after setting status **APPROVED**.
+
 ### Status assignment (summary)
 
-- Architecture Consistency Review not **CLEAR** → **REVISE** or **BLOCKED**
+- Architecture Consistency Review not **CLEAR** → Cursor sets **REVISE** or **BLOCKED** (see §23 Phase 0 sequence)
 - Missing tests → **REVISE**
 - Unclear architecture boundaries → **REVISE**
 - Unrelated layer changes → **REVISE** or **BLOCKED**
@@ -622,6 +644,7 @@ Status, Plain-English Summary, Business/User Impact, Architecture Alignment, Mai
 - Hardcoding `pipe_wall_thickness_design` in general components → **REVISE**
 - Guidance/prompts in wrong layer → **REVISE** (see §12, §21)
 - Broad scope without split steps → **REVISE** or **BLOCKED**
+- Plan looks sound to Cursor → **READY_FOR_REVIEW** (never **APPROVED**)
 
 Full template, decision rules, compliance checklist, and example: `.cursor/rules/plan-review-gate.mdc`.
 
@@ -655,21 +678,33 @@ Every Cursor feature plan must include a visible **Architecture Consistency Revi
 
 ### Status behavior
 
-| Status | Meaning | Plan Review Gate |
+| Status | Meaning | Next step |
 | --- | --- | --- |
-| **CLEAR** | No architectural conflicts detected | May proceed to gate review |
-| **NEEDS_DOC_UPDATE** | Docs are inconsistent but intended architecture is clear | Gate must be **REVISE** until docs are updated or plan includes doc fixes |
-| **NEEDS_DECISION** | Two sources of truth conflict with no clear winner | Gate must be **REVISE** or **BLOCKED** |
-| **BLOCKED** | Implementation would violate `docs/rules.md` | Gate must be **BLOCKED** |
+| **CLEAR** | No architectural conflicts detected | Cursor may set Plan Review Gate to **READY_FOR_REVIEW** |
+| **NEEDS_DOC_UPDATE** | Docs are inconsistent but intended architecture is clear | **Phase 0 only** — documentation fixes; no feature implementation |
+| **NEEDS_DECISION** | Two sources of truth conflict with no clear winner | Cursor sets gate **REVISE** or **BLOCKED** |
+| **BLOCKED** | Implementation would violate `docs/rules.md` | Cursor sets gate **BLOCKED** |
 
-If status is not **CLEAR**, the Plan Review Gate must not be **APPROVED**.
+If status is not **CLEAR**, Cursor must not set the Plan Review Gate to **READY_FOR_REVIEW** or **APPROVED**. Only the project owner may grant **APPROVED**, and only after **CLEAR**.
+
+### NEEDS_DOC_UPDATE sequence (mandatory)
+
+When the consistency review is **NEEDS_DOC_UPDATE**:
+
+1. **Phase 0 — documentation only.** Limit the plan to editing the conflicting docs, rules, or audit notes listed under Required doc/rule/test updates. No production feature code.
+2. **Apply the documentation fixes** in the allowed files only.
+3. **Repeat the Architecture Consistency Review** on the updated sources.
+4. **Require CLEAR** before any feature implementation plan proceeds.
+5. **Seek implementation approval** — Cursor sets **READY_FOR_REVIEW**; project owner grants **APPROVED**; user gives an explicit implementation instruction.
+
+Doc fixes and feature work must not ship in the same implementation step.
 
 ### Compliance checklist (must answer in every plan)
 
 1. Does this plan introduce hardcoded workflow fields, branch IDs, paragraph IDs, or frontend engineering logic?
 2. Does this plan ask for lookup-derived outputs instead of lookup keys?
 3. Does this plan bypass `PARAM-*` metadata for gatherable parameters?
-4. Does this plan put prompt copy in the planner, graph engine, execution layer, CLI, API serializers, or frontend?
+4. Does this plan put prompt copy in the planner, graph engine, execution layer, API serializers, or frontend?
 5. Does this plan put traversal narration outside the Flow Guidance Layer?
 6. Does this plan add fixed required input lists where graph expansion should decide active inputs?
 7. Does this plan use old node layout instructions as if they are current?
@@ -677,7 +712,121 @@ If status is not **CLEAR**, the Plan Review Gate must not be **APPROVED**.
 9. Does this plan use legacy planner/goal maps as canonical output?
 10. Does this plan require doc/rule/test updates before implementation?
 
-If any answer indicates a violation, the Plan Review Gate must not be **APPROVED**.
+If any answer indicates a violation, Cursor must set the Plan Review Gate to **REVISE** or **BLOCKED** — not **READY_FOR_REVIEW** or **APPROVED**.
 
 Full template and integration rules: `.cursor/rules/plan-review-gate.mdc`, `docs/process/plan_review_gate.md`.
 
+---
+
+## 24. Equation display trace (evaluated equation substitution)
+
+**Every evaluated equation must expose a canonical `equation_display_trace` object built in the execution layer and rendered by API/presentation/frontend without client-side substitution.**
+
+| Layer | Owns |
+| --- | --- |
+| Execution (`engine/equation/`, `engine/executor/node_runner.py`) | Build `equation_display_trace` from equation metadata, resolved facts, `CalculationResult`, optional `render_steps` enrichment |
+| API (`api/equation_display_trace_serializer.py`, `api/equation_evaluation_display.py`) | Serialize trace onto `EquationOutputBlock`; emit legacy substitution output **only** when `equation_display_trace` is absent |
+| Presentation (`engine/presentation/blocks.py`, `engine/graph/display_emitter.py`) | Same trace object on equation result blocks |
+| Frontend (`EquationOutput`) | Render `equation_display_trace` only; no engineering formatting or symbol substitution in TypeScript |
+
+### Canonical field
+
+- `equation_display_trace` on execution trace payloads and equation output blocks.
+- `EquationOutputBlock` mirrors the trace schema; do not invent competing display fields.
+
+### LaTeX source priority
+
+1. `display_latex` metadata
+2. Authored `display.text` (equation content only)
+3. SymPy reconstruction (mark `latex_source: sympy_generated`)
+
+Shared formatting: `engine/equation/latex_format.py` (`\mathrm{}` units, numeric display strings).
+
+### Legacy substitution fallback (strict)
+
+- Legacy substitution output may be emitted **only** when `equation_display_trace` is absent on that equation block for the current task state.
+- The canonical trace and legacy substitution block **must never both** be emitted for the same equation and task state.
+- **Remove the fallback** when every equation on active workflow paths builds `equation_display_trace` in execution and API regression tests pass without legacy substitution fields (`tests/api/test_equation_display_trace.py`, `tests/api/test_display_block_lifecycle.py`, `tests/equation/test_equation_display_trace_builder.py`).
+
+### Do not
+
+- Build per-equation KaTeX substitution strings in `api/equation_inputs_display.py` for new equations.
+- Emit legacy substitution alongside `equation_display_trace` on the same block.
+- Reconstruct substitutions in the frontend.
+- Store presentation-only equation state on `WorkflowState`.
+
+### Input provenance on trace rows
+
+`equation_display_trace.inputs[].source_type` is defined in `models/equation_display_trace.py` (`user_input`, `table_lookup`, `equation_output`, `default`, `system`). §15–§16 govern when to show reference links vs awaiting-input in equation **input tables** — not this trace schema.
+
+### Design references
+
+- `models/equation_display_trace.py` — canonical dataclasses and `source_type` enum
+- `engine/equation/equation_display_trace_builder.py` — generic builder
+
+---
+
+## 25. Rendered block lifecycle (identity, persistence, ordering)
+
+**Every user-visible output block follows deterministic identity and merge rules.** This section is the architecture rule; field-level detail lives in [`docs/desktopApp/center_panel_output_contract.md`](desktopApp/center_panel_output_contract.md).
+
+### Identity
+
+- Every **durable** block has a deterministic `block_id` (stable `id` on the block payload).
+- The same `block_id` identifies one logical block for the life of the task (until completion policy freezes the transcript).
+- Guidance entry ids, equation node ids, and trace keys must produce stable ids — see center-panel contract for patterns (`equation-{equation_node_id}`, `guidance-{workflow_id}-{entry_id}`, …).
+
+### Update vs append
+
+- When content for an existing durable `block_id` changes, **update the block in place** — do not append a second copy with the same id.
+- `transcript_blocks` append **new** `block_id`s only. Re-fetching task state (`get_task`, reload, projection refresh) must **not** duplicate durable blocks already in transcript or `display_outputs`.
+- `presentation_blocks` / `display_outputs` may rebuild each turn; durable history in `transcript_blocks` remains append-only (§21).
+
+### Equation atomic unit
+
+An equation render unit is **one block** with stable `equation-{equation_node_id}` (or equivalent stable id). It contains, in order:
+
+1. Symbolic equation
+2. Parameter input table
+3. Substituted expression (when inputs resolve)
+4. Evaluated result line
+
+These are progressive content on the **same** block via `equation_display_trace` — not separate scroll blocks.
+
+### Equation chain (visited nodes, upstream dependents)
+
+- **Every visited equation node** creates or updates **one** equation block at stable `equation-{equation_node_id}`. First visit may be preview-tier; evaluation upgrades that same block to durable in place — never a second visible block for the same equation.
+- A **later dependent equation** must **not** replace or remove an **upstream** equation block. Each equation in the dependency chain keeps its own stable `block_id`; advancing to a dependent equation only creates or updates **that** equation's block.
+- **Previously evaluated equations must remain visible** when later equations are visited or evaluated (see also preview vs evaluated below).
+
+### Preview vs evaluated (no double emit)
+
+- **Preview** and **evaluated** forms of the same equation must **not** appear as two separate visible blocks at once.
+- When evaluation completes, the stable equation block upgrades (`display_state`: `preview` → `evaluated`, lifecycle: `preview` → `durable`) in place.
+
+### Prompts vs equation blocks
+
+- Input prompts (`current_ask`, `active_prompt`, `ask_archive`) belong in the **composer** or transcript archive roles — **not** sorted inside an equation render unit.
+- Parameter-table row order follows equation/graph input order; do not interleave unrelated prompt blocks into the equation block.
+
+### Rendering order
+
+- Scroll and report order follow **authored traversal / display history order** (`DISPLAY_ROLE_ORDER`, `contracts/center_panel_report_role_order.json`, chronological append within role).
+- Do **not** reorder visible blocks by reconstruction order (build pass order, dict iteration, or frontend merge discovery order).
+
+### Layer ownership
+
+| Concern | Owner |
+| --- | --- |
+| Stable `block_id` assignment, dedupe, in-place merge | API (`api/output_blocks.py`, `api/display_block_metadata.py`, `api/center_panel_contract.py`) |
+| Durable transcript persistence | `api/flow_guidance_sync.py`, `task.outputs["flow_guidance_transcript"]` |
+| Scroll assembly | `assemble_center_panel_scroll_blocks` / `buildCenterPanelTranscript.ts` |
+| Render trace only | Frontend (`EquationOutput`) — no substitution logic |
+
+### Tests
+
+- `tests/api/test_display_block_lifecycle.py`
+- `tests/api/test_pipe_wall_output_lifecycle.py`
+- `tests/api/test_center_panel_display_sequence.py`
+- `tests/api/test_append_only_transcript_blocks.py`
+- `desktopApp/tests/utils/centerPanelContractSync.test.ts`

@@ -143,7 +143,61 @@ describe('mergeDisplayOutputs', () => {
     expect(afterSubmit.some((block) => block.id === 'input-waiting')).toBe(false)
   })
 
-  it('clears stale preview when incoming snapshot has no preview blocks', () => {
+  it('retains stable preview equations when incoming snapshot omits them', () => {
+    const previewEq2: DisplayOutputBlock = {
+      id: 'equation-asme-b313-304-1-1-eq-2',
+      type: 'equation',
+      lifecycle: 'preview',
+      display_role: 'equation',
+      display_state: 'preview',
+      equation_node_id: 'asme-b313-304-1-1-eq-2',
+      source_node_id: '304.1.1-a',
+      content: 't_m = t + c',
+      display: 't_m = t + c',
+      input_table: legacyEq2Preview.input_table,
+    }
+
+    const merged = mergeDisplayOutputs([previewEq2], [])
+
+    expect(merged).toHaveLength(1)
+    expect(merged[0]?.id).toBe('equation-asme-b313-304-1-1-eq-2')
+  })
+
+  it('retains visited preview equation when focus advances to another equation', () => {
+    const previewEq2: DisplayOutputBlock = {
+      id: 'equation-asme-b313-304-1-1-eq-2',
+      type: 'equation',
+      lifecycle: 'preview',
+      display_role: 'equation',
+      display_state: 'preview',
+      equation_node_id: 'asme-b313-304-1-1-eq-2',
+      source_node_id: '304.1.1-a',
+      content: 't_m = t + c',
+      display: 't_m = t + c',
+      input_table: legacyEq2Preview.input_table,
+    }
+    const previewEq3: DisplayOutputBlock = {
+      id: 'equation-asme-b313-304-1-2-eq-3a',
+      type: 'equation',
+      lifecycle: 'preview',
+      display_role: 'equation',
+      display_state: 'preview',
+      equation_node_id: 'asme-b313-304-1-2-eq-3a',
+      source_node_id: '304.1.2-a',
+      content: 't = PD / 2(SEW + PY)',
+      display: 't = PD / 2(SEW + PY)',
+      input_table: incomingEq3Block.input_table,
+    }
+
+    const merged = mergeDisplayOutputs([previewEq2], [previewEq3])
+
+    expect(merged.map((block) => block.id)).toEqual([
+      'equation-asme-b313-304-1-1-eq-2',
+      'equation-asme-b313-304-1-2-eq-3a',
+    ])
+  })
+
+  it('drops legacy path-preview equations when incoming snapshot has no preview blocks', () => {
     const merged = mergeDisplayOutputs([legacyEq2Preview], [])
 
     expect(merged).toEqual([])

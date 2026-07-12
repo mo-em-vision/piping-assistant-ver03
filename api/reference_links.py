@@ -10,10 +10,29 @@ from engine.reference.equation_metadata import equation_reference
 from engine.reference.parameter_value_source import apply_value_provenance_to_row
 from engine.reference.paragraph_hierarchy import paragraph_reference
 from engine.reference.standards_reader import StandardsReader
-from engine.reference.table_metadata import table_paragraph_reference, table_reference
+from engine.reference.table_metadata import (
+    format_table_citation,
+    resolve_table_db_id,
+    table_reference,
+)
 
 _GENERIC_LABEL = "Standard reference"
+_DEFAULT_STANDARD_LABEL = "ASME B31.3"
 _REF_KEY_ORDER = ("node_id", "paragraph_id", "equation_id", "table_id")
+
+
+def _standard_display_label() -> str:
+    return _DEFAULT_STANDARD_LABEL
+
+
+def _with_standard_prefix(label: str) -> str:
+    text = str(label or "").strip()
+    if not text or text == _GENERIC_LABEL:
+        return text
+    standard_label = _standard_display_label()
+    if text.startswith(standard_label):
+        return text
+    return f"{standard_label} {text}"
 
 
 def _display_paragraph_label(paragraph: str) -> str:
@@ -21,7 +40,7 @@ def _display_paragraph_label(paragraph: str) -> str:
     if not text:
         return _GENERIC_LABEL
     display = re.sub(r"-[a-z]$", "", text) if re.search(r"-[a-z]$", text) else text
-    return f"§{display}"
+    return _with_standard_prefix(f"§{display}")
 
 
 def _looks_like_raw_id(label: str, raw_id: str) -> bool:
@@ -81,6 +100,8 @@ def _chip_for_node(reader: StandardsReader, node_id: str, *, ref_type: str = "no
         else:
             heading = display_heading_for_node(metadata)
             label = heading if heading and not _looks_like_raw_id(heading, node_id) else _GENERIC_LABEL
+            if label != _GENERIC_LABEL:
+                label = _with_standard_prefix(label)
 
         return _chip(
             ref_type=ref_type,
@@ -114,10 +135,12 @@ def _chip_for_equation(reader: StandardsReader, equation_id: str) -> dict[str, A
         metadata = record.metadata
         eq_number = equation_reference(metadata)
         if eq_number:
-            label = f"Eq. ({eq_number})"
+            label = _with_standard_prefix(f"Eq. ({eq_number})")
         else:
             heading = display_heading_for_node(metadata)
             label = heading if heading and not _looks_like_raw_id(heading, equation_id) else _GENERIC_LABEL
+            if label != _GENERIC_LABEL:
+                label = _with_standard_prefix(label)
         return _chip(
             ref_type="equation",
             ref_id=equation_id,
@@ -135,6 +158,35 @@ def _chip_for_equation(reader: StandardsReader, equation_id: str) -> dict[str, A
         )
 
 
+def _resolve_table_node(reader: StandardsReader, table_id: str) -> tuple[Any, str] | tuple[None, None]:
+    """Resolve a table db ref or graph node id to a loadable standards record."""
+    from engine.reference.table_metadata import resolve_lookup_node_id
+
+    table_id = str(table_id or "").strip()
+    if not table_id:
+        return None, None
+
+    for candidate in (table_id, resolve_lookup_node_id(reader, table_id)):
+        if not candidate:
+            continue
+        try:
+            return reader.load(candidate), candidate
+        except (FileNotFoundError, OSError):
+            continue
+
+    tables_db = getattr(reader, "tables_database", None)
+    if tables_db is not None:
+        resolved = tables_db.resolve_table_id(table_id)
+        if resolved:
+            node_id = resolve_lookup_node_id(reader, resolved)
+            if node_id:
+                try:
+                    return reader.load(node_id), node_id
+                except (FileNotFoundError, OSError):
+                    pass
+    return None, None
+
+
 def _chip_for_table(reader: StandardsReader, table_id: str) -> dict[str, Any]:
     table_id = str(table_id or "").strip()
     if not table_id:
@@ -145,33 +197,42 @@ def _chip_for_table(reader: StandardsReader, table_id: str) -> dict[str, Any]:
             target={},
         )
 
-    try:
-        record = reader.load(table_id)
+    record, _resolved_node_id = _resolve_table_node(reader, table_id)
+    if record is not None:
         metadata = record.metadata
         table_number = table_reference(metadata)
-        paragraph = table_paragraph_reference(metadata)
+        db_table_id = resolve_table_db_id(reader, metadata, table_ref=table_id)
         if table_number:
-            label = f"Table {table_number}"
-        elif paragraph:
-            label = _display_paragraph_label(paragraph)
+            label = format_table_citation(
+                standard_label=_standard_display_label(),
+                table_number=table_number,
+            )
         else:
             heading = display_heading_for_node(metadata)
             label = heading if heading and not _looks_like_raw_id(heading, table_id) else _GENERIC_LABEL
+            if label != _GENERIC_LABEL:
+                label = _with_standard_prefix(label)
         return _chip(
             ref_type="table",
-            ref_id=table_id,
+            ref_id=db_table_id,
             label=label,
-            target={"table_id": table_id, "node_id": table_id},
-            title=table_id if label == _GENERIC_LABEL else None,
+            target={"table_id": db_table_id, "node_id": db_table_id},
+            title=db_table_id if label == _GENERIC_LABEL else None,
         )
-    except (FileNotFoundError, OSError):
-        return _chip(
-            ref_type="table",
-            ref_id=table_id,
-            label=_GENERIC_LABEL,
-            target={"table_id": table_id, "node_id": table_id},
-            title=table_id,
-        )
+
+    tables_db = getattr(reader, "tables_database", None)
+    resolved_db_id = table_id
+    if tables_db is not None:
+        resolved = tables_db.resolve_table_id(table_id)
+        if resolved:
+            resolved_db_id = resolved
+    return _chip(
+        ref_type="table",
+        ref_id=resolved_db_id,
+        label=_GENERIC_LABEL,
+        target={"table_id": resolved_db_id, "node_id": resolved_db_id},
+        title=resolved_db_id,
+    )
 
 
 def resolve_reference_chips(
@@ -227,7 +288,9 @@ def resolve_reference_chips_from_legacy_links(
         legacy_label = str(link.get("label") or "").strip()
         if legacy_label and _looks_like_raw_id(chip["label"], node_id):
             if not _looks_like_raw_id(legacy_label, node_id):
-                chip = {**chip, "label": legacy_label}
+                chip = {**chip, "label": _with_standard_prefix(legacy_label)}
+        elif legacy_label and not legacy_label.startswith(_standard_display_label()):
+            chip = {**chip, "label": _with_standard_prefix(legacy_label)}
 
         chips.append(chip)
 

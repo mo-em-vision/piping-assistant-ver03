@@ -16,7 +16,7 @@ Desktop dev UI lives here today; root [`__init__.py`](__init__.py) is a docstrin
 
 | Tool | Process model | Primary entry | User guide | Implementation audit |
 |------|---------------|---------------|------------|----------------------|
-| **Desktop dev UI** | In-process via `@dev-ui/*` lazy imports | `desktopApp npm run dev` (Dev badge) | [`docs/developer tools/developer_inspection_framework.md`](../docs/developer%20tools/developer_inspection_framework.md) | [`desktop_ui/README.md`](desktop_ui/README.md) |
+| **Desktop dev UI** | In-process via `@dev-ui/*` lazy imports | `desktopApp npm run dev` (Dev badge) | [`docs/developer_inspection_framework.md`](../docs/developer_inspection_framework.md) | [`desktop_ui/README.md`](desktop_ui/README.md) |
 
 Per-tool entry points, file inventories, dependencies, and execution traces live in the child README above — not duplicated here.
 
@@ -57,7 +57,7 @@ Grep for `from dev.` / `import dev` / `@dev-ui` (2026-07-05):
 
 **No imports from:** `api/`, `cli/`, or production `engine/` paths.
 
-Docs referencing `dev/` (not runtime imports): `AGENTS.md`, `docs/developer tools/`, and per-folder audit READMEs under `config/`, `models/`, `storage/`, `scripts/`.
+Docs referencing `dev/` (not runtime imports): `AGENTS.md`, `docs/developer_inspection_framework.md`, and per-folder audit READMEs under `config/`, `models/`, `storage/`, `scripts/`.
 
 ---
 

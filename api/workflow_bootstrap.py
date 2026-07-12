@@ -34,11 +34,8 @@ from models.planning import NavigationPhase
 from models.task import Task, TaskStatus
 from api.material_catalog_service import warm_material_catalog
 from api.workflow_timeline import is_mawp_task, submittable_parameter_ids, sync_timeline_input_order
-from engine.executor.mawp_geometry_resolver import (
-    apply_geometry_input_mode_default,
-    apply_mawp_pressure_loading_default,
-    apply_wall_thickness_basis_from_geometry,
-)
+from engine.graph.expansion_traversal_trace import record_planning_refresh_trace
+from engine.graph.workflow_adapters import apply_workflow_planning_defaults
 from engine.planner.planning_structure import (
     build_planning_structure_snapshot,
     structure_unchanged_for_skip,
@@ -214,7 +211,7 @@ def refresh_task_planning(
     reader: StandardsReader,
     *,
     propose_defaults: bool = True,
-    allow_lightweight_refresh: bool = False,
+    allow_lightweight_refresh: bool = True,
 ) -> None:
     """Recompute goal tree and active_nodes from current task inputs."""
     with track_operation(
@@ -300,10 +297,7 @@ def _refresh_task_planning_impl(
     graph = GraphTools(reader)
     engine = GraphEngine()
     uses_micro = engine.uses_micro_graph(reader, root_slug)
-    if root_slug == MAWP_DESIGN:
-        apply_geometry_input_mode_default(task)
-        apply_mawp_pressure_loading_default(task)
-        apply_wall_thickness_basis_from_geometry(task)
+    apply_workflow_planning_defaults(task, root_slug)
     existing_inputs = dict(active_facts(task))
 
     lazy_plan = uses_micro and not engine.expansion_gate_ready(
@@ -435,6 +429,22 @@ def _refresh_task_planning_impl(
             exec_nodes,
             existing_inputs,
         )
+
+    record_planning_refresh_trace(
+        task.outputs,
+        root_id=root_slug,
+        preview=preview,
+        path_decision=task.outputs.get("path_decision"),
+        existing_inputs=existing_inputs,
+        lazy=lazy_plan,
+        pending_fields=list(
+            dict.fromkeys(
+                list(assumption_eval.missing_fields)
+                + list(expansion_eval.missing_fields)
+                + list(missing_inputs)
+            )
+        ),
+    )
 
     expansion_gate_ready = engine.expansion_gate_ready(
         root_slug,
@@ -767,8 +777,5 @@ def _bootstrap_new_task_impl(task: Task, workflow_id: str, config: CLIConfig) ->
             introduced_at_node=anchor,
             default_condition="Applied to a straight section of a pipe.",
         )
-    if workflow_id == MAWP_DESIGN:
-        apply_geometry_input_mode_default(task)
-        apply_mawp_pressure_loading_default(task)
-        apply_wall_thickness_basis_from_geometry(task)
+    apply_workflow_planning_defaults(task, workflow_id)
     refresh_task_planning(task, reader)

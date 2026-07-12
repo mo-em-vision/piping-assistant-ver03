@@ -9,7 +9,6 @@ source:
 type: lookup
 title: Basic Allowable Stresses in Tension for Metals
 table_number: A-1
-paragraph_number: 302.3.5-d
 status: draft
 revision_year: 2024
 inputs:

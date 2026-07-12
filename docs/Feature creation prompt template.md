@@ -24,7 +24,7 @@ Rules:
 - test name  
 - given/when/then behavior  
 - why this test is necessary  
-5. End the plan with an **Architecture Consistency Review** then a **Plan Review Gate** (`docs/process/plan_review_gate.md`, `.cursor/rules/plan-review-gate.mdc`, `docs/rules.md` §22–§23). Write both for a non-technical reviewer. Consistency review must be **CLEAR** and gate status **APPROVED** before step 3 (implementation).  
+5. End the plan with an **Architecture Consistency Review** then a **Plan Review Gate** (`docs/process/plan_review_gate.md`, `.cursor/rules/plan-review-gate.mdc`, `docs/rules.md` §22–§23). Write both for a non-technical reviewer. Consistency review must be **CLEAR**, the project owner must grant **APPROVED**, and you must give an explicit implementation instruction before step 3 (implementation). Cursor may set **READY_FOR_REVIEW** only — not **APPROVED**.  
 6. Do not modify production code in this step.
 
 # 2. Feature contract template
@@ -83,7 +83,7 @@ Definition of done:
 # 3. after reviewing the tests
 Strictly follow /docs. Do NOT invent new architecture. Do NOT rename components. If something is missing, stub it.  
   
-The Architecture Consistency Review must be **CLEAR** and the Plan Review Gate status **APPROVED** before this step. If either fails, stop and revise the plan.  
+The Architecture Consistency Review must be **CLEAR**, the project owner must grant **APPROVED**, and you must give an explicit implementation instruction before this step. If any condition fails, stop and revise the plan or await review.  
   
 Now implement only the minimum production code required to pass the approved tests.  
   

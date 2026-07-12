@@ -665,7 +665,15 @@ def _build_traversal_events(
     branch_decisions: list[TraversalBranchDecision],
     pending_nodes: list[TraversalPendingNode],
     input_strategy: InputStrategy | None = None,
+    expansion_trace: list[dict[str, Any]] | None = None,
 ) -> list[TraversalEvent]:
+    if expansion_trace:
+        from engine.graph.expansion_traversal_trace import trace_steps_to_traversal_events
+
+        stored = trace_steps_to_traversal_events(expansion_trace)
+        if stored:
+            return stored
+
     events: list[TraversalEvent] = []
     order = 0
 
@@ -774,6 +782,7 @@ def build_planner_traversal_state(
     existing_inputs: dict[str, Any] | None = None,
     reader: StandardsReader | None = None,
     preview: Any | None = None,
+    expansion_trace: list[dict[str, Any]] | None = None,
 ) -> PlannerTraversalState | None:
     """Derive compact planner traversal snapshot from plan graph and requirements."""
     if not workflow_id:
@@ -820,6 +829,7 @@ def build_planner_traversal_state(
         branch_decisions=branch_decisions,
         pending_nodes=pending_nodes,
         input_strategy=input_strategy,
+        expansion_trace=expansion_trace,
     )
 
     return PlannerTraversalState(
@@ -841,6 +851,7 @@ def build_planner_traversal_state_from_plan(
     existing_inputs: dict[str, Any] | None = None,
     reader: StandardsReader | None = None,
     preview: Any | None = None,
+    expansion_trace: list[dict[str, Any]] | None = None,
 ) -> PlannerTraversalState | None:
     return build_planner_traversal_state(
         plan_id=plan.plan_id,
@@ -852,6 +863,7 @@ def build_planner_traversal_state_from_plan(
         existing_inputs=existing_inputs,
         reader=reader,
         preview=preview,
+        expansion_trace=expansion_trace,
     )
 
 
@@ -957,7 +969,7 @@ def build_traversal_path_view(traversal: PlannerTraversalState) -> list[dict[str
     for item in traversal.pending_expansion_nodes:
         if item.node_id in seen_node_ids or item.node_id in skipped_node_ids:
             continue
-        state = "blocked" if item.waiting_on else "pending"
+        state = "queued" if item.waiting_on else "pending"
         rows.append(
             {
                 "node_id": item.node_id,

@@ -8,6 +8,19 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.graph.traversal_reasons import (
+    CANONICAL_EXCLUSION_REASONS,
+    CANONICAL_QUEUE_REASONS,
+    EXCLUSION_REASON_NOT_APPLICABLE,
+    EXCLUSION_REASON_SUPERSEDED_BY_SELECTED_BRANCH,
+    QUEUE_REASON_BRANCH_CONDITION_PENDING,
+    QUEUE_REASON_READY_FOR_EXPANSION,
+    QUEUE_REASON_WAITING_FOR_DEPENDENCY,
+    QUEUE_REASON_WAITING_FOR_UPSTREAM_EQUATION,
+    QUEUE_REASON_WAITING_FOR_USER_INPUT,
+    normalize_exclusion_reason,
+    normalize_queue_reason,
+)
 from engine.planner.plan_inspector import engineering_plan_from_dict
 from engine.planner.workflow_goal_metadata import workflow_title_for_goal
 from engine.reference.parameter_keys import load_parameter_node_metadata, param_node_id_for_input
@@ -21,19 +34,7 @@ from models.engineering_plan import (
     TraversalPendingNode,
 )
 
-_STATUS_REASONS = frozenset(
-    {
-        "awaiting parameter gathering",
-        "awaiting user input",
-        "waiting for user input",
-        "waiting for dependency",
-        "ready for expansion",
-        "blocked by condition",
-        "excluded by branch",
-        "already satisfied",
-        "unknown",
-    }
-)
+_STATUS_REASONS = CANONICAL_QUEUE_REASONS | CANONICAL_EXCLUSION_REASONS
 
 _EXCLUDED_EVENT_TYPES = frozenset({"node_marked_not_applicable"})
 _BLOCKED_EVENT_TYPES = frozenset({"node_deferred"})
@@ -121,26 +122,24 @@ def _pending_status_reason(
 ) -> str:
     reason_lower = str(item.reason or "").lower()
     if item.node_type == "equation" and "parameter gathering" in reason_lower:
-        return "awaiting parameter gathering"
+        return QUEUE_REASON_WAITING_FOR_UPSTREAM_EQUATION
     if item.waiting_on:
-        return "waiting for dependency"
+        return QUEUE_REASON_WAITING_FOR_DEPENDENCY
     if _has_excluded_by_branch_event(traversal, item.node_id):
-        return "excluded by branch"
+        return EXCLUSION_REASON_SUPERSEDED_BY_SELECTED_BRANCH
 
     req = _requirement_for_node(plan, item.node_id)
     if req is not None:
         if req.activation_status == "not_applicable" or req.status == "not_applicable":
-            return "blocked by condition"
+            return QUEUE_REASON_BRANCH_CONDITION_PENDING
         if req.status == "resolved":
-            return "already satisfied"
+            return QUEUE_REASON_READY_FOR_EXPANSION
         if req.requirement_class == "user_input" and req.status == "missing":
-            return "awaiting user input"
+            return QUEUE_REASON_WAITING_FOR_USER_INPUT
         if req.requirement_class == "equation_result" and req.status in {"missing", "blocked"}:
-            return "awaiting parameter gathering"
+            return QUEUE_REASON_WAITING_FOR_UPSTREAM_EQUATION
 
-    if "awaiting user input" in reason_lower:
-        return "awaiting user input"
-    return "unknown"
+    return normalize_queue_reason(item.reason)
 
 
 def _status_reason_for_queue_node(
@@ -155,24 +154,24 @@ def _status_reason_for_queue_node(
     if pending is not None:
         return _pending_status_reason(plan, traversal, pending)
     if waiting_on:
-        return "waiting for dependency"
+        return QUEUE_REASON_WAITING_FOR_DEPENDENCY
     if is_candidate:
-        return "ready for expansion"
+        return QUEUE_REASON_READY_FOR_EXPANSION
     if _has_excluded_by_branch_event(traversal, node_id):
-        return "excluded by branch"
+        return EXCLUSION_REASON_SUPERSEDED_BY_SELECTED_BRANCH
 
     req = _requirement_for_node(plan, node_id)
     if req is not None:
         if req.activation_status == "not_applicable" or req.status == "not_applicable":
-            return "blocked by condition"
+            return QUEUE_REASON_BRANCH_CONDITION_PENDING
         if req.status == "resolved":
-            return "already satisfied"
+            return QUEUE_REASON_READY_FOR_EXPANSION
         if req.requirement_class == "user_input" and req.status == "missing":
-            return "awaiting user input"
+            return QUEUE_REASON_WAITING_FOR_USER_INPUT
         if req.requirement_class == "equation_result" and req.status in {"missing", "blocked"}:
-            return "awaiting parameter gathering"
+            return QUEUE_REASON_WAITING_FOR_UPSTREAM_EQUATION
 
-    return "unknown"
+    return QUEUE_REASON_WAITING_FOR_DEPENDENCY
 
 
 def _visited_from_beginning(
@@ -277,7 +276,7 @@ def _excluded_nodes(
                 node_types.get(node_id, "unknown"),
                 title=node_titles.get(node_id),
                 reader=reader,
-                status_reason="excluded by branch",
+                status_reason=normalize_exclusion_reason(event.message),
             )
         )
     return rows
@@ -289,41 +288,8 @@ def _blocked_nodes(
     *,
     reader: StandardsReader | None,
 ) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    seen: set[str] = set()
-    node_types, node_titles = _node_metadata_maps(traversal)
-
-    for event in traversal.traversal_events:
-        if event.event_type not in _BLOCKED_EVENT_TYPES:
-            continue
-        node_id = event.node_id
-        if not node_id or node_id in seen:
-            continue
-        seen.add(node_id)
-        rows.append(
-            _node_item(
-                node_id,
-                node_types.get(node_id, "unknown"),
-                title=node_titles.get(node_id),
-                reader=reader,
-                status_reason="waiting for dependency",
-            )
-        )
-
-    for item in traversal.pending_expansion_nodes:
-        if not item.waiting_on or item.node_id in seen:
-            continue
-        seen.add(item.node_id)
-        rows.append(
-            _node_item(
-                item.node_id,
-                item.node_type,
-                title=item.title,
-                reader=reader,
-                status_reason=_pending_status_reason(plan, traversal, item),
-            )
-        )
-    return rows
+    """Deprecated — blocked/waiting nodes are unified under queue_leaf_nodes."""
+    return []
 
 
 def _excluded_blocked(
@@ -384,7 +350,7 @@ def _definition_equation_pending_items(
                 "parameter",
                 title=None,
                 reader=reader,
-                status_reason="awaiting user input",
+                status_reason=QUEUE_REASON_WAITING_FOR_USER_INPUT,
             )
         )
     return rows
@@ -447,6 +413,20 @@ def _queue_leaf_nodes(
             status_reason=_pending_status_reason(plan, traversal, item),
         )
 
+    node_types, node_titles = _node_metadata_maps(traversal)
+    for event in traversal.traversal_events:
+        if event.event_type not in _BLOCKED_EVENT_TYPES:
+            continue
+        node_id = event.node_id
+        if not node_id:
+            continue
+        append_row(
+            node_id,
+            node_types.get(node_id, "unknown"),
+            title=node_titles.get(node_id),
+            status_reason=normalize_queue_reason(event.message),
+        )
+
     for item in traversal.candidate_next_nodes:
         append_row(
             item.node_id,
@@ -466,7 +446,9 @@ def _queue_leaf_nodes(
             item["node_id"],
             item["node_type"],
             title=item.get("label"),
-            status_reason=str(item.get("status_reason") or "awaiting user input"),
+            status_reason=str(
+                item.get("status_reason") or QUEUE_REASON_WAITING_FOR_USER_INPUT
+            ),
         )
 
     return rows

@@ -247,7 +247,7 @@ Developer/debug views shall also prefer human-readable summaries over raw JSON u
 
 References to standards, paragraphs, equations, and future lookup tables shall be represented as structured reference metadata.
 
-Where possible, rendered references shall be linkable.
+Where possible, rendered references shall be linkable **inline within the citing sentence** — not as detached chip controls or a separate generic link beside duplicated citation text.
 
 Reference examples:
 
@@ -257,9 +257,21 @@ ASME B31.3 Eq. 3a
 ASME B31.3 Table A-1
 ```
 
+Example composition:
+
+```text
+Resolved from ASME B31.3 Table A-1
+```
+
+Only `ASME B31.3 Table A-1` shall be clickable; the prefix `Resolved from` shall remain plain text.
+
 Clicking a reference shall open the relevant node or source in the appropriate panel where supported.
 
 References shall not be rendered only as raw internal IDs.
+
+References shall use full standard-path labels where resolvable. Generic `"Standard reference"` is allowed only when the target cannot be resolved.
+
+This rule applies to center-panel output, right-panel standards prose, and chat assistant messages.
 
 ---
 

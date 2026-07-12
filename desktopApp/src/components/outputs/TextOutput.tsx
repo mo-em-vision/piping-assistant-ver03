@@ -1,9 +1,7 @@
-import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 import { EngineeringMathText } from '@/components/math/engineeringMath'
-import { ReferenceChipList } from '@/components/outputs/ReferenceChipList'
+import { InlineCitationList, InlineCitationText } from '@/components/standards/InlineCitationText'
 
-import type { ReferenceLinkDto } from '@/types/backend/outputs'
-import type { TextOutputBlock } from '@/types/backend/outputs'
+import type { ReferenceChipDto, ReferenceLinkDto, TextOutputBlock } from '@/types/backend/outputs'
 
 import '@/components/math/engineeringMath.css'
 
@@ -11,25 +9,18 @@ interface TextOutputProps {
   block: TextOutputBlock
 }
 
-function ReferenceLinkList({ links }: { links: ReferenceLinkDto[] }) {
-  if (!links.length) {
-    return null
-  }
-
-  return (
-    <div className="output-text__references">
-      {links.map((link) => (
-        <StandardReferenceLink
-          key={link.node_id}
-          nodeId={link.node_id}
-          label={link.label}
-        />
-      ))}
-    </div>
-  )
+function isInlinePlacement(block: TextOutputBlock): boolean {
+  return block.reference_links_placement !== 'below'
 }
 
-function InlineReferenceLinks({ links }: { links: ReferenceLinkDto[] }) {
+function renderInlineReferences(block: TextOutputBlock) {
+  const chips = block.reference_chips ?? []
+  const links = block.reference_links ?? []
+
+  if (chips.length) {
+    return <InlineCitationList chips={chips} className="output-text__inline-references" />
+  }
+
   if (!links.length) {
     return null
   }
@@ -39,7 +30,7 @@ function InlineReferenceLinks({ links }: { links: ReferenceLinkDto[] }) {
       {links.map((link, index) => (
         <span key={link.node_id}>
           {index === 0 ? ' ' : ', '}
-          <StandardReferenceLink nodeId={link.node_id} label={link.label} />
+          <InlineCitationText link={link} linkLabel={link.label} />
         </span>
       ))}
     </>
@@ -55,7 +46,8 @@ export function TextOutput({ block }: TextOutputProps) {
         : block.variant === 'assumption'
           ? 'output-text output-text--assumption'
           : 'output-text'
-  const inlineReferences = block.reference_links_placement === 'inline'
+  const inlineReferences = isInlinePlacement(block)
+  const hasReferences = Boolean(block.reference_chips?.length || block.reference_links?.length)
 
   return (
     <article className="output-block">
@@ -67,19 +59,13 @@ export function TextOutput({ block }: TextOutputProps) {
           </>
         ) : null}
         <EngineeringMathText text={block.content} />
-        {inlineReferences ? (
-          <ReferenceChipList chips={block.reference_chips} className="reference-chip-list--inline" />
-        ) : null}
-        {inlineReferences && !block.reference_chips?.length && block.reference_links?.length ? (
-          <InlineReferenceLinks links={block.reference_links} />
-        ) : null}
+        {inlineReferences && hasReferences ? renderInlineReferences(block) : null}
         {block.content_suffix ? <EngineeringMathText text={block.content_suffix} /> : null}
       </p>
-      {!inlineReferences && block.reference_chips?.length ? (
-        <ReferenceChipList chips={block.reference_chips} />
-      ) : null}
-      {!inlineReferences && !block.reference_chips?.length && block.reference_links?.length ? (
-        <ReferenceLinkList links={block.reference_links} />
+      {!inlineReferences && hasReferences ? (
+        <p className="output-text output-text--references">
+          {renderInlineReferences(block)}
+        </p>
       ) : null}
     </article>
   )

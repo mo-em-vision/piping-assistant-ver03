@@ -180,7 +180,10 @@ export function guidanceTranscriptToDisplayBlocks(
       lifecycle: 'durable',
       history_eligible: true,
       ...(Array.isArray(block.reference_chips) && block.reference_chips.length
-        ? { reference_chips: block.reference_chips }
+        ? {
+            reference_chips: block.reference_chips,
+            reference_links_placement: 'inline' as const,
+          }
         : {}),
     }
     results.push(textBlock)

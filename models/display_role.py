@@ -59,7 +59,6 @@ DISPLAY_ROLE_ORDER: tuple[DisplayRole, ...] = (
     DisplayRole.engineering_reference,
     DisplayRole.paragraph_context,
     DisplayRole.input_context,
-    DisplayRole.input_waiting,
     DisplayRole.node_intro,
     DisplayRole.equation,
     DisplayRole.applicability,
@@ -67,6 +66,7 @@ DISPLAY_ROLE_ORDER: tuple[DisplayRole, ...] = (
     DisplayRole.result_summary,
     DisplayRole.lookup_table_recommendation,
     DisplayRole.next_workflows,
+    DisplayRole.input_waiting,
 )
 
 DISPLAY_STATE_ORDER: tuple[DisplayState, ...] = (

@@ -9,12 +9,12 @@
   "engineering_reference",
   "paragraph_context",
   "input_context",
-  "input_waiting",
   "node_intro",
   "equation",
   "applicability",
   "warning",
   "result_summary",
   "lookup_table_recommendation",
-  "next_workflows"
+  "next_workflows",
+  "input_waiting"
 ]

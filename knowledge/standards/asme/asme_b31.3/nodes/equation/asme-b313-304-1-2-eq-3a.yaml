@@ -2,10 +2,10 @@
 id: asme-b313-304-1-2-eq-3a
 type: equation
 key: asme-b313-304-1-2-eq-3a
-name: Internal Pressure Wall Thickness — Eq. (3a)
+name: Internal Pressure Wall Thickness
 equation_class: calculation
 calculation_kind: function
-description: Internal pressure design thickness for straight pipe (eq. 3a)
+description: The following equation determines the internal pressure design thickness for straight pipe.
 authority:
   authorized_by:
   - 304.1.2-a

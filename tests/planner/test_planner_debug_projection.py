@@ -254,7 +254,7 @@ def test_traversal_populated_groups() -> None:
     assert groups["visited_previous_step"]
     assert groups["queue_leaf_nodes"]
     assert groups["queue_leaf_nodes"][0]["status_reason"] in _STATUS_REASONS
-    assert groups["queue_leaf_nodes"][0]["status_reason"] == "waiting for dependency"
+    assert groups["queue_leaf_nodes"][0]["status_reason"] == "waiting_for_dependency"
 
     queue_ids = {item["node_id"] for item in groups["queue_leaf_nodes"]}
     excluded_ids = {item["node_id"] for item in groups["excluded_nodes"]}
@@ -304,7 +304,7 @@ def test_excluded_event_not_in_queue() -> None:
     groups = projection["groups"]
 
     assert any(item["node_id"] == "NODE-excluded" for item in groups["excluded_nodes"])
-    assert groups["excluded_nodes"][0]["status_reason"] == "excluded by branch"
+    assert groups["excluded_nodes"][0]["status_reason"] == "branch_condition_not_satisfied"
     assert not any(item["node_id"] == "NODE-excluded" for item in groups["queue_leaf_nodes"])
 
 
@@ -314,7 +314,7 @@ def test_equation_awaiting_parameter_gathering_in_queue() -> None:
 
     equation_rows = [row for row in queue if row["node_id"] == "asme-b313-304-1-2-eq-3a"]
     assert equation_rows
-    assert equation_rows[0]["status_reason"] == "awaiting parameter gathering"
+    assert equation_rows[0]["status_reason"] == "waiting_for_upstream_equation"
     assert equation_rows[0]["display_name"] == "asme-b313-304-1-2-eq-3a"
 
 
@@ -347,7 +347,7 @@ def test_candidate_queue_reason_ready_for_expansion() -> None:
     queue = projection["groups"]["queue_leaf_nodes"]
 
     assert len(queue) == 1
-    assert queue[0]["status_reason"] == "ready for expansion"
+    assert queue[0]["status_reason"] == "ready_for_expansion"
 
 
 def test_display_name_uses_node_id_for_traceability() -> None:

@@ -6,6 +6,41 @@ import { TableOutput } from '@/components/outputs/TableOutput'
 import { useRightPanelStore } from '@/store/rightPanelStore'
 
 describe('EquationOutput', () => {
+  it('renders equation title and description before symbolic math', () => {
+    const { getByText, container } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-heading',
+          type: 'equation',
+          title: 'Internal Pressure Wall Thickness — Eq. (3a)',
+          context_intro: 'Internal pressure design thickness for straight pipe (eq. 3a)',
+          content: 't = PD / 2(SEW + PY)',
+          display: 't = PD / 2(SEW + PY)',
+          equation_display_trace: {
+            equation_id: 'eq-3a',
+            node_id: '304.1.2-a',
+            symbolic_latex: 't = \\frac{PD}{2(SEW + PY)}',
+            status: 'blocked',
+            inputs: [],
+            intermediate_values: [],
+            result: null,
+          },
+        }}
+      />,
+    )
+
+    expect(getByText('Internal Pressure Wall Thickness — Eq. (3a)')).toBeTruthy()
+    expect(
+      getByText('Internal pressure design thickness for straight pipe (eq. 3a)'),
+    ).toBeTruthy()
+    const math = container.querySelector('.output-equation__math--symbolic')
+    expect(math).toBeTruthy()
+    expect(
+      math!.compareDocumentPosition(getByText('Internal Pressure Wall Thickness — Eq. (3a)'))
+        & Node.DOCUMENT_POSITION_PRECEDING,
+    ).toBeTruthy()
+  })
+
   it('renders governing equations with KaTeX only once', () => {
     const { container } = render(
       <EquationOutput
@@ -165,7 +200,7 @@ describe('EquationOutput', () => {
       />,
     )
 
-    expect(getByText(/Resolved from Table A-1/i)).toBeTruthy()
+    expect(getByText('Resolved from')).toBeTruthy()
     expect(getByRole('button', { name: 'Table A-1' })).toBeTruthy()
     expect(queryByText('Awaiting user input')).toBeNull()
   })

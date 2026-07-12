@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from engine.graph.assumption_checker import field_value
+from engine.graph.expansion_traversal_trace import load_expansion_trace
 from engine.graph.graph_engine import GraphEngine, normalize_root_id, resolve_workflow_node_id
 from engine.graph.navigation_phases import PhasedNavigation
 from engine.planner.activation_conditions import resolve_activation_status
@@ -354,6 +355,7 @@ def build_generic_engineering_plan(
         existing_inputs=inputs,
         reader=reader,
         preview=preview,
+        expansion_trace=load_expansion_trace(task.outputs),
     )
 
     plan = EngineeringPlan(

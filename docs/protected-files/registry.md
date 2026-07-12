@@ -60,9 +60,8 @@ Prefer `python scripts/build_graph_db.py` and related build scripts over hand-ed
 
 ## `docs/` — root files
 
-- `docs/ARCHITECTURE_AUDIT.md`
 - `docs/Feature creation prompt template.md`
-- `docs/redesigning structure.md`
+- `docs/developer_inspection_framework.md`
 - `docs/rules.md`
 
 ## `docs/architecture/`
@@ -116,11 +115,6 @@ Prefer `python scripts/build_graph_db.py` and related build scripts over hand-ed
 - `docs/desktopApp/14_desktop_app_implementation_roadmap.md`
 - `docs/desktopApp/center_panel_output_contract.md`
 
-## `docs/developer tools/`
-
-- `docs/developer tools/developer_inspection_framework.md`
-- `docs/developer tools/node_dev_studio.md`
-
 ## `docs/migration/`
 
 - `docs/migration/graph_edges_migration_report.json`
@@ -158,6 +152,15 @@ Prefer `python scripts/build_graph_db.py` and related build scripts over hand-ed
 
 - `docs/process/plan_review_gate.md`
 
+## `docs/protected-files/`
+
+- `docs/protected-files/README.md`
+- `docs/protected-files/registry.md`
+
+## `docs/workflows/`
+
+- `docs/workflows/pipe_wall_thickness/acceptance_contract.md`
+
 ## `docs/standards/` (documentation only — not `knowledge/standards/`)
 
 - `docs/standards/b313_asset_inline_summary.md`
@@ -176,6 +179,9 @@ Prefer `python scripts/build_graph_db.py` and related build scripts over hand-ed
 - `docs/tests/1. end_to_end_test_cases.md`
 - `docs/tests/2. acceptance_criteria.md`
 - `docs/tests/3. mvp_test_strategy.md`
+- `docs/tests/node_test_cases.md`
+- `docs/tests/regression_test_strategy.md`
+- `docs/tests/test_data_design.md`
 
 ## `docs/todo/`
 
@@ -186,10 +192,20 @@ Prefer `python scripts/build_graph_db.py` and related build scripts over hand-ed
 - `docs/todo/Refactor Standards Folder Structure (Do Not Modify Node Content).md`
 - `docs/todo/to do.md`
 
-## `audits/` (repository root)
+## `contracts/` (repository root)
 
-- `audits/Equation Rendering.md`
-- `audits/Workflow Rendered Text and Block Output.md`
+Authoritative shared presentation contracts consumed by API, tests, and desktop app:
+
+- `contracts/center_panel_report_role_order.json` — generated from `models/display_role.DISPLAY_ROLE_ORDER` via `scripts/generate_center_panel_role_order.py`
+
+## `audits/contracts/` (repository root)
+
+Standalone audit / review contracts at repository root (`audits/**` glob):
+
+- `audits/contracts/Equation Rendering.md`
+- `audits/contracts/Global Rendering Contract.md`
+- `audits/contracts/Graph Engine Behavior.md`
+- `audits/contracts/Workflow Rendered Text and Block Output.md`
 
 ---
 

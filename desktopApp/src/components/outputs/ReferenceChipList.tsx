@@ -41,9 +41,29 @@ function dedupeChips(chips: ReferenceChipDto[]): ReferenceChipDto[] {
 
 export function ReferenceChipList({ chips, className }: ReferenceChipListProps) {
   const visibleChips = useMemo(() => dedupeChips(chips ?? []), [chips])
+  const inline = className?.includes('reference-chip-list--inline')
 
   if (!visibleChips.length) {
     return null
+  }
+
+  if (inline) {
+    return (
+      <span className={className}>
+        {visibleChips.map((chip, index) => (
+          <span key={`${chip.ref_type}:${chip.id}`}>
+            {index > 0 ? ', ' : null}
+            <StandardReferenceLink
+              referenceKind={chipReferenceKind(chip)}
+              referenceId={chipReferenceId(chip)}
+              label={chip.label}
+              activateTab
+              variant="inline"
+            />
+          </span>
+        ))}
+      </span>
+    )
   }
 
   return (
@@ -55,6 +75,7 @@ export function ReferenceChipList({ chips, className }: ReferenceChipListProps) 
           referenceId={chipReferenceId(chip)}
           label={chip.label}
           activateTab
+          variant="inline"
         />
       ))}
     </div>

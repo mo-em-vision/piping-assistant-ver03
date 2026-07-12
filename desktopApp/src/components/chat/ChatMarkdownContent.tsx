@@ -145,6 +145,7 @@ function MarkdownLink({ href, children }: { href?: string; children?: ReactNode 
         referenceId={target.referenceId}
         subsectionId={target.subsectionId}
         label={label}
+        variant="inline"
       />
 
     )

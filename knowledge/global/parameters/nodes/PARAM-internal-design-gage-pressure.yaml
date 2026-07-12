@@ -6,12 +6,9 @@ name: Internal Design Gage Pressure
 parameter_class: physical_quantity
 dimension: DIM-pressure
 description: >
-  Internal design gage pressure P used as the pressure basis in pressure design
-  thickness equations per ASME B31.3 §304.1.2. This is the gage pressure for
-  which the piping system is designed, including units consistent with the
-  governing equation.
+  Internal design gage pressure
 question: >
-  Enter the internal design gage pressure P, including units.
+  Enter the internal design gage pressure P.
   This value is used in the pressure design thickness equation.
   Examples: 500 psi, 8 bar, 3.5 MPa.
 canonical_symbol: P

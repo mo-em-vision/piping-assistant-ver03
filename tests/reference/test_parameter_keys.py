@@ -15,6 +15,12 @@ def test_param_node_id_for_input_resolves_material_legacy_key() -> None:
     assert param_node_id_for_input("material") == "PARAM-material-grade"
 
 
+def test_param_node_id_for_input_preserves_existing_param_node_id() -> None:
+    assert param_node_id_for_input("PARAM-internal-design-gage-pressure") == (
+        "PARAM-internal-design-gage-pressure"
+    )
+
+
 def test_parameter_node_description_reads_param_yaml_description() -> None:
     text = parameter_node_description(input_id="internal_design_gage_pressure")
     assert text == "internal design gage pressure"

@@ -96,6 +96,7 @@ function MarkdownLink({
         referenceId={target.referenceId}
         subsectionId={target.subsectionId}
         label={label}
+        variant="inline"
       />
     )
   }

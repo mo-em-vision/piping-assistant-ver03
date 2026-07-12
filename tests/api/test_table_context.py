@@ -102,4 +102,4 @@ def test_table_source_payload_includes_revision_year_from_source_node(
 
     assert payload["revision_year"] == 2024
     assert payload["table_number"] == "304.1.1-1"
-    assert payload["paragraph_number"] in (None, "304.1.1-b")
+    assert payload["paragraph_number"] is None

@@ -94,6 +94,35 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
     expect(items[0]?.block.display_role).toBe('input_waiting')
   })
 
+  it('orders input_waiting after durable equation blocks in center panel merge', () => {
+    const items = buildCenterPanelTranscript(
+      [
+        {
+          id: 'input-waiting',
+          type: 'text',
+          content: 'Waiting for your input to continue the workflow.',
+          display_role: 'input_waiting',
+          lifecycle: 'volatile',
+          volatile: true,
+          history_eligible: false,
+        },
+        {
+          id: 'equation-asme-b313-304-1-2-eq-3a',
+          type: 'equation',
+          content: 't = PD / 2(SEW + PY)',
+          display_role: 'equation',
+          display_state: 'preview',
+          lifecycle: 'preview',
+        },
+      ],
+      [],
+    )
+
+    expect(items).toHaveLength(2)
+    expect(items[0]?.block.display_role).toBe('equation')
+    expect(items[1]?.block.display_role).toBe('input_waiting')
+  })
+
   it('filters leaked internal text from center panel merge', () => {
     const items = buildCenterPanelTranscript(
       [

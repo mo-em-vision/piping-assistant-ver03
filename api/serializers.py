@@ -170,6 +170,10 @@ _OUTPUT_DEBUG_KEYS = frozenset(
         "planner_inspector_summary",
         "planner_debug_projection",
         "engineering_plan_view",
+        "_execution_trace",
+        "_expansion_traversal_trace",
+        "_skipped_trace",
+        "_validation_trace",
     }
 )
 

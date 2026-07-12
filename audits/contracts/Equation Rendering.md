@@ -86,8 +86,10 @@ If the value was looked up from a table, the Source column shall state the table
 Example:
 
 ```text
-Derived from ASME B31.3 Table A-1
+Resolved from ASME B31.3 Table A-1
 ```
+
+Only `ASME B31.3 Table A-1` shall be the clickable inline hyperlink; do not show a separate detached link chip or generic `"Standard reference"` label.
 
 If the parameter value is defined or calculated in another equation, the Source column shall state the equation reference and make the equation reference linkable where possible.
 
@@ -96,6 +98,8 @@ Example:
 ```text
 Defined in ASME B31.3 Eq. 3a
 ```
+
+Only `ASME B31.3 Eq. 3a` shall be clickable inline within the sentence.
 
 Unresolved values shall not remain in the final solved parameter table.
 

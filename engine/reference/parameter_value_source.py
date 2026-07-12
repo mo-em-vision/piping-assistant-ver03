@@ -304,17 +304,13 @@ def _provenance_label(
     value_reference: dict[str, str] | None,
 ) -> str:
     if source_type == "table_lookup":
-        if value_reference and value_reference.get("label"):
-            return f"Resolved from {value_reference['label']}"
-        description = _parameter_description(reader, param_id)
-        if description:
-            return f"Resolved from {description.lower()} table"
-        return "Resolved from standards table"
+        return "Resolved from"
 
     if source_type == "equation_output":
-        if value_reference and value_reference.get("node_id"):
-            return ""
-        return ""
+        return "Defined in"
+
+    if source_type == "user_input":
+        return "User supplied"
 
     return AWAITING_USER_INPUT
 
@@ -482,26 +478,16 @@ def _lookup_table_api_id(
     table_ref: str,
 ) -> str:
     """Return a table id accepted by standards table APIs."""
-    source = lookup_meta.get("source")
-    if isinstance(source, dict):
-        db_table_id = str(source.get("table_id") or "").strip()
-        if db_table_id and reader.tables_database.resolve_table_id(db_table_id):
-            return db_table_id
+    from engine.reference.table_metadata import resolve_table_db_id
 
-    tables_db = reader.tables_database
-    for candidate in (table_ref, str(lookup_meta.get("id") or "").strip()):
-        if candidate:
-            resolved = tables_db.resolve_table_id(candidate)
-            if resolved:
-                return resolved
-    return table_ref or str(lookup_meta.get("id") or "").strip()
+    return resolve_table_db_id(reader, lookup_meta, table_ref=table_ref)
 
 
 def _lookup_table_reference(
     reader: StandardsReader,
     lookup_meta: dict[str, Any],
 ) -> dict[str, str] | None:
-    from engine.reference.table_metadata import table_citation_labels
+    from engine.reference.table_metadata import format_table_citation, table_citation_labels
 
     lookup_cfg = lookup_meta.get("lookup")
     table_ref = ""
@@ -514,15 +500,17 @@ def _lookup_table_reference(
                 if table_ref:
                     break
 
-    table_number, paragraph_number = table_citation_labels(reader, table_ref) if table_ref else ("", "")
+    table_number, _paragraph_number = table_citation_labels(reader, table_ref) if table_ref else ("", "")
     if table_number:
-        label = f"Table {table_number}"
+        label = format_table_citation(
+            standard_label="ASME B31.3",
+            table_number=table_number,
+        )
         table_id = _lookup_table_api_id(reader, lookup_meta, table_ref)
         if table_id:
             return {
                 "node_id": table_id,
                 "label": label,
-                "paragraph": paragraph_number or None,
                 "reference_kind": "table",
             }
     return _paragraph_reference_link(reader, str(lookup_meta.get("id") or ""))

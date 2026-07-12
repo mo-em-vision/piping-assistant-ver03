@@ -6,7 +6,6 @@ import re
 from typing import Any
 
 from engine.reference.graph_compile import LEGACY_NODE_ID_ALIASES
-from engine.reference.paragraph_hierarchy import paragraph_reference
 
 _TABLE_NUMBER_FROM_TITLE = re.compile(r"^Table\s+(.+?)(?:\s+—|\s+-|$)", re.IGNORECASE)
 
@@ -37,33 +36,39 @@ def table_reference(metadata: dict[str, Any]) -> str:
 
 
 def table_paragraph_reference(metadata: dict[str, Any]) -> str:
-    """Return governing paragraph citation for a lookup/table node, if authored."""
-    explicit = str(metadata.get("paragraph_number") or "").strip()
-    if explicit:
-        return explicit
-    legacy = str(metadata.get("paragraph") or "").strip()
-    if legacy:
-        token = legacy.split(",", 1)[0].strip()
-        if _looks_like_paragraph_reference(token):
-            return token
-    for item in metadata.get("edges") or []:
-        if not isinstance(item, dict):
-            continue
-        if str(item.get("type") or "") != "depends_on":
-            continue
-        target = str(item.get("target") or "").strip()
-        if _looks_like_paragraph_reference(target):
-            return target
+    """Table lookup nodes cite by table number only — no paragraph suffix in display."""
+    _ = metadata
     return ""
 
 
-def _looks_like_paragraph_reference(value: str) -> bool:
-    text = value.strip()
-    if not text:
-        return False
-    if text[0].isdigit():
-        return True
-    return bool(re.match(r"^\d", text))
+def resolve_table_db_id(
+    reader: Any,
+    metadata: dict[str, Any] | None,
+    *,
+    table_ref: str = "",
+) -> str:
+    """Return a table id accepted by standards table APIs (tables.db primary key)."""
+    from engine.reference.standards_tables import StandardsTablesDatabase
+
+    tables_db = getattr(reader, "tables_database", None) or getattr(reader, "_tables_db", None)
+    if not isinstance(tables_db, StandardsTablesDatabase):
+        return table_ref or str((metadata or {}).get("id") or "").strip()
+
+    source = (metadata or {}).get("source")
+    if isinstance(source, dict):
+        db_table_id = str(source.get("table_id") or "").strip()
+        if db_table_id and tables_db.resolve_table_id(db_table_id):
+            return db_table_id
+
+    for candidate in (
+        table_ref,
+        str((metadata or {}).get("id") or "").strip(),
+    ):
+        if candidate:
+            resolved = tables_db.resolve_table_id(candidate)
+            if resolved:
+                return resolved
+    return table_ref or str((metadata or {}).get("id") or "").strip()
 
 
 def _table_number_from_id_suffix(suffix: str) -> str:
@@ -131,8 +136,7 @@ def table_citation_labels(
         return None, None
     metadata = record.metadata
     table_number = table_reference(metadata) or None
-    paragraph_number = table_paragraph_reference(metadata) or None
-    return table_number, paragraph_number
+    return table_number, None
 
 
 def format_table_citation(
@@ -141,12 +145,8 @@ def format_table_citation(
     table_number: str | None,
     paragraph_number: str | None = None,
 ) -> str:
-    """Build a user-facing table citation label."""
+    """Build a user-facing table citation label (table number only)."""
+    _ = paragraph_number
     if table_number:
-        label = f"Table {table_number}"
-        if paragraph_number:
-            return f"{standard_label} {label} (para. {paragraph_number})"
-        return f"{standard_label} {label}"
-    if paragraph_number:
-        return f"{standard_label} para. {paragraph_number}"
+        return f"{standard_label} Table {table_number}"
     return standard_label

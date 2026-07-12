@@ -27,13 +27,13 @@ def test_table_citation_labels_resolve_from_lookup_node() -> None:
     reader = _reader()
     table_number, paragraph_number = table_citation_labels(reader, "table_304_1_1")
     assert table_number == "304.1.1-1"
-    assert paragraph_number in (None, "304.1.1-b")
+    assert paragraph_number is None
 
 
-def test_format_table_citation_includes_paragraph_when_present() -> None:
+def test_format_table_citation_uses_table_number_only() -> None:
     label = format_table_citation(
         standard_label="ASME B31.3",
         table_number="A-1",
         paragraph_number="302.3.5-d",
     )
-    assert label == "ASME B31.3 Table A-1 (para. 302.3.5-d)"
+    assert label == "ASME B31.3 Table A-1"

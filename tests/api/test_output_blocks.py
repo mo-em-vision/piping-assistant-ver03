@@ -303,8 +303,8 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
     assert len(paragraph_blocks) == 1
 
     equation = equation_blocks[0]
-    assert not str(equation.get("context_intro") or "").strip()
-    assert equation.get("title") is None
+    assert equation.get("title") == "Internal Pressure Wall Thickness — Eq. (3a)"
+    assert "internal pressure design thickness" in str(equation.get("context_intro") or "").lower()
     assert equation.get("lifecycle") == "preview"
     assert "variables" not in equation
     assert "input_table" in equation

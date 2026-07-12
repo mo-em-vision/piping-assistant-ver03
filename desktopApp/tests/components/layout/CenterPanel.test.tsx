@@ -386,3 +386,79 @@ describe('CenterPanel header title', () => {
     expect(screen.getByRole('heading', { name: 'Workflow' })).toBeInTheDocument()
   })
 })
+
+describe('CenterPanel equation scroll ordering', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    useChatStore.setState({
+      askAboutSelection: vi.fn().mockResolvedValue(undefined),
+    } as Partial<ReturnType<typeof useChatStore.getState>>)
+  })
+
+  it('renders input_waiting after equation blocks and keeps equation layout in one article', () => {
+    useTaskStore.setState({
+      activeTask: {
+        id: mockTaskState.task_id,
+        name: mockTaskState.name,
+        description: mockTaskState.description,
+        discipline: mockTaskState.discipline,
+        status: 'in_progress',
+      },
+      activeTaskState: {
+        ...mockTaskState,
+        display_outputs: [
+          {
+            id: 'equation-asme-b313-304-1-2-eq-3a',
+            type: 'equation',
+            title: 'Governing equation',
+            content: 't = PD / 2(SEW + PY)',
+            display_role: 'equation',
+            display_state: 'preview',
+            lifecycle: 'preview',
+            input_table: {
+              columns: [
+                { key: 'symbol', label: 'Symbol', sortable: false },
+                { key: 'definition', label: 'Definition', sortable: false },
+                { key: 'value', label: 'Value', sortable: false },
+              ],
+              rows: [
+                {
+                  symbol: 'P',
+                  definition: 'Design pressure',
+                  value: 'Awaiting user input',
+                },
+              ],
+            },
+          },
+          {
+            id: 'input-waiting',
+            type: 'text',
+            content: 'Waiting for your input to continue the workflow.',
+            display_role: 'input_waiting',
+            lifecycle: 'volatile',
+            volatile: true,
+            history_eligible: false,
+          },
+        ],
+        current_ask: {
+          kind: 'input',
+          parameter_id: 'design_pressure',
+          short_prompt: 'Enter design pressure.',
+          prompt: 'Enter design pressure.',
+        },
+      },
+      loading: false,
+      userError: null,
+    })
+
+    const { container } = render(<CenterPanel />)
+
+    const equationArticle = container.querySelector('.output-equation')
+    const waitingText = screen.getByText('Waiting for your input to continue the workflow.')
+    expect(equationArticle).toBeTruthy()
+    expect(equationArticle?.querySelector('.output-equation__input-table')).toBeTruthy()
+    expect(
+      equationArticle!.compareDocumentPosition(waitingText) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+})

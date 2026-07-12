@@ -96,6 +96,38 @@ def test_pressure_loading_triggers_goal_tree_refresh(monkeypatch) -> None:
     assert goal_tree_calls == [1]
 
 
+def test_structure_unchanged_skips_goal_tree_refresh(monkeypatch) -> None:
+    reader = _reader()
+    manager = TaskStateManager()
+    task_id = "planning-gating-skip-unchanged"
+    run_completed_workflow(manager, reader, task_id)
+    task = manager.get_task(task_id)
+    _ensure_pipe_wall_workflow(task)
+    refresh_task_planning(task, reader, propose_defaults=False, allow_lightweight_refresh=False)
+    manager.replace_task(task_id, task)
+    assert isinstance(task.outputs.get("planning_structure_signature"), dict)
+
+    goal_tree_calls: list[int] = []
+    import engine.planner.goal_builder as goal_builder
+
+    original_refresh = goal_builder.refresh_goal_tree
+
+    def tracked_refresh(*args, **kwargs):
+        goal_tree_calls.append(1)
+        return original_refresh(*args, **kwargs)
+
+    monkeypatch.setattr("api.workflow_bootstrap.refresh_goal_tree", tracked_refresh)
+
+    task = manager.get_task(task_id)
+    refresh_task_planning(
+        task,
+        reader,
+        propose_defaults=False,
+        allow_lightweight_refresh=True,
+    )
+    assert goal_tree_calls == []
+
+
 def test_non_structural_corrosion_allowance_skips_goal_tree_refresh(monkeypatch) -> None:
     reader = _reader()
     manager = TaskStateManager()

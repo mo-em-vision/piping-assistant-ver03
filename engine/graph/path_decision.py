@@ -13,7 +13,7 @@ from engine.graph.assumption_checker import (
 from engine.graph.graph_store import GraphStore
 from models.fact import Fact
 
-_PATH_DECISION_FIELDS = frozenset({"pressure_loading", "geometry_input_mode"})
+from engine.graph.workflow_adapters import PATH_DECISION_FIELDS as _PATH_DECISION_FIELDS
 
 
 def _applies_when_matches_field(
