@@ -298,7 +298,7 @@ Execution Context is mutable.
 
 Represents the currently active engineering references for one task execution.
 
-Runtime implementation: [`models/authority_context.py`](../../models/authority_context.py) on each `Task` (peer to `execution_context`). Template: [`docs/node-templates/Authority Context.md`](../node-templates/Authority%20Context.md).
+Runtime implementation: [`models/authority_context.py`](../../models/authority_context.py) on each `Task` (peer to `execution_context`). Reference: [`audits/contracts/runtime/authority-context.md`](../../audits/contracts/runtime/authority-context.md).
 
 Example:
 
@@ -318,7 +318,7 @@ This context determines which authoritative knowledge is applicable during execu
 
 Immutable canonical authoritative sources (`AUTH-*`) in [`knowledge/global/authorities/`](../../knowledge/global/authorities/).
 
-Template: [`docs/node-templates/Authority Node.md`](../node-templates/Authority%20Node.md). Canonical type `authority` in [`engine/reference/node_types.py`](../../engine/reference/node_types.py).
+Contract: [`audits/contracts/nodes/authority.md`](../../audits/contracts/nodes/authority.md). Canonical type `authority` in [`engine/reference/node_types.py`](../../engine/reference/node_types.py).
 
 Authority nodes define **what sources exist**. Authority Context selects **which sources are active** for one execution.
 

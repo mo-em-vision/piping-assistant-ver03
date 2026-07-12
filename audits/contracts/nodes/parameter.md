@@ -1,0 +1,150 @@
+# Parameter Node Contract
+
+## 1. Purpose
+
+A parameter node defines a reusable engineering field — its semantic meaning, class, dimension, and where it is introduced — without storing runtime values or resolution outcomes.
+
+## 2. Use this node when
+
+- You need a canonical gatherable field for workflows (pressure, diameter, material grade).
+- You are binding symbols in equations, lookups, or validation rules.
+- You need composer and messaging metadata for user prompts.
+
+## 3. Do not use this node when
+
+- You only need a broad semantic grouping (use `concept`).
+- You need to store the user's entered value (runtime Fact).
+- You need a physical quantity node without task binding (legacy `quantity` — prefer parameter).
+- You need a table or formula (use `lookup` or `equation`).
+
+## 4. File location
+
+`knowledge/global/parameters/nodes/PARAM-{slug}.yaml`
+
+Pack-local parameters are discouraged; prefer global `PARAM-*` nodes referenced from standards content.
+
+## 5. ID convention
+
+| Field | Rule |
+| --- | --- |
+| `id` | `PARAM-{kebab-case-slug}` |
+| `key` | Underscore machine key (`allowable_stress`) |
+| `name` | Title Case matching slug semantics |
+| `introduced_by` | Pack-qualified paragraph ids (`asme-b313-304-1-1-b`) |
+
+## 6. Copyable minimal YAML skeleton
+
+```yaml
+---
+id: PARAM-example-field
+type: parameter
+key: example_field
+name: Example Field
+parameter_class: physical_quantity
+description: >
+  Stable semantic definition of the example engineering field.
+introduced_by:
+  - asme-b313-304-1-1-b
+metadata:
+  last_revision: 2026-07-04
+  edited_by: admin
+---
+```
+
+## 7. Required fields
+
+| Field | Rule |
+| --- | --- |
+| `id` | Starts with `PARAM-` |
+| `type` | `parameter` |
+| `key` | Machine key |
+| `name` | Human-readable name |
+| `parameter_class` | One of allowed classes (see section 8) |
+| `description` | Non-empty definition |
+| `introduced_by` | Non-empty list of pack-qualified paragraph ids (top-level, not edges) |
+| `metadata.last_revision` | ISO date |
+| `metadata.edited_by` | Author |
+
+## 8. Optional fields
+
+| Field | Purpose |
+| --- | --- |
+| `dimension` | `DIM-*` reference |
+| `canonical_symbol` | Symbol in equations (e.g. `S`) |
+| `aliases` | Search synonyms |
+| `question` | Primary user-facing prompt |
+| `metadata.short_question` | One-line composer ask |
+| `metadata.composer_input` | UI control type |
+| `metadata.composer_options` | Static dropdown choices |
+| `metadata.canonical_unit` | Default unit symbol or `UNIT-*` |
+| `metadata.default_value` | Proposed default |
+| `metadata.input_examples` | Prompt examples |
+| `metadata.prompt_use_description` | Skip description in prompts when `false` |
+| `metadata.status` | Lifecycle |
+| `edges` | `has_dimension`, `used_by`, etc. |
+
+### Allowed `parameter_class` values
+
+```text
+physical_quantity, geometric_quantity, material_designation,
+coefficient, factor, categorical, environmental_condition,
+calculated_quantity, selection
+```
+
+## 9. Forbidden fields
+
+```text
+value, unit, resolution, source, timestamp,
+execution_id, workflow_id, status (top-level)
+```
+
+Also forbidden:
+
+- `introduced_by` as an edge type (must be top-level list)
+- Top-level `links` block
+- Legacy paragraph refs (`B313-*`, `asme_b313_*` without `asme-b313-` qualification)
+
+## 10. Permitted outgoing relationships
+
+| Edge type | Target | Notes |
+| --- | --- | --- |
+| `has_dimension` | `DIM-*` | Unit compatibility |
+| `used_by` | equation, lookup, paragraph, table id | Traceability |
+| `has_concept` | `CONCEPT-*` | Optional semantic parent |
+| Other taxonomy edges | per `relationship_validator` | Validated per edge |
+
+Do **not** author `introduced_by` in `edges` — compiler emits those from the top-level list.
+
+## 11. Fields consumed by runtime components
+
+Graph expansion activates parameters on the expanded path and reads `applicability` on related nodes. Planner selects the next missing parameter from active graph nodes. Messaging reads `question`, `metadata.short_question`, and composer metadata for prompts. Execution binds `requires`/`returns` entries to `PARAM-*` ids via Facts. Desktop composer reads `metadata.composer_input` and `metadata.composer_options`.
+
+## 12. Validation procedure
+
+1. Parse YAML frontmatter.
+2. Run `validate_parameter_node(meta)` from `engine/validation/parameter_node_validator.py`.
+3. Confirm each `introduced_by` entry uses pack-qualified ids.
+4. Confirm `parameter_class` is in `ALLOWED_PARAMETER_CLASSES`.
+5. Run `python -m pytest tests/reference -k parameter -q` when changing global parameters.
+
+## 13. Common authoring mistakes
+
+- Putting `introduced_by` in `edges` instead of top-level list.
+- Using bare paragraph numbers (`304.1.1-b`) without pack prefix in `introduced_by`.
+- Storing runtime `value` or `resolution` on the node.
+- Omitting `question` for gatherable parameters (falls back to thin descriptions).
+- Using `categorical` / `selection` on concept nodes instead of parameters.
+
+## 14. Current repository examples
+
+- `knowledge/global/parameters/nodes/PARAM-allowable-stress.yaml`
+- `knowledge/global/parameters/nodes/PARAM-internal-design-gage-pressure.yaml`
+- `knowledge/global/parameters/nodes/PARAM-pressure-loading.yaml`
+- `knowledge/global/parameters/nodes/PARAM-weld-joint-efficiency.yaml`
+
+## 15. Implementation evidence appendix
+
+- Validator: `engine/validation/parameter_node_validator.py` — `validate_parameter_node`, `ALLOWED_PARAMETER_CLASSES`, `_FORBIDDEN_FIELDS`
+- Qualification: `engine/reference/asme_b313_node_ids.py` — `is_qualified_paragraph_ref`, `qualify_cross_pack_ref`
+- Prompt context: `engine/messaging/parameter_prompt_context.py`
+- Metadata helpers: `engine/reference/parameter_metadata.py`

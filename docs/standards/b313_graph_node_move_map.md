@@ -47,4 +47,4 @@ Child nodes listed above are compiled from parent metadata containers via `engin
 
 Graph DB aliases: `B313-304.1.{1,2,3}-SECTION` → canonical section ids; `nodes/B313-304.1.1` → `B313-304.1.1`.
 
-See also: [`embedded_source.md`](../node-templates/embedded_source.md).
+See also: [`audits/contracts/nodes/01-shared-node-contract.md`](../../audits/contracts/nodes/01-shared-node-contract.md).

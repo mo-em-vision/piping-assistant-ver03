@@ -44,7 +44,7 @@ Cross-pack registries and graph node packs that are not tied to a single ASME/AP
 
 **Forward-looking:** `concepts/` and `parameters/` — ontology layers; standards packs will migrate to reference `CONCEPT-*` and `PARAM-*` nodes.
 
-**Runtime (not in this folder):** Facts, Goals, the unified **Execution Context**, and **Authority Context** live on each task — see [`models/execution_context.py`](../../models/execution_context.py), [`models/authority_context.py`](../../models/authority_context.py), [`models/fact.py`](../../models/fact.py), [`models/goal.py`](../../models/goal.py), and [`docs/node-templates/Execution Context.md`](../../docs/node-templates/Execution%20Context.md) / [`Authority Context.md`](../../docs/node-templates/Authority%20Context.md). **Authority nodes** (`AUTH-*`) in [`authorities/`](authorities/) are immutable knowledge; Authority Context selects which are active. Do not add `knowledge/global/facts/` or `knowledge/global/goals/` packs.
+**Runtime (not in this folder):** Facts, Goals, the unified **Execution Context**, and **Authority Context** live on each task — see [`models/execution_context.py`](../../models/execution_context.py), [`models/authority_context.py`](../../models/authority_context.py), [`models/fact.py`](../../models/fact.py), [`models/goal.py`](../../models/goal.py), and [`audits/contracts/runtime/execution-context.md`](../../audits/contracts/runtime/execution-context.md) / [`authority-context.md`](../../audits/contracts/runtime/authority-context.md). **Authority nodes** (`AUTH-*`) in [`authorities/`](authorities/) are immutable knowledge; Authority Context selects which are active. Do not add `knowledge/global/facts/` or `knowledge/global/goals/` packs.
 
 **Inactive:** `datatypes/` — empty placeholder only.
 

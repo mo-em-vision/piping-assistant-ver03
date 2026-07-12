@@ -4,7 +4,7 @@ Canonical authoritative engineering sources (`AUTH-*`) shared across all standar
 
 ## Purpose
 
-Authority nodes define **immutable authoritative sources** — standards, codes, regulations, and specifications. They do not store runtime values or execution state. [Authority Context](../../../docs/node-templates/Authority%20Context.md) selects which AUTH nodes are active for a task.
+Authority nodes define **immutable authoritative sources** — standards, codes, regulations, and specifications. They do not store runtime values or execution state. [Authority Context](../../../audits/contracts/runtime/authority-context.md) selects which AUTH nodes are active for a task.
 
 ## Layout
 
@@ -23,7 +23,7 @@ Authority Context (runtime)
   └── active_authorities[].authority_id → AUTH-ASME-B31.3
 ```
 
-Authoring template: [`docs/node-templates/Authority Node.md`](../../../docs/node-templates/Authority%20Node.md).
+Authoring contract: [`audits/contracts/nodes/authority.md`](../../../audits/contracts/nodes/authority.md).
 
 ## Compile
 

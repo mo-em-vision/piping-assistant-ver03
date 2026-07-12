@@ -25,7 +25,7 @@ CONCEPT-*  ──has_parameter──►  PARAM-*  ──has_dimension──►  
 | Dimension | [`../dimensions/`](../dimensions/) | Compatible units for a quantity kind |
 | Unit | [`../units/`](../units/) | Conversion between unit symbols |
 
-Authoring template: [`docs/node-templates/Engineering Concept.md`](../../../docs/node-templates/Engineering%20Concept.md).
+Authoring contract: [`audits/contracts/nodes/concept.md`](../../../audits/contracts/nodes/concept.md).
 
 ## Canonical concepts
 

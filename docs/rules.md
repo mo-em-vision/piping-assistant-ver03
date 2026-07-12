@@ -79,7 +79,7 @@ Stop if you drift into kitchen-sink refactors, wrong abstractions, or duplicatin
 ## 11. Node structure
 
 - Workflows start from root nodes only; graph traversal reads node data.
-- Use node templates under `docs/node-templates/`.
+- Use node authoring contracts under `audits/contracts/nodes/` (start at [`audits/contracts/nodes/00-START-HERE.md`](../audits/contracts/nodes/00-START-HERE.md)). Validators in `engine/validation/` remain the enforcement authority.
 - Confirm template or relationship-schema changes with the user.
 - Paragraph subsection naming: `.cursor/rules/paragraph-subsection-naming.mdc`.
 
@@ -243,7 +243,7 @@ Correct: `Resolved from `**`ASME B31.3 Table A-1`** (only the citation is clicka
 ### Design references
 
 - `docs/desktopApp/05_backend_ui_contract.md` — display output blocks
-- `docs/node-templates/Parameter Node.md` — `parameter_class`, `resolution`
+- [`audits/contracts/nodes/parameter.md`](../audits/contracts/nodes/parameter.md) — `parameter_class`, `resolution`
 - `engine/graph/micro_graph_engine.py` — calculated parameters excluded from `required_user_inputs`
 
 ---
@@ -270,7 +270,7 @@ Correct: `Resolved from `**`ASME B31.3 Table A-1`** (only the citation is clicka
 
 ### Design references
 
-- `docs/node-templates/lookup.md` — lookup node template
+- [`audits/contracts/nodes/lookup.md`](../audits/contracts/nodes/lookup.md) — lookup node contract
 - `engine/graph/lookup_parameter_resolution.py` — infers `table_lookup` resolution from graph
 - `engine/executor/coefficient_lookup.py` — ASME B31.3 coefficient table resolution
 - §14 — parameter key consistency for lookup `inputs[].id`
@@ -304,7 +304,7 @@ Correct: `Resolved from `**`ASME B31.3 Table A-1`** (only the citation is clicka
 
 - `engine/reference/parameter_composer_spec.py` — PARAM-only composer resolver
 - `api/parameter_definitions.py` — merges dynamic lookup options onto PARAM-derived specs
-- `docs/node-templates/Parameter Node.md` — composer metadata fields
+- [`audits/contracts/nodes/parameter.md`](../audits/contracts/nodes/parameter.md) — composer metadata fields
 - §14 — parameter `key` consistency
 - `.cursor/rules/param-composer-metadata.mdc`
 
@@ -343,7 +343,7 @@ lookup_conditionals:
 
 - `engine/graph/lookup_conditionals.py` — generic conditional interpreter
 - `engine/graph/lookup_parameter_resolution.py` — exposes `lookup_conditionals` on resolution
-- `docs/node-templates/Parameter Node.md` — `lookup_conditionals` on lookup outputs
+- [`audits/contracts/nodes/parameter.md`](../audits/contracts/nodes/parameter.md) — `lookup_conditionals` on lookup outputs
 - `.cursor/rules/lookup-conditionals.mdc`
 
 ---

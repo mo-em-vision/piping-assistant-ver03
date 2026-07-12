@@ -60,4 +60,4 @@ Navigation only. Paragraph content lives in flat `nodes/paragraph/{id}.yaml` fil
 | asme-b313-table-A-2 | `nodes/tables/asme-b313-table-A-2.yaml` | Table A-2 quality factors |
 | asme-b313-table-A-3 | `nodes/tables/asme-b313-table-A-3.yaml` | Table A-3 material limitations |
 
-Naming convention: see [docs/node-templates/Paragraph Node.md](../../../docs/node-templates/Paragraph%20Node.md) and `.cursor/rules/paragraph-subsection-naming.mdc`.
+Naming convention: see [audits/contracts/nodes/paragraph.md](../../../audits/contracts/nodes/paragraph.md) and `.cursor/rules/paragraph-subsection-naming.mdc`.

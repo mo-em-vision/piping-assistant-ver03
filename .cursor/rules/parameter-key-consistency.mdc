@@ -42,6 +42,6 @@ Reference the parameter node in `edges[].target` or description; do not use a di
 - `python -m pytest tests/engine/reference/test_parameter_keys.py tests/api/test_parameter_definitions.py -q`
 - After table YAML changes: `python scripts/build_graph_db.py` if using SQLite cache
 
-Full doc: [`docs/rules.md`](../docs/rules.md) §14, [`docs/node-templates/Parameter Node.md`](../docs/node-templates/Parameter%20Node.md#parameter-key-consistency).
+Full doc: [`docs/rules.md`](../docs/rules.md) §14, [`audits/contracts/nodes/parameter.md`](../audits/contracts/nodes/parameter.md).
 
 Composer UI metadata on the same node: [`param-composer-metadata.mdc`](param-composer-metadata.mdc), `docs/rules.md` §17.

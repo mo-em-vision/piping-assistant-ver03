@@ -6,7 +6,7 @@ Unit-transformation equations (`EQ-unit-*`) live under `nodes/equation/` and are
 
 Each unit declares its dimension via `dimension: DIM-*` and links to the dimension node with a `belongs_to_dimension` edge.
 
-Authoring template: [`docs/node-templates/Unit Node.md`](../../../docs/node-templates/Unit%20Node.md).
+Authoring contract: [`audits/contracts/nodes/unit.md`](../../../audits/contracts/nodes/unit.md).
 
 ## Compile
 

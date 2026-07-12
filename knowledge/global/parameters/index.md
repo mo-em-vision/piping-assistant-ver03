@@ -54,9 +54,9 @@ CONCEPT-*  ──has_parameter──►  PARAM-*  ──has_dimension──►  
 | Dimension | [`../dimensions/`](../dimensions/) | Compatible units for a quantity kind |
 | Unit | [`../units/`](../units/) | Conversion between unit symbols |
 
-Authoring template: [`docs/node-templates/Parameter Node.md`](../../../docs/node-templates/Parameter%20Node.md).
+Authoring contract: [`audits/contracts/nodes/parameter.md`](../../../audits/contracts/nodes/parameter.md).
 
-Runtime counterparts: values are Facts; objectives are Goals; both live in the per-task **Execution Context** ([`docs/node-templates/Execution Context.md`](../../../docs/node-templates/Execution%20Context.md), [`models/execution_context.py`](../../../models/execution_context.py)). **Authority Context** ([`docs/node-templates/Authority Context.md`](../../../docs/node-templates/Authority%20Context.md), [`models/authority_context.py`](../../../models/authority_context.py)) records which standards govern the execution — not as nodes under `knowledge/`.
+Runtime counterparts: values are Facts; objectives are Goals; both live in the per-task **Execution Context** ([`audits/contracts/runtime/execution-context.md`](../../../audits/contracts/runtime/execution-context.md), [`models/execution_context.py`](../../../models/execution_context.py)). **Authority Context** ([`audits/contracts/runtime/authority-context.md`](../../../audits/contracts/runtime/authority-context.md), [`models/authority_context.py`](../../../models/authority_context.py)) records which standards govern the execution — not as nodes under `knowledge/`.
 
 ## Compile
 

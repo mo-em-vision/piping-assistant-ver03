@@ -43,7 +43,7 @@ Full enumerated lists and maintenance rules: [`docs/protected-files/registry.md`
 | Feature / plan | `docs/process/plan_review_gate.md`, `docs/core/3. component_responsibilities.md` |
 | Audit / as-built questions | `docs/audit/INDEX.md` |
 | Desktop | relevant `docs/desktopApp/*.md` |
-| Knowledge nodes | relevant `docs/node-templates/*.md` |
+| Knowledge nodes | relevant files under [`audits/contracts/nodes/`](../../audits/contracts/nodes/00-START-HERE.md) |
 | Standards pack content | relevant files under `knowledge/standards/` (read-only unless user approves edits) |
 
 Do not use protected files as a substitute for reading implementation code; use both.

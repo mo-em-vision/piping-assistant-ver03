@@ -39,11 +39,11 @@ Point `edges[].target` at the subsection **node id** (e.g. `302.3.5-e`). Do not 
 
 Do **not** author `hierarchy.previous` or `hierarchy.next`. Workflow sequencing uses workflow `next` edges.
 
-Do **not** author a `links` metadata block — use typed `edges` only (see [`docs/node-templates/_relationship_schema.md`](docs/node-templates/_relationship_schema.md#on-disk-rule)).
+Do **not** author a `links` metadata block — use typed `edges` only (see [`audits/contracts/nodes/01-shared-node-contract.md`](../../audits/contracts/nodes/01-shared-node-contract.md)).
 
 Do **not** use `related_to` for parent/child structure. Do **not** author `parent`, `child`, `next`, or `previous` in paragraph `edges` — use `hierarchy` metadata only.
 
-Full rule: [`docs/node-templates/Paragraph Node.md`](docs/node-templates/Paragraph%20Node.md#relationship-rule).
+Full rule: [`audits/contracts/nodes/paragraph.md`](../../audits/contracts/nodes/paragraph.md).
 
 ## Revision metadata (required)
 
@@ -57,4 +57,4 @@ Pack-level `source_language` lives in `pack.yaml` at the pack root (inherited by
 
 Nomenclature paragraphs (`metadata.kind: nomenclature`, e.g. `304.1.1-b`): only `introduces_parameter` edges — tables belong on `PARAM-*` nodes.
 
-Full template: [`docs/node-templates/Paragraph Node.md`](docs/node-templates/Paragraph%20Node.md).
+Full template: [`audits/contracts/nodes/paragraph.md`](../../audits/contracts/nodes/paragraph.md).
