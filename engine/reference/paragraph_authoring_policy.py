@@ -1,35 +1,25 @@
-"""Canonical field-placement policy for paragraph node frontmatter and sidecars.
+"""Canonical field-placement policy for paragraph node primary YAML.
 
-Single source of truth for placement categories, permitted destinations, edge-target
-classification, and phase-aware SIDECAR_ONLY enforcement. Consumed by the sidecar
-loader, paragraph validator, audit script, and ontology tests.
+Authors maintain one ``{id}.yaml`` file. Node-owned execution metadata lives in the
+nested ``execution`` block (or legacy sidecar during compatibility phase).
 """
 
 from __future__ import annotations
 
 from typing import Any, Literal
 
+from engine.reference.node_authoring_policy import (
+    FORBIDDEN_RUNTIME_STATE_KEYS,
+    present_value,
+)
+
 Severity = Literal["FAIL", "WARN", "INFO"]
 
-# Phase 1: WARN on SIDECAR_ONLY keys in frontmatter. Phase 2: FAIL after promotion criteria met.
-SIDECAR_ONLY_ENFORCEMENT: Literal["warn", "fail"] = "warn"
-
-FORBIDDEN_RUNTIME_STATE_KEYS: frozenset[str] = frozenset(
-    {
-        "runtime_value",
-        "fact_value",
-        "user_input",
-        "execution_id",
-        "task_id",
-        "calculation_result",
-        "selected_for_execution",
-        "active_in_context",
-    }
-)
+# Top-level execution keys must live under ``execution`` (FAIL immediately).
+EXECUTION_BLOCK_ENFORCEMENT: Literal["warn", "fail"] = "fail"
 
 FORBIDDEN_PARAGRAPH_FRONTMATTER: frozenset[str] = frozenset(
     {
-        "applicability",
         "paragraph_class",
         "limitations",
         "exceptions",
@@ -46,7 +36,6 @@ FORBIDDEN_PARAGRAPH_FRONTMATTER: frozenset[str] = frozenset(
     }
 )
 
-# Execution sidecar keys (loaded by paragraph_sidecar.merge_paragraph_sidecar_metadata).
 EXECUTION_SIDECAR_KEYS: tuple[str, ...] = (
     "interactions",
     "assumptions",
@@ -67,8 +56,33 @@ EXECUTION_SIDECAR_KEYS: tuple[str, ...] = (
 
 NOMENCLATURE_SIDECAR_KEY = "nomenclature"
 
+EXECUTION_BLOCK_KEYS: frozenset[str] = frozenset(EXECUTION_SIDECAR_KEYS)
+
+# Backward-compatible alias used by sidecar loader and audit inventory.
 SIDECAR_ONLY_KEYS: frozenset[str] = frozenset(
     {*EXECUTION_SIDECAR_KEYS, NOMENCLATURE_SIDECAR_KEY}
+)
+
+# Deprecated: use EXECUTION_BLOCK_ENFORCEMENT.
+SIDECAR_ONLY_ENFORCEMENT: Literal["warn", "fail"] = EXECUTION_BLOCK_ENFORCEMENT
+
+PARAGRAPH_PERMITTED_TOP_LEVEL: frozenset[str] = frozenset(
+    {
+        "id",
+        "type",
+        "key",
+        "title",
+        "authority",
+        "edition",
+        "paragraph_number",
+        "text",
+        "hierarchy",
+        "presentation",
+        "metadata",
+        "edges",
+        "execution",
+        NOMENCLATURE_SIDECAR_KEY,
+    }
 )
 
 KEY_PERMITTED_DESTINATIONS: dict[str, str] = {
@@ -80,10 +94,10 @@ KEY_PERMITTED_DESTINATIONS: dict[str, str] = {
     "calculation_result": "Execution trace / report layer",
     "selected_for_execution": "Planner / expansion runtime",
     "active_in_context": "Execution context",
-    "applicability": "{id}.execution.yaml (applicability block)",
+    "applicability": "execution block in primary YAML",
     "paragraph_class": "metadata.kind or typed edges",
-    "limitations": "{id}.execution.yaml or text.original",
-    "exceptions": "{id}.execution.yaml or text.original",
+    "limitations": "execution block or text.original",
+    "exceptions": "execution block or text.original",
     "calculation_logic": "equation / validation_rule nodes + edges",
     "validation_logic": "validation_rule nodes + edges",
     "introduced_parameters": "introduces_parameter edges + PARAM-* nodes",
@@ -94,24 +108,23 @@ KEY_PERMITTED_DESTINATIONS: dict[str, str] = {
     "trace": "Execution trace / API response (runtime)",
     "report": "Report layer",
     "ai_hints": "Not authored in knowledge nodes",
-    "interactions": "execution sidecar",
-    "assumptions": "execution sidecar",
-    "provisional_assumptions": "execution sidecar",
-    "parameter_defaults": "execution sidecar",
-    "inputs": "execution sidecar",
-    "depends_on": "execution sidecar or edges with depends_on type",
-    "equations": "execution sidecar or references_equation edges",
-    "validation_rules": "execution sidecar or references_validation_rule edges",
-    "conditions": "execution sidecar",
-    "kind": "execution sidecar (execution variant, not metadata.kind)",
-    "outputs": "execution sidecar",
-    "lookups": "execution sidecar or references_lookup edges",
-    "notes": "execution sidecar (authoring notes, non-executable)",
-    "subsections": "execution sidecar",
-    "nomenclature": "{id}.nomenclature.yaml or {id}/nomenclature.yaml",
+    "interactions": "execution block in primary YAML",
+    "assumptions": "execution block in primary YAML",
+    "provisional_assumptions": "execution block in primary YAML",
+    "parameter_defaults": "execution block in primary YAML",
+    "inputs": "execution block in primary YAML",
+    "depends_on": "execution block or edges with depends_on type",
+    "equations": "execution block or references_equation edges",
+    "validation_rules": "execution block or references_validation_rule edges",
+    "conditions": "execution block in primary YAML",
+    "kind": "execution block (execution variant, not metadata.kind)",
+    "outputs": "execution block in primary YAML",
+    "lookups": "execution block or references_lookup edges",
+    "notes": "execution block (authoring notes, non-executable)",
+    "subsections": "execution block in primary YAML",
+    "nomenclature": "nomenclature block or introduces_parameter edges",
 }
 
-# Registered external/unmodeled paragraph references (INFO when cited, not in repo index).
 EXTERNAL_UNMODELED_REF_REGISTRY: frozenset[str] = frozenset(
     {
         "328.5.4",
@@ -137,24 +150,38 @@ VALIDATOR_FORBIDDEN_FRONTMATTER_KEYS: frozenset[str] = (
 )
 
 
+def execution_block_severity() -> Severity:
+    return "FAIL" if EXECUTION_BLOCK_ENFORCEMENT == "fail" else "WARN"
+
+
 def sidecar_only_severity() -> Severity:
-    return "FAIL" if SIDECAR_ONLY_ENFORCEMENT == "fail" else "WARN"
+    return execution_block_severity()
 
 
 def _format_destination(key: str, node_id: str) -> str:
-    dest = KEY_PERMITTED_DESTINATIONS.get(key, f"{node_id}.execution.yaml")
+    dest = KEY_PERMITTED_DESTINATIONS.get(key, "execution block in primary YAML")
     return dest.replace("{id}", node_id) if node_id else dest
 
 
-def _present_value(meta: dict[str, Any], key: str) -> bool:
-    if key not in meta:
-        return False
-    value = meta[key]
-    if value is None:
-        return False
-    if isinstance(value, (list, dict, str)) and not value:
-        return False
-    return True
+def _execution_block(meta: dict[str, Any]) -> dict[str, Any]:
+    block = meta.get("execution")
+    return block if isinstance(block, dict) else {}
+
+
+def check_execution_block_schema(meta: dict[str, Any]) -> list[tuple[Severity, str]]:
+    block = _execution_block(meta)
+    if not block:
+        return []
+    findings: list[tuple[Severity, str]] = []
+    for key in sorted(block):
+        if key not in EXECUTION_BLOCK_KEYS:
+            findings.append(
+                (
+                    "FAIL",
+                    f"unknown key in execution block: {key}",
+                )
+            )
+    return findings
 
 
 def check_paragraph_frontmatter_placement(
@@ -162,7 +189,7 @@ def check_paragraph_frontmatter_placement(
     *,
     node_id: str = "",
 ) -> list[tuple[Severity, str]]:
-    """Return placement findings for paragraph frontmatter (FAIL/WARN only)."""
+    """Return placement findings for paragraph primary YAML (FAIL/WARN only)."""
     findings: list[tuple[Severity, str]] = []
     nid = node_id or str(meta.get("id") or "")
 
@@ -176,20 +203,19 @@ def check_paragraph_frontmatter_placement(
             dest = _format_destination(key, nid)
             findings.append(("FAIL", f"forbidden field: {key} (belongs in {dest})"))
 
-    sidecar_severity = sidecar_only_severity()
-    for key in sorted(SIDECAR_ONLY_KEYS):
-        if key in FORBIDDEN_PARAGRAPH_FRONTMATTER:
-            continue
-        if not _present_value(meta, key):
+    block_severity = execution_block_severity()
+    for key in sorted(EXECUTION_BLOCK_KEYS):
+        if not present_value(meta, key):
             continue
         dest = _format_destination(key, nid)
         findings.append(
             (
-                sidecar_severity,
+                block_severity,
                 f"{key} belongs in {dest}; migration required",
             )
         )
 
+    findings.extend(check_execution_block_schema(meta))
     return findings
 
 
@@ -198,28 +224,8 @@ def check_paragraph_frontmatter_migration(
     *,
     node_id: str = "",
 ) -> list[tuple[Severity, str]]:
-    """WARN-level SIDECAR_ONLY migration findings for audit (after validator FAIL checks)."""
-    findings: list[tuple[Severity, str]] = []
-    nid = node_id or str(meta.get("id") or "")
-
-    if SIDECAR_ONLY_ENFORCEMENT == "fail":
-        return check_paragraph_frontmatter_placement(meta, node_id=nid)
-
-    sidecar_severity = sidecar_only_severity()
-    for key in sorted(SIDECAR_ONLY_KEYS):
-        if key in FORBIDDEN_PARAGRAPH_FRONTMATTER:
-            continue
-        if not _present_value(meta, key):
-            continue
-        dest = _format_destination(key, nid)
-        findings.append(
-            (
-                sidecar_severity,
-                f"{key} belongs in {dest}; migration required",
-            )
-        )
-
-    return findings
+    """Migration findings for audit (top-level execution keys outside execution block)."""
+    return check_paragraph_frontmatter_placement(meta, node_id=node_id)
 
 
 def check_paragraph_sidecar_surface(
@@ -228,32 +234,26 @@ def check_paragraph_sidecar_surface(
     *,
     node_id: str,
 ) -> list[tuple[Severity, str]]:
-    """Detect duplicate keys or split execution metadata across frontmatter and sidecar."""
+    """Detect duplicate keys or split metadata across primary YAML and legacy sidecar."""
     findings: list[tuple[Severity, str]] = []
-    sidecar_label = f"{node_id}.execution.yaml"
+    sidecar_label = f"{node_id}.execution.yaml (legacy)"
 
-    fm_keys = {k for k in SIDECAR_ONLY_KEYS if _present_value(frontmatter, k)}
-    sc_keys = {k for k in SIDECAR_ONLY_KEYS if _present_value(sidecar_data, k)}
+    execution_block = _execution_block(frontmatter)
+    block_keys = {k for k in EXECUTION_BLOCK_KEYS if present_value(execution_block, k)}
+    top_keys = {k for k in EXECUTION_BLOCK_KEYS if present_value(frontmatter, k)}
+    fm_keys = block_keys | top_keys
+    sc_keys = {k for k in EXECUTION_BLOCK_KEYS if present_value(sidecar_data, k)}
     overlap = fm_keys & sc_keys
 
     for key in sorted(overlap):
-        if key in FORBIDDEN_PARAGRAPH_FRONTMATTER:
-            findings.append(
-                (
-                    "FAIL",
-                    f"Duplicate authoring surface: {key!r} appears in frontmatter and "
-                    f"{sidecar_label}; use sidecar only",
-                )
+        sev = execution_block_severity()
+        findings.append(
+            (
+                sev,
+                f"Duplicate authoring surface: {key!r} appears in primary YAML and "
+                f"{sidecar_label}; consolidate into execution block",
             )
-        else:
-            sev = sidecar_only_severity()
-            findings.append(
-                (
-                    sev,
-                    f"Duplicate authoring surface: {key!r} appears in frontmatter and "
-                    f"{sidecar_label}; use sidecar only",
-                )
-            )
+        )
 
     fm_only = fm_keys - sc_keys
     sc_only = sc_keys - fm_keys
@@ -262,8 +262,8 @@ def check_paragraph_sidecar_surface(
             (
                 "WARN",
                 "Execution metadata split across two authoring surfaces: "
-                f"frontmatter has {sorted(fm_only)}; sidecar has {sorted(sc_only)}; "
-                "consolidate into sidecar",
+                f"primary YAML has {sorted(fm_only)}; legacy sidecar has {sorted(sc_only)}; "
+                "consolidate into execution block",
             )
         )
 
@@ -315,12 +315,13 @@ def validator_fail_messages_for_frontmatter(meta: dict[str, Any]) -> list[str]:
         if key in meta:
             messages.append(f"forbidden field: {key}")
 
-    if SIDECAR_ONLY_ENFORCEMENT == "fail":
-        for key in sorted(SIDECAR_ONLY_KEYS):
-            if key in FORBIDDEN_PARAGRAPH_FRONTMATTER:
-                continue
-            if _present_value(meta, key):
-                dest = _format_destination(key, str(meta.get("id") or ""))
-                messages.append(f"forbidden field: {key} (belongs in {dest})")
+    for key in sorted(EXECUTION_BLOCK_KEYS):
+        if present_value(meta, key):
+            dest = _format_destination(key, str(meta.get("id") or ""))
+            messages.append(f"forbidden field: {key} (belongs in {dest})")
+
+    for level, msg in check_execution_block_schema(meta):
+        if level == "FAIL":
+            messages.append(msg)
 
     return messages

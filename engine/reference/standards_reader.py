@@ -346,8 +346,12 @@ class StandardsReader:
     def _enrich_paragraph_record(self, record: NodeRecord) -> NodeRecord:
         if str(record.metadata.get("type", "")) != "paragraph":
             return record
+        metadata = dict(record.metadata)
+        if record.path is not None and record.path.is_file():
+            file_record = self.load_file(record.path)
+            metadata = file_record.metadata
         metadata = merge_paragraph_sidecar_metadata(
-            record.metadata,
+            metadata,
             record_path=record.path,
             node_id=record.node_id,
         )
@@ -373,8 +377,12 @@ class StandardsReader:
     def _enrich_workflow_record(self, record: NodeRecord) -> NodeRecord:
         if str(record.metadata.get("type", "")) != "workflow":
             return record
+        metadata = dict(record.metadata)
+        if record.path is not None and record.path.is_file():
+            file_record = self.load_file(record.path)
+            metadata = file_record.metadata
         metadata = merge_workflow_sidecar_metadata(
-            record.metadata,
+            metadata,
             record_path=record.path,
             node_id=record.node_id,
         )

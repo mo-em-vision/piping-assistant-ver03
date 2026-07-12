@@ -4,16 +4,16 @@
 
 ## Summary
 
-- Total files inspected: 137
-- Passing: 87
-- Warnings: 35
+- Total files inspected: 131
+- Passing: 88
+- Warnings: 28
 - Failing: 15
 
 ### Section totals
 
 - A. Node YAML: 126 files (FAIL)
-- B. Node sidecar YAML: 4 files (WARN)
-- C. Workflow configuration YAML: 2 files (PASS)
+- B. Node sidecar YAML: 0 files (PASS)
+- C. Workflow configuration YAML: 0 files (PASS)
 - D. Pack/catalog YAML: 5 files (WARN)
 
 ### Node counts by canonical type (Section A)
@@ -121,11 +121,11 @@
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.5-d.yaml` | `302.3.5-d` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.5-e.yaml` | `302.3.5-e` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.5-f.yaml` | `302.3.5-f` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.1-a.yaml` | `304.1.1-a` | `paragraph` | `validate_paragraph_node` | **WARN** | assumptions belongs in execution sidecar; migration required |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.1-b.yaml` | `304.1.1-b` | `paragraph` | `validate_paragraph_node` | **WARN** | parameter_defaults belongs in execution sidecar; migration required |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.2-a.yaml` | `304.1.2-a` | `paragraph` | `validate_paragraph_node` | **FAIL** | forbidden field: applicability; Execution metadata split across two authoring surfaces: frontmatter has ['applicability']; sidecar has ['conditions', 'provisional_assumptions', 'subsections']; consolidate into sidecar |
+| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.1-a.yaml` | `304.1.1-a` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.1-b.yaml` | `304.1.1-b` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.2-a.yaml` | `304.1.2-a` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.2-b.yaml` | `304.1.2-b` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.3.yaml` | `304.1.3` | `paragraph` | `validate_paragraph_node` | **FAIL** | forbidden field: applicability |
+| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.3.yaml` | `304.1.3` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.yaml` | `304.1` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.3.1-b.yaml` | `304.3.1-b` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.3.1-c.yaml` | `304.3.1-c` | `paragraph` | `validate_paragraph_node` | **WARN** | unresolved related_to target: 304.7.2 — register or author node |
@@ -153,32 +153,26 @@
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-1.yaml` | `asme-b313-table-A-1` | `lookup` | `validate_lookup_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-2.yaml` | `asme-b313-table-A-2` | `lookup` | `validate_lookup_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-3.yaml` | `asme-b313-table-A-3` | `lookup` | `validate_lookup_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-1-valrule-a.yaml` | `asme-b313-304-1-1-valrule-a` | `validation_rule` | `validate_validation_rule_node` | **WARN** | edge target not in repository index: PARAM-wall-thickness-adequacy |
+| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-1-valrule-a.yaml` | `asme-b313-304-1-1-valrule-a` | `validation_rule` | `validate_validation_rule_node` | **FAIL** | duplicate 'display' in top level and execution block; edge target not in repository index: PARAM-wall-thickness-adequacy |
 | `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-2-valrule-a.yaml` | `asme-b313-304-1-2-valrule-a` | `validation_rule` | `validate_validation_rule_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-2-valrule-b.yaml` | `asme-b313-304-1-2-valrule-b` | `validation_rule` | `validate_validation_rule_node` | **WARN** | edge target not in repository index: PARAM-thick-wall-special-consideration-required |
-| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-3-3-valrule-6a.yaml` | `asme-b313-304-3-3-valrule-6a` | `validation_rule` | `validate_validation_rule_node` | **WARN** | edge target not in repository index: PARAM-reinforcement-adequate |
+| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-2-valrule-b.yaml` | `asme-b313-304-1-2-valrule-b` | `validation_rule` | `validate_validation_rule_node` | **FAIL** | duplicate 'display' in top level and execution block; edge target not in repository index: PARAM-thick-wall-special-consideration-required |
+| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-3-3-valrule-6a.yaml` | `asme-b313-304-3-3-valrule-6a` | `validation_rule` | `validate_validation_rule_node` | **FAIL** | duplicate 'display' in top level and execution block; edge target not in repository index: PARAM-reinforcement-adequate |
 | `knowledge/standards/astm/nodes/A105.yaml` | `A105` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: material_properties |
 | `knowledge/standards/astm/nodes/A106.yaml` | `A106` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: mechanical_properties |
 | `knowledge/standards/astm/nodes/A312.yaml` | `A312` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: mechanical_properties |
 | `knowledge/standards/astm/nodes/A53.yaml` | `A53` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: material_properties |
-| `workflows/mawp.yaml` | `WF-MAWP` | `workflow` | `validate_workflow_node` | **FAIL** | forbidden field in frontmatter: assumptions; filename stem 'mawp' differs from id 'WF-MAWP' |
+| `workflows/mawp.yaml` | `WF-MAWP` | `workflow` | `validate_workflow_node` | **WARN** | filename stem 'mawp' differs from id 'WF-MAWP' |
 | `workflows/pipe-wall-thickness.yaml` | `WF-PIPE-WALL-THICKNESS` | `workflow` | `validate_workflow_node` | **WARN** | filename stem 'pipe-wall-thickness' differs from id 'WF-PIPE-WALL-THICKNESS' |
 
 ## B. Node sidecar YAML inventory
 
 | YAML file | Parent node | Contract | Result | Problems |
 | --- | --- | --- | --- | --- |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.2-a.execution.yaml` | `304.1.2-a` | `paragraph-execution.md` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme_b313_304_1_1_valrule_a/execution.yaml` | `asme_b313_304_1_1_valrule_a` | `equation-execution.md` | **WARN** | parent node 'asme_b313_304_1_1_valrule_a' not found in section A index |
-| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme_b313_304_1_2_valrule_b/execution.yaml` | `asme_b313_304_1_2_valrule_b` | `equation-execution.md` | **WARN** | parent node 'asme_b313_304_1_2_valrule_b' not found in section A index |
-| `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme_b313_304_3_3_valrule_6a/execution.yaml` | `asme_b313_304_3_3_valrule_6a` | `equation-execution.md` | **WARN** | parent node 'asme_b313_304_3_3_valrule_6a' not found in section A index |
 
 ## C. Workflow configuration YAML inventory
 
 | YAML file | Parent workflow | Contract | Result | Problems |
 | --- | --- | --- | --- | --- |
-| `workflows/WF-MAWP/runtime.yaml` | `WF-MAWP` | `workflow-runtime.md` | **PASS** | — |
-| `workflows/WF-PIPE-WALL-THICKNESS/runtime.yaml` | `WF-PIPE-WALL-THICKNESS` | `workflow-runtime.md` | **PASS** | — |
 
 ## D. Pack/catalog YAML inventory
 
@@ -196,9 +190,9 @@
 
 - Production table nodes use `type: lookup`, not `table`.
 - `material_catalog` (`MAT-catalog.yaml`) is not in `CANONICAL_NODE_TYPES`.
-- Flat `{id}.execution.yaml` files are loaded as sidecars but may also match node discovery if given frontmatter.
-- Paragraph field placement policy: `engine/reference/paragraph_authoring_policy.py`.
-- Paragraph frontmatter validators forbid fields that paragraph execution sidecars merge at compile time.
+- One primary YAML per node: nested `execution` / `runtime` blocks in primary files.
+- `material_catalog` (`MAT-catalog.yaml`) is not in `CANONICAL_NODE_TYPES`.
+- Legacy node-owned sidecars are rejected when `LEGACY_SIDECAR_COMPAT` is false.
 - Types `text`, `quantity`, `designation`, `table` have no dedicated validators — audit uses revision + generic checks only.
 - Human-readable contract documents are not parsed by this audit script; validators remain enforcement authority.
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.reference.equation_authoring_policy import validator_fail_messages_for_equation
 from engine.reference.graph_compile import validate_edge_item, validate_no_links_metadata
 from engine.validation.authority_authorization import validate_authority_authorization
 from engine.validation.node_revision_metadata import validate_revision_metadata
@@ -51,6 +52,7 @@ def validate_validation_rule_node(meta: dict[str, Any]) -> list[str]:
     elif isinstance(metadata, dict) and metadata and not metadata.get("status"):
         issues.append("metadata.status required")
     issues.extend(validate_revision_metadata(meta))
+    issues.extend(validator_fail_messages_for_equation(meta))
 
     for field in _FORBIDDEN_FIELDS:
         if field in meta:

@@ -31,11 +31,12 @@ edges:
     target: AUTH-ASME-B31.3
   - type: introduces_parameter
     target: PARAM-external-design-pressure
-applicability:
-  applies_when:
-    - parameter: PARAM-pressure-loading
-      operator: equals
-      value: external_pressure
+execution:
+  applicability:
+    applies_when:
+      - parameter: PARAM-pressure-loading
+        operator: equals
+        value: external_pressure
 metadata:
   status: active
   source_revision_year: 2024

@@ -33,6 +33,7 @@ from engine.validation.unit_node_validator import validate_unit_node
 from engine.validation.validation_rule_node_validator import validate_validation_rule_node
 from engine.validation.workflow_node_validator import validate_workflow_node
 
+from engine.reference.node_authoring_policy import LEGACY_SIDECAR_COMPAT
 from engine.reference.paragraph_authoring_policy import (
     EXECUTION_SIDECAR_KEYS,
     check_paragraph_frontmatter_migration,
@@ -40,6 +41,7 @@ from engine.reference.paragraph_authoring_policy import (
     classify_edge_target,
 )
 from engine.reference.equation_sidecar import _EXECUTION_KEYS as EQUATION_EXEC_KEYS
+from engine.reference.workflow_authoring_policy import check_workflow_frontmatter_placement
 from engine.reference.workflow_sidecar import _RUNTIME_KEYS as WORKFLOW_RUNTIME_KEYS
 
 REPORT_PATH = PROJECT_ROOT / "audits" / "reports" / "nodes" / "current-node-yaml-audit.md"
@@ -395,6 +397,10 @@ def _audit_section_a(paths: list[Path], repo_index: set[str]) -> list[AuditRow]:
         if canonical == "paragraph":
             _paragraph_placement_checks(meta, path, row)
 
+        if canonical == "workflow":
+            for level, msg in check_workflow_frontmatter_placement(meta):
+                row.add(level, msg, code="workflow_frontmatter_placement")
+
         for level, msg in _generic_node_checks(normalized, path, repo_index):
             row.add(level, msg)
 
@@ -442,6 +448,13 @@ def _audit_section_b(paths: list[Path], node_index: dict[str, dict[str, Any]]) -
         if contract.startswith("paragraph"):
             row.role = "paragraph-sidecar"
 
+        if not LEGACY_SIDECAR_COMPAT:
+            row.add(
+                "FAIL",
+                "LEGACY_SIDECAR_METADATA: node-owned sidecars are no longer permitted",
+                code="LEGACY_SIDECAR_METADATA",
+            )
+
         try:
             data, _ = _load_meta(path)
         except Exception as exc:
@@ -483,6 +496,12 @@ def _audit_section_c(paths: list[Path], workflow_index: dict[str, dict[str, Any]
         row = AuditRow(rel_path=rel, contract="workflow-runtime.md", validator="workflow_sidecar_loader_keys")
         wf_dir = path.parent.name
         row.parent = wf_dir
+        if not LEGACY_SIDECAR_COMPAT:
+            row.add(
+                "FAIL",
+                "LEGACY_SIDECAR_METADATA: workflow runtime sidecars are no longer permitted",
+                code="LEGACY_SIDECAR_METADATA",
+            )
         if wf_dir not in workflow_index and wf_dir.replace("-", "_") not in workflow_index:
             row.add("WARN", f"parent workflow folder {wf_dir!r} not matched to section A workflow id")
 
@@ -636,9 +655,9 @@ def render_report(
             "",
             "- Production table nodes use `type: lookup`, not `table`.",
             "- `material_catalog` (`MAT-catalog.yaml`) is not in `CANONICAL_NODE_TYPES`.",
-            "- Flat `{id}.execution.yaml` files are loaded as sidecars but may also match node discovery if given frontmatter.",
-            "- Paragraph field placement policy: `engine/reference/paragraph_authoring_policy.py`.",
-            "- Paragraph frontmatter validators forbid fields that paragraph execution sidecars merge at compile time.",
+            "- One primary YAML per node: nested `execution` / `runtime` blocks in primary files.",
+            "- `material_catalog` (`MAT-catalog.yaml`) is not in `CANONICAL_NODE_TYPES`.",
+            "- Legacy node-owned sidecars are rejected when `LEGACY_SIDECAR_COMPAT` is false.",
             "- Types `text`, `quantity`, `designation`, `table` have no dedicated validators — audit uses revision + generic checks only.",
             "- Human-readable contract documents are not parsed by this audit script; validators remain enforcement authority.",
             "",
@@ -694,8 +713,8 @@ def render_paragraph_report(rows: list[AuditRow]) -> str:
         "",
         "## Enforcement policy",
         "",
-        "- Phase 1: `SIDECAR_ONLY_KEYS` in frontmatter → WARN (migration required).",
-        "- `FORBIDDEN_PARAGRAPH_FRONTMATTER` keys (e.g. `applicability`) → FAIL immediately.",
+        "- Execution metadata must live under the `execution` block in primary paragraph YAML.",
+        "- `FORBIDDEN_PARAGRAPH_FRONTMATTER` keys (e.g. `trace`, `report`) → FAIL immediately.",
         "- Registered external/unmodeled `related_to` targets → INFO.",
         "- Policy module: `engine/reference/paragraph_authoring_policy.py`.",
         "",

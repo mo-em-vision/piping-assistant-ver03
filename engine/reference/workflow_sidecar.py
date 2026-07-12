@@ -7,28 +7,11 @@ from typing import Any
 
 import yaml
 
+from engine.reference.node_authoring_policy import LEGACY_SIDECAR_COMPAT
+from engine.reference.node_block_extractor import extract_nested_blocks
 from engine.reference.standards_markdown import split_frontmatter
 
-_RUNTIME_KEYS = (
-    "navigation",
-    "assumptions",
-    "interactions",
-    "provisional_assumptions",
-    "inputs",
-    "equations",
-    "conditions",
-    "nomenclature",
-    "texts",
-    "documentation",
-    "suggested_workflows",
-    "goal_output",
-    "engineering_intent",
-    "slug",
-    "title",
-    "purpose",
-    "status",
-    "version",
-)
+from engine.reference.workflow_authoring_policy import WORKFLOW_RUNTIME_KEYS as _RUNTIME_KEYS
 
 _PARAM_TO_FIELD: dict[str, str] = {
     "PARAM-straight-pipe-section": "straight_pipe_section",
@@ -153,12 +136,12 @@ def merge_workflow_sidecar_metadata(
     record_path: Path | None = None,
     node_id: str | None = None,
 ) -> dict[str, Any]:
-    """Merge workflow sidecars and synthesize legacy runtime aliases."""
-    merged = dict(metadata)
+    """Promote nested runtime block and merge legacy workflow sidecars."""
+    merged = extract_nested_blocks(metadata, "workflow")
     if str(merged.get("type", "")) != "workflow":
         return merged
 
-    if record_path is not None and node_id:
+    if LEGACY_SIDECAR_COMPAT and record_path is not None and node_id:
         sidecar_dir = workflow_sidecar_dir(record_path, node_id)
         flat_runtime = record_path.parent / f"{node_id}.runtime.yaml"
         flat_navigation = record_path.parent / f"{node_id}.navigation.yaml"
@@ -174,6 +157,8 @@ def merge_workflow_sidecar_metadata(
                 continue
             data = _load_yaml(path)
             if path.name.startswith("navigation"):
+                if merged.get("navigation"):
+                    continue
                 if data.get("navigation"):
                     merged["navigation"] = data["navigation"]
                 elif data.get("phases") or data.get("assumption_gate_fields"):
@@ -181,7 +166,9 @@ def merge_workflow_sidecar_metadata(
                 else:
                     merged["navigation"] = data
                 continue
-            _merge_runtime_data(merged, data)
+            for key in _RUNTIME_KEYS:
+                if key in data and data[key] and not merged.get(key):
+                    merged[key] = data[key]
 
     if not merged.get("navigation"):
         synthesized = _phases_to_navigation(merged.get("phases"))

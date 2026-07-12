@@ -6,16 +6,16 @@ _Filtered projection of the full node YAML audit — same findings, paragraph sc
 
 ## Summary
 
-- Paragraph files inspected: 31
-- Passing: 23
-- Warnings: 5
-- Failing: 3
+- Paragraph files inspected: 30
+- Passing: 26
+- Warnings: 3
+- Failing: 1
 - Informational findings: 8
 
 ## Enforcement policy
 
-- Phase 1: `SIDECAR_ONLY_KEYS` in frontmatter → WARN (migration required).
-- `FORBIDDEN_PARAGRAPH_FRONTMATTER` keys (e.g. `applicability`) → FAIL immediately.
+- Execution metadata must live under the `execution` block in primary paragraph YAML.
+- `FORBIDDEN_PARAGRAPH_FRONTMATTER` keys (e.g. `trace`, `report`) → FAIL immediately.
 - Registered external/unmodeled `related_to` targets → INFO.
 - Policy module: `engine/reference/paragraph_authoring_policy.py`.
 
@@ -34,11 +34,11 @@ _Filtered projection of the full node YAML audit — same findings, paragraph sc
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.5-d.yaml` | `302.3.5-d` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.5-e.yaml` | `302.3.5-e` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.5-f.yaml` | `302.3.5-f` | `validate_paragraph_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.1-a.yaml` | `304.1.1-a` | `validate_paragraph_node` | **WARN** | assumptions belongs in execution sidecar; migration required |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.1-b.yaml` | `304.1.1-b` | `validate_paragraph_node` | **WARN** | parameter_defaults belongs in execution sidecar; migration required |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.2-a.yaml` | `304.1.2-a` | `validate_paragraph_node` | **FAIL** | forbidden field: applicability; Execution metadata split across two authoring surfaces: frontmatter has ['applicability']; sidecar has ['conditions', 'provisional_assumptions', 'subsections']; consolidate into sidecar |
+| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.1-a.yaml` | `304.1.1-a` | `validate_paragraph_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.1-b.yaml` | `304.1.1-b` | `validate_paragraph_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.2-a.yaml` | `304.1.2-a` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.2-b.yaml` | `304.1.2-b` | `validate_paragraph_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.3.yaml` | `304.1.3` | `validate_paragraph_node` | **FAIL** | forbidden field: applicability |
+| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.3.yaml` | `304.1.3` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.yaml` | `304.1` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.3.1-b.yaml` | `304.3.1-b` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.3.1-c.yaml` | `304.3.1-c` | `validate_paragraph_node` | **WARN** | unresolved related_to target: 304.7.2 — register or author node |
@@ -55,9 +55,3 @@ _Filtered projection of the full node YAML audit — same findings, paragraph sc
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.3.3-f.yaml` | `304.3.3-f` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.3.yaml` | `304.3` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.yaml` | `304` | `validate_paragraph_node` | **PASS** | — |
-
-## Paragraph sidecar inventory
-
-| YAML file | Parent node | Contract | Result | Problems |
-| --- | --- | --- | --- | --- |
-| `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.2-a.execution.yaml` | `304.1.2-a` | `paragraph-execution.md` | **PASS** | — |

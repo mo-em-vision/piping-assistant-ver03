@@ -37,10 +37,10 @@ Read [01-shared-node-contract.md](01-shared-node-contract.md) before authoring a
 | Standards pack validation rules | `knowledge/standards/<publisher>/<pack>/nodes/validation_rule/{id}.yaml` |
 | Global parameters | `knowledge/global/parameters/nodes/PARAM-*.yaml` |
 | Global units / dimensions / concepts / authorities | `knowledge/global/{units,dimensions,concepts,authorities}/nodes/` |
-| Workflows | `workflows/{slug}.yaml` with runtime sidecar `workflows/{WF-ID}/runtime.yaml` |
+| Workflows | `workflows/{slug}.yaml` with nested `runtime` block in the same file |
 | Pack defaults | `knowledge/standards/<publisher>/<pack>/pack.yaml` |
 
-Sidecars (execution, nomenclature, runtime) live beside or under the parent node — see [sidecars/](sidecars/).
+Shared datasets (large tables, SQLite caches, registries) remain separate files referenced by lookup nodes — not node sidecars.
 
 ## How to create a node
 
@@ -49,7 +49,7 @@ Sidecars (execution, nomenclature, runtime) live beside or under the parent node
 3. Set `id` equal to the filename stem (`304.1.2-a.yaml` → `id: 304.1.2-a`).
 4. Fill required fields; add typed `edges` only (never a top-level `links` block).
 5. Set `metadata.last_revision` (ISO date) and `metadata.edited_by` on every edit.
-6. If the node needs execution or navigation metadata, use a **sidecar** instead of bloating frontmatter.
+6. Place node-owned execution or workflow runtime metadata in nested `execution` / `runtime` blocks inside the primary YAML file.
 7. Rebuild graph caches when working with standards packs: `python scripts/build_graph_db.py`.
 
 ## How to validate a node
@@ -70,7 +70,7 @@ python scripts/audit_current_node_yaml.py --filter paragraph --pack asme_b31.3
 
 Reports: `audits/reports/nodes/current-node-yaml-audit.md` (full) and `audits/reports/nodes/paragraph-node-audit.md` (paragraph projection).
 
-Paragraph field placement policy: `engine/reference/paragraph_authoring_policy.py`. Phase 1: SIDECAR_ONLY keys in frontmatter → WARN. Phase 2: flip `SIDECAR_ONLY_ENFORCEMENT` to `"fail"` after migration.
+Paragraph field placement policy: `engine/reference/paragraph_authoring_policy.py`. Execution metadata must live under the nested `execution` block in the primary paragraph YAML.
 
 Run targeted tests after edits:
 
@@ -80,16 +80,10 @@ python -m pytest tests/reference/test_concept_ontology.py tests/units/test_physi
 python -m pytest tests/graph -q
 ```
 
-## Sidecar contracts
+## Pack and shared dataset configuration
 
-When frontmatter would hold runtime-adjacent fields, split them into sidecars:
-
-| Sidecar | Contract |
+| File | Contract |
 | --- | --- |
-| Paragraph execution (`*.execution.yaml`) | [sidecars/paragraph-execution.md](sidecars/paragraph-execution.md) |
-| Paragraph nomenclature (`nomenclature.yaml`) | [sidecars/paragraph-nomenclature.md](sidecars/paragraph-nomenclature.md) |
-| Equation execution (`*.execution.yaml`) | [sidecars/equation-execution.md](sidecars/equation-execution.md) |
-| Workflow runtime (`runtime.yaml`) | [sidecars/workflow-runtime.md](sidecars/workflow-runtime.md) |
 | Pack metadata (`pack.yaml`) | [sidecars/pack-metadata.md](sidecars/pack-metadata.md) |
 
 ## Related contracts

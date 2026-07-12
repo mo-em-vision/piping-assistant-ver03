@@ -26,6 +26,7 @@ from engine.reference.standards_paths import (
     workflow_source_rel_path,
 )
 from engine.reference.equation_sidecar import merge_equation_sidecar_metadata
+from engine.reference.node_block_extractor import extract_and_flatten_node_metadata
 from engine.reference.paragraph_sidecar import merge_paragraph_sidecar_metadata
 from engine.reference.workflow_sidecar import merge_workflow_sidecar_metadata
 from engine.reference.standards_markdown import merge_dual_node_frontmatter, split_frontmatter
@@ -44,31 +45,32 @@ class _DiscoveredSourceNode:
 def _enrich_source_metadata(path: Path, metadata: dict[str, Any]) -> dict[str, Any]:
     node_id = str(metadata.get("id") or path.stem).strip()
     node_type = str(metadata.get("type", ""))
+    extracted = extract_and_flatten_node_metadata(metadata, node_type)
     if node_type == "paragraph":
         return merge_paragraph_sidecar_metadata(
-            metadata,
+            extracted,
             record_path=path,
             node_id=node_id,
         )
     if node_type == "equation":
         return merge_equation_sidecar_metadata(
-            metadata,
+            extracted,
             record_path=path,
             node_id=node_id,
         )
     if node_type == "validation_rule":
         return merge_equation_sidecar_metadata(
-            metadata,
+            extracted,
             record_path=path,
             node_id=node_id,
         )
     if node_type == "workflow":
         return merge_workflow_sidecar_metadata(
-            metadata,
+            extracted,
             record_path=path,
             node_id=node_id,
         )
-    return metadata
+    return extracted
 
 
 def _finalize_source_metadata(

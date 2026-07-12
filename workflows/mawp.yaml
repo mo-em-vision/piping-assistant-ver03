@@ -68,14 +68,187 @@ phases:
 - key: definition_equation_completion
   purpose: Complete definition and equation inputs.
   required_parameters: []
-assumptions:
-- id: pressure_loading
-  field: pressure_loading
-  description: MAWP applies to straight pipe under internal pressure per §304.1.2.
-  required_for_expansion: true
-  allowed_values:
-  - internal_pressure
-  default: internal_pressure
+runtime:
+  navigation:
+    assumption_gate_fields:
+    - straight_pipe_section
+    - geometry_input_mode
+    - wall_thickness_basis
+    phases:
+      expansion_assumptions:
+      - straight_pipe_section
+      path_decisions:
+      - geometry_input_mode
+      - wall_thickness_basis
+      parameter_gathering:
+      - nominal_pipe_size
+      - pipe_schedule
+      - outside_diameter
+      - actual_wall_thickness
+      - corrosion_allowance
+      - material_grade
+      - design_temperature
+      coefficient_resolution:
+      - pipe_construction_type
+      execution_assumptions: []
+      definition_equation_completion: []
+  assumptions:
+  - id: pressure_loading
+    field: pressure_loading
+    description: MAWP applies to straight pipe under internal pressure per §304.1.2.
+    required_for_expansion: true
+    allowed_values:
+    - internal_pressure
+    default: internal_pressure
+  provisional_assumptions:
+  - field: thin_wall
+    default: true
+    description: Assume t < D/6 until thickness is verified.
+  - field: pressure_loading
+    default: internal_pressure
+    description: MAWP applies to internal pressure loading per §304.1.2.
+  interactions:
+  - variable: geometry_input_mode
+    mode: decision
+    required: true
+    required_for_expansion: true
+    options:
+    - nps_and_schedule
+    - direct_od_and_thickness
+    question: >
+      How should pipe geometry be provided for this MAWP calculation?
+  inputs:
+  - id: pressure_design_thickness
+    name: t
+    description: Pressure design thickness from prior calculation
+    required: true
+    source: node_output
+    unit: mm
+  - id: outside_diameter
+    name: D
+    description: Outside diameter of pipe
+    nomenclature_ref: WF-MAWP
+    required: true
+    source: user_input
+    unit: mm
+    allowed_units:
+    - mm
+    - in
+    validation: positive
+  - id: allowable_stress
+    name: S
+    description: Allowable stress from Table A-1
+    required: true
+    source: node_output
+    unit: Pa
+  - id: weld_joint_efficiency
+    name: E
+    description: Quality factor from Tables A-2 and A-3
+    required: true
+    source: node_output
+    unit: dimensionless
+  - id: weld_joint_strength_reduction_factor_W
+    name: W
+    description: Weld strength reduction factor from Table 302.3.5-1
+    required: true
+    source: node_output
+    unit: dimensionless
+  - id: temperature_coefficient_Y
+    name: Y
+    description: Coefficient from Table 304.1.1-1 (resolved from design temperature and metallurgical group)
+    required: true
+    source: node_output
+    unit: dimensionless
+  equations:
+  - id: asme-b313-pressure-design-thickness
+    file: ../equation/asme-b313-pressure-design-thickness.yaml
+    execution_function: calculate_pressure_design_thickness
+  - id: asme-b313-mawp-pressure
+    file: ../equation/asme-b313-mawp-pressure.yaml
+    execution_function: calculate_mawp
+  conditions:
+  - id: thin_wall_check
+    name: thin_wall_check
+    expression: t < D/6
+    description: Verify thin-wall equation applicability
+    sets_field: thin_wall
+    on_false: subsection_b
+    result_if_true: Continue with thin-wall MAWP calculation
+    result_if_false: Thick-wall MAWP not yet implemented
+  nomenclature:
+  - symbol: t_actual
+    input_id: actual_wall_thickness
+    introduced_here: true
+    description: Actual or ordered wall thickness of the pipe.
+    unit: mm
+    allowed_units:
+    - mm
+    - in
+    citations:
+    - standard: asme_b36.10
+      table: tables/B3610-table-2-1.yaml
+      field: wall_thickness_mm
+  - symbol: c
+    input_id: corrosion_allowance
+    introduced_here: true
+    unit: mm
+    allowed_units:
+    - mm
+    - in
+    description: Sum of mechanical allowances plus corrosion and erosion allowances per §304.1.1-b.
+  - symbol: t
+    description: Pressure design thickness (t_actual minus corrosion allowance).
+    citations:
+    - paragraph: 304.1.1-b
+    - node_id: asme-b313-mawp-pressure
+  - symbol: D
+    input_id: outside_diameter
+    introduced_here: true
+    description: Outside diameter of pipe as listed in standards or as measured.
+    unit: mm
+    allowed_units:
+    - mm
+    - in
+    citations:
+    - standard: asme_b36.10
+  - symbol: S
+    input_id: allowable_stress
+    introduced_here: true
+    description: Stress value from Table A-1.
+    citations:
+    - node_id: asme-b313-table-A-1
+  - symbol: E
+    input_id: weld_joint_efficiency
+    introduced_here: true
+    description: Quality factor from Tables A-2 and A-3.
+  - symbol: W
+    input_id: weld_joint_strength_reduction_factor_W
+    introduced_here: true
+    description: Weld strength reduction factor per para. 302.3.5-e.
+  - symbol: Y
+    input_id: temperature_coefficient_Y
+    introduced_here: true
+    description: Coefficient from Table 304.1.1 when t < D/6.
+  - symbol: MAWP
+    description: Maximum Allowable Working Pressure.
+    citations:
+    - paragraph: 304.1.2-a
+    - node_id: asme-b313-mawp-pressure
+  texts:
+  - id: mawp-init-text
+    type: text
+    role: initiation
+    title: This workflow guides you through calculating the Maximum Allowable Working Pressure (MAWP) of piping components according to ASME B31.3.
+    text: Define inputs, assumptions, and nomenclature for MAWP calculation of straight pipe under internal pressure per §304.1.2.
+  - id: mawp-result-text
+    type: text
+    role: result_explanation
+    text: Maximum Allowable Working Pressure (MAWP) has been calculated per §304.1.2.
+  suggested_workflows:
+  - pipe_wall_thickness_design
+  goal_output: mawp
+  engineering_intent: mawp_design
+  slug: mawp_design
 applicability:
   applies_to:
   - CONCEPT-pipe

@@ -79,62 +79,56 @@ def test_policy_single_source_audit_script() -> None:
 
 
 def test_validator_audit_ontology_share_forbidden_sets() -> None:
-    assert validator_fail_messages_for_frontmatter({"applicability": {"applies_when": []}}) == [
-        "forbidden field: applicability"
+    assert validator_fail_messages_for_frontmatter(
+        {"applicability": {"applies_when": [{"parameter": "PARAM-pressure-loading"}]}}
+    ) == [
+        "forbidden field: applicability (belongs in execution block in primary YAML)"
     ]
     placement = check_paragraph_frontmatter_placement(
-        {"applicability": {}}, node_id="304.1.3"
+        {"applicability": {"applies_when": [{"parameter": "PARAM-pressure-loading"}]}},
+        node_id="304.1.3",
     )
     assert any(level == "FAIL" for level, _ in placement)
 
 
-def test_304_1_2_a_applicability_fails() -> None:
+def test_304_1_2_a_execution_block_passes() -> None:
     meta = _load_meta("304.1.2-a.yaml")
-    issues = validate_paragraph_node(meta)
-    assert any("applicability" in i for i in issues)
-    placement = check_paragraph_frontmatter_placement(meta, node_id="304.1.2-a")
-    assert any(level == "FAIL" and "applicability" in msg for level, msg in placement)
+    assert validate_paragraph_node(meta) == []
+    assert not check_paragraph_frontmatter_placement(meta, node_id="304.1.2-a")
 
 
-def test_304_1_3_applicability_fails() -> None:
+def test_304_1_3_execution_block_passes() -> None:
     meta = _load_meta("304.1.3.yaml")
-    issues = validate_paragraph_node(meta)
-    assert any("applicability" in i for i in issues)
+    assert validate_paragraph_node(meta) == []
 
 
-def test_304_1_1_a_assumptions_warns_not_validator_fail() -> None:
+def test_304_1_1_a_execution_assumptions_pass() -> None:
     meta = _load_meta("304.1.1-a.yaml")
     assert validate_paragraph_node(meta) == []
-    placement = check_paragraph_frontmatter_placement(meta, node_id="304.1.1-a")
-    assert any(level == "WARN" and "assumptions" in msg for level, msg in placement)
+    assert not check_paragraph_frontmatter_placement(meta, node_id="304.1.1-a")
 
 
-def test_304_1_1_b_parameter_defaults_warns() -> None:
+def test_304_1_1_b_execution_parameter_defaults_pass() -> None:
     meta = _load_meta("304.1.1-b.yaml")
     assert validate_paragraph_node(meta) == []
-    placement = check_paragraph_frontmatter_placement(meta, node_id="304.1.1-b")
-    assert any(level == "WARN" and "parameter_defaults" in msg for level, msg in placement)
+    assert not check_paragraph_frontmatter_placement(meta, node_id="304.1.1-b")
 
 
-def _load_sidecar_yaml(path: Path) -> dict:
-    import yaml
-
-    text = path.read_text(encoding="utf-8")
-    meta, _ = split_frontmatter(text)
-    if meta:
-        return meta
-    loaded = yaml.safe_load(text)
-    return loaded if isinstance(loaded, dict) else {}
-
-
-def test_304_1_2_a_split_placement_warn() -> None:
-    from engine.reference.paragraph_authoring_policy import check_paragraph_sidecar_surface
-
-    meta = _load_meta("304.1.2-a.yaml")
-    sidecar_path = _paragraph_dir() / "304.1.2-a.execution.yaml"
-    sidecar = _load_sidecar_yaml(sidecar_path)
-    findings = check_paragraph_sidecar_surface(meta, sidecar, node_id="304.1.2-a")
-    assert any("Execution metadata split across two authoring surfaces" in msg for _, msg in findings)
+def test_sidecar_merge_extracts_execution_block() -> None:
+    merged = merge_paragraph_sidecar_metadata(
+        {
+            "id": "304.1.2-a",
+            "type": "paragraph",
+            "execution": {
+                "conditions": [{"id": "thin_wall_check"}],
+                "subsections": [{"id": "b"}],
+            },
+        },
+        record_path=_paragraph_dir() / "304.1.2-a.yaml",
+        node_id="304.1.2-a",
+    )
+    assert "conditions" in merged
+    assert set(EXECUTION_SIDECAR_KEYS) >= {"conditions", "subsections"}
 
 
 def test_registered_external_refs_info() -> None:
@@ -168,10 +162,7 @@ def test_run_audit_paragraph_projection_matches_section_a() -> None:
 
 
 def test_no_sidecar_only_keys_in_frontmatter_across_repo() -> None:
-    """Promotion gate — passes only after SIDECAR_ONLY_ENFORCEMENT flips to fail and nodes migrate."""
-    if SIDECAR_ONLY_ENFORCEMENT != "fail":
-        pytest.skip("Phase 1: SIDECAR_ONLY keys warn-only until promotion criteria met")
-
+    """Promotion gate — top-level execution keys must not appear outside execution block."""
     violations: list[str] = []
     for path in sorted(_paragraph_dir().glob("*.yaml")):
         if path.name.endswith(".execution.yaml") or path.name.endswith(".nomenclature.yaml"):
@@ -186,13 +177,7 @@ def test_no_sidecar_only_keys_in_frontmatter_across_repo() -> None:
 
 
 def test_sidecar_merge_uses_policy_execution_keys() -> None:
-    merged = merge_paragraph_sidecar_metadata(
-        {"id": "304.1.2-a", "type": "paragraph"},
-        record_path=_paragraph_dir() / "304.1.2-a.yaml",
-        node_id="304.1.2-a",
-    )
-    assert "conditions" in merged
-    assert set(EXECUTION_SIDECAR_KEYS) >= {"conditions", "subsections"}
+    test_sidecar_merge_extracts_execution_block()
 
 
 def test_forbidden_runtime_keys_in_validator_messages() -> None:

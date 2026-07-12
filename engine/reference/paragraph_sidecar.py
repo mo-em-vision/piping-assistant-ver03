@@ -5,6 +5,8 @@ from typing import Any
 
 import yaml
 
+from engine.reference.node_authoring_policy import LEGACY_SIDECAR_COMPAT
+from engine.reference.node_block_extractor import extract_and_flatten_node_metadata
 from engine.reference.paragraph_authoring_policy import EXECUTION_SIDECAR_KEYS
 from engine.reference.standards_markdown import split_frontmatter
 
@@ -31,9 +33,9 @@ def merge_paragraph_sidecar_metadata(
     record_path: Path | None = None,
     node_id: str | None = None,
 ) -> dict[str, Any]:
-    """Merge nomenclature and execution sidecars into metadata for runtime adapters."""
-    merged = dict(metadata)
-    if record_path is None or not node_id:
+    """Merge legacy nomenclature/execution sidecars when compatibility is enabled."""
+    merged = extract_and_flatten_node_metadata(metadata, "paragraph")
+    if not LEGACY_SIDECAR_COMPAT or record_path is None or not node_id:
         return merged
 
     sidecar_dir = paragraph_sidecar_dir(record_path, node_id)
@@ -43,7 +45,7 @@ def merge_paragraph_sidecar_metadata(
     for path in (sidecar_dir / "nomenclature.yaml", flat_nomenclature):
         if path.is_file():
             data = _load_yaml(path)
-            if data.get("nomenclature"):
+            if data.get("nomenclature") and not merged.get("nomenclature"):
                 merged["nomenclature"] = data["nomenclature"]
             break
 
@@ -51,7 +53,7 @@ def merge_paragraph_sidecar_metadata(
         if path.is_file():
             data = _load_yaml(path)
             for key in EXECUTION_SIDECAR_KEYS:
-                if key in data and data[key]:
+                if key in data and data[key] and not merged.get(key):
                     merged[key] = data[key]
             break
 

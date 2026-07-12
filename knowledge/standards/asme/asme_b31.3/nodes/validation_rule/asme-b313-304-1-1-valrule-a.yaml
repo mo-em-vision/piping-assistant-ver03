@@ -46,6 +46,37 @@ edges:
   target: PARAM-wall-thickness-adequacy
 - type: constrains_equation
   target: asme-b313-304-1-1-eq-2
+execution:
+  variables:
+    t:
+      symbol: t
+      parameter: PARAM-required-wall-thickness
+      description: Pressure design thickness
+      unit: mm
+    c:
+      symbol: c
+      parameter: PARAM-corrosion-allowance
+      description: Sum of mechanical, corrosion, and erosion allowances
+      unit: mm
+    T:
+      symbol: T
+      description: Pipe wall thickness per purchase specification
+      unit: mm
+  outputs:
+  - symbol: wall_thickness_adequate
+    name: wall_thickness_adequate
+    unit: dimensionless
+    type: boolean
+  equation_id: valrule-304-1-1-a
+  nomenclature_ref: 304.1.1-b
+  steps:
+  - name: evaluate_wall_thickness_adequacy
+    description: Check §304.1.1-a minimum required thickness condition
+    expressions:
+    - expression: t + c
+      assign: t_m
+    - expression: T >= t_m
+      assign: wall_thickness_adequate
 metadata:
   status: active
   version: 1

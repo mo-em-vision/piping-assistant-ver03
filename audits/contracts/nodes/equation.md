@@ -27,12 +27,12 @@ An equation node defines a deterministic calculation that consumes input paramet
 
 ## 5. ID convention
 
-| Variant | `id` prefix | Notes |
-| --- | --- | --- |
-| Standards | `asme-b313-` | Pack-scoped flat files |
-| Unit transform | `EQ-unit-` | Requires `equation_class: transformation` |
-| `key` | Underscore form matching id semantics | |
-| Citation | `equation_number`, `paragraph_number` | Required when id contains `-eq-` |
+| Variant        | `id` prefix                           | Notes                                     |
+| -------------- | ------------------------------------- | ----------------------------------------- |
+| Standards      | `asme-b313-`                          | Pack-scoped flat files                    |
+| Unit transform | `EQ-unit-`                            | Requires `equation_class: transformation` |
+| `key`          | Underscore form matching id semantics |                                           |
+| Citation       | `equation_number`, `paragraph_number` | Required when id contains `-eq-`          |
 
 ## 6. Copyable minimal YAML skeleton
 

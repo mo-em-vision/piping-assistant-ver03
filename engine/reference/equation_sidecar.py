@@ -7,6 +7,9 @@ from typing import Any
 
 import yaml
 
+from engine.reference.equation_authoring_policy import EQUATION_EXECUTION_KEYS as _EXECUTION_KEYS
+from engine.reference.node_authoring_policy import LEGACY_SIDECAR_COMPAT
+from engine.reference.node_block_extractor import extract_and_flatten_node_metadata
 from engine.reference.standards_markdown import split_frontmatter
 
 _EXECUTION_KEYS = (
@@ -46,11 +49,12 @@ def merge_equation_sidecar_metadata(
     record_path: Path | None = None,
     node_id: str | None = None,
 ) -> dict[str, Any]:
-    """Merge execution metadata from sidecars or inline flat equation YAML."""
-    merged = dict(metadata)
-    if record_path is None or not node_id:
+    """Merge legacy execution sidecars when compatibility is enabled."""
+    node_type = str(metadata.get("type", ""))
+    merged = extract_and_flatten_node_metadata(metadata, node_type)
+    if node_type not in {"equation", "validation_rule"}:
         return merged
-    if str(merged.get("type", "")) not in {"equation", "validation_rule"}:
+    if not LEGACY_SIDECAR_COMPAT or record_path is None or not node_id:
         return merged
 
     sidecar_dir = equation_sidecar_dir(record_path, node_id)
@@ -60,15 +64,8 @@ def merge_equation_sidecar_metadata(
         if path.is_file():
             data = _load_yaml(path)
             for key in _EXECUTION_KEYS:
-                if key in data and data[key]:
+                if key in data and data[key] and not merged.get(key):
                     merged[key] = data[key]
             break
-
-    if record_path.is_file():
-        file_meta, _body = split_frontmatter(record_path.read_text(encoding="utf-8"))
-        if isinstance(file_meta, dict):
-            for key in (*_EXECUTION_KEYS, "equation_number", "paragraph_number"):
-                if key in file_meta and file_meta[key]:
-                    merged[key] = file_meta[key]
 
     return merged

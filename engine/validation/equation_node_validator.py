@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.reference.equation_authoring_policy import validator_fail_messages_for_equation
 from engine.reference.equation_metadata import equation_reference
 from engine.reference.graph_compile import validate_edge_item, validate_no_links_metadata
 from engine.validation.authority_authorization import validate_authority_authorization
@@ -94,6 +95,7 @@ def _validate_unit_transformation_equation(meta: dict[str, Any]) -> list[str]:
     elif not metadata.get("status"):
         issues.append("metadata.status required")
     issues.extend(validate_revision_metadata(meta))
+    issues.extend(validator_fail_messages_for_equation(meta))
     for field in _FORBIDDEN_FIELDS:
         if field in meta:
             issues.append(f"forbidden field in frontmatter: {field}")
@@ -151,6 +153,7 @@ def _validate_standards_equation(meta: dict[str, Any]) -> list[str]:
     elif not metadata.get("status"):
         issues.append("metadata.status required")
     issues.extend(validate_revision_metadata(meta))
+    issues.extend(validator_fail_messages_for_equation(meta))
     for field in _FORBIDDEN_FIELDS:
         if field in meta:
             issues.append(f"forbidden field in frontmatter: {field}")

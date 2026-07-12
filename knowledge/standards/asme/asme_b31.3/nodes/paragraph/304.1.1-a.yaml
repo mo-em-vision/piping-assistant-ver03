@@ -42,16 +42,17 @@ edges:
     when:
       field: pressure_loading
       in: [external_pressure]
-assumptions:
-  - id: straight_pipe_section
-    field: straight_pipe_section
-    description: Applied to a straight section of a pipe.
-    required_for_expansion: true
-    requires_confirmation: true
-    allowed_values: [true, false]
-    blocks_expansion_on: [false]
-    expansion_block_message: >
-      Non-straight pipe sections are not yet supported.
+execution:
+  assumptions:
+    - id: straight_pipe_section
+      field: straight_pipe_section
+      description: Applied to a straight section of a pipe.
+      required_for_expansion: true
+      requires_confirmation: true
+      allowed_values: [true, false]
+      blocks_expansion_on: [false]
+      expansion_block_message: >
+        Non-straight pipe sections are not yet supported.
 metadata:
   status: active
   source_revision_year: 2024

@@ -18,10 +18,9 @@ A workflow node defines a reusable engineering objective — what kind of task i
 
 ## 4. File location
 
-| File | Path |
-| --- | --- |
-| Workflow definition | `workflows/{machine-key}.yaml` (e.g. `pipe-wall-thickness.yaml`) |
-| Runtime sidecar | `workflows/{WF-ID}/runtime.yaml` |
+`workflows/{machine-key}.yaml` (e.g. `pipe-wall-thickness.yaml`)
+
+One primary YAML file per workflow. Deterministic runtime metadata (`navigation`, `interactions`, `texts`, etc.) lives in the nested `runtime` block in that file.
 
 ## 5. ID convention
 
@@ -43,6 +42,10 @@ name: Example Workflow
 workflow_class: design_calculation
 description: >
   Example engineering workflow objective defined for graph expansion.
+runtime:
+  navigation:
+    assumption_gate_fields: []
+    phases: {}
 metadata:
   status: draft
   last_revision: 2026-07-04

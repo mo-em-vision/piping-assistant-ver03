@@ -21,10 +21,7 @@ A paragraph node stores the exact authoritative text of one subdivision of a sta
 
 `knowledge/standards/<publisher>/<pack>/nodes/paragraph/{id}.yaml`
 
-Optional sidecars (same directory):
-
-- `{id}.execution.yaml` or `{id}/execution.yaml`
-- `{id}.nomenclature.yaml` or `{id}/nomenclature.yaml`
+One primary YAML file per paragraph. Node-owned execution metadata lives in the nested `execution` block in that file (not in separate sidecar files).
 
 ## 5. ID convention
 
@@ -57,6 +54,9 @@ hierarchy:
 edges:
   - type: belongs_to_authority
     target: AUTH-ASME-B31.3
+execution:
+  applicability:
+    applies_when: []
 metadata:
   source_revision_year: 2024
   last_revision: 2026-07-04
@@ -93,7 +93,8 @@ metadata:
 | `metadata.status` | Lifecycle status |
 | `metadata.node_version` | Version counter |
 | `edges` | References to concepts, equations, tables, parameters, etc. |
-| Sidecar files | Execution, nomenclature — see sidecar contracts |
+| `execution` | Applicability, assumptions, interactions, conditions, subsections, parameter_defaults |
+| `nomenclature` | Optional symbol table; prefer `introduces_parameter` edges |
 
 Do **not** set `text.source_language` — inherited from `pack.yaml`.
 
@@ -101,34 +102,20 @@ Do **not** set `text.source_language` — inherited from `pack.yaml`.
 
 Field placement is enforced by `engine/reference/paragraph_authoring_policy.py`:
 
-| Category | Phase 1 severity | Meaning |
+| Category | Severity | Meaning |
 | --- | --- | --- |
 | `FORBIDDEN_RUNTIME_STATE_KEYS` | FAIL | Task/runtime mutable state — never in knowledge YAML |
-| `FORBIDDEN_PARAGRAPH_FRONTMATTER` | FAIL | Legacy/wrong-layer fields — use edges or sidecars |
-| `SIDECAR_ONLY_KEYS` | WARN | Belong in `{id}.execution.yaml` only (FAIL after promotion) |
+| `FORBIDDEN_PARAGRAPH_FRONTMATTER` | FAIL | Legacy/wrong-layer fields — use edges or `execution` block |
+| `EXECUTION_BLOCK_KEYS` at top level | FAIL | Belong in nested `execution` block in primary YAML |
 
-Hard-fail frontmatter keys include:
-
-```text
-runtime_value, fact_value, user_input, execution_id, task_id,
-calculation_result, selected_for_execution, active_in_context,
-paragraph_class, applicability, limitations, exceptions,
-calculation_logic, validation_logic, introduced_parameters,
-referenced_equations, referenced_concepts, referenced_validation_rules,
-engineering_intent, trace, report, ai_hints, text.source_language
-```
-
-SIDECAR_ONLY keys (WARN in phase 1): `interactions`, `assumptions`, `applicability`,
-`provisional_assumptions`, `parameter_defaults`, `inputs`, `depends_on`, `equations`,
-`validation_rules`, `conditions`, `kind`, `outputs`, `lookups`, `notes`, `subsections`,
-`nomenclature` — see policy module for permitted destinations.
+Hard-fail top-level keys include execution metadata such as `assumptions`, `applicability`, `conditions`, and `parameter_defaults` — place them under `execution:`.
 
 Also forbidden:
 
 - `hierarchy.previous` / `hierarchy.next`
 - Top-level `links` block
 - Structural edges (`parent`, `child`, `next`, `previous`) in `edges`
-- Execution keys in frontmatter when a sidecar is used (prefer sidecar)
+- Node-owned sidecar files (`{id}.execution.yaml`, `{id}.nomenclature.yaml`)
 
 ## 10. Permitted outgoing relationships
 

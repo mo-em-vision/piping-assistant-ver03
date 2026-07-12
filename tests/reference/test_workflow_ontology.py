@@ -47,15 +47,7 @@ def _project_root() -> Path:
 
 
 def _workflow_dir() -> Path:
-    return (
-        _project_root()
-        / "knowledge"
-        / "standards"
-        / "asme"
-        / "asme_b31.3"
-        / "nodes"
-        / "workflows"
-    )
+    return _project_root() / "workflows"
 
 
 def test_workflow_nodes_have_required_template_fields() -> None:
@@ -81,13 +73,13 @@ def test_workflow_sidecars_expose_runtime_metadata() -> None:
         assert record.metadata.get("engineering_intent") or record.metadata.get("key")
 
     pipe = reader.load("WF-PIPE-WALL-THICKNESS")
-    assert pipe.metadata.get("assumptions")
     assert pipe.metadata.get("interactions")
 
     mawp = reader.load("WF-MAWP")
     assert mawp.metadata.get("equations")
     assert mawp.metadata.get("inputs")
     assert mawp.metadata.get("nomenclature")
+    assert mawp.metadata.get("assumptions")
 
 
 def test_workflow_slug_resolution() -> None:
@@ -111,4 +103,6 @@ def test_phases_synthesize_navigation_when_sidecar_missing() -> None:
     }
     merged = merge_workflow_sidecar_metadata(meta)
     navigation = merged.get("navigation") or {}
-    assert "design_pressure" in (navigation.get("phases") or {}).get("parameter_gathering", [])
+    assert "internal_design_gage_pressure" in (navigation.get("phases") or {}).get(
+        "parameter_gathering", []
+    )

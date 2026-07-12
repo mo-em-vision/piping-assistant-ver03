@@ -142,9 +142,11 @@ edges:
 
     target: PARAM-actual-wall-thickness
 
-parameter_defaults:
+execution:
 
-  corrosion_allowance:
+  parameter_defaults:
+
+    corrosion_allowance:
 
     - value: 0.5
 
