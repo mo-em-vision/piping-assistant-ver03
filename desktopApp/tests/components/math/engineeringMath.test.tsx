@@ -10,7 +10,9 @@ import {
   isInequalityLike,
   normalizeBareDisplayEquations,
   renderEngineeringText,
+  stripEquationTag,
   toKatexExpression,
+  withEquationTag,
 } from '@/components/math/engineeringMath'
 
 describe('engineeringMath', () => {
@@ -47,6 +49,23 @@ describe('engineeringMath', () => {
   it('preserves existing \\frac when \\tag is present', () => {
     const input = 't = \\frac{PD}{2(SEW + PY)} \\tag{3a}'
     expect(toKatexExpression(input)).toBe(input)
+  })
+
+  it('appends \\tag from equation number when expression has no tag', () => {
+    expect(withEquationTag('t = \\frac{PD}{2(SEW + PY)}', '3a')).toBe(
+      't = \\frac{PD}{2(SEW + PY)} \\tag{3a}',
+    )
+  })
+
+  it('does not duplicate \\tag when equation number is provided', () => {
+    const input = 't = \\frac{PD}{2(SEW + PY)} \\tag{3a}'
+    expect(withEquationTag(input, '3a')).toBe(input)
+  })
+
+  it('strips existing \\tag from expressions', () => {
+    expect(stripEquationTag('t = \\frac{PD}{2(SEW + PY)} \\tag{3a}')).toBe(
+      't = \\frac{PD}{2(SEW + PY)}',
+    )
   })
 
   it('converts inequality slash notation to \\frac', () => {

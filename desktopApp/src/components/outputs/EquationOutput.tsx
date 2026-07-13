@@ -1,4 +1,10 @@
-import { DisplayMath, EngineeringMathText, InlineMath, isEngineeringSymbol } from '@/components/math/engineeringMath'
+import {
+  DisplayMath,
+  EngineeringMathText,
+  InlineMath,
+  isEngineeringSymbol,
+  stripEquationTag,
+} from '@/components/math/engineeringMath'
 import { ReferenceChipList } from '@/components/outputs/ReferenceChipList'
 import { InlineCitationText } from '@/components/standards/InlineCitationText'
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
@@ -319,13 +325,46 @@ function renderInputTable(block: EquationOutputBlock) {
   )
 }
 
-function renderMathLine(blockId: string, suffix: string, expression: string) {
-  return (
+function formatEquationNumberLabel(equationNumber: string): string {
+  const trimmed = equationNumber.trim()
+  if (!trimmed) {
+    return ''
+  }
+  if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
+    return trimmed
+  }
+  return `(${trimmed})`
+}
+
+function renderMathLine(
+  blockId: string,
+  suffix: string,
+  expression: string,
+  equationNumber?: string | null,
+) {
+  const pinnedNumber =
+    suffix === 'symbolic' ? String(equationNumber ?? '').trim() : ''
+  const renderedExpression = pinnedNumber ? stripEquationTag(expression) : expression
+  const math = (
     <DisplayMath
-      key={`${blockId}-${suffix}`}
-      expression={expression}
+      expression={renderedExpression}
       className={`output-equation__math output-equation__math--${suffix}`}
     />
+  )
+
+  if (pinnedNumber) {
+    return (
+      <div key={`${blockId}-${suffix}`} className="output-equation__math-row">
+        {math}
+        <span className="output-equation__number">{formatEquationNumberLabel(pinnedNumber)}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div key={`${blockId}-${suffix}`}>
+      {math}
+    </div>
   )
 }
 
@@ -357,7 +396,7 @@ export function EquationOutput({ block }: EquationOutputProps) {
         <p className="output-equation__context-lead">{block.context_lead}</p>
       ) : null}
       {presentation.symbolic
-        ? renderMathLine(block.id, 'symbolic', presentation.symbolic)
+        ? renderMathLine(block.id, 'symbolic', presentation.symbolic, block.equation_number)
         : null}
       {!isEvaluated ? inputTable : null}
       {!isEvaluated && !block.input_table && block.variables && block.variables.length > 0 ? (

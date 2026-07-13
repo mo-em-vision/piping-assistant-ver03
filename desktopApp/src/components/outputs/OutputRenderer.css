@@ -64,11 +64,27 @@
 }
 
 .output-equation__math-row {
+  position: relative;
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  align-items: center;
+  width: 100%;
+}
+
+.output-equation__math-row .output-equation__math {
+  margin: 0;
+  max-width: calc(100% - 3rem);
+}
+
+.output-equation__number {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.85rem;
+  color: #64748b;
+  white-space: nowrap;
+  padding-left: 0.5rem;
 }
 
 .output-equation__math {

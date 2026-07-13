@@ -445,8 +445,16 @@ def enrich_display_output_dict(
     input_table = block.get("input_table")
     has_input_table = isinstance(input_table, dict) and bool(input_table.get("rows"))
 
-    if block_type == "equation" and equation_node_id and not has_input_table:
-        chips = [_chip_for_equation(reader, equation_node_id)]
+    if block_type == "equation" and equation_node_id:
+        try:
+            eq_record = reader.load(equation_node_id)
+            eq_number = equation_reference(eq_record.metadata)
+            if eq_number:
+                enriched["equation_number"] = eq_number
+        except (FileNotFoundError, OSError):
+            pass
+        if not has_input_table:
+            chips = [_chip_for_equation(reader, equation_node_id)]
     else:
         refs = block.get("refs")
         if isinstance(refs, dict):

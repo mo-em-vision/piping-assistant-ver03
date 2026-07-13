@@ -60,6 +60,35 @@ describe('EquationOutput', () => {
     expect(container.querySelector('.output-equation__variables .katex')).toBeTruthy()
   })
 
+  it('pins equation number to the panel right while centering symbolic math', () => {
+    const { container } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-3a',
+          type: 'equation',
+          equation_number: '3a',
+          content: 't = PD / 2(SEW + PY)',
+          display: 't = PD / 2(SEW + PY)',
+          equation_display_trace: {
+            equation_id: 'asme-b313-304-1-2-eq-3a',
+            node_id: '304.1.2-a',
+            symbolic_latex: 't = \\frac{PD}{2(SEW + PY)}',
+            status: 'blocked',
+            inputs: [],
+            intermediate_values: [],
+            result: null,
+          },
+        }}
+      />,
+    )
+
+    const row = container.querySelector('.output-equation__math-row')
+    expect(row).toBeTruthy()
+    expect(container.querySelector('.output-equation__math--symbolic')).toBeTruthy()
+    expect(container.querySelector('.output-equation__number')?.textContent).toBe('(3a)')
+    expect(container.querySelector('.output-equation__math--symbolic .tag')).toBeNull()
+  })
+
   it('renders embedded input table with headers and pending values', () => {
     const { container, getByText } = render(
       <EquationOutput

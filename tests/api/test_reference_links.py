@@ -43,6 +43,8 @@ def test_enrich_display_output_uses_equation_node_id_chip(reader: StandardsReade
     )
     assert eq2["reference_chips"][0]["label"] == "ASME B31.3 Eq. (2)"
     assert eq3a["reference_chips"][0]["label"] == "ASME B31.3 Eq. (3a)"
+    assert eq2["equation_number"] == "2"
+    assert eq3a["equation_number"] == "3a"
 
 
 def test_node_id_ref_resolves_to_paragraph_label(reader: StandardsReader) -> None:

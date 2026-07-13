@@ -156,6 +156,26 @@ function appendEquationTag(text: string, tag: string): string {
   return `${normalized} ${tag}`
 }
 
+export function stripEquationTag(expression: string): string {
+  return extractEquationTag(expression).body
+}
+
+export function withEquationTag(expression: string, equationNumber?: string | null): string {
+  const number = String(equationNumber ?? '').trim()
+  if (!number) {
+    return expression
+  }
+  const { tag } = extractEquationTag(expression)
+  if (tag) {
+    return expression
+  }
+  const trimmed = expression.trim()
+  if (!trimmed) {
+    return expression
+  }
+  return appendEquationTag(trimmed, `\\tag{${number}}`)
+}
+
 function convertSlashNotationToFrac(text: string): string {
   if (text.includes('\\frac')) {
     return text

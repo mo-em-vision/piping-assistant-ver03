@@ -17,6 +17,7 @@ export interface OutputBlockBase {
   display_channel?: string
   result_kind?: 'workflow' | 'calculation' | 'recommendation'
   equation_node_id?: string
+  equation_number?: string | null
   source_node_id?: string
   history_eligible?: boolean
   volatile?: boolean
