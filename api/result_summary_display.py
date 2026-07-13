@@ -2,36 +2,22 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
-
-import yaml
 
 from api.display_block_metadata import tag_display_block
 from models.display_role import DisplayRole, ResultKind
 from api.flow_guidance_runtime_texts import (
-    _runtime_workflow_dirs,
     load_runtime_text_entries,
     result_summary_block_id,
 )
-from api.flow_guidance_transcript import normalize_workflow_slug
+from api.workflow_runtime_yaml import load_workflow_runtime_metadata
 from engine.graph.assumption_checker import field_value
 from engine.reference.parameter_keys import param_node_id_for_input
 from engine.reference.standards_reader import StandardsReader
 from models.task import Task
 
-_WORKFLOWS_ROOT = Path(__file__).resolve().parents[1] / "workflows"
-
-
 def _load_runtime_metadata(workflow_id: str) -> dict[str, Any]:
-    for folder in _runtime_workflow_dirs(workflow_id):
-        path = _WORKFLOWS_ROOT / folder / "runtime.yaml"
-        if not path.is_file():
-            continue
-        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
-        if isinstance(loaded, dict):
-            return loaded
-    return {}
+    return load_workflow_runtime_metadata(workflow_id)
 
 
 def _runtime_result_narration(workflow_id: str) -> str:
@@ -197,7 +183,7 @@ def build_result_summary_display_block(
     return tag_display_block(
         {
             "id": block_id,
-            "type": "text",
+            "type": "result_summary",
             "title": "Result Summary",
             "content": "\n".join(content_lines),
             "variant": "body",

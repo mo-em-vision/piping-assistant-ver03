@@ -1,4 +1,5 @@
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
+import { filterRegisteredCenterPanelBlocks } from '@/utils/centerPanelBlockRegistry'
 import {
   guidanceTranscriptToDisplayBlocks,
   containsInternalLeakText,
@@ -62,7 +63,9 @@ export function buildCenterPanelTranscript(
   workflowId?: string | null,
 ): WorkflowHistoryItem[] {
   void workflowId
-  const allGuidance = guidanceTranscriptToDisplayBlocks(transcriptBlocks)
+  const allGuidance = filterRegisteredCenterPanelBlocks(
+    guidanceTranscriptToDisplayBlocks(transcriptBlocks),
+  )
     .filter((block) => {
       const role = blockDisplayRole(block)
       return role !== 'ask_archive' && role !== 'answer_archive'
@@ -71,11 +74,13 @@ export function buildCenterPanelTranscript(
 
   const guidanceIds = new Set(allGuidance.map((block) => block.id))
 
-  const engineering = displayOutputs.filter(
-    (block) =>
-      !guidanceIds.has(block.id) &&
-      (!isVolatileDisplayBlock(block) || blockDisplayRole(block) === 'input_waiting') &&
-      isUserVisibleBlock(block),
+  const engineering = filterRegisteredCenterPanelBlocks(
+    displayOutputs.filter(
+      (block) =>
+        !guidanceIds.has(block.id) &&
+        (!isVolatileDisplayBlock(block) || blockDisplayRole(block) === 'input_waiting') &&
+        isUserVisibleBlock(block),
+    ),
   )
 
   const merged = sortByReportRole(dedupeByBlockId([...allGuidance, ...engineering]))

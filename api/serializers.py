@@ -847,18 +847,21 @@ def _task_state_impl(
             with perf_span("engineering_plan_view", "serializer"):
                 legacy_extras["engineering_plan_view"] = _engineering_plan_view_for_task(task)
         with perf_span("display_output_projection", "serializer"):
+            from api.center_panel_block_registry import filter_center_panel_blocks
             from models.display_role import resolve_display_block
 
-            legacy_extras["display_outputs"] = [
-                resolve_display_block(
-                    enrich_display_output_dict(item, resolved_reader, task=task)
-                )
-                for item in build_display_outputs(
-                    task,
-                    standards_root=resolved_standards_root,
-                    reader=resolved_reader,
-                )
-            ]
+            legacy_extras["display_outputs"] = filter_center_panel_blocks(
+                [
+                    resolve_display_block(
+                        enrich_display_output_dict(item, resolved_reader, task=task)
+                    )
+                    for item in build_display_outputs(
+                        task,
+                        standards_root=resolved_standards_root,
+                        reader=resolved_reader,
+                    )
+                ]
+            )
         with perf_span("flow_guidance", "serializer"):
             transcript_blocks = load_flow_guidance_transcript_blocks(task)
             flow_guidance_payload = build_flow_guidance_payload(

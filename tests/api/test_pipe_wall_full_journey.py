@@ -13,6 +13,9 @@ from config.loader import CLIConfig
 from engine.executor.unit_manager import convert_to_si
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from tests.api.conftest import api_session_id
+from tests.helpers.lookup_resolution_contract import (
+    assert_pipe_wall_lookup_resolution_in_final_state,
+)
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EXPECTED_DIR = _REPO_ROOT / "tests" / "data" / "expected"
@@ -218,6 +221,7 @@ def test_pipe_wall_full_api_journey(tmp_path: Path, project_root: Path) -> None:
     )
 
     assert state["status"] == "completed"
+    assert_pipe_wall_lookup_resolution_in_final_state(state)
 
     required_thickness = state.get("outputs", {}).get("required_thickness")
     thickness_t = state.get("outputs", {}).get("t")

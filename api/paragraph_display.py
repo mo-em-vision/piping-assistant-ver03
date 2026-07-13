@@ -117,7 +117,11 @@ def build_paragraph_display_block(
 
     block: dict[str, Any] = {
         "id": resolved_block_id,
-        "type": "text",
+        "type": (
+            "paragraph_context"
+            if display_role == DisplayRole.paragraph_context.value
+            else "text"
+        ),
         "title": (
             (_paragraph_label(metadata, node_id) or None)
             if display_role != DisplayRole.node_intro.value

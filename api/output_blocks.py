@@ -7,6 +7,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from api.center_panel_block_registry import canonicalize_center_panel_block_type
 from api.center_panel_contract import dedupe_blocks_by_id_inplace
 from api.display_block_metadata import (
     dedupe_blocks_by_id_prefer_richer,
@@ -50,9 +51,6 @@ def build_display_outputs(
     blocks.extend(_input_waiting_blocks(task, blocks))
     blocks.extend(_validation_blocks_from_trace(trace_list, task))
 
-    if has_trace:
-        blocks.extend(_lookup_and_non_equation_trace_blocks(trace_list, task, resolved_reader))
-
     summary = build_result_summary_display_block(task, resolved_reader)
     if summary is not None:
         blocks.append(summary)
@@ -81,7 +79,9 @@ def _finalize_display_blocks(
 
     resolved: list[dict[str, Any]] = []
     for block in blocks:
-        resolved.append(resolve_display_block(block))
+        resolved.append(
+            canonicalize_center_panel_block_type(resolve_display_block(block))
+        )
 
     return sort_blocks_by_report_role(resolved)
 
@@ -311,7 +311,7 @@ def _validation_blocks_from_trace(
         tag_display_block(
             {
                 "id": "validation-thin-wall-criterion",
-                "type": "text",
+                "type": "applicability",
                 "title": None,
                 "content": content,
                 "variant": "body",
@@ -319,97 +319,6 @@ def _validation_blocks_from_trace(
             display_role=DisplayRole.applicability.value,
         )
     )
-    return blocks
-
-
-def _lookup_and_non_equation_trace_blocks(
-    trace: list[Any],
-    task: Task,
-    reader: StandardsReader,
-) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
-
-    for index, entry in enumerate(trace):
-        if not isinstance(entry, dict):
-            continue
-        node_id = str(entry.get("node_id") or f"node-{index}")
-        node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
-
-        calculation = node_trace.get("calculation")
-        if isinstance(calculation, dict):
-            blocks.extend(_non_equation_calculation_blocks(node_id, calculation))
-
-        lookup = node_trace.get("lookup")
-        if isinstance(lookup, dict):
-            table_block = _lookup_table_block(node_id, lookup, reader=reader)
-            if table_block:
-                blocks.append(table_block)
-
-    graph_block = _intermediate_graph_block(trace)
-    if graph_block:
-        blocks.append(graph_block)
-
-    return blocks
-
-
-def _non_equation_calculation_blocks(
-    node_id: str,
-    calculation: dict[str, Any],
-) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
-
-    steps = calculation.get("steps")
-    if isinstance(steps, list) and steps:
-        rows: list[dict[str, Any]] = []
-        for step_index, step in enumerate(steps):
-            if not isinstance(step, dict):
-                continue
-            result = step.get("result")
-            rows.append(
-                {
-                    "step": step.get("name") or f"Step {step_index + 1}",
-                    "description": step.get("description") or "",
-                    "result": _format_step_result(result),
-                }
-            )
-        if rows:
-            blocks.append(
-                {
-                    "id": f"table-steps-{node_id}",
-                    "type": "table",
-                    "title": "Calculation steps",
-                    "columns": [
-                        {"key": "step", "label": "Step", "sortable": True},
-                        {"key": "description", "label": "Description", "sortable": True},
-                        {"key": "result", "label": "Result", "sortable": False},
-                    ],
-                    "rows": rows,
-                    "searchable": True,
-                }
-            )
-
-    intermediates = calculation.get("intermediate_values")
-    if isinstance(intermediates, dict) and intermediates:
-        rows = [
-            {"symbol": key, "value": _format_number(value)}
-            for key, value in intermediates.items()
-            if isinstance(value, (int, float))
-        ]
-        if rows:
-            blocks.append(
-                {
-                    "id": f"table-intermediates-{node_id}",
-                    "type": "table",
-                    "title": "Intermediate values",
-                    "columns": [
-                        {"key": "symbol", "label": "Symbol", "sortable": True},
-                        {"key": "value", "label": "Value", "sortable": True},
-                    ],
-                    "rows": rows,
-                    "searchable": False,
-                }
-            )
-
     return blocks
 
 
@@ -427,117 +336,13 @@ def _warning_block(message: str) -> dict[str, Any]:
     return tag_display_block(
         {
             "id": _warning_block_id(message),
-            "type": "text",
+            "type": "warning",
             "title": "Warning",
             "content": message,
             "variant": "warning",
         },
         display_role=DisplayRole.warning.value,
     )
-
-
-def _lookup_table_block(
-    node_id: str,
-    lookup: dict[str, Any],
-    *,
-    reader: StandardsReader | None = None,
-) -> dict[str, Any] | None:
-    rows = lookup.get("rows") or lookup.get("matches")
-    if not isinstance(rows, list) or not rows:
-        return None
-
-    normalized_rows: list[dict[str, Any]] = []
-    for row in rows:
-        if isinstance(row, dict):
-            normalized_rows.append({str(key): value for key, value in row.items()})
-        else:
-            normalized_rows.append({"value": row})
-
-    if not normalized_rows:
-        return None
-
-    columns = [
-        {"key": key, "label": key.replace("_", " ").title(), "sortable": True}
-        for key in normalized_rows[0]
-    ]
-
-    table_id = str(lookup.get("table_id") or node_id).strip()
-    title = str(lookup.get("title") or "").strip()
-    if not title and reader is not None:
-        try:
-            from api.node_context import display_heading_for_node
-
-            title = display_heading_for_node(reader.load(table_id).metadata) or "Lookup results"
-        except FileNotFoundError:
-            title = "Lookup results"
-    if not title:
-        title = "Lookup results"
-
-    highlight = lookup.get("highlight")
-    recommendation_summary = str(lookup.get("recommendation_summary") or "").strip()
-    display_role = (
-        DisplayRole.lookup_table_recommendation.value
-        if highlight
-        else DisplayRole.engineering_reference.value
-    )
-
-    block: dict[str, Any] = {
-        "id": f"table-lookup-{node_id}",
-        "type": "table",
-        "title": title,
-        "columns": columns,
-        "rows": normalized_rows,
-        "searchable": True,
-        "refs": {"table_id": table_id, "node_id": table_id},
-    }
-    if isinstance(highlight, dict) and highlight:
-        block["highlight_row"] = highlight
-    if recommendation_summary:
-        block["summary_text"] = recommendation_summary
-
-    return tag_display_block(block, display_role=display_role, source_node_id=node_id)
-
-
-def _intermediate_graph_block(trace: list[Any]) -> dict[str, Any] | None:
-    points: list[dict[str, Any]] = []
-
-    for entry in trace:
-        if not isinstance(entry, dict):
-            continue
-        node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
-        intermediates = node_trace.get("intermediates")
-        if isinstance(intermediates, dict):
-            for key, value in intermediates.items():
-                if isinstance(value, (int, float)):
-                    points.append({"x": key, "y": float(value)})
-
-        calculation = node_trace.get("calculation")
-        if isinstance(calculation, dict):
-            final = calculation.get("final_result")
-            if isinstance(final, dict) and isinstance(final.get("value"), (int, float)):
-                points.append({"x": "t", "y": float(final["value"])})
-
-    if len(points) < 2:
-        return None
-
-    return {
-        "id": "graph-intermediates",
-        "type": "graph",
-        "title": "Calculation terms",
-        "chart_type": "bar",
-        "x_label": "Term",
-        "y_label": "SI value",
-        "series": [{"name": "Values", "points": points}],
-    }
-
-
-def _format_step_result(result: Any) -> str:
-    if result is None:
-        return ""
-    if isinstance(result, dict):
-        parts = [f"{key}={_format_number(value)}" for key, value in result.items()]
-        return ", ".join(parts)
-    return str(result)
 
 
 def _format_number(value: Any) -> str:

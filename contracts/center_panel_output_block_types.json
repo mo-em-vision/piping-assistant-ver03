@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "description": "Canonical center-panel output block types. Edit here to add or rename scroll-area block renderers.",
+  "block_types": [
+    {
+      "type": "text",
+      "label": "Text block",
+      "desktop_component": "TextOutput",
+      "notes": "Generic prose: workflow intro, branch narration, input waiting"
+    },
+    {
+      "type": "warning",
+      "label": "Warning block",
+      "desktop_component": "WarningOutput",
+      "notes": "Task and validation warnings"
+    },
+    {
+      "type": "paragraph_context",
+      "label": "Paragraph context block",
+      "desktop_component": "ParagraphContextOutput",
+      "notes": "Live focus paragraph summary with reference links"
+    },
+    {
+      "type": "result_summary",
+      "label": "Result summary block",
+      "desktop_component": "ResultSummaryOutput",
+      "notes": "Workflow completion summary with primary result and conditions"
+    },
+    {
+      "type": "applicability",
+      "label": "Applicability block",
+      "desktop_component": "ApplicabilityOutput",
+      "notes": "Post-calculation applicability checks (e.g. thin-wall criterion)"
+    },
+    {
+      "type": "equation",
+      "label": "Equation block",
+      "desktop_component": "EquationOutput",
+      "notes": "Symbolic, substituted, and evaluated equation nodes"
+    },
+    {
+      "type": "table",
+      "label": "Table block",
+      "desktop_component": "TableOutput",
+      "notes": "Nomenclature and structured tabular reference blocks"
+    },
+    {
+      "type": "reference",
+      "label": "Reference block",
+      "desktop_component": "ReferenceOutput",
+      "notes": "Standards paragraph/table reference excerpts"
+    },
+    {
+      "type": "result",
+      "label": "Result block",
+      "desktop_component": "ResultOutput",
+      "notes": "Scalar lookup or calculation highlights"
+    },
+    {
+      "type": "next_workflows",
+      "label": "Next workflows block",
+      "desktop_component": "NextWorkflowsOutput",
+      "notes": "Related workflow links on completion"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+---
+description: Center panel scroll area — only registered output block types may render
+globs: api/center_panel*.py,api/output_blocks.py,api/serializers.py,desktopApp/src/components/outputs/**,desktopApp/src/utils/buildCenterPanelTranscript.ts,desktopApp/src/utils/centerPanelBlockRegistry.ts,contracts/center_panel_output_block_types.json
+alwaysApply: false
+---
+
+# Center panel block registry
+
+The center panel scroll area renders **only** block types listed in [`contracts/center_panel_output_block_types.json`](../../contracts/center_panel_output_block_types.json).
+
+## Source of truth
+
+| Layer | Module |
+| --- | --- |
+| Contract | `contracts/center_panel_output_block_types.json` |
+| Backend registry | `api/center_panel_block_registry.py` |
+| Backend filter | `filter_center_panel_blocks()` |
+| Scroll assembly | `api/center_panel_contract.py` → `assemble_center_panel_scroll_blocks()` |
+| API payload | `api/serializers.py` → `display_outputs` |
+| Desktop registry | `desktopApp/src/utils/centerPanelBlockRegistry.ts` |
+| Desktop merge | `desktopApp/src/utils/buildCenterPanelTranscript.ts` |
+| Desktop render | `desktopApp/src/components/outputs/OutputRenderer.tsx` |
+
+## Rules
+
+1. **Add or rename a block type** — edit `contracts/center_panel_output_block_types.json` first, then add the matching `OutputRenderer` case and component.
+2. **Do not emit unregistered `type` values** in `display_outputs` or transcript blocks mapped into the scroll area.
+3. **Filter at boundaries** — use `filter_center_panel_blocks()` (Python) and `filterRegisteredCenterPanelBlocks()` (TypeScript) before user-visible assembly; `OutputRenderer` is the last line of defense.
+4. **Do not** surface planner JSON, debug projections, or ad-hoc internal blobs as center-panel blocks.
+5. **Do not** emit trace-derived `graph` or `table-lookup-*` / `table-steps-*` / `table-intermediates-*` blocks from `api/output_blocks.py` — execution trace stays in `_execution_trace` for reports/inspector only.
+6. **Split prose by role** — use dedicated block `type` values (`warning`, `paragraph_context`, `result_summary`, `applicability`) instead of generic `text` when `display_role` matches.
+7. **Next workflows** — render only `Related Workflows: {workflow name}` lines; no intro/title/description chrome.
+8. **Equation blocks** use `type: "equation"` with canonical `equation_node_id` / `equation_display_trace` — not legacy workflow-specific ids (`mawp-*-equation`, `path-calculation-substituted-equation`, etc.).
+
+## Tests
+
+- Backend: `tests/api/test_center_panel_block_registry.py`
+- Desktop: `desktopApp/tests/utils/centerPanelBlockRegistry.test.tsx`

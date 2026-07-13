@@ -2,13 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 from typing import Any
 
-import yaml
-
 from engine.reference.standards_reader import StandardsReader
-from engine.reference.workflow_sidecar import _PROJECT_RUNTIME_WORKFLOW_IDS
 from models.presentation import PresentationBlock
 from models.task import Task, TaskStatus
 
@@ -18,17 +14,11 @@ from api.flow_guidance_transcript import (
     normalize_workflow_slug,
     save_flow_guidance_transcript,
 )
+from api.workflow_runtime_yaml import load_runtime_suggested_workflow_ids
 
-_WORKFLOWS_ROOT = Path(__file__).resolve().parents[1] / "workflows"
-_NEXT_WORKFLOWS_TITLE = "Suggested next workflows"
-_NEXT_WORKFLOWS_INTRO = "Based on this workflow, you may continue with:"
+from api.workflow_runtime_yaml import load_runtime_suggested_workflow_ids
 
-
-def _runtime_workflow_dirs(workflow_id: str) -> tuple[str, ...]:
-    explicit = _PROJECT_RUNTIME_WORKFLOW_IDS.get(workflow_id)
-    if explicit:
-        return explicit
-    return (workflow_id,)
+_RELATED_WORKFLOW_LABEL = "Related Workflows"
 
 
 def next_workflows_block_id(task_id: str, workflow_id: str) -> str:
@@ -42,26 +32,6 @@ def is_next_workflows_block(data: dict[str, Any]) -> bool:
         str(data.get("kind") or "") == "next_workflows"
         and str(data.get("source") or "") == "workflow_runtime"
     )
-
-
-def load_runtime_suggested_workflow_ids(workflow_id: str) -> list[str]:
-    """Read suggested_workflows slugs from workflow runtime.yaml."""
-    workflow_id = str(workflow_id or "").strip()
-    if not workflow_id:
-        return []
-
-    for folder in _runtime_workflow_dirs(workflow_id):
-        path = _WORKFLOWS_ROOT / folder / "runtime.yaml"
-        if not path.is_file():
-            continue
-        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
-        if not isinstance(loaded, dict):
-            return []
-        suggested = loaded.get("suggested_workflows") or []
-        if not isinstance(suggested, list):
-            return []
-        return [str(item).strip() for item in suggested if str(item).strip()]
-    return []
 
 
 def _workflow_id_for_task(task: Task) -> str:
@@ -123,11 +93,11 @@ def build_next_workflows_block(task: Task, reader: StandardsReader) -> Presentat
         block_id=block_id,
         kind="next_workflows",
         source="workflow_runtime",
-        text=_NEXT_WORKFLOWS_INTRO,
+        text=None,
         payload={
             "display_role": "next_workflows",
             "workflow_id": workflow_id,
-            "title": _NEXT_WORKFLOWS_TITLE,
+            "related_workflow_label": _RELATED_WORKFLOW_LABEL,
             "suggestions": suggestions,
         },
     )
@@ -145,8 +115,7 @@ def transcript_block_to_api_dict(block: PresentationBlock) -> dict[str, Any]:
         "source": block.source,
         "display_role": payload.get("display_role", "next_workflows"),
         "workflow_id": payload.get("workflow_id"),
-        "title": payload.get("title", _NEXT_WORKFLOWS_TITLE),
-        "text": block.text,
+        "related_workflow_label": payload.get("related_workflow_label", _RELATED_WORKFLOW_LABEL),
         "suggestions": list(payload.get("suggestions") or []),
     }
     return {key: value for key, value in flattened.items() if value is not None}

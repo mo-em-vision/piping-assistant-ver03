@@ -109,6 +109,21 @@ function inferGuidanceDisplayRole(block: FlowGuidancePresentationBlock): string 
   return 'branch_narration'
 }
 
+function mapDisplayRoleToBlockType(displayRole: string): DisplayOutputBlock['type'] {
+  switch (displayRole) {
+    case 'warning':
+      return 'warning'
+    case 'paragraph_context':
+      return 'paragraph_context'
+    case 'result_summary':
+      return 'result_summary'
+    case 'applicability':
+      return 'applicability'
+    default:
+      return 'text'
+  }
+}
+
 function mapNextWorkflowsBlock(block: FlowGuidancePresentationBlock): NextWorkflowsOutputBlock | null {
   const blockId = String(block.block_id ?? '').trim()
   if (!blockId) {
@@ -118,15 +133,16 @@ function mapNextWorkflowsBlock(block: FlowGuidancePresentationBlock): NextWorkfl
   if (!Array.isArray(suggestions) || suggestions.length === 0) {
     return null
   }
-  const title =
-    String(block.title ?? block.payload?.title ?? 'Suggested next workflows').trim() ||
-    'Suggested next workflows'
-  const content = String(block.text ?? '').trim()
+  const relatedLabel =
+    String(
+      (block as { related_workflow_label?: string }).related_workflow_label ??
+        block.payload?.related_workflow_label ??
+        'Related Workflows',
+    ).trim() || 'Related Workflows'
   return {
     id: blockId,
     type: 'next_workflows',
-    title,
-    content,
+    related_workflow_label: relatedLabel,
     suggestions,
     display_role: 'next_workflows',
     lifecycle: 'durable',
@@ -171,9 +187,10 @@ export function guidanceTranscriptToDisplayBlocks(
     const displayRole = inferTranscriptDisplayRole(block)
     const title =
       typeof block.payload?.title === 'string' ? block.payload.title.trim() : undefined
-    const textBlock: TextOutputBlock = {
+    const blockType = mapDisplayRoleToBlockType(displayRole)
+    const textBlock = {
       id: blockId,
-      type: 'text',
+      type: blockType,
       content: text,
       ...(title ? { title } : {}),
       display_role: displayRole,
@@ -186,7 +203,7 @@ export function guidanceTranscriptToDisplayBlocks(
           }
         : {}),
     }
-    results.push(textBlock)
+    results.push(textBlock as DisplayOutputBlock)
   }
   return results
 }

@@ -502,6 +502,45 @@ def _empty_groups() -> dict[str, Any]:
     }
 
 
+def _dedupe_live_projection_groups(
+    current: dict[str, Any] | None,
+    groups: dict[str, Any],
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Ensure each node_id appears in at most one live debugger group.
+
+    Priority (highest first): current_node, visited_previous_step,
+    queue_leaf_nodes, visited_from_beginning.
+    """
+    claimed: set[str] = set()
+
+    if current is not None:
+        current_id = current.get("node_id")
+        if current_id:
+            claimed.add(str(current_id))
+
+    def filter_group(group_name: str) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = []
+        for item in groups.get(group_name) or []:
+            if not isinstance(item, dict):
+                continue
+            node_id = item.get("node_id")
+            if not node_id:
+                rows.append(item)
+                continue
+            node_id_str = str(node_id)
+            if node_id_str in claimed:
+                continue
+            claimed.add(node_id_str)
+            rows.append(item)
+        return rows
+
+    deduped_groups = dict(groups)
+    deduped_groups["visited_previous_step"] = filter_group("visited_previous_step")
+    deduped_groups["queue_leaf_nodes"] = filter_group("queue_leaf_nodes")
+    deduped_groups["visited_from_beginning"] = filter_group("visited_from_beginning")
+    return current, deduped_groups
+
+
 def build_planner_debug_view(
     plan: EngineeringPlan,
     *,
@@ -529,6 +568,20 @@ def build_planner_debug_view(
         task=task,
     )
     current = _current_node_ref(traversal, reader=reader)
+
+    excluded = _excluded_nodes(plan, traversal, reader=reader)
+    blocked = _blocked_nodes(plan, traversal, reader=reader)
+
+    groups = {
+        "visited_previous_step": _visited_previous_step(plan, traversal, reader=reader),
+        "queue_leaf_nodes": queue,
+        "visited_from_beginning": _visited_from_beginning(plan, traversal, reader=reader),
+        "excluded_nodes": excluded,
+        "blocked_nodes": blocked,
+        "excluded_blocked": excluded + blocked,
+    }
+    current, groups = _dedupe_live_projection_groups(current, groups)
+    queue = groups["queue_leaf_nodes"]
     next_queued = queue[0] if queue else None
     if next_queued is not None:
         next_queued = {
@@ -538,21 +591,11 @@ def build_planner_debug_view(
             "label": next_queued.get("label"),
         }
 
-    excluded = _excluded_nodes(plan, traversal, reader=reader)
-    blocked = _blocked_nodes(plan, traversal, reader=reader)
-
     return {
         "current_node": current,
         "next_queued_node": next_queued,
         "goals": goals,
-        "groups": {
-            "visited_previous_step": _visited_previous_step(plan, traversal, reader=reader),
-            "queue_leaf_nodes": queue,
-            "visited_from_beginning": _visited_from_beginning(plan, traversal, reader=reader),
-            "excluded_nodes": excluded,
-            "blocked_nodes": blocked,
-            "excluded_blocked": excluded + blocked,
-        },
+        "groups": groups,
     }
 
 

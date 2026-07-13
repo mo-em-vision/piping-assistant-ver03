@@ -1,19 +1,20 @@
 import { EngineeringMathText } from '@/components/math/engineeringMath'
 import { InlineCitationList, InlineCitationText } from '@/components/standards/InlineCitationText'
 
-import type { ReferenceChipDto, ReferenceLinkDto, TextOutputBlock } from '@/types/backend/outputs'
+import type { ProseRenderBlock, ReferenceChipDto, ReferenceLinkDto } from '@/types/backend/outputs'
 
 import '@/components/math/engineeringMath.css'
 
 interface TextOutputProps {
-  block: TextOutputBlock
+  block: ProseRenderBlock
+  className?: string
 }
 
-function isInlinePlacement(block: TextOutputBlock): boolean {
+function isInlinePlacement(block: ProseRenderBlock): boolean {
   return block.reference_links_placement !== 'below'
 }
 
-function renderInlineReferences(block: TextOutputBlock) {
+function renderInlineReferences(block: ProseRenderBlock) {
   const chips = block.reference_chips ?? []
   const links = block.reference_links ?? []
 
@@ -37,7 +38,7 @@ function renderInlineReferences(block: TextOutputBlock) {
   )
 }
 
-export function TextOutput({ block }: TextOutputProps) {
+export function TextOutput({ block, className }: TextOutputProps) {
   const variantClass =
     block.variant === 'warning'
       ? 'output-text output-text--warning'
@@ -50,7 +51,7 @@ export function TextOutput({ block }: TextOutputProps) {
   const hasReferences = Boolean(block.reference_chips?.length || block.reference_links?.length)
 
   return (
-    <article className="output-block">
+    <article className={`output-block${className ? ` ${className}` : ''}`}>
       {block.title ? <h4 className="output-block__title">{block.title}</h4> : null}
       <p className={variantClass}>
         {block.variant === 'assumption' ? (

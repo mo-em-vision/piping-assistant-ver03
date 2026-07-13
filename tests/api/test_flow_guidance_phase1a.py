@@ -28,6 +28,42 @@ def _service(tmp_path: Path, project_root: Path) -> DesktopApiService:
     return DesktopApiService(config=config, session_id="default")
 
 
+def _display_block_ids(state: dict) -> list[str]:
+    return [
+        str(block["id"])
+        for block in state.get("display_outputs") or []
+        if isinstance(block, dict) and block.get("id")
+    ]
+
+
+def _equation_display_block_ids(state: dict) -> list[str]:
+    ids: list[str] = []
+    for block in state.get("display_outputs") or []:
+        if not isinstance(block, dict) or not block.get("id"):
+            continue
+        block_id = str(block["id"])
+        if block.get("type") == "equation" or block_id.startswith("equation-"):
+            ids.append(block_id)
+    return ids
+
+
+def _assert_display_outputs_stable(first: dict, second: dict) -> None:
+    first_outputs = first.get("display_outputs") or []
+    second_outputs = second.get("display_outputs") or []
+    assert len(first_outputs) == len(second_outputs)
+
+    first_ids = _display_block_ids(first)
+    second_ids = _display_block_ids(second)
+    assert first_ids == second_ids
+    assert len(first_ids) == len(first_outputs)
+    assert len(set(first_ids)) == len(first_ids)
+
+    first_equation_ids = _equation_display_block_ids(first)
+    second_equation_ids = _equation_display_block_ids(second)
+    assert first_equation_ids == second_equation_ids
+    assert len(set(first_equation_ids)) == len(first_equation_ids)
+
+
 def _visible_text(state: dict) -> str:
     parts: list[str] = []
     for block in state.get("flow_guidance", {}).get("transcript_blocks") or []:
@@ -92,6 +128,40 @@ def test_repeated_get_task_does_not_duplicate_transcript_blocks(
     second_blocks = second["flow_guidance"]["transcript_blocks"]
     assert first_blocks == second_blocks
     assert len({block["block_id"] for block in first_blocks}) == len(first_blocks)
+
+
+def test_repeated_get_task_display_outputs_stable(
+    tmp_path: Path,
+    project_root: Path,
+) -> None:
+    service = _service(tmp_path, project_root)
+    session_id = api_session_id(service)
+    created = service.create_task("pipe_wall_thickness_design", session_id)
+    task_id = created["task_id"]
+
+    first = service.get_task(task_id, session_id)
+    second = service.get_task(task_id, session_id)
+    _assert_display_outputs_stable(first, second)
+
+    service.submit_input(
+        task_id,
+        parameter="straight_pipe_section",
+        value=True,
+        session_id=session_id,
+    )
+    service.submit_input(
+        task_id,
+        parameter="pressure_loading",
+        value="internal_pressure",
+        session_id=session_id,
+    )
+
+    after_submit = service.get_task(task_id, session_id)
+    after_reload = service.get_task(task_id, session_id)
+    _assert_display_outputs_stable(after_submit, after_reload)
+
+    equation_ids = _equation_display_block_ids(after_submit)
+    assert equation_ids == ["equation-asme-b313-304-1-2-eq-3a"]
 
 
 def test_repeated_get_task_without_changes_does_not_save_again(

@@ -11,14 +11,12 @@ vi.mock('@/store/taskStore', () => ({
 }))
 
 describe('NextWorkflowsOutput', () => {
-  it('renders read-only suggestions when no action is provided', () => {
+  it('renders only Related Workflows lines without intro or descriptions', () => {
     render(
       <NextWorkflowsOutput
         block={{
           id: 'next-workflows-task-1-pipe_wall_thickness_design',
           type: 'next_workflows',
-          title: 'Suggested next workflows',
-          content: 'Based on this workflow, you may continue with:',
           suggestions: [
             {
               workflow_id: 'mawp_design',
@@ -31,19 +29,18 @@ describe('NextWorkflowsOutput', () => {
       />,
     )
 
-    expect(screen.getByText('MAWP Design')).toBeTruthy()
-    expect(screen.getByText('Calculate MAWP from thickness.')).toBeTruthy()
+    expect(screen.getByText('Related Workflows: MAWP Design')).toBeTruthy()
+    expect(screen.queryByText('Suggested next workflows')).toBeNull()
+    expect(screen.queryByText('Calculate MAWP from thickness.')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Start workflow' })).toBeNull()
   })
 
-  it('renders start action only when backend provides it', () => {
+  it('starts workflow when the related workflow line is clickable', () => {
     render(
       <NextWorkflowsOutput
         block={{
           id: 'next-workflows-task-1-pipe_wall_thickness_design',
           type: 'next_workflows',
-          title: 'Suggested next workflows',
-          content: 'Based on this workflow, you may continue with:',
           suggestions: [
             {
               workflow_id: 'mawp_design',
@@ -56,7 +53,7 @@ describe('NextWorkflowsOutput', () => {
       />,
     )
 
-    fireEvent.click(screen.getByRole('button', { name: 'Start workflow' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Related Workflows: MAWP Design' }))
     expect(createTask).toHaveBeenCalledWith('mawp_design')
   })
 })

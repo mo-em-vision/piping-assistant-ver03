@@ -15,6 +15,14 @@ from models.display_role import (
     sort_blocks_by_report_role,
 )
 
+from api.center_panel_block_registry import (
+    assert_blocks_use_registered_center_panel_types,
+    canonicalize_center_panel_block_type,
+    center_panel_block_type_entries,
+    center_panel_block_types,
+    filter_center_panel_blocks,
+)
+
 def _resolve_contract_path() -> Path:
     return Path(__file__).resolve().parents[1] / "contracts" / "center_panel_report_role_order.json"
 
@@ -40,7 +48,7 @@ def infer_block_display_role(block: dict[str, Any]) -> str:
 def normalize_scroll_block(block: dict[str, Any]) -> dict[str, Any]:
     """Normalize transcript or display output dicts to a shared scroll shape."""
     block_id = str(block.get("block_id") or block.get("id") or "").strip()
-    normalized = resolve_display_block(block)
+    normalized = canonicalize_center_panel_block_type(resolve_display_block(block))
     normalized["id"] = block_id
     return normalized
 
@@ -145,12 +153,20 @@ def assemble_center_panel_scroll_blocks(
         for block in guidance_blocks
         if str(block.get("display_role") or "") != DisplayRole.workflow_intro.value
     ]
-    engineering_blocks = [
-        normalize_scroll_block(block)
-        for block in display_outputs
-        if isinstance(block, dict) and str(block.get("id") or "") not in transcript_ids
-    ]
-    merged = dedupe_blocks_by_id([*workflow_intro, *engineering_blocks, *narration])
+    engineering_blocks = filter_center_panel_blocks(
+        [
+            normalize_scroll_block(block)
+            for block in display_outputs
+            if isinstance(block, dict) and str(block.get("id") or "") not in transcript_ids
+        ]
+    )
+    merged = dedupe_blocks_by_id(
+        [
+            *filter_center_panel_blocks(workflow_intro),
+            *engineering_blocks,
+            *filter_center_panel_blocks(narration),
+        ]
+    )
     return sort_blocks_by_report_role(merged)
 
 

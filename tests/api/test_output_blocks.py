@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from engine.state.state_manager import TaskStateManager
+from models.input import InputSource, InputStatus
 from models.task import TaskStatus
 
 from api.output_blocks import build_display_outputs
@@ -213,16 +214,18 @@ def test_completed_workflow_outputs_include_results_and_equation(
     assert not any(block_id.startswith("node-activation-") for block_id in ids)
     assert types.count("equation") >= 1
     assert any(block_id.startswith("equation-asme-b313-") for block_id in ids)
-    assert any(block_id.startswith("table-lookup-") for block_id in ids)
     assert any(block_id.startswith("result-summary-") for block_id in ids)
     assert "planning-status" not in ids
+    assert "graph-intermediates" not in ids
+    assert not any(block_id.startswith("table-lookup-") for block_id in ids)
+    assert not any(block_id.startswith("table-steps-") for block_id in ids)
+    assert not any(block_id.startswith("table-intermediates-") for block_id in ids)
 
 
-def test_completed_workflow_with_nps_includes_schedule_recommendation(
+def test_completed_workflow_with_nps_omits_trace_derived_schedule_table(
     standards_reader,
     state_manager,
 ) -> None:
-    from models.input import EngineeringInput, InputSource, InputStatus
     from tests.acceptance.helpers import run_completed_workflow
 
     task_id = "pipe-wall-thickness-desi-test13"
@@ -248,10 +251,9 @@ def test_completed_workflow_with_nps_includes_schedule_recommendation(
     state_manager.replace_task(task_id, task)
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
-    schedule = next(block for block in blocks if block["id"] == "table-lookup-B3610-table-2-1")
-    assert schedule["type"] == "table"
-    assert schedule.get("summary_text") and "Schedule 10" in schedule["summary_text"]
-    assert schedule.get("highlight_row") == {"column": "schedule", "value": "10"}
+    ids = [str(block.get("id") or "") for block in blocks]
+    assert not any(block_id.startswith("table-lookup-") for block_id in ids)
+    assert "graph-intermediates" not in ids
 
 
 def test_task_state_includes_display_outputs(
@@ -303,7 +305,7 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
     assert len(paragraph_blocks) == 1
 
     equation = equation_blocks[0]
-    assert equation.get("title") == "Internal Pressure Wall Thickness — Eq. (3a)"
+    assert equation.get("title") == "Internal Pressure Wall Thickness"
     assert "internal pressure design thickness" in str(equation.get("context_intro") or "").lower()
     assert equation.get("lifecycle") == "preview"
     assert "variables" not in equation
@@ -477,18 +479,38 @@ def test_equation_trace_not_duplicated_on_repeated_task_state(standards_reader) 
     service = _pipe_wall_service()
     session_id = api_session_id(service)
     state = service.create_task("pipe_wall_thickness_design", session_id)
-    first_traces = [
-        block
-        for block in state["display_outputs"]
-        if str(block.get("id", "")).startswith("equation-asme-b313-")
-    ]
     second = service.get_task(state["task_id"], session_id=session_id)
-    second_traces = [
-        block
-        for block in second["display_outputs"]
-        if str(block.get("id", "")).startswith("equation-asme-b313-")
+
+    first_outputs = state.get("display_outputs") or []
+    second_outputs = second.get("display_outputs") or []
+    assert len(first_outputs) == len(second_outputs)
+
+    first_ids = [
+        str(block["id"])
+        for block in first_outputs
+        if isinstance(block, dict) and block.get("id")
     ]
-    assert len(first_traces) == len(second_traces)
+    second_ids = [
+        str(block["id"])
+        for block in second_outputs
+        if isinstance(block, dict) and block.get("id")
+    ]
+    assert first_ids == second_ids
+    assert len(first_ids) == len(first_outputs)
+    assert len(set(first_ids)) == len(first_ids)
+
+    first_equation_ids = [
+        block_id
+        for block_id in first_ids
+        if block_id.startswith("equation-asme-b313-")
+    ]
+    second_equation_ids = [
+        block_id
+        for block_id in second_ids
+        if block_id.startswith("equation-asme-b313-")
+    ]
+    assert first_equation_ids == second_equation_ids
+    assert len(first_equation_ids) == len(second_equation_ids)
 
 
 def test_pressure_loading_internal_keeps_eq2_trace_and_adds_eq3a_preview(standards_reader) -> None:

@@ -8,32 +8,32 @@ Python backend and integration test suite for Ver03. Discovered and run via root
 
 ## Layer mapping (subfolder → application code)
 
-| Subfolder | Application layer(s) validated | Primary packages |
-| --- | --- | --- |
-| `api/` | Desktop REST API surface | `api/` |
-| `engine/` | Workflow state, chat/step prompts | `engine/state/`, `engine/messaging/` |
-| `graph/` | Standards graph compilation & traversal | `engine/graph/` |
-| `planner/` | Task navigation & planning | `engine/planner/` |
-| `executor/` | Workflow execution, lookups, MAWP | `engine/executor/` |
-| `calculation/` | SymPy calculation engine & equation suites | `engine/executor/calculation_engine` |
-| `validation/` | Compliance & unit validation | `engine/validation/` |
-| `reference/` | Standards reader, pack DBs, resolvers | `engine/reference/` |
-| `reports/` | Report generation & formatting | `engine/reports/` |
-| `presentation/` | Workflow presentation payloads | `engine/presentation/` |
-| `equation/` | LaTeX/equation step rendering | `engine/equation/` |
-| `rules/` | Rule expression evaluation | `engine/rules/` |
-| `units/` | Unit registry & conversion | `engine/units/` |
-| `state/` | Node output aggregation | `engine/state/node_outputs` |
-| `storage/` | SQLite desktop persistence | `storage/` |
-| `ai/` | Deterministic input/response extractors | `ai/` (non-LLM paths) |
-| `agents/` | LLM agent behavior (mocked client) | `ai/agents/` |
-| `execution/` | Inspection trace & lifecycle events | `engine/executor/`, inspection hooks |
-| `integrity/` | Graph integrity checks (dev inspection) | `engine/inspection/integrity` |
-| `config/` | Settings & desktop user-data paths | `config/` |
-| `e2e/` | Full backend pipeline scenarios | Cross-cutting (`engine/*`, `models/`) |
-| `acceptance/` | MVP acceptance criteria (doc-driven) | Cross-cutting + `docs/tests/2.*` |
-| `mvp/` | MVP test strategy (doc-driven) | Cross-cutting + `api/`, `docs/tests/3.*` |
-| *(root)* | Release/repo health gates | `desktopApp/`, `api/server.py`, `.cursor/` |
+| Subfolder       | Application layer(s) validated             | Primary packages                           |
+| --------------- | ------------------------------------------ | ------------------------------------------ |
+| `api/`          | Desktop REST API surface                   | `api/`                                     |
+| `engine/`       | Workflow state, chat/step prompts          | `engine/state/`, `engine/messaging/`       |
+| `graph/`        | Standards graph compilation & traversal    | `engine/graph/`                            |
+| `planner/`      | Task navigation & planning                 | `engine/planner/`                          |
+| `executor/`     | Workflow execution, lookups, MAWP          | `engine/executor/`                         |
+| `calculation/`  | SymPy calculation engine & equation suites | `engine/executor/calculation_engine`       |
+| `validation/`   | Compliance & unit validation               | `engine/validation/`                       |
+| `reference/`    | Standards reader, pack DBs, resolvers      | `engine/reference/`                        |
+| `reports/`      | Report generation & formatting             | `engine/reports/`                          |
+| `presentation/` | Workflow presentation payloads             | `engine/presentation/`                     |
+| `equation/`     | LaTeX/equation step rendering              | `engine/equation/`                         |
+| `rules/`        | Rule expression evaluation                 | `engine/rules/`                            |
+| `units/`        | Unit registry & conversion                 | `engine/units/`                            |
+| `state/`        | Node output aggregation                    | `engine/state/node_outputs`                |
+| `storage/`      | SQLite desktop persistence                 | `storage/`                                 |
+| `ai/`           | Deterministic input/response extractors    | `ai/` (non-LLM paths)                      |
+| `agents/`       | LLM agent behavior (mocked client)         | `ai/agents/`                               |
+| `execution/`    | Inspection trace & lifecycle events        | `engine/executor/`, inspection hooks       |
+| `integrity/`    | Graph integrity checks (dev inspection)    | `engine/inspection/integrity`              |
+| `config/`       | Settings & desktop user-data paths         | `config/`                                  |
+| `e2e/`          | Full backend pipeline scenarios            | Cross-cutting (`engine/*`, `models/`)      |
+| `acceptance/`   | MVP acceptance criteria (doc-driven)       | Cross-cutting + `docs/tests/2.*`           |
+| `mvp/`          | MVP test strategy (doc-driven)             | Cross-cutting + `api/`, `docs/tests/3.*`   |
+| *(root)*        | Release/repo health gates                  | `desktopApp/`, `api/server.py`, `.cursor/` |
 
 ---
 

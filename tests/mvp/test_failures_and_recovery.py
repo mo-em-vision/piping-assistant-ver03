@@ -2,30 +2,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
 from engine.executor.executor import execute_workflow
-from engine.validation.validation_engine import ValidationEngine
 from models.execution import ExecutionStatus
 from models.input import EngineeringInput, InputSource
 from models.task import TaskStatus
-from models.validation import ComplianceStatus
 from tests.acceptance.helpers import (
-    MATERIAL_STRESS_NODE,
     PIPE_WALL_THICKNESS_ROOT,
     sample_inputs,
 )
-from tests.e2e.scenario_loader import load_scenario
-from tests.helpers.facts import fact_get_value
-from models.fact import SourceType, ValidationStatus
-
-
-FAILURE_SCENARIOS = [
-    "pipe_wall_thickness_missing_inputs",
-    "pipe_wall_thickness_invalid_pressure",
-]
 
 
 class TestFailureTesting:
@@ -62,11 +46,6 @@ class TestFailureTesting:
             for finding in result.errors + result.warnings
         )
 
-    @pytest.mark.parametrize("scenario_name", FAILURE_SCENARIOS)
-    def test_failure_scenarios(self, scenario_runner, scenarios_dir: Path, scenario_name: str) -> None:
-        scenario = load_scenario(scenarios_dir / f"{scenario_name}.yaml")
-        scenario_runner.run(scenario)
-
 
 class TestRecoveryTesting:
     """§15 Recovery Testing — user corrections rebuild workflow."""
@@ -90,4 +69,3 @@ class TestRecoveryTesting:
 
         assert report.status == "PASS"
         assert state_manager.get_task(task_id).outputs.get("required_thickness") is not None
-

@@ -30,8 +30,7 @@ describe('centerPanelContract sync', () => {
           block_id: 'next-workflows-task-1-pipe_wall_thickness_design',
           kind: 'next_workflows',
           source: 'workflow_runtime',
-          title: 'Suggested next workflows',
-          text: 'Based on this workflow, you may continue with:',
+          related_workflow_label: 'Related Workflows',
           suggestions: [
             {
               workflow_id: 'mawp_design',

@@ -44,10 +44,8 @@ def test_schedule_trace_entry_appended_once_and_rendered(project_root) -> None:
     table_blocks = [
         block for block in blocks if str(block.get("id", "")).startswith("table-lookup-")
     ]
-    assert table_blocks
-    table = table_blocks[0]
-    assert table.get("highlight_row")
-    assert table.get("rows")
+    assert not table_blocks
+    assert not any(str(block.get("id") or "") == "graph-intermediates" for block in blocks)
 
 
 def test_build_schedule_trace_entry_shape(project_root) -> None:

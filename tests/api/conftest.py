@@ -28,3 +28,7 @@ def state_manager() -> TaskStateManager:
 
 def api_session_id(service: DesktopApiService, name: str = "API Test Project") -> str:
     return service.create_project(name)["id"]
+
+
+# Registers PERFORMANCE_TABLE_ROWS summary when span-budget tests run.
+pytest_plugins = ["tests.helpers.performance_metrics"]

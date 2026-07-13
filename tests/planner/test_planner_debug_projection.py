@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import pytest
+
+from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.planner_debug_projection import (
     _STATUS_REASONS,
     build_planner_debug_projection,
     planner_debug_projection_for_task,
 )
+from engine.state.fact_migration import fact_from_engineering_input
 from engine.state.state_manager import TaskStateManager
 from models.engineering_plan import (
     CalculationGoal,
@@ -25,6 +29,75 @@ from models.engineering_plan import (
     new_plan_id,
 )
 from models.task import TaskStatus
+from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
+from tests.planner.helpers import _reader, fresh_pipe_wall_task
+
+
+_LIVE_DEBUG_GROUP_KEYS = (
+    "visited_from_beginning",
+    "visited_previous_step",
+    "queue_leaf_nodes",
+)
+
+
+def _live_projection_node_refs(projection: dict) -> list[tuple[str, str]]:
+    refs: list[tuple[str, str]] = []
+    current = projection.get("current_node")
+    if isinstance(current, dict) and current.get("node_id"):
+        refs.append(("current_node", str(current["node_id"])))
+
+    groups = projection.get("groups") or {}
+    for group_name in _LIVE_DEBUG_GROUP_KEYS:
+        for item in groups.get(group_name) or []:
+            if isinstance(item, dict) and item.get("node_id"):
+                refs.append((group_name, str(item["node_id"])))
+    return refs
+
+
+def assert_live_projection_groups_disjoint(projection: dict) -> None:
+    seen: dict[str, str] = {}
+    for group_name, node_id in _live_projection_node_refs(projection):
+        prior = seen.get(node_id)
+        if prior is not None:
+            pytest.fail(
+                f"node {node_id!r} appears in both {prior!r} and {group_name!r}"
+            )
+        seen[node_id] = group_name
+
+
+def _pipe_wall_projection(stage: str) -> dict:
+    manager, task = fresh_pipe_wall_task(task_id=f"debug-projection-pwt-{stage}")
+    if stage in {"after_straight_pipe", "after_expansion_gates"}:
+        manager.store_fact(
+            task.task_id,
+            fact_from_engineering_input(
+                straight_section_assumption(),
+                task_id=task.task_id,
+                workflow_id="pipe_wall_thickness_design",
+            ),
+        )
+    if stage == "after_expansion_gates":
+        manager.store_fact(
+            task.task_id,
+            fact_from_engineering_input(
+                internal_pressure_assumption(),
+                task_id=task.task_id,
+                workflow_id="pipe_wall_thickness_design",
+            ),
+        )
+    task = manager.get_task(task.task_id)
+    plan = build_engineering_plan(task, _reader())
+    assert plan is not None
+    return build_planner_debug_projection(plan, reader=_reader(), task=task)
+
+
+@pytest.mark.parametrize(
+    "stage",
+    ("fresh", "after_straight_pipe", "after_expansion_gates"),
+)
+def test_pipe_wall_live_debug_groups_have_unique_node_ids(stage: str) -> None:
+    projection = _pipe_wall_projection(stage)
+    assert_live_projection_groups_disjoint(projection)
 
 
 def _synthetic_generic_plan() -> EngineeringPlan:
@@ -250,11 +323,11 @@ def test_traversal_populated_groups() -> None:
     assert projection["current_node"]["node_id"] == "PARAM-sample-input"
     assert projection["current_node"]["display_name"] == "PARAM-sample-input"
     assert projection["next_queued_node"]["node_id"] == "NODE-pending"
-    assert groups["visited_from_beginning"]
     assert groups["visited_previous_step"]
     assert groups["queue_leaf_nodes"]
     assert groups["queue_leaf_nodes"][0]["status_reason"] in _STATUS_REASONS
     assert groups["queue_leaf_nodes"][0]["status_reason"] == "waiting_for_dependency"
+    assert_live_projection_groups_disjoint(projection)
 
     queue_ids = {item["node_id"] for item in groups["queue_leaf_nodes"]}
     excluded_ids = {item["node_id"] for item in groups["excluded_nodes"]}
@@ -352,9 +425,40 @@ def test_candidate_queue_reason_ready_for_expansion() -> None:
 
 def test_display_name_uses_node_id_for_traceability() -> None:
     projection = build_planner_debug_projection(_synthetic_generic_plan())
-    visited = projection["groups"]["visited_from_beginning"][0]
+    visited = projection["groups"]["visited_previous_step"][0]
     assert visited["display_name"] == "WF-GENERIC"
     assert visited["label"] == "Generic Workflow"
+
+
+def test_live_groups_dedupe_prefers_higher_priority_slot() -> None:
+    plan = _synthetic_generic_plan()
+    assert plan.traversal is not None
+    plan.traversal.traversal_events = [
+        TraversalEvent(
+            order=1,
+            event_type="parameter_resolved",
+            node_id="WF-GENERIC",
+            message="Workflow root expanded.",
+        )
+    ]
+    plan.traversal.expanded_nodes.append(
+        TraversalExpandedNode(
+            node_id="NODE-pending",
+            node_type="paragraph",
+            expanded_at_order=4,
+            title="Pending Paragraph",
+        )
+    )
+    projection = build_planner_debug_projection(plan)
+    refs = _live_projection_node_refs(projection)
+    slots = {node_id: group for group, node_id in refs}
+    assert slots["PARAM-sample-input"] == "current_node"
+    assert slots["WF-GENERIC"] == "visited_previous_step"
+    assert slots["NODE-pending"] == "queue_leaf_nodes"
+    assert "NODE-pending" not in {
+        node_id for group, node_id in refs if group == "visited_from_beginning"
+    }
+    assert_live_projection_groups_disjoint(projection)
 
 
 def test_planner_debug_projection_for_task_from_synthetic_outputs() -> None:

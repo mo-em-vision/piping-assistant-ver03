@@ -19,6 +19,7 @@ Apply it when planning, coding, debugging, adding dependencies, writing tests, o
 | Parameter keys / lookup display | §14–§16 |
 | Planner inspector / validation | §19–§20 |
 | Presentation / transcript / block lifecycle | §21, §25 |
+| Center panel block types | §25, `.cursor/rules/center-panel-block-registry.mdc` |
 | Feature planning | §22–§23, `.cursor/rules/plan-review-gate.mdc` |
 | Equation display trace | §24 |
 
@@ -33,5 +34,6 @@ These extend `docs/rules.md` — they do not replace it:
 - `.cursor/rules/plan-review-gate.mdc` — §22–§23
 - `.cursor/rules/paragraph-subsection-naming.mdc` — §11
 - `.cursor/rules/feature-planning.mdc` — planning workflow
+- `.cursor/rules/center-panel-block-registry.mdc` — center panel scroll block types (§25)
 
 For feature plans and non-trivial changes, include **Architecture Consistency Review** (§23) and **Plan Review Gate** (§22) per `plan-review-gate.mdc` before writing production code.

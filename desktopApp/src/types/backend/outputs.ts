@@ -1,13 +1,7 @@
 import type { NodeProvenanceDto } from '@/types/backend/api'
+import type { CenterPanelBlockType } from '@/utils/centerPanelBlockRegistry'
 
-export type OutputBlockType =
-  | 'text'
-  | 'equation'
-  | 'table'
-  | 'graph'
-  | 'reference'
-  | 'result'
-  | 'next_workflows'
+export type OutputBlockType = CenterPanelBlockType
 
 export type TextVariant = 'body' | 'caption' | 'warning' | 'assumption'
 
@@ -85,6 +79,27 @@ export interface TextOutputBlock extends OutputBlockBase {
   reference_links?: ReferenceLinkDto[]
   reference_chips?: ReferenceChipDto[]
   reference_links_placement?: 'inline' | 'below'
+  payload?: Record<string, unknown>
+}
+
+export type ProseRenderBlock = Omit<TextOutputBlock, 'type'> & {
+  type?: OutputBlockType
+}
+
+export interface WarningOutputBlock extends Omit<TextOutputBlock, 'type'> {
+  type: 'warning'
+}
+
+export interface ParagraphContextOutputBlock extends Omit<TextOutputBlock, 'type'> {
+  type: 'paragraph_context'
+}
+
+export interface ResultSummaryOutputBlock extends Omit<TextOutputBlock, 'type'> {
+  type: 'result_summary'
+}
+
+export interface ApplicabilityOutputBlock extends Omit<TextOutputBlock, 'type'> {
+  type: 'applicability'
 }
 
 export interface EquationVariableDto {
@@ -247,15 +262,19 @@ export interface NextWorkflowSuggestionDto {
 
 export interface NextWorkflowsOutputBlock extends OutputBlockBase {
   type: 'next_workflows'
-  content: string
+  content?: string
+  related_workflow_label?: string
   suggestions: NextWorkflowSuggestionDto[]
 }
 
 export type DisplayOutputBlock =
   | TextOutputBlock
+  | WarningOutputBlock
+  | ParagraphContextOutputBlock
+  | ResultSummaryOutputBlock
+  | ApplicabilityOutputBlock
   | EquationOutputBlock
   | TableOutputBlock
-  | GraphOutputBlock
   | ReferenceOutputBlock
   | ResultOutputBlock
   | NextWorkflowsOutputBlock
