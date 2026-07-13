@@ -367,21 +367,28 @@ def test_execution_trace_keeps_definition_node_outputs(standards_reader) -> None
     assert any(block_id.startswith("equation-asme-b313-") for block_id in ids)
 
 
-def test_thin_wall_applicability_block_when_check_fails(state_manager, standards_reader) -> None:
+def test_thin_wall_condition_shown_in_paragraph_context_block(
+    state_manager, standards_reader
+) -> None:
     task = state_manager.create_task("thin-wall-fail-display", status=TaskStatus.COMPLETED)
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
         "t": 5.0,
         "thin_wall": False,
-        "_execution_trace": [{"node_id": "304.1.2-a", "trace": {"calculation": {"final_result": {"value": 5.0}}}}],
+        "_execution_trace": [
+            {"node_id": "304.1.2-a", "trace": {"calculation": {"final_result": {"value": 5.0}}}}
+        ],
     }
     state_manager.replace_task(task.task_id, task)
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
-    applicability = next(
-        block for block in blocks if block["id"] == "validation-thin-wall-criterion"
+    paragraph = next(
+        block for block in blocks if block["id"] == "paragraph-304.1.2-a"
     )
-    assert "not satisfied" in applicability["content"].lower()
+    assert paragraph["type"] == "paragraph_context"
+    assert "thick-wall consideration" in paragraph["content"].lower()
+    assert not any(block.get("type") == "applicability" for block in blocks)
+    assert "validation-thin-wall-criterion" not in {block["id"] for block in blocks}
 
 
 def _pipe_wall_service():

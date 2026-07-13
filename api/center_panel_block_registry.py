@@ -47,12 +47,27 @@ def center_panel_block_desktop_components() -> dict[str, str]:
     }
 
 
+_TRACE_DERIVED_BLOCK_PREFIXES = (
+    "table-steps-",
+    "table-intermediates-",
+    "table-lookup-",
+)
+
 _TEXT_DISPLAY_ROLE_TO_BLOCK_TYPE: dict[str, str] = {
     "warning": "warning",
     "paragraph_context": "paragraph_context",
     "result_summary": "result_summary",
-    "applicability": "applicability",
 }
+
+
+def _is_excluded_center_panel_block(block: Mapping[str, Any]) -> bool:
+    block_id = str(block.get("id") or block.get("block_id") or "").strip()
+    block_type = str(block.get("type") or "").strip()
+    if block_type == "graph":
+        return True
+    if block_id == "graph-intermediates":
+        return True
+    return any(block_id.startswith(prefix) for prefix in _TRACE_DERIVED_BLOCK_PREFIXES)
 
 
 def canonicalize_center_panel_block_type(block: Mapping[str, Any]) -> dict[str, Any]:
@@ -86,6 +101,8 @@ def filter_center_panel_blocks(
     filtered: list[dict[str, Any]] = []
     for block in blocks:
         if not isinstance(block, Mapping):
+            continue
+        if _is_excluded_center_panel_block(block):
             continue
         resolved = canonicalize_center_panel_block_type(block)
         block_type = str(resolved.get("type") or "").strip()

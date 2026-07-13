@@ -28,7 +28,7 @@ The center panel scroll area renders **only** block types listed in [`contracts/
 3. **Filter at boundaries** — use `filter_center_panel_blocks()` (Python) and `filterRegisteredCenterPanelBlocks()` (TypeScript) before user-visible assembly; `OutputRenderer` is the last line of defense.
 4. **Do not** surface planner JSON, debug projections, or ad-hoc internal blobs as center-panel blocks.
 5. **Do not** emit trace-derived `graph` or `table-lookup-*` / `table-steps-*` / `table-intermediates-*` blocks from `api/output_blocks.py` — execution trace stays in `_execution_trace` for reports/inspector only.
-6. **Split prose by role** — use dedicated block `type` values (`warning`, `paragraph_context`, `result_summary`, `applicability`) instead of generic `text` when `display_role` matches.
+6. **Split prose by role** — use dedicated block `type` values (`warning`, `paragraph_context`, `result_summary`) instead of generic `text` when `display_role` matches. Paragraph condition outcomes (e.g. thin-wall check) belong in `paragraph_context` content from authored `execution.conditions`.
 7. **Next workflows** — render only `Related Workflows: {workflow name}` lines; no intro/title/description chrome.
 8. **Equation blocks** use `type: "equation"` with canonical `equation_node_id` / `equation_display_trace` — not legacy workflow-specific ids (`mawp-*-equation`, `path-calculation-substituted-equation`, etc.).
 

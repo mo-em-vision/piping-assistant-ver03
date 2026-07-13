@@ -27,12 +27,6 @@
       "notes": "Workflow completion summary with primary result and conditions"
     },
     {
-      "type": "applicability",
-      "label": "Applicability block",
-      "desktop_component": "ApplicabilityOutput",
-      "notes": "Post-calculation applicability checks (e.g. thin-wall criterion)"
-    },
-    {
       "type": "equation",
       "label": "Equation block",
       "desktop_component": "EquationOutput",

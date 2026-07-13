@@ -30,8 +30,6 @@ function minimalBlock(type: (typeof CENTER_PANEL_BLOCK_TYPES)[number]): DisplayO
       return { id: `paragraph-${type}`, type, content: 'Paragraph context.' }
     case 'result_summary':
       return { id: `summary-${type}`, type, content: 'Result summary.' }
-    case 'applicability':
-      return { id: `applicability-${type}`, type, content: 'Applicability check.' }
     case 'equation':
       return {
         id: `equation-${type}`,

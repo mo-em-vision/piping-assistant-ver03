@@ -115,8 +115,6 @@ export function inferDisplayFieldsFromBlock(block: DisplayBlockWithRole): Displa
   } else if (id.startsWith('paragraph-')) {
     resolved.display_role =
       block.display_role === 'paragraph_context' ? 'paragraph_context' : 'engineering_reference'
-  } else if (id.startsWith('validation-')) {
-    resolved.display_role = 'applicability'
   } else if (
     id.startsWith('equation-') ||
     id.startsWith('path-preview-equation-') ||

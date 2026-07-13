@@ -14,7 +14,6 @@ export type DisplayBlockWithLifecycle = DisplayBlockWithRole
 
 const DURABLE_NON_EQUATION_ROLES = new Set([
   'result_summary',
-  'applicability',
   'lookup_table_recommendation',
   'warning',
   'engineering_reference',

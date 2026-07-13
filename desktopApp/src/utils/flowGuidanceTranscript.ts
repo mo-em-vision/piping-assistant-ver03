@@ -117,8 +117,6 @@ function mapDisplayRoleToBlockType(displayRole: string): DisplayOutputBlock['typ
       return 'paragraph_context'
     case 'result_summary':
       return 'result_summary'
-    case 'applicability':
-      return 'applicability'
     default:
       return 'text'
   }

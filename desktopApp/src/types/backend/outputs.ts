@@ -98,10 +98,6 @@ export interface ResultSummaryOutputBlock extends Omit<TextOutputBlock, 'type'> 
   type: 'result_summary'
 }
 
-export interface ApplicabilityOutputBlock extends Omit<TextOutputBlock, 'type'> {
-  type: 'applicability'
-}
-
 export interface EquationVariableDto {
   symbol: string
   name: string
@@ -272,7 +268,6 @@ export type DisplayOutputBlock =
   | WarningOutputBlock
   | ParagraphContextOutputBlock
   | ResultSummaryOutputBlock
-  | ApplicabilityOutputBlock
   | EquationOutputBlock
   | TableOutputBlock
   | ReferenceOutputBlock

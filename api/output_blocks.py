@@ -49,7 +49,6 @@ def build_display_outputs(
     blocks.extend(_paragraph_context_blocks(task, planning, resolved_reader, trace=trace_list))
     blocks.extend(_equation_display_blocks(task, planning, resolved_reader, trace=trace_list))
     blocks.extend(_input_waiting_blocks(task, blocks))
-    blocks.extend(_validation_blocks_from_trace(trace_list, task))
 
     summary = build_result_summary_display_block(task, resolved_reader)
     if summary is not None:
@@ -275,51 +274,6 @@ def _activated_definition_blocks_for_focus(
             continue
         filtered.append(block)
     return filtered
-
-
-def _validation_blocks_from_trace(
-    trace: list[Any] | None,
-    task: Task,
-) -> list[dict[str, Any]]:
-    blocks: list[dict[str, Any]] = []
-    thin_wall = task.outputs.get("thin_wall")
-    if thin_wall is None:
-        return blocks
-
-    has_calculation = False
-    if isinstance(trace, list):
-        for entry in trace:
-            if not isinstance(entry, dict):
-                continue
-            node_trace = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
-            if node_trace.get("calculation"):
-                has_calculation = True
-                break
-
-    if not has_calculation:
-        return blocks
-
-    if bool(thin_wall):
-        content = "Thin-wall design criterion is satisfied for the evaluated thickness."
-    else:
-        content = (
-            "Thin-wall design criterion is not satisfied; "
-            "thick-wall design assumptions may apply."
-        )
-
-    blocks.append(
-        tag_display_block(
-            {
-                "id": "validation-thin-wall-criterion",
-                "type": "applicability",
-                "title": None,
-                "content": content,
-                "variant": "body",
-            },
-            display_role=DisplayRole.applicability.value,
-        )
-    )
-    return blocks
 
 
 def _task_workflow_id(task: Task) -> str:

@@ -80,6 +80,51 @@ def build_equation_context_from_paragraph(
     return context
 
 
+def _paragraph_condition_entries(metadata: dict[str, Any]) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    execution = metadata.get("execution")
+    if isinstance(execution, dict):
+        raw = execution.get("conditions") or []
+        if isinstance(raw, list):
+            entries.extend(item for item in raw if isinstance(item, dict))
+
+    raw_top = metadata.get("conditions") or []
+    if isinstance(raw_top, list):
+        seen_ids = {str(item.get("id") or "").strip() for item in entries if isinstance(item, dict)}
+        for item in raw_top:
+            if not isinstance(item, dict):
+                continue
+            cond_id = str(item.get("id") or "").strip()
+            if cond_id and cond_id in seen_ids:
+                continue
+            entries.append(item)
+            if cond_id:
+                seen_ids.add(cond_id)
+    return entries
+
+
+def _execution_condition_notes(
+    metadata: dict[str, Any],
+    outputs: dict[str, Any] | None,
+) -> list[str]:
+    """Append authored paragraph condition outcomes when task outputs are available."""
+    if not isinstance(outputs, dict):
+        return []
+
+    notes: list[str] = []
+    for cond in _paragraph_condition_entries(metadata):
+        field = str(cond.get("sets_field") or "").strip()
+        if not field or field not in outputs or outputs.get(field) is None:
+            continue
+        if bool(outputs.get(field)):
+            note = str(cond.get("result_if_true") or "").strip()
+        else:
+            note = str(cond.get("result_if_false") or "").strip()
+        if note:
+            notes.append(note)
+    return notes
+
+
 def build_paragraph_display_block(
     reader: StandardsReader,
     node_id: str,
@@ -88,6 +133,7 @@ def build_paragraph_display_block(
     block_id: str | None = None,
     content_suffix: str | None = None,
     display_channel: str | None = None,
+    task_outputs: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Build a durable paragraph block from presentation.summary only."""
     node_id = str(node_id or "").strip()
@@ -110,6 +156,10 @@ def build_paragraph_display_block(
 
     if content_suffix:
         content = f"{content.rstrip('.')}{content_suffix}"
+
+    condition_notes = _execution_condition_notes(metadata, task_outputs)
+    if condition_notes:
+        content = f"{content}\n\n" + "\n\n".join(condition_notes)
 
     ref_label = paragraph_reference_label(metadata, node_id)
     paragraph = paragraph_reference(metadata)
@@ -238,11 +288,13 @@ def paragraph_context_blocks_for_focus(
             node_ids.append(node_id)
 
     blocks: list[dict[str, Any]] = []
+    task_outputs = task.outputs if isinstance(getattr(task, "outputs", None), dict) else {}
     for node_id in node_ids:
         block = build_paragraph_display_block(
             reader,
             node_id,
             display_role=DisplayRole.paragraph_context.value,
+            task_outputs=task_outputs,
         )
         if block is not None:
             blocks.append(block)

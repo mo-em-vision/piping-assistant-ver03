@@ -201,6 +201,21 @@ def test_canonicalize_center_panel_block_type_maps_text_roles() -> None:
     )
 
 
+def test_filter_center_panel_blocks_excludes_graph_and_trace_derived_tables() -> None:
+    from api.center_panel_block_registry import filter_center_panel_blocks
+
+    filtered = filter_center_panel_blocks(
+        [
+            {"id": "eq-1", "type": "equation", "content": "t = 1"},
+            {"id": "graph-intermediates", "type": "graph", "content": "chart"},
+            {"id": "table-lookup-B3610-table-2-1", "type": "table", "rows": []},
+            {"id": "table-steps-304-1-2-a", "type": "table", "rows": []},
+        ]
+    )
+    assert len(filtered) == 1
+    assert filtered[0]["id"] == "eq-1"
+
+
 def test_registry_metadata_is_stable() -> None:
     registry = load_center_panel_block_registry()
     assert registry.get("version") == 1

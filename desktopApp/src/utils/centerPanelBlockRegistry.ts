@@ -29,7 +29,6 @@ export const CENTER_PANEL_BLOCK_TYPES = registry.block_types.map((entry) => entr
   'warning',
   'paragraph_context',
   'result_summary',
-  'applicability',
   'equation',
   'table',
   'reference',

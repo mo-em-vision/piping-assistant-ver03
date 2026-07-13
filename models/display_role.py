@@ -61,7 +61,6 @@ DISPLAY_ROLE_ORDER: tuple[DisplayRole, ...] = (
     DisplayRole.input_context,
     DisplayRole.node_intro,
     DisplayRole.equation,
-    DisplayRole.applicability,
     DisplayRole.warning,
     DisplayRole.result_summary,
     DisplayRole.lookup_table_recommendation,
@@ -245,8 +244,6 @@ def infer_display_fields_from_block(block: dict[str, Any]) -> dict[str, Any]:
         role = str(resolved.get("display_role") or "").strip()
         if role != DisplayRole.paragraph_context.value:
             resolved["display_role"] = DisplayRole.engineering_reference.value
-    elif block_id.startswith("validation-"):
-        resolved["display_role"] = DisplayRole.applicability.value
     elif (
         block_id.startswith("equation-")
         or block_id.startswith("path-preview-equation-")

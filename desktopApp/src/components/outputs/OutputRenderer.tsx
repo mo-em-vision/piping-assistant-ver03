@@ -1,5 +1,4 @@
 import { EquationOutput } from './EquationOutput'
-import { ApplicabilityOutput } from './ApplicabilityOutput'
 import { NextWorkflowsOutput } from './NextWorkflowsOutput'
 import { ParagraphContextOutput } from './ParagraphContextOutput'
 import { ReferenceOutput } from './ReferenceOutput'
@@ -49,8 +48,6 @@ export function OutputRenderer({
             return <ParagraphContextOutput key={block.id} block={block} />
           case 'result_summary':
             return <ResultSummaryOutput key={block.id} block={block} />
-          case 'applicability':
-            return <ApplicabilityOutput key={block.id} block={block} />
           case 'equation':
             return <EquationOutput key={block.id} block={block} />
           case 'table':
