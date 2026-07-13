@@ -5,17 +5,17 @@ key: asme-b313-304-1-2-valrule-b
 name: Thick-Wall Special Consideration Required
 rule_class: validation
 description: >
-  When t >= D/6 or P/(SE) > 0.385, pressure design thickness for straight pipe
+  When t >= D/6 or P/(S E_j) > 0.385, pressure design thickness for straight pipe
   requires special consideration of theory of failure, fatigue, and thermal stress.
 authority:
   authorized_by:
   - 304.1.2-b
   authority_context_required: true
 display:
-  text: t >= D/6 OR P/(SE) > 0.385
+  text: t >= D/6 OR P/(S E_j) > 0.385
 expression:
   language: sympy
-  formula: thick_wall_special_consideration_required = (t >= D/6) or (P / (S * E) > 0.385)
+  formula: thick_wall_special_consideration_required = (t >= D/6) or (P / (S * E_j) > 0.385)
 requires:
 - symbol: t
   required: true
@@ -33,7 +33,7 @@ requires:
   required: true
   description: Stress value from Table A-1
   parameter: PARAM-allowable-stress
-- symbol: E
+- symbol: E_j
   required: true
   description: Quality factor from Tables A-2 and A-3
   parameter: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
@@ -44,7 +44,7 @@ conditions:
   any_of:
   - expression: t >= D/6
     description: Thick-wall geometry limit per §304.1.2(b)
-  - expression: P / (S * E) > 0.385
+  - expression: P / (S * E_j) > 0.385
     description: High pressure-to-strength ratio per §304.1.2(b)
 on_fail:
   severity: warning
@@ -70,7 +70,7 @@ edges:
   alias: S
 - type: requires_parameter
   target: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
-  alias: E
+  alias: E_j
 - type: validates_parameter
   target: PARAM-thick-wall-special-consideration-required
 - type: constrains_equation
@@ -99,8 +99,8 @@ execution:
       parameter: PARAM-allowable-stress
       description: Stress value from Table A-1
       unit: Pa
-    E:
-      symbol: E
+    E_j:
+      symbol: E_j
       parameter: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
       description: Quality factor from Tables A-2 and A-3
       unit: dimensionless
@@ -117,7 +117,7 @@ execution:
     expressions:
     - expression: t >= D / 6
       assign: thick_wall_by_geometry
-    - expression: P / (S * E) > 0.385
+    - expression: P / (S * E_j) > 0.385
       assign: thick_wall_by_pressure_ratio
     - expression: thick_wall_by_geometry or thick_wall_by_pressure_ratio
       assign: thick_wall_special_consideration_required
@@ -125,6 +125,6 @@ metadata:
   status: active
   version: 1
   legacy_equation_id: valrule-304-1-2-b
-  last_revision: 2026-07-07
+  last_revision: 2026-07-13
   edited_by: admin
 ---

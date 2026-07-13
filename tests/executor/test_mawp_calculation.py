@@ -29,7 +29,7 @@ def test_calculate_mawp_thin_wall() -> None:
     d = 273.05
     result = calculate_mawp(
         node_dir=node_dir,
-        variables={"S": s, "E": 1.0, "W": 1.0, "t": t, "D": d, "Y": 0.4},
+        variables={"S": s, "E_j": 1.0, "W": 1.0, "t": t, "D": d, "Y": 0.4},
     )
     assert result.final_result is not None
     mawp_pa = float(result.final_result.value)

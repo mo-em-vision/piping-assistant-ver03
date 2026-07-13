@@ -24,15 +24,15 @@ def test_minimum_required_thickness_render_steps() -> None:
 
 
 def test_wall_thickness_render_steps_use_symbolic_substitution() -> None:
-    display = "t = PD / (2(SEW + PY))"
+    display = "t = PD / (2(S E_j W + PY))"
     steps = render_equation_steps(
-        sympy_expr="t = P*D / (2*(S*E*W + P*Y))",
+        sympy_expr="t = P*D / (2*(S*E_j*W + P*Y))",
         display_latex=display,
         symbol_values={
             "P": 2e6,
             "D": 0.273,
             "S": 138e6,
-            "E": 1.0,
+            "E_j": 1.0,
             "W": 1.0,
             "Y": 0.4,
         },

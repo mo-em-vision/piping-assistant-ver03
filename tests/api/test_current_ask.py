@@ -355,7 +355,8 @@ def test_timeline_shows_nps_and_od_before_material_at_internal_design_gage_press
         for step in state["progress"]["timeline"]
         if step["id"] not in {"thickness", "report"}
     }
-    assert timeline.get("nominal_pipe_size") == "done"
+    assert timeline.get("internal_design_gage_pressure") == "active"
+    assert timeline.get("nominal_pipe_size") == "pending"
     assert timeline.get("material_grade") == "pending"
 
 

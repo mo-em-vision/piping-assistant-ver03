@@ -531,7 +531,7 @@ def build_mawp_substituted_equation(
     variables_si: dict[str, float],
 ) -> tuple[str, str]:
     s = float(variables_si["S"])
-    e = float(variables_si["E"])
+    e = float(variables_si["E_j"])
     w = float(variables_si["W"])
     t = float(variables_si["t"])
     d = float(variables_si["D"])
@@ -557,7 +557,7 @@ def build_wall_thickness_substituted_rhs(
     p = float(variables_si["P"])
     d = float(variables_si["D"])
     s = float(variables_si["S"])
-    e = float(variables_si["E"])
+    e = float(variables_si["E_j"])
     w = float(variables_si["W"])
     y = float(variables_si["Y"])
     fmt = _format_substitution_value
@@ -615,7 +615,7 @@ def _substitute_formula_rhs(rhs: str, values: dict[str, float]) -> str:
             "PD",
             f"({_format_substitution_value(values['P'])})({_format_substitution_value(values['D'])})",
         )
-    for symbol in ("P", "D", "S", "E", "W", "Y", "t"):
+    for symbol in ("P", "D", "S", "E_j", "W", "Y", "t"):
         if symbol not in values:
             continue
         formatted = _format_substitution_value(values[symbol])

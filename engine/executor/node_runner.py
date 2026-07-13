@@ -431,7 +431,7 @@ class NodeRunner:
                 inputs=resolved,
             )
 
-        symbol_map = {"P": "P", "D": "D", "S": "S", "E": "E", "W": "W", "Y": "Y", "t": "t"}
+        symbol_map = {"P": "P", "D": "D", "S": "S", "E_j": "E_j", "W": "W", "Y": "Y", "t": "t"}
         eval_vars = {symbol_map.get(k, k): v for k, v in variables.items()}
         warnings: list[str] = []
         thin_wall_valid = True

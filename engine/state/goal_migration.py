@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import time
-from pathlib import Path
 from typing import Any
 
 from engine.reference.param_resolver import resolve_parameter_id
@@ -18,29 +15,6 @@ from models.goal import (
 )
 from models.goal_store import GoalStore
 from models.planning import NavigationPhase
-
-
-def _debug_log(hypothesis_id: str, message: str, data: dict[str, Any]) -> None:
-    # #region agent log
-    try:
-        log_path = Path(__file__).resolve().parents[2] / "debug-fd176a.log"
-        with log_path.open("a", encoding="utf-8") as handle:
-            handle.write(
-                json.dumps(
-                    {
-                        "sessionId": "fd176a",
-                        "hypothesisId": hypothesis_id,
-                        "location": "engine.state.goal_migration",
-                        "message": message,
-                        "data": data,
-                        "timestamp": int(time.time() * 1000),
-                    }
-                )
-                + "\n"
-            )
-    except Exception:
-        pass
-    # #endregion
 
 
 def _prompt_for_field(
@@ -86,47 +60,12 @@ def goals_from_planning_summary(
         dict(phase_questions_raw) if isinstance(phase_questions_raw, dict) else {}
     )
 
-    # #region agent log
-    _debug_log(
-        "A",
-        "goals_from_planning_summary entry",
-        {
-            "task_id": task_id,
-            "has_phase_missing": bool(phase_missing),
-            "phase_missing_keys": list(phase_missing.keys())[:6],
-            "has_phase_questions": bool(phase_questions),
-            "phase_questions_value_types": {
-                phase: type(value).__name__
-                for phase, value in list(phase_questions.items())[:6]
-            },
-        },
-    )
-    # #endregion
-
     order = 0
     seen: set[str] = set()
     for phase, fields in phase_missing.items():
         questions = phase_questions.get(phase, {})
         if not isinstance(fields, list):
             continue
-        # #region agent log
-        _debug_log(
-            "B",
-            "phase question shape before prompt lookup",
-            {
-                "phase": phase,
-                "fields_count": len(fields),
-                "questions_type": type(questions).__name__,
-                "questions_sample": (
-                    list(questions.keys())[:3]
-                    if isinstance(questions, dict)
-                    else questions[:2]
-                    if isinstance(questions, list)
-                    else None
-                ),
-            },
-        )
-        # #endregion
         for field_id in fields:
             seen.add(str(field_id))
             prompt = _prompt_for_field(
@@ -231,18 +170,6 @@ def migrate_task_goals_from_outputs(task: Any) -> None:
     summary = task.outputs.get("planning_summary")
     if not isinstance(summary, dict):
         return
-    # #region agent log
-    _debug_log(
-        "C",
-        "migrate_task_goals_from_outputs",
-        {
-            "task_id": getattr(task, "task_id", None),
-            "has_planning_summary": True,
-            "goal_store_empty": not task.goal_store.goals,
-            "summary_keys": sorted(summary.keys())[:12],
-        },
-    )
-    # #endregion
     workflow_id = str(task.outputs.get("workflow") or "")
     task.execution_context.goal_store = goals_from_planning_summary(
         summary,

@@ -63,10 +63,10 @@ metadata:
   status: active
   version: 1
   legacy_equation_id: mawp_pressure
-  last_revision: 2026-07-07
+  last_revision: 2026-07-13
   edited_by: admin
 display:
-  text: MAWP = 2SEWt / (D - 2Yt)
+  text: MAWP = 2 S E_j W t / (D - 2 Y t)
 applicability:
   applies_when:
   - parameter: PARAM-pressure-loading
@@ -110,7 +110,7 @@ steps:
 - name: compute_mawp
   description: Calculate Maximum Allowable Working Pressure
   expressions:
-  - expression: 2 * S * E * W * t / denominator
+  - expression: 2 * S * E_j * W * t / denominator
     assign: MAWP
 executor: calculate_mawp
 outputs:

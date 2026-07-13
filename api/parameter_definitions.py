@@ -420,31 +420,6 @@ def _submit_task_input_impl(
     parameter = _canonical_submit_parameter(parameter)
     submittable = submittable_parameter_ids(task, planning)
     allowed_ids = _expand_allowed_parameter_ids(set(submittable))
-    # #region agent log
-    from api.debug_trace import agent_debug_log
-
-    agent_debug_log(
-        "parameter_definitions.py:submit_task_input",
-        "submit validation snapshot",
-        {
-            "task_id": task_id,
-            "parameter": original_parameter,
-            "canonical_parameter": parameter,
-            "submittable": submittable,
-            "allowed_ids": sorted(allowed_ids),
-            "current_phase": planning.get("current_phase"),
-            "phase_missing": planning.get("phase_missing"),
-            "missing_inputs": planning.get("missing_inputs"),
-            "has_t": task.outputs.get("t") is not None
-            or task.outputs.get("required_thickness") is not None,
-            "has_tm": task.outputs.get("minimum_required_thickness") is not None
-            or task.outputs.get("t_m") is not None,
-            "has_execution_trace": bool(task.outputs.get("_execution_trace")),
-            "goal_keys": [g.key for g in task.goal_store.goals.values()],
-        },
-        hypothesis_id="A,B,D,E",
-    )
-    # #endregion
     if "pipe_construction_type" in allowed_ids:
         allowed_ids.add("joint_category")
     if (

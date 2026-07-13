@@ -70,10 +70,10 @@ metadata:
   status: active
   version: 1
   legacy_equation_id: eq-3b
-  last_revision: 2026-07-07
+  last_revision: 2026-07-13
   edited_by: admin
 display:
-  text: t = P(d+2c) / 2(SEW - P(1-Y))
+  text: t = P(d+2c) / 2(S E_j W - P(1-Y))
 applicability:
   applies_when:
   - parameter: PARAM-pressure-loading
@@ -83,8 +83,6 @@ applicability:
     operator: equals
     value: true
   - parameter: PARAM-inside-diameter
-    operator: present
-  - parameter: PARAM-internal-design-gage-pressure
     operator: present
 equation_number: 3b
 paragraph_number: 304.1.2-a
@@ -121,7 +119,7 @@ steps:
 - name: compute_denominator_terms
   description: Calculate SEW and P(1-Y) terms
   expressions:
-  - expression: S * E * W
+  - expression: S * E_j * W
     assign: SEW
   - expression: P * (1 - Y)
     assign: P1Y

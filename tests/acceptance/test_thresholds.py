@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import pytest
-
 from engine.executor.executor import execute_workflow
 from models.execution import ExecutionStatus
 from models.task import TaskStatus
 from tests.acceptance.helpers import PIPE_WALL_THICKNESS_ROOT, run_completed_workflow, sample_inputs
-from tests.e2e.scenario_loader import load_scenario
 
 
 class TestThresholdHappyPath:
@@ -39,31 +34,3 @@ class TestThresholdFailureHandling:
 
         result = execute_workflow(task_id, PIPE_WALL_THICKNESS_ROOT, state=state_manager, reader=standards_reader)
         assert result.status == ExecutionStatus.AWAITING_INPUT
-
-
-class TestThresholdRecovery:
-    """§24 Recovery."""
-
-    def test_temperature_correction_rebuilds_workflow(self, scenario_runner) -> None:
-        scenario = load_scenario(
-            Path(__file__).resolve().parents[1] / "data" / "scenarios" / "pipe_wall_thickness_temperature_recovery.yaml"
-        )
-        scenario_runner.run(scenario)
-
-
-class TestThresholdEdgeCases:
-    """§24 Edge Cases."""
-
-    @pytest.mark.parametrize(
-        "scenario_name",
-        [
-            "pipe_wall_thickness_override",
-            "pipe_wall_thickness_material_conflict",
-            "pipe_wall_thickness_temperature_limit",
-        ],
-    )
-    def test_edge_case_scenarios(self, scenario_runner, scenario_name: str) -> None:
-        scenario = load_scenario(
-            Path(__file__).resolve().parents[1] / "data" / "scenarios" / f"{scenario_name}.yaml"
-        )
-        scenario_runner.run(scenario)

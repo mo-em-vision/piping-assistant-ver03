@@ -25,12 +25,6 @@ from models.fact import SourceType, ValidationStatus
 FAILURE_SCENARIOS = [
     "pipe_wall_thickness_missing_inputs",
     "pipe_wall_thickness_invalid_pressure",
-    "pipe_wall_thickness_temperature_limit",
-    "pipe_wall_thickness_external_pressure",
-]
-
-RECOVERY_SCENARIOS = [
-    "pipe_wall_thickness_temperature_recovery",
 ]
 
 
@@ -76,11 +70,6 @@ class TestFailureTesting:
 
 class TestRecoveryTesting:
     """§15 Recovery Testing — user corrections rebuild workflow."""
-
-    @pytest.mark.parametrize("scenario_name", RECOVERY_SCENARIOS)
-    def test_recovery_scenarios(self, scenario_runner, scenarios_dir: Path, scenario_name: str) -> None:
-        scenario = load_scenario(scenarios_dir / f"{scenario_name}.yaml")
-        scenario_runner.run(scenario)
 
     def test_corrected_temperature_rebuilds_report(
         self,

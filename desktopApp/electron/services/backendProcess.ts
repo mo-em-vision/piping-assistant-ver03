@@ -68,38 +68,6 @@ async function checkHealth(baseUrl: string, expectedInstanceId?: string): Promis
 
   const matched = payload.instance_id === expectedInstanceId
 
-  // #region agent log
-
-  if (!matched) {
-
-    fetch('http://127.0.0.1:7445/ingest/50b71ef1-acb8-48e4-9a72-8a7cf07970d2', {
-
-      method: 'POST',
-
-      headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '12f291' },
-
-      body: JSON.stringify({
-
-        sessionId: '12f291',
-
-        hypothesisId: 'G',
-
-        location: 'backendProcess.ts:checkHealth',
-
-        message: 'instance_id handshake mismatch',
-
-        data: { expected: expectedInstanceId, received: payload.instance_id ?? null },
-
-        timestamp: Date.now(),
-
-      }),
-
-    }).catch(() => {})
-
-  }
-
-  // #endregion
-
   return matched
 
   } catch {

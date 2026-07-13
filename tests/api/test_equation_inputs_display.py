@@ -462,7 +462,7 @@ def test_build_substituted_formula_display_replaces_symbols() -> None:
             "P": 3_447_378.65,
             "D": 254.0,
             "S": 193_000_000.0,
-            "E": 1.0,
+            "E_j": 1.0,
             "W": 1.0,
             "Y": 0.4,
         },

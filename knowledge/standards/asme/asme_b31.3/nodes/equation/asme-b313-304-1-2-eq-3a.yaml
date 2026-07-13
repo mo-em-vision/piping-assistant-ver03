@@ -63,10 +63,10 @@ metadata:
   status: active
   version: 1
   legacy_equation_id: eq-3a
-  last_revision: 2026-07-07
+  last_revision: 2026-07-13
   edited_by: admin
 display:
-  text: t = PD / 2(SEW + PY)
+  text: t = PD / 2(S E_j W + PY)
 applicability:
   applies_when:
   - parameter: PARAM-pressure-loading
@@ -77,8 +77,6 @@ applicability:
     value: true
   - parameter: PARAM-inside-diameter
     operator: absent
-  - parameter: PARAM-internal-design-gage-pressure
-    operator: present
 equation_number: 3a
 paragraph_number: 304.1.2-a
 variables:
@@ -110,7 +108,7 @@ steps:
 - name: compute_denominator_terms
   description: Calculate SEW and PY terms
   expressions:
-  - expression: S * E * W
+  - expression: S * E_j * W
     assign: SEW
   - expression: P * Y
     assign: PY

@@ -125,7 +125,7 @@ def test_classify_marks_unconfirmed_defaults_as_missing() -> None:
     missing_symbols = {item.symbol for item in missing}
     assert "P" in known_symbols
     assert "D" in known_symbols
-    assert "E" in missing_symbols
+    assert "E_j" in missing_symbols
 
 
 def test_planner_phase_reaches_parameter_gathering() -> None:

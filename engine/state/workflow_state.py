@@ -48,7 +48,7 @@ _GRAPH_METADATA_KEYS = frozenset(
     }
 )
 
-_EQUATION_SYMBOL_ALIASES = frozenset({"S", "P", "D", "E", "W", "Y", "c", "t", "t_m", "MAWP"})
+_EQUATION_SYMBOL_ALIASES = frozenset({"S", "P", "D", "E_j", "W", "Y", "c", "t", "t_m", "MAWP"})
 
 
 def build_workflow_state(

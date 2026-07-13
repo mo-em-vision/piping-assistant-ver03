@@ -576,23 +576,6 @@ def task_ready_for_execution(task: Task) -> bool:
         from engine.planner.graph_navigation import graph_navigation_has_collectable_missing
 
         ready = not graph_navigation_has_collectable_missing(nav)
-        # #region agent log
-        from api.debug_trace import agent_debug_log
-
-        agent_debug_log(
-            "workflow_bootstrap.py:task_ready_for_execution",
-            "graph navigation ready gate",
-            {
-                "task_id": task.task_id,
-                "ready": ready,
-                "goal_keys": [g.key for g in task.goal_store.goals.values()],
-                "nav_phase": nav_phase,
-                "missing_inputs": (nav or {}).get("missing_inputs"),
-            },
-            hypothesis_id="A",
-            run_id="post-fix",
-        )
-        # #endregion
         return ready
 
     roots = task.goal_store.roots()
@@ -642,28 +625,6 @@ def _maybe_execute_ready_workflow_impl(
     )
     execute_workflow(task_id, root_slug, state=manager, reader=reader)
     task = manager.get_task(task_id)
-    # #region agent log
-    from api.debug_trace import agent_debug_log
-
-    agent_debug_log(
-        "workflow_bootstrap.py:maybe_execute_ready_workflow",
-        "post execute snapshot",
-        {
-            "task_id": task_id,
-            "has_t": task.outputs.get("t") is not None
-            or task.outputs.get("required_thickness") is not None,
-            "has_trace": has_execution_trace(task),
-            "validation_status": (
-                (task.outputs.get("_validation_trace") or [{}])[-1].get("status")
-                if isinstance(task.outputs.get("_validation_trace"), list)
-                and task.outputs.get("_validation_trace")
-                else None
-            ),
-        },
-        hypothesis_id="F",
-        run_id="post-fix",
-    )
-    # #endregion
     if root_slug == PIPE_WALL_THICKNESS_DESIGN:
         graph = GraphTools(reader)
         preview = graph.preview_plan(

@@ -23,7 +23,7 @@ def _wall_thickness_variables() -> dict[str, float]:
         "P": 3_447_378.0,
         "D": 0.254,
         "S": 193_000_000.0,
-        "E": 1.0,
+        "E_j": 1.0,
         "W": 1.0,
         "Y": 0.4,
         "t": 2.0,
@@ -160,7 +160,7 @@ def test_lookup_coefficients_resolved_in_eq_3a_trace(standards_reader) -> None:
     payload = task.outputs["_execution_trace"][0]["trace"]["equation_display_trace"]
     trace = EquationDisplayTrace.from_dict(payload)
     by_symbol = {item.symbol: item for item in trace.inputs}
-    for symbol in ("S", "E", "W", "Y"):
+    for symbol in ("S", "E_j", "W", "Y"):
         assert symbol in by_symbol
         assert by_symbol[symbol].value is not None
         assert by_symbol[symbol].display_value

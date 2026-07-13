@@ -712,27 +712,6 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
 
     hidden = _hidden_timeline_inputs(task)
     goal_params = goal_guided_parameter_ids(task)
-    # #region agent log
-    from api.debug_trace import agent_debug_log
-    from engine.planner.goal_navigation import next_actionable_goal
-
-    actionable = next_actionable_goal(task)
-    agent_debug_log(
-        "workflow_timeline.py:submittable_parameter_ids",
-        "submittable resolution entry",
-        {
-            "task_id": task.task_id,
-            "goal_params": goal_params,
-            "actionable_goal": actionable.key if actionable else None,
-            "actionable_param": (
-                actionable.metadata.get("composer_parameter") if actionable else None
-            ),
-            "current_phase": planning.get("current_phase"),
-            "phase_missing": planning.get("phase_missing"),
-        },
-        hypothesis_id="A,C,D",
-    )
-    # #endregion
     if goal_params:
         filtered = [
             param
@@ -771,16 +750,9 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
                     planning,
                 )
                 ordered = _prioritize_submittable_by_phase(planning, ordered)
-                return _log_submittable_result(
-                    task,
-                    planning,
-                    composer_parameter_ids(task, ordered),
-                    "goal_params+phase_fields",
-                )
+                return composer_parameter_ids(task, ordered)
             prioritized = _prioritize_submittable_by_phase(planning, filtered)
-            return _log_submittable_result(
-                task, planning, composer_parameter_ids(task, prioritized), "goal_params_only"
-            )
+            return composer_parameter_ids(task, prioritized)
 
     phase_missing = planning.get("phase_missing") or {}
     current_phase = str(planning.get("current_phase") or "")
@@ -804,14 +776,9 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
                 phase_fields=set(phase_fields),
                 step_order=step_order,
             )
-            return _log_submittable_result(
+            return composer_parameter_ids(
                 task,
-                planning,
-                composer_parameter_ids(
-                    task,
-                    _ordered_submittable_ids(task, set(phase_fields) | set(extras), planning),
-                ),
-                "phase_fields_only",
+                _ordered_submittable_ids(task, set(phase_fields) | set(extras), planning),
             )
 
     requested_ids: list[str] = []
@@ -837,23 +804,7 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
         ):
             requested_ids.append(input_id)
 
-    return _log_submittable_result(
-        task, planning, composer_parameter_ids(task, requested_ids), "fallback_requested_ids"
-    )
-
-
-def _log_submittable_result(task: Task, planning: dict[str, Any], result: list[str], branch: str) -> list[str]:
-    # #region agent log
-    from api.debug_trace import agent_debug_log
-
-    agent_debug_log(
-        "workflow_timeline.py:submittable_parameter_ids",
-        "submittable resolution exit",
-        {"task_id": task.task_id, "branch": branch, "result": result},
-        hypothesis_id="A,D",
-    )
-    # #endregion
-    return result
+    return composer_parameter_ids(task, requested_ids)
 
 
 def workflow_step_title(

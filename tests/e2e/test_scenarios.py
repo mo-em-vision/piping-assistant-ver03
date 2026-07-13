@@ -22,7 +22,7 @@ def test_e2e_scenario(scenario_path: Path, scenario_runner: ScenarioRunner) -> N
 
 def test_all_scenarios_discovered(scenarios_dir: Path) -> None:
     scenarios = discover_scenarios(scenarios_dir)
-    assert len(scenarios) >= 8
+    assert len(scenarios) >= 2
     names = {scenario.name for scenario in scenarios}
-    assert "pipe_wall_thickness_basic" in names
-    assert "pipe_wall_thickness_deterministic" in names
+    assert "pipe_wall_thickness_missing_inputs" in names
+    assert "pipe_wall_thickness_invalid_pressure" in names

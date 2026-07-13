@@ -21,18 +21,18 @@ def test_minimum_required_thickness() -> None:
 
 def test_wall_thickness_internal_pressure() -> None:
     result = evaluate_equation(
-        sympy_expr="t = P*D / (2*(S*E*W + P*Y))",
-        display_latex="t = PD / (2(SEW + PY))",
+        sympy_expr="t = P*D / (2*(S*E_j*W + P*Y))",
+        display_latex="t = PD / (2(S E_j W + PY))",
         symbol_values={
             "P": 2e6,
             "D": 0.273,
             "S": 138e6,
-            "E": 1.0,
+            "E_j": 1.0,
             "W": 1.0,
             "Y": 0.4,
         },
     )
     assert result.outputs["t"] > 0
     assert "t" in result.result_text
-    assert result.render_steps.original == "t = PD / (2(SEW + PY))"
+    assert result.render_steps.original == "t = PD / (2(S E_j W + PY))"
     assert result.render_steps.evaluated.startswith("t = ")

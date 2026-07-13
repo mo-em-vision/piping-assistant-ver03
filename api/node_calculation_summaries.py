@@ -14,7 +14,7 @@ _SYMBOL_LABELS: dict[str, str] = {
     "P": "Design pressure",
     "D": "Outside diameter",
     "S": "Allowable stress",
-    "E": "Joint efficiency",
+    "E_j": "Joint efficiency",
     "W": "Weld strength reduction",
     "Y": "Temperature coefficient",
     "t": "Required wall thickness",

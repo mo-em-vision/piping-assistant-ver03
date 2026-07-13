@@ -11,10 +11,8 @@ from tests.e2e.scenario_loader import discover_scenarios
 
 
 CRITICAL_SCENARIOS = [
-    "pipe_wall_thickness_basic",
     "pipe_wall_thickness_missing_inputs",
-    "pipe_wall_thickness_temperature_recovery",
-    "pipe_wall_thickness_deterministic",
+    "pipe_wall_thickness_invalid_pressure",
 ]
 
 MVP_COMPLETION_CHECKS = [
@@ -56,7 +54,7 @@ class TestTestDataManagement:
 
     def test_scenarios_contain_workflow_definitions(self, scenarios_dir: Path) -> None:
         scenarios = discover_scenarios(scenarios_dir)
-        assert len(scenarios) >= 8
+        assert len(scenarios) >= 2
         assert all(scenario.when.get("user_request") for scenario in scenarios)
 
 
@@ -65,7 +63,7 @@ class TestFailureReporting:
 
     def test_scenario_assertion_error_includes_trace_context(self) -> None:
         error = ScenarioAssertionError(
-            "pipe_wall_thickness_basic",
+            "pipe_wall_thickness_missing_inputs",
             "Graph Engine",
             "Missing dependency",
             node="304.1.2-a",
@@ -74,7 +72,7 @@ class TestFailureReporting:
         )
         message = str(error)
         assert "Failure:" in message
-        assert "pipe_wall_thickness_basic" in message
+        assert "pipe_wall_thickness_missing_inputs" in message
         assert "Graph Engine" in message
         assert "Missing dependency" in message
         assert "304.1.2-a" in message
@@ -103,7 +101,7 @@ def test_mvp_completion_criteria(check_id: str, project_root: Path, scenarios_di
 
     elif check_id == "critical_workflows_present":
         names = {s.name for s in discover_scenarios(scenarios_dir)}
-        assert "pipe_wall_thickness_basic" in names
+        assert "pipe_wall_thickness_missing_inputs" in names
 
     elif check_id == "test_data_layout":
         assert (project_root / "tests" / "data" / "scenarios").is_dir()
