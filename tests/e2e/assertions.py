@@ -103,18 +103,30 @@ def assert_output_value(
     tolerance: float = 1e-6,
 ) -> None:
     actual = task.outputs.get(key)
-    if isinstance(expected, dict) and expected.get("formula") == "wall_thickness":
-        from tests.e2e.scenario_runner import expected_wall_thickness
+    if isinstance(expected, dict) and expected.get("formula") in {
+        "wall_thickness",
+        "minimum_required_thickness",
+    }:
+        from tests.mvp.regression import (
+            expected_minimum_required_thickness,
+            expected_wall_thickness,
+        )
 
-        expected_value = expected_wall_thickness(task)
+        formula_tolerance = float(expected.get("tolerance", tolerance))
+        if expected.get("formula") == "wall_thickness":
+            expected_value = expected_wall_thickness(task)
+            node = "304.1.2-a"
+        else:
+            expected_value = expected_minimum_required_thickness(task)
+            node = "asme-b313-304-1-1-eq-2"
         if actual is None:
             _fail(scenario, "Execution Layer", f"Missing output {key!r}", trace=task.outputs)
-        if abs(float(actual) - expected_value) > tolerance:
+        if abs(float(actual) - expected_value) > formula_tolerance:
             _fail(
                 scenario,
                 "Execution Layer",
                 f"Output {key!r}: expected ~{expected_value}, got {actual}",
-                node="304.1.2-a",
+                node=node,
             )
         return
 

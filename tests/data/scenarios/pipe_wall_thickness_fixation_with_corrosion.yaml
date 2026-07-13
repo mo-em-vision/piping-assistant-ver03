@@ -1,0 +1,52 @@
+name: pipe_wall_thickness_fixation_with_corrosion
+description: >
+  Pipe wall thickness fixation — NPS 4, 500 psi, 0.5 mm corrosion (t_m = t + c).
+
+given:
+  inputs:
+    straight_pipe_section:
+      value: true
+    pressure_loading:
+      value: internal_pressure
+    internal_design_gage_pressure:
+      value: 500
+      unit: psi
+    nominal_pipe_size:
+      value: "4"
+    material_grade:
+      value: astm_a106_gr_b
+    design_temperature:
+      value: 200
+      unit: F
+    pipe_construction_type:
+      value: seamless
+    corrosion_allowance:
+      value: 0.5
+      unit: mm
+
+when:
+  user_request: Calculate pipe wall thickness
+  intent:
+    intent: pipe_wall_thickness_design
+    domain: piping
+    workflow: pipe_wall_thickness_design
+    confidence: 0.95
+
+expected:
+  state:
+    status: completed
+  execution:
+    status: completed
+    outputs:
+      required_thickness:
+        formula: wall_thickness
+        tolerance: 0.001
+      t:
+        formula: wall_thickness
+        tolerance: 0.001
+      t_m:
+        formula: minimum_required_thickness
+        tolerance: 0.001
+      minimum_required_thickness:
+        formula: minimum_required_thickness
+        tolerance: 0.001

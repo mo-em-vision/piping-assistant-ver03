@@ -1,0 +1,52 @@
+name: pipe_wall_thickness_fixation_zero_corrosion
+description: >
+  Pipe wall thickness fixation — NPS 6, zero corrosion allowance (t must equal t_m).
+
+given:
+  inputs:
+    straight_pipe_section:
+      value: true
+    pressure_loading:
+      value: internal_pressure
+    internal_design_gage_pressure:
+      value: 8.0
+      unit: bar
+    nominal_pipe_size:
+      value: "6"
+    material_grade:
+      value: SA-106B
+    design_temperature:
+      value: 38.0
+      unit: C
+    pipe_construction_type:
+      value: Seamless pipe
+    corrosion_allowance:
+      value: 0.0
+      unit: mm
+
+when:
+  user_request: Calculate pipe wall thickness
+  intent:
+    intent: pipe_wall_thickness_design
+    domain: piping
+    workflow: pipe_wall_thickness_design
+    confidence: 0.95
+
+expected:
+  state:
+    status: completed
+  execution:
+    status: completed
+    outputs:
+      required_thickness:
+        formula: wall_thickness
+        tolerance: 0.001
+      t:
+        formula: wall_thickness
+        tolerance: 0.001
+      t_m:
+        formula: wall_thickness
+        tolerance: 0.001
+      minimum_required_thickness:
+        formula: wall_thickness
+        tolerance: 0.001

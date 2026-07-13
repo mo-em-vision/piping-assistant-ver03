@@ -9,20 +9,30 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from api.parameter_definitions import submit_task_input
+from api.workflow_bootstrap import (
+    bootstrap_new_task,
+    maybe_execute_ready_workflow,
+    refresh_task_planning,
+)
+from api.workflow_timeline import submittable_parameter_ids
+from config.loader import CLIConfig
 from engine.executor.executor import execute_workflow
-from engine.executor.unit_manager import convert_to_si
+from engine.graph.definition_equations import try_complete_definition_equations
 from engine.graph.graph_engine import GraphEngine
+from engine.planner.tools import GraphTools
 from engine.planner.planner import Planner
 from engine.reports.formatters import render_markdown
 from engine.reports.report_data import build_report_from_task
 from engine.reports.report_generator import ReportGenerator
 from engine.reference.standards_reader import StandardsReader
 from engine.state.fact_migration import fact_from_engineering_input
+from engine.state.goal_projection import planning_projection
 from engine.state.state_manager import TaskStateManager
 from engine.validation.validation_engine import ValidationEngine
 from models.agent import IntentResult
 from models.execution import ExecutionPlan, ExecutionResult, ExecutionStatus
-from tests.helpers.facts import fact_get_unit, fact_get_value, legacy_input
+from tests.helpers.facts import legacy_input
 from models.planning import NavigationPlan
 from models.task import Task, TaskStatus
 from models.validation import ComplianceStatus
@@ -63,15 +73,26 @@ class ScenarioRunResult:
 
 def expected_wall_thickness(task: Task) -> float:
     """Compute expected t from stored task outputs and inputs."""
-    p_pa, _ = convert_to_si(float(fact_get_value(task, "design_pressure")), fact_get_unit(task, "design_pressure"))
-    d_mm, _ = convert_to_si(float(fact_get_value(task, "outside_diameter")), fact_get_unit(task, "outside_diameter"))
-    s_pa = float(task.outputs.get("allowable_stress", task.outputs.get("S", 0)))
-    e = 1.0
-    w = 1.0
-    y = 0.4
-    sew = s_pa * e * w
-    py = p_pa * y
-    return p_pa * d_mm / (2 * (sew + py))
+    from tests.mvp.regression import expected_wall_thickness as _expected_wall_thickness
+
+    return _expected_wall_thickness(task)
+
+
+_PIPE_WALL_THICKNESS_WORKFLOW = "pipe_wall_thickness_design"
+_PROPOSE_DEFAULTS_ON_FIELDS = frozenset({"straight_pipe_section", "pressure_loading"})
+
+
+def _minimal_cli_config(reader: StandardsReader) -> CLIConfig:
+    return CLIConfig(
+        report_format="html",
+        language="english",
+        default_standard="ASME_B31.3",
+        sessions_dir=Path("sessions"),
+        standards_root=reader.standards_root,
+        openai_api_key=None,
+        openai_model="gpt-4o-mini",
+        openai_base_url=None,
+    )
 
 
 class ScenarioRunner:
@@ -95,6 +116,11 @@ class ScenarioRunner:
 
         task_id = f"pipe-wall-thickness-design-{scenario.name}-{uuid.uuid4().hex[:8]}"
         self.state.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
+        workflow_id = str(scenario.when.get("intent", {}).get("workflow") or _PIPE_WALL_THICKNESS_WORKFLOW)
+        if workflow_id == _PIPE_WALL_THICKNESS_WORKFLOW:
+            task = self.state.get_task(task_id)
+            bootstrap_new_task(task, workflow_id, _minimal_cli_config(self.reader))
+            self.state.replace_task(task_id, task)
         self._apply_given(scenario, task_id)
 
         result = ScenarioRunResult(scenario=scenario)
@@ -116,19 +142,87 @@ class ScenarioRunner:
 
     def _apply_given(self, scenario: Scenario, task_id: str) -> None:
         given = scenario.given
-        for input_id, spec in given.get("inputs", {}).items():
-            self.state.store_input(
-                task_id,
-                fact_from_engineering_input(
-                    _engineering_input(input_id, spec),
-                    task_id=task_id,
-                ),
-            )
+        given_inputs = dict(given.get("inputs", {}))
+        workflow_id = str(scenario.when.get("intent", {}).get("workflow") or "")
+
+        if workflow_id == _PIPE_WALL_THICKNESS_WORKFLOW and given_inputs:
+            self._apply_pipe_wall_inputs(task_id, given_inputs)
+        else:
+            for input_id, spec in given_inputs.items():
+                self.state.store_input(
+                    task_id,
+                    fact_from_engineering_input(
+                        _engineering_input(input_id, spec),
+                        task_id=task_id,
+                    ),
+                )
 
         overrides = given.get("validation_overrides")
         if overrides:
             task = self.state.get_task(task_id)
             task.outputs["validation_overrides"] = list(overrides)
+
+    def _apply_pipe_wall_inputs(self, task_id: str, given_inputs: dict[str, Any]) -> None:
+        """Submit user inputs through the API path so NPS and lookup side effects run."""
+        standards_root = self.reader.standards_root
+        remaining = dict(given_inputs)
+        max_passes = max(len(remaining) * 4, 1)
+
+        for _ in range(max_passes):
+            if not remaining:
+                break
+
+            task = self.state.get_task(task_id)
+            planning = planning_projection(task)
+            submittable = set(submittable_parameter_ids(task, planning))
+            still_remaining: dict[str, Any] = {}
+            progressed = False
+
+            for input_id, spec in remaining.items():
+                if input_id not in submittable:
+                    still_remaining[input_id] = spec
+                    continue
+
+                value = spec["value"]
+                unit = spec.get("unit")
+                submit_task_input(
+                    self.state,
+                    task_id,
+                    parameter=input_id,
+                    value=value,
+                    unit=unit,
+                    standards_root=standards_root,
+                )
+                task = self.state.get_task(task_id)
+                refresh_task_planning(
+                    task,
+                    self.reader,
+                    propose_defaults=input_id in _PROPOSE_DEFAULTS_ON_FIELDS,
+                    allow_lightweight_refresh=True,
+                )
+                self.state.replace_task(task_id, task)
+                task = maybe_execute_ready_workflow(task_id, self.state, self.reader)
+                self.state.replace_task(task_id, task)
+
+                if input_id == "corrosion_allowance":
+                    task = self.state.get_task(task_id)
+                    graph = GraphTools(self.reader)
+                    preview = graph.preview_plan(
+                        task_id=task_id,
+                        root_id=_PIPE_WALL_THICKNESS_WORKFLOW,
+                        inputs=dict(task.fact_store.active_facts()),
+                    )
+                    try_complete_definition_equations(task, self.reader, preview.execution_order)
+                    self.state.replace_task(task_id, task)
+                    task = self.state.get_task(task_id)
+                    refresh_task_planning(task, self.reader, propose_defaults=False)
+                    self.state.replace_task(task_id, task)
+
+                progressed = True
+
+            remaining = still_remaining
+            if not progressed:
+                break
 
     def _execute_step(self, scenario: Scenario, task_id: str, step: dict[str, Any]) -> WorkflowSnapshot:
         action = step.get("action")
