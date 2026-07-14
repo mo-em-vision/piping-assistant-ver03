@@ -248,6 +248,44 @@ def _ordering_edges(
     return ordered
 
 
+def _expand_parameter_anchor_paragraphs(
+    store: GraphStore,
+    anchor_id: str,
+    *,
+    node_set: set[str],
+    order: list[str],
+    edges: list[GraphEdgeRecord],
+    inputs: dict[str, Fact],
+    skipped_nodes: list[dict[str, Any]],
+) -> None:
+    """When the definition anchor is a parameter, traverse graph context that defines it."""
+    if store.node_type(anchor_id) != "parameter":
+        return
+
+    def _merge_subgraph(start_id: str) -> None:
+        sub_order, sub_edges = dfs_collect_respecting_node_gates(
+            store,
+            start_id,
+            inputs=inputs,
+            skipped_nodes=skipped_nodes,
+        )
+        for node_id in sub_order:
+            if node_id not in node_set:
+                node_set.add(node_id)
+                order.append(node_id)
+        edges.extend(sub_edges)
+
+    for intro_edge in store.incoming(anchor_id, edge_types={"introduces_parameter"}):
+        paragraph_id = intro_edge.from_id
+        if store.node_type(paragraph_id) == "paragraph":
+            _merge_subgraph(paragraph_id)
+
+    for producer_edge in store.incoming(anchor_id, edge_types={"calculates_parameter"}):
+        producer_id = producer_edge.from_id
+        if store.node_type(producer_id) in {"equation", "lookup", "calculation"}:
+            _merge_subgraph(producer_id)
+
+
 def _expand_equation_producer_ordering(
     store: GraphStore,
     node_set: set[str],
@@ -303,15 +341,25 @@ def expand_workflow(
         state.active_nodes = [resolved_root]
         anchors = workflow_anchor_target(root.metadata)
         if isinstance(anchors, str):
-            anchor_order, _ = dfs_collect_respecting_node_gates(
+            _expand_parameter_anchor_paragraphs(
                 store,
                 anchors,
+                node_set=set(state.active_nodes),
+                order=state.active_nodes,
+                edges=[],
                 inputs=inputs,
                 skipped_nodes=state.skipped_nodes,
             )
-            for node_id in anchor_order:
-                if node_id not in state.active_nodes:
-                    state.active_nodes.append(node_id)
+            if anchors not in state.active_nodes:
+                anchor_order, _ = dfs_collect_respecting_node_gates(
+                    store,
+                    anchors,
+                    inputs=inputs,
+                    skipped_nodes=state.skipped_nodes,
+                )
+                for node_id in anchor_order:
+                    if node_id not in state.active_nodes:
+                        state.active_nodes.append(node_id)
         for field_name in _collect_expansion_assumptions(store, resolved_root):
             if field_value(field_name, inputs) is None:
                 state.pending_fields.append(field_name)
@@ -330,18 +378,28 @@ def expand_workflow(
             order.append(edge.to_id)
 
     anchors = workflow_anchor_target(root.metadata)
-    if isinstance(anchors, str) and anchors not in node_set:
-        anchor_order, anchor_edges = dfs_collect_respecting_node_gates(
+    if isinstance(anchors, str):
+        _expand_parameter_anchor_paragraphs(
             store,
             anchors,
+            node_set=node_set,
+            order=order,
+            edges=edges,
             inputs=inputs,
             skipped_nodes=state.skipped_nodes,
         )
-        for node_id in anchor_order:
-            if node_id not in node_set:
-                node_set.add(node_id)
-                order.append(node_id)
-        edges.extend(anchor_edges)
+        if anchors not in node_set:
+            anchor_order, anchor_edges = dfs_collect_respecting_node_gates(
+                store,
+                anchors,
+                inputs=inputs,
+                skipped_nodes=state.skipped_nodes,
+            )
+            for node_id in anchor_order:
+                if node_id not in node_set:
+                    node_set.add(node_id)
+                    order.append(node_id)
+            edges.extend(anchor_edges)
 
     _expand_metadata_dependencies(store, node_set, order, edges, inputs, state.skipped_nodes)
     _expand_output_producers(store, node_set, order, edges, inputs)

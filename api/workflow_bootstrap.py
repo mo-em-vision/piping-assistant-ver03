@@ -20,7 +20,7 @@ from engine.graph.path_decision import resolve_path_decision
 from engine.graph.workflow_navigation import load_workflow_navigation, workflow_collection_field_order
 from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
 from engine.planner.tools import GraphTools
-from engine.reference.graph_edge_schema import edge_target, iter_stored_edges, workflow_anchor_target
+from engine.reference.graph_edge_schema import workflow_anchor_target
 from engine.reference.standards_reader import StandardsReader
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.state.task_facts import active_facts, store_fact, store_proposed_default
@@ -75,20 +75,14 @@ def resolve_activated_definition_node(
     except FileNotFoundError:
         return None
 
-    for item in iter_stored_edges(root.metadata):
-        if str(item.get("type", "")) in {"starts_from_paragraph", "starts_from_parameter"}:
-            target = edge_target(item)
-            if target:
-                return target
-
     for entry in root.metadata.get("entry_points", []) or []:
         if isinstance(entry, dict) and str(entry.get("role", "")) == "definition_anchor":
-            paragraph = entry.get("paragraph")
-            if paragraph:
-                return str(paragraph)
             parameter = entry.get("parameter")
             if parameter:
                 return str(parameter)
+            paragraph = entry.get("paragraph")
+            if paragraph:
+                return str(paragraph)
 
     anchor = workflow_anchor_target(root.metadata)
     if isinstance(anchor, str):

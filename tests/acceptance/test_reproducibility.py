@@ -52,8 +52,13 @@ class TestReproducibilityAcceptance:
         graph_version = state_manager.get_task(task_id).outputs["graph_version"]
 
         assert graph_version
-        assert graph_version.get("graph_id") in {"pipe_wall_thickness_design", "B313-PIPE-WALL-THICKNESS-DESIGN"}
-        assert "B313-304.1.1" in graph_version.get("nodes", [])
+        assert graph_version.get("graph_id") in {
+            "pipe_wall_thickness_design",
+            "B313-PIPE-WALL-THICKNESS-DESIGN",
+            "B313-WF-PIPE-WALL-THICKNESS",
+            "WF-PIPE-WALL-THICKNESS",
+        }
+        assert "304.1.1-a" in graph_version.get("nodes", [])
         assert "304.1.2-a" in graph_version.get("nodes", [])
 
     def test_replay_frames_are_deterministic(self, standards_reader) -> None:

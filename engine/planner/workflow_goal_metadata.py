@@ -23,6 +23,14 @@ _DEFAULT_LOOKUP_FIELDS = frozenset(
 
 
 @dataclass(frozen=True)
+class RootGoalCompletionSpec:
+    """Workflow completion criteria from goal_expansion.root_goal.completion."""
+
+    when: str
+    status: str
+
+
+@dataclass(frozen=True)
 class RootGoalSpec:
     """Root calculation goal identity resolved from workflow node metadata."""
 
@@ -31,6 +39,7 @@ class RootGoalSpec:
     title: str
     target_parameter: str
     target_field: str
+    completion: RootGoalCompletionSpec | None = None
 
 
 def _workflow_node_metadata(reader: StandardsReader, workflow_id: str) -> dict[str, Any]:
@@ -80,6 +89,17 @@ def _derive_goal_id(key: str) -> str:
     return f"GOAL-{key}"
 
 
+def _parse_completion_spec(root_goal_cfg: dict[str, Any]) -> RootGoalCompletionSpec | None:
+    completion = root_goal_cfg.get("completion")
+    if not isinstance(completion, dict):
+        return None
+    when = str(completion.get("when") or "").strip()
+    status = str(completion.get("status") or "").strip()
+    if not when and not status:
+        return None
+    return RootGoalCompletionSpec(when=when, status=status)
+
+
 def resolve_root_goal_spec(
     reader: StandardsReader,
     workflow_id: str,
@@ -117,6 +137,7 @@ def resolve_root_goal_spec(
         title=title,
         target_parameter=target_parameter,
         target_field=target_field,
+        completion=_parse_completion_spec(root_goal_cfg),
     )
 
 

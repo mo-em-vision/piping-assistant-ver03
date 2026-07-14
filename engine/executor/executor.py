@@ -160,7 +160,9 @@ class Executor:
 
             record = self._reader.load(node_id)
             node_type = record.metadata.get("type")
-            if node_type in {"root", "definition"}:
+            if node_type in {"root", "definition", "workflow"}:
+                if node_type == "workflow":
+                    prior_completed.add(node_id)
                 continue
             if node_type == "validation_rule":
                 prior_completed.add(node_id)

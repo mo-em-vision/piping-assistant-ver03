@@ -41,7 +41,7 @@ def test_workflow_anchor_target_from_parameter_entry_points() -> None:
     assert workflow_anchor_target(metadata) == "PARAM-maximum-allowable-working-pressure"
 
 
-def test_workflow_anchor_target_prefers_starts_from_paragraph_edge() -> None:
+def test_workflow_anchor_target_prefers_entry_points_over_legacy_edges() -> None:
     metadata = {
         "entry_points": [
             {"paragraph": "304.1.1-a", "role": "definition_anchor"},
@@ -50,7 +50,7 @@ def test_workflow_anchor_target_prefers_starts_from_paragraph_edge() -> None:
             {"type": "starts_from_paragraph", "target": "304.1.2-a"},
         ],
     }
-    assert workflow_anchor_target(metadata) == "304.1.2-a"
+    assert workflow_anchor_target(metadata) == "304.1.1-a"
 
 
 def test_mawp_workflow_anchor_from_live_graph() -> None:
@@ -70,4 +70,4 @@ def test_pipe_wall_workflow_anchor_from_live_graph() -> None:
     store.load()
     wf = store.get_node("WF-PIPE-WALL-THICKNESS")
     assert wf is not None
-    assert workflow_anchor_target(wf.metadata) == "304.1.1-a"
+    assert workflow_anchor_target(wf.metadata) == "PARAM-minimum-required-thickness"

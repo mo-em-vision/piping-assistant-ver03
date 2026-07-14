@@ -72,13 +72,13 @@ metadata:
 | --- | --- |
 | `domain` | Engineering domain tags |
 | `expected_authorities` | `AUTH-*` list |
-| `entry_points` | Paragraph anchors with `role` |
+| `entry_points` | Definition anchor (`role: definition_anchor`) aligned with root goal target parameter |
 | `expected_parameters` | Anticipated `PARAM-*` list |
-| `goal_expansion` | Root and child goal templates |
+| `goal_expansion` | Root and child goal templates, including `root_goal.completion` |
 | `applicability.applies_to` | `CONCEPT-*` filters |
 | `report` | Report section requirements |
 | `phases` | Synthesized navigation when no sidecar |
-| `edges` | `starts_from_paragraph`, `may_use_equation`, `next`, etc. |
+| `edges` | `may_use_equation`, `may_use_lookup`, `next`, etc. — **not** `starts_from_*` on workflows |
 
 ### Allowed `workflow_class` values
 
@@ -113,7 +113,6 @@ calculation_result, runtime_result, current_phase, active_goal_id
 
 | Edge type | Target | Notes |
 | --- | --- | --- |
-| `starts_from_paragraph` | paragraph id | Primary anchor |
 | `may_use_equation` | equation id | Participating equations |
 | `may_use_lookup` | lookup id | Participating lookups |
 | `may_use_validation_rule` | validation rule id | Participating checks |
@@ -121,6 +120,29 @@ calculation_result, runtime_result, current_phase, active_goal_id
 | `may_create_goal` | goal template id | Goal expansion |
 | `next` | workflow node / step | Routing with optional `when` |
 | `uses_authority` / `may_use_authority` | `AUTH-*` | Authority scope |
+
+### Goal anchor and completion (calculation workflows)
+
+For **design_calculation** workflows (and similar calculation workflows):
+
+1. **Do not** author `starts_from_parameter` or `starts_from_paragraph` edges on workflow nodes. Paragraph and section context belongs on equations, lookups, and guidance — not as workflow anchor edges.
+2. **Must** set `goal_expansion.root_goal.target_parameter` to the calculated `PARAM-*` output.
+3. **Must** set exactly one `entry_points` item with `role: definition_anchor` whose `parameter` equals that same `PARAM-*` id.
+4. **Must** declare completion on the root goal:
+
+```yaml
+goal_expansion:
+  root_goal:
+    goal_class: calculation_goal
+    target_parameter: PARAM-...
+    completion:
+      when: target_parameter_satisfied
+      status: finished
+```
+
+Runtime anchor resolution (`workflow_anchor_target`) reads the `definition_anchor` entry point first. Completion means the workflow is **finished** when the root target parameter has an expansion-ready fact (same condition used for root goal `SATISFIED`).
+
+`starts_from_paragraph` and `starts_from_parameter` remain valid on **paragraph** and **equation** nodes — not on workflow nodes.
 
 ## 11. Fields consumed by runtime components
 
@@ -153,6 +175,8 @@ Checks:
 - Hardcoding parameter gather lists in Python instead of graph expansion.
 - Omitting `metadata.status`.
 - Duplicating `title` / `purpose` in frontmatter when they belong in the sidecar.
+- Authoring `starts_from_parameter` or `starts_from_paragraph` on workflow nodes instead of aligning `entry_points` with `goal_expansion.root_goal.target_parameter`.
+- Omitting `goal_expansion.root_goal.completion` or mismatching `entry_points.definition_anchor.parameter` with `target_parameter`.
 
 ## 14. Current repository examples
 

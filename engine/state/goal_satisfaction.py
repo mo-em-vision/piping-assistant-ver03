@@ -16,6 +16,11 @@ from models.task import Task
 
 def _param_key_from_ref(parameter: str) -> str:
     if parameter.startswith("PARAM-"):
+        from engine.reference.workflow_sidecar import _PARAM_TO_FIELD
+
+        mapped = _PARAM_TO_FIELD.get(parameter)
+        if mapped:
+            return mapped
         return parameter[len("PARAM-") :].replace("-", "_")
     return parameter
 

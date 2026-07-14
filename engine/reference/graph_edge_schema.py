@@ -221,7 +221,23 @@ def dimension_allowed_unit_ids(metadata: dict[str, Any]) -> list[str]:
 
 
 def workflow_anchor_target(metadata: dict[str, Any]) -> str | None:
-    """Return the primary section anchor referenced by a workflow node."""
+    """Return the primary anchor referenced by a workflow node.
+
+    Resolution order: ``entry_points`` definition_anchor first, then legacy edge
+    anchors (``starts_from_paragraph``, ``starts_from_parameter``, ``references``).
+    """
+    for entry in metadata.get("entry_points") or []:
+        if not isinstance(entry, dict):
+            continue
+        if str(entry.get("role") or "") != "definition_anchor":
+            continue
+        parameter = str(entry.get("parameter") or "").strip()
+        if parameter:
+            return parameter
+        paragraph = str(entry.get("paragraph") or "").strip()
+        if paragraph:
+            return paragraph
+
     anchor_types = ("starts_from_paragraph", "starts_from_parameter", "references")
     for item in iter_stored_edges(metadata):
         edge_type = str(item.get("type") or "")
@@ -234,17 +250,6 @@ def workflow_anchor_target(metadata: dict[str, Any]) -> str | None:
         target = edge_target(item)
         if target:
             return target
-    for entry in metadata.get("entry_points") or []:
-        if not isinstance(entry, dict):
-            continue
-        if str(entry.get("role") or "") != "definition_anchor":
-            continue
-        parameter = str(entry.get("parameter") or "").strip()
-        if parameter:
-            return parameter
-        paragraph = str(entry.get("paragraph") or "").strip()
-        if paragraph:
-            return paragraph
     return None
 
 
