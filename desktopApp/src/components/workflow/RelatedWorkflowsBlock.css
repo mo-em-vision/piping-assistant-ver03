@@ -1,0 +1,17 @@
+.related-workflows-block {
+  flex-shrink: 0;
+  padding: 0.85rem 1.25rem 0;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.related-workflows-block .output-next-workflows__list {
+  gap: 0.5rem;
+}
+
+.related-workflows-block .output-next-workflows__line,
+.related-workflows-block .output-next-workflows__line-button {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #1e293b;
+}

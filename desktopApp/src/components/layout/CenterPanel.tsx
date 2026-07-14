@@ -5,8 +5,8 @@ import { ErrorBanner } from '@/components/errors/ErrorBanner'
 import { SidePanelContextMenu } from '@/components/layout/SidePanelContextMenu'
 import { TaskErrorList } from '@/components/errors/TaskErrorList'
 import { getWorkflowAsk } from '@/components/workflow/buildWorkflowHistory'
-import { buildCenterPanelTranscript } from '@/utils/buildCenterPanelTranscript'
-import { TaskCompletionNextSteps } from '@/components/workflow/TaskCompletionNextSteps'
+import { buildCenterPanelTranscriptParts } from '@/utils/buildCenterPanelTranscript'
+import { CenterPanelCompletionFooter } from '@/components/workflow/CenterPanelCompletionFooter'
 import { WorkflowComposer } from '@/components/workflow/WorkflowComposer'
 import { WorkflowHeader } from '@/components/workflow/WorkflowHeader'
 import { WorkflowHistory } from '@/components/workflow/WorkflowHistory'
@@ -44,11 +44,11 @@ export function CenterPanel() {
     return getWorkflowAsk(activeTaskState, viewModel?.timeline ?? [])
   }, [activeTaskState, viewModel?.timeline])
 
-  const historyItems = useMemo(() => {
+  const { historyItems, relatedWorkflowsBlock } = useMemo(() => {
     if (!viewModel) {
-      return []
+      return { historyItems: [], relatedWorkflowsBlock: null }
     }
-    return buildCenterPanelTranscript(
+    return buildCenterPanelTranscriptParts(
       activeTaskState?.display_outputs ?? [],
       activeTaskState?.flow_guidance?.transcript_blocks ?? [],
       activeTaskState?.workflow_id,
@@ -144,7 +144,10 @@ export function CenterPanel() {
         )}
 
         {showCompletionNextSteps ? (
-          <TaskCompletionNextSteps taskId={activeTask.id} />
+          <CenterPanelCompletionFooter
+            taskId={activeTask.id}
+            relatedWorkflowsBlock={relatedWorkflowsBlock}
+          />
         ) : (
           <WorkflowComposer
             ask={workflowAsk}

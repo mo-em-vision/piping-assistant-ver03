@@ -1,4 +1,4 @@
-import type { DisplayOutputBlock } from '@/types/backend/outputs'
+import type { DisplayOutputBlock, NextWorkflowsOutputBlock } from '@/types/backend/outputs'
 import { filterRegisteredCenterPanelBlocks } from '@/utils/centerPanelBlockRegistry'
 import {
   guidanceTranscriptToDisplayBlocks,
@@ -9,6 +9,11 @@ import { isVolatileDisplayBlock } from '@/utils/displayBlockLifecycle'
 import { blockDisplayRole, reportRoleIndex, REPORT_ROLE_ORDER } from '@/utils/displayRole'
 
 import type { WorkflowHistoryItem } from '@/components/workflow/buildWorkflowHistory'
+
+export type CenterPanelTranscriptParts = {
+  historyItems: WorkflowHistoryItem[]
+  relatedWorkflowsBlock: NextWorkflowsOutputBlock | null
+}
 
 function dedupeByBlockId(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
   const winners = new Map<string, DisplayOutputBlock>()
@@ -53,15 +58,31 @@ function isUserVisibleBlock(block: DisplayOutputBlock): boolean {
   return true
 }
 
+function isNextWorkflowsBlock(block: DisplayOutputBlock): block is NextWorkflowsOutputBlock {
+  return block.type === 'next_workflows' || blockDisplayRole(block) === 'next_workflows'
+}
+
+function pickRelatedWorkflowsBlock(
+  blocks: DisplayOutputBlock[],
+): NextWorkflowsOutputBlock | null {
+  for (let index = blocks.length - 1; index >= 0; index -= 1) {
+    const block = blocks[index]
+    if (isNextWorkflowsBlock(block)) {
+      return block
+    }
+  }
+  return null
+}
+
 /**
  * Merge durable flow_guidance.transcript_blocks with engineering display_outputs.
- * Blocks are ordered by the shared REPORT_ROLE_ORDER contract.
+ * Related workflow suggestions are returned separately for the bottom footer.
  */
-export function buildCenterPanelTranscript(
+export function buildCenterPanelTranscriptParts(
   displayOutputs: DisplayOutputBlock[],
   transcriptBlocks: FlowGuidancePresentationBlock[] | unknown[],
   workflowId?: string | null,
-): WorkflowHistoryItem[] {
+): CenterPanelTranscriptParts {
   void workflowId
   const allGuidance = filterRegisteredCenterPanelBlocks(
     guidanceTranscriptToDisplayBlocks(transcriptBlocks),
@@ -84,12 +105,29 @@ export function buildCenterPanelTranscript(
   )
 
   const merged = sortByReportRole(dedupeByBlockId([...allGuidance, ...engineering]))
+  const relatedWorkflowsBlock = pickRelatedWorkflowsBlock(merged)
+  const scrollBlocks = merged.filter((block) => !isNextWorkflowsBlock(block))
 
-  return merged.map((block) => ({
-    id: `output-${block.id}`,
-    kind: 'output' as const,
-    block,
-  }))
+  return {
+    historyItems: scrollBlocks.map((block) => ({
+      id: `output-${block.id}`,
+      kind: 'output' as const,
+      block,
+    })),
+    relatedWorkflowsBlock,
+  }
+}
+
+/**
+ * Merge durable flow_guidance.transcript_blocks with engineering display_outputs.
+ * Blocks are ordered by the shared REPORT_ROLE_ORDER contract.
+ */
+export function buildCenterPanelTranscript(
+  displayOutputs: DisplayOutputBlock[],
+  transcriptBlocks: FlowGuidancePresentationBlock[] | unknown[],
+  workflowId?: string | null,
+): WorkflowHistoryItem[] {
+  return buildCenterPanelTranscriptParts(displayOutputs, transcriptBlocks, workflowId).historyItems
 }
 
 export { REPORT_ROLE_ORDER } from '@/utils/displayRole'

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 
 import { REPORT_ROLE_ORDER } from '@/utils/centerPanelContract'
-import { buildCenterPanelTranscript } from '@/utils/buildCenterPanelTranscript'
+import { buildCenterPanelTranscriptParts } from '@/utils/buildCenterPanelTranscript'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const sharedContractPath = resolve(here, '../../../contracts/center_panel_report_role_order.json')
@@ -15,8 +15,8 @@ describe('centerPanelContract sync', () => {
     expect([...REPORT_ROLE_ORDER]).toEqual(payload)
   })
 
-  it('orders next_workflows after result summary in center panel merge', () => {
-    const items = buildCenterPanelTranscript(
+  it('keeps scroll history ordered while parking next_workflows in the footer slot', () => {
+    const parts = buildCenterPanelTranscriptParts(
       [],
       [
         {
@@ -43,13 +43,18 @@ describe('centerPanelContract sync', () => {
       'pipe_wall_thickness_design',
     )
 
-    const roles = items.map((item) => item.block.display_role)
-    expect(roles.indexOf('result_summary')).toBeLessThan(roles.indexOf('next_workflows'))
-    expect(roles).toEqual([...roles].sort((left, right) => {
-      const leftIndex = REPORT_ROLE_ORDER.indexOf(left ?? '')
-      const rightIndex = REPORT_ROLE_ORDER.indexOf(right ?? '')
-      return (leftIndex === -1 ? REPORT_ROLE_ORDER.length : leftIndex)
-        - (rightIndex === -1 ? REPORT_ROLE_ORDER.length : rightIndex)
-    }))
+    const roles = parts.historyItems.map((item) => item.block.display_role)
+    expect(roles).toEqual(['result_summary'])
+    expect(parts.relatedWorkflowsBlock?.display_role).toBe('next_workflows')
+    expect(roles).toEqual(
+      [...roles].sort((left, right) => {
+        const leftIndex = REPORT_ROLE_ORDER.indexOf(left ?? '')
+        const rightIndex = REPORT_ROLE_ORDER.indexOf(right ?? '')
+        return (
+          (leftIndex === -1 ? REPORT_ROLE_ORDER.length : leftIndex) -
+          (rightIndex === -1 ? REPORT_ROLE_ORDER.length : rightIndex)
+        )
+      }),
+    )
   })
 })

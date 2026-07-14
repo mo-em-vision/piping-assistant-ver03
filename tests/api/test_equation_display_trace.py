@@ -108,6 +108,12 @@ def test_completed_state_emits_equation_display_trace_for_eq_3a(standards_reader
     assert trace.result.symbol == "t"
     if trace.substituted_latex and trace.result_latex:
         assert trace.result_latex not in trace.substituted_latex
+    substituted = trace.substituted_latex or ""
+    assert "PD" not in substituted
+    assert "PY" not in substituted
+    for symbol in ("P", "D", "Y"):
+        input_row = next(item for item in trace.inputs if item.symbol == symbol)
+        assert input_row.display_value in substituted
 
 
 def test_eq_3a_trace_block_includes_substitution(standards_reader) -> None:
@@ -164,6 +170,72 @@ def test_lookup_coefficients_resolved_in_eq_3a_trace(standards_reader) -> None:
         assert symbol in by_symbol
         assert by_symbol[symbol].value is not None
         assert by_symbol[symbol].display_value
+
+
+def test_eq_3a_live_block_substitutes_filled_parameter_table_values(standards_reader) -> None:
+    from engine.state.fact_migration import fact_from_engineering_input
+    from models.input import EngineeringInput, InputSource, InputStatus
+
+    manager = TaskStateManager()
+    task = manager.create_task("eq-display-trace-3a-live-sub", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "path_decision": {"selected_node": "304.1.2-a"},
+        "current_phase": "formula_parameters",
+    }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+
+    for input_id, value, unit in [
+        ("internal_design_gage_pressure", 3_447_378.0, "Pa"),
+        ("outside_diameter", 254.0, "mm"),
+    ]:
+        manager.store_fact(
+            task.task_id,
+            fact_from_engineering_input(
+                EngineeringInput(
+                    input_id=input_id,
+                    value=value,
+                    unit=unit,
+                    source=InputSource.USER,
+                    status=InputStatus.CONFIRMED,
+                ),
+                task_id=task.task_id,
+                workflow_id="pipe_wall_thickness_design",
+            ),
+        )
+
+    task.outputs.update(
+        {
+            "allowable_stress": 193_000_000.0,
+            "S": 193_000_000.0,
+            "basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes": 1.0,
+            "E_j": 1.0,
+            "weld_joint_strength_reduction_factor_W": 1.0,
+            "W": 1.0,
+            "temperature_coefficient_Y": 0.4,
+            "Y": 0.4,
+        }
+    )
+    task = manager.get_task(task.task_id)
+
+    block = build_equation_trace_block(task, standards_reader, "304.1.2-a")
+    assert block is not None
+    rows = {
+        str(row.get("symbol")): row
+        for row in (block.get("input_table") or {}).get("rows") or []
+    }
+    for symbol in ("P", "D", "Y"):
+        assert rows[symbol].get("value")
+        assert "Awaiting user input" not in str(rows[symbol].get("value"))
+
+    payload = block.get("equation_display_trace")
+    assert isinstance(payload, dict)
+    substituted = str(payload.get("substituted_latex") or "")
+    assert substituted
+    assert "PD" not in substituted
+    assert "PY" not in substituted
+    for symbol in ("P", "D", "Y"):
+        input_row = next(item for item in payload.get("inputs") or [] if item.get("symbol") == symbol)
+        assert input_row.get("display_value") in substituted
 
 
 def test_blocked_trace_before_evaluation_has_no_substitution(standards_reader) -> None:

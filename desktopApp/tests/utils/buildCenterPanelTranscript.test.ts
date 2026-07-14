@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildCenterPanelTranscript } from '@/utils/buildCenterPanelTranscript'
+import { buildCenterPanelTranscript, buildCenterPanelTranscriptParts } from '@/utils/buildCenterPanelTranscript'
 import {
   assertUserVisibleText,
   guidanceTranscriptToDisplayBlocks,
@@ -220,7 +220,7 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
 })
 
 describe('buildCenterPanelTranscript', () => {
-  it('orders next_workflows after result summary in center panel merge', () => {
+  it('extracts next_workflows for the bottom footer instead of scroll history', () => {
     const displayOutputs: DisplayOutputBlock[] = []
     const transcript = [
       {
@@ -238,7 +238,7 @@ describe('buildCenterPanelTranscript', () => {
         suggestions: [
           {
             workflow_id: 'mawp_design',
-            title: 'MAWP Design',
+            title: 'Maximum Allowable Working Pressure (MAWP)',
             available: true,
             action: { type: 'start_workflow', workflow_id: 'mawp_design' },
           },
@@ -246,9 +246,24 @@ describe('buildCenterPanelTranscript', () => {
       },
     ]
 
-    const items = buildCenterPanelTranscript(displayOutputs, transcript, 'pipe_wall_thickness_design')
-    expect(items.at(-1)?.block.id).toBe('next-workflows-task-1-pipe_wall_thickness_design')
-    expect(items.at(-1)?.block.display_role).toBe('next_workflows')
+    const parts = buildCenterPanelTranscriptParts(
+      displayOutputs,
+      transcript,
+      'pipe_wall_thickness_design',
+    )
+    const items = buildCenterPanelTranscript(
+      displayOutputs,
+      transcript,
+      'pipe_wall_thickness_design',
+    )
+
+    expect(items).toHaveLength(1)
+    expect(items[0]?.block.display_role).toBe('result_summary')
+    expect(items.some((item) => item.block.display_role === 'next_workflows')).toBe(false)
+    expect(parts.relatedWorkflowsBlock?.id).toBe('next-workflows-task-1-pipe_wall_thickness_design')
+    expect(parts.relatedWorkflowsBlock?.suggestions[0]?.title).toBe(
+      'Maximum Allowable Working Pressure (MAWP)',
+    )
   })
 
   it('converts next_workflows transcript blocks for scroll rendering', () => {

@@ -1,0 +1,14 @@
+.center-panel-completion-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.center-panel-completion-footer .completion-next-steps {
+  border-top: none;
+}
+
+.center-panel-completion-footer .related-workflows-block + .completion-next-steps {
+  padding-top: 0.65rem;
+}

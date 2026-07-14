@@ -5,7 +5,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
 import { OutputRenderer } from '@/components/outputs/OutputRenderer'
-import { buildCenterPanelTranscript } from '@/utils/buildCenterPanelTranscript'
+import { buildCenterPanelTranscript, buildCenterPanelTranscriptParts } from '@/utils/buildCenterPanelTranscript'
 import { guidanceTranscriptToDisplayBlocks } from '@/utils/flowGuidanceTranscript'
 import {
   assertRegisteredCenterPanelBlockTypes,
@@ -161,7 +161,7 @@ describe('center panel rendered outputs', () => {
   })
 
   it('buildCenterPanelTranscript only exposes registered block types', () => {
-    const items = buildCenterPanelTranscript(
+    const parts = buildCenterPanelTranscriptParts(
       CENTER_PANEL_BLOCK_TYPES.map((blockType) => minimalBlock(blockType)),
       [
         {
@@ -176,11 +176,18 @@ describe('center panel rendered outputs', () => {
           source: 'workflow_runtime',
           title: 'Suggested next workflows',
           text: 'You may continue with:',
-          suggestions: [],
+          suggestions: [
+            {
+              workflow_id: 'mawp_design',
+              title: 'MAWP Design',
+              available: false,
+            },
+          ],
         },
       ],
       'pipe_wall_thickness_design',
     )
+    const items = parts.historyItems
 
     assertRegisteredCenterPanelBlockTypes(
       items.map((item) => item.block),
@@ -188,7 +195,8 @@ describe('center panel rendered outputs', () => {
     )
     expect(items.some((item) => item.block.type === 'equation')).toBe(true)
     expect(items.some((item) => item.block.type === 'text')).toBe(true)
-    expect(items.some((item) => item.block.type === 'next_workflows')).toBe(true)
+    expect(items.some((item) => item.block.type === 'next_workflows')).toBe(false)
+    expect(parts.relatedWorkflowsBlock?.type).toBe('next_workflows')
   })
 
   it('maps result_summary transcript text to result_summary block type', () => {
