@@ -9,16 +9,11 @@ from engine.planner.workflow_goal_metadata import (
     workflow_display_title_from_node,
 )
 from engine.reference.standards_reader import StandardsReader
-from models.display_role import DisplayRole
 from models.presentation import PresentationBlock
-from models.task import Task, TaskStatus
+from models.task import Task
 
 from api.flow_guidance_transcript import normalize_workflow_slug
 from api.workflow_runtime_yaml import load_workflow_runtime_metadata
-
-_RUNTIME_ROLE_TO_DISPLAY = {
-    "result_explanation": "result_summary",
-}
 
 
 def workflow_title_block_id(workflow_id: str) -> str:
@@ -38,21 +33,6 @@ def result_summary_block_id(workflow_id: str) -> str:
     return f"result-summary-{normalize_workflow_slug(workflow_id)}"
 
 
-def load_runtime_text_entries(workflow_id: str) -> list[dict[str, Any]]:
-    """Load ``texts`` entries from workflow runtime metadata."""
-    runtime = load_workflow_runtime_metadata(workflow_id)
-    texts = runtime.get("texts") or []
-    return [item for item in texts if isinstance(item, dict)]
-
-
-def _format_runtime_text(entry: dict[str, Any]) -> str:
-    body = str(entry.get("text") or "").strip()
-    title = str(entry.get("title") or "").strip()
-    if title and body:
-        return f"{title}\n\n{body}"
-    return title or body
-
-
 def load_runtime_documentation_summary(workflow_id: str) -> str:
     """Load workflow completion summary from runtime documentation block."""
     runtime = load_workflow_runtime_metadata(workflow_id)
@@ -64,40 +44,13 @@ def load_runtime_documentation_summary(workflow_id: str) -> str:
     return ""
 
 
-def runtime_text_to_presentation_block(
-    entry: dict[str, Any],
-    workflow_id: str,
-) -> PresentationBlock | None:
-    role = str(entry.get("role") or "").strip()
-    display_role = _RUNTIME_ROLE_TO_DISPLAY.get(role)
-    if not display_role:
-        return None
-
-    text = _format_runtime_text(entry)
-    if not text:
-        return None
-
-    title = str(entry.get("title") or "").strip() or None
-    block_id = result_summary_block_id(workflow_id)
-
-    payload: dict[str, Any] = {
-        "display_role": display_role,
-        "runtime_text_id": str(entry.get("id") or "").strip() or None,
-    }
-    if title:
-        payload["title"] = title
-
-    return PresentationBlock(
-        block_id=block_id,
-        kind="text",
-        source="runtime",
-        text=text,
-        payload={key: value for key, value in payload.items() if value is not None},
+def is_legacy_runtime_result_summary_block(block: PresentationBlock) -> bool:
+    """True for deprecated transcript-only completion summaries."""
+    return (
+        block.block_id.startswith("result-summary-")
+        and block.kind == "text"
+        and block.source == "runtime"
     )
-
-
-def is_runtime_transcript_block(data: dict[str, Any]) -> bool:
-    return str(data.get("kind") or "") == "text" and str(data.get("source") or "") == "runtime"
 
 
 def is_workflow_node_transcript_block(data: dict[str, Any]) -> bool:
@@ -139,30 +92,3 @@ def workflow_node_transcript_blocks(
         )
 
     return tuple(blocks)
-
-
-def runtime_transcript_candidates(task: Task) -> tuple[PresentationBlock, ...]:
-    """Build durable runtime completion summary text blocks for the task transcript."""
-    workflow_id = str(task.outputs.get("workflow") or task.outputs.get("selected_root") or "").strip()
-    if not workflow_id:
-        return ()
-
-    if task.status != TaskStatus.COMPLETED:
-        return ()
-
-    summary = load_runtime_documentation_summary(workflow_id)
-    if not summary:
-        return ()
-
-    return (
-        PresentationBlock(
-            block_id=result_summary_block_id(workflow_id),
-            kind="text",
-            source="runtime",
-            text=summary,
-            payload={
-                "display_role": DisplayRole.result_summary.value,
-                "documentation_summary": summary,
-            },
-        ),
-    )

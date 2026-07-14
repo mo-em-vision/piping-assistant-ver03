@@ -17,7 +17,10 @@ from api.flow_guidance_transcript import (
     save_flow_guidance_transcript,
     transcript_is_frozen,
 )
-from api.flow_guidance_runtime_texts import runtime_transcript_candidates, workflow_node_transcript_blocks
+from api.flow_guidance_runtime_texts import (
+    is_legacy_runtime_result_summary_block,
+    workflow_node_transcript_blocks,
+)
 
 
 def _transcript_sync_enabled() -> bool:
@@ -53,21 +56,28 @@ def sync_flow_guidance_transcript(
     if not workflow_id:
         return task, False
 
-    stored = load_flow_guidance_transcript_blocks(task)
+    original_stored = load_flow_guidance_transcript_blocks(task)
+    stored = tuple(
+        block
+        for block in original_stored
+        if not is_legacy_runtime_result_summary_block(block)
+    )
+    stripped_legacy_summary = len(stored) != len(original_stored)
     guidance_blocks = _current_guidance_presentation_blocks(task, reader)
     normalized = tuple(
         presentation_block_to_canonical_guidance(block, workflow_id)
         for block in guidance_blocks
     )
-    runtime_blocks = runtime_transcript_candidates(task)
     workflow_blocks = workflow_node_transcript_blocks(task, reader)
-    candidates = normalized + workflow_blocks + runtime_blocks
+    candidates = normalized + workflow_blocks
 
     merged, changed = merge_guidance_into_transcript(
         stored,
         candidates,
         frozen=transcript_is_frozen(task),
     )
+    if stripped_legacy_summary:
+        changed = True
     if not changed:
         return task, False
 

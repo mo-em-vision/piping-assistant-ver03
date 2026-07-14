@@ -209,7 +209,14 @@ def test_completed_task_cross_phase_contract(
         for block in transcript
         if block.get("block_id", "").startswith("result-summary-")
     ]
-    assert len(results) == 1
+    assert len(results) == 0
+
+    display_results = [
+        block
+        for block in state.get("display_outputs") or []
+        if str(block.get("id") or "").startswith("result-summary-")
+    ]
+    assert len(display_results) == 0
 
     next_workflows = [block for block in transcript if block.get("kind") == "next_workflows"]
     assert len(next_workflows) == 1
