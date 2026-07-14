@@ -1,3 +1,6 @@
+import { useEffect, useRef, type RefObject } from 'react'
+
+import { useCenterPanelEquationFocus } from '@/components/layout/CenterPanelEquationFocusContext'
 import {
   DisplayMath,
   EngineeringMathText,
@@ -9,6 +12,7 @@ import { ReferenceChipList } from '@/components/outputs/ReferenceChipList'
 import { InlineCitationText } from '@/components/standards/InlineCitationText'
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 import { equationPresentationLines } from '@/utils/equationPresentationLines'
+import { findActiveEquationRowIndex } from '@/utils/equationActiveParameterRow'
 
 import type {
   EquationInputTableRowDto,
@@ -292,7 +296,11 @@ function renderInputTableRowCell(
   }
 }
 
-function renderInputTable(block: EquationOutputBlock) {
+function renderInputTable(
+  block: EquationOutputBlock,
+  activeRowIndex: number | null,
+  tableRef?: RefObject<HTMLDivElement | null>,
+) {
   if (!block.input_table) {
     return null
   }
@@ -300,7 +308,7 @@ function renderInputTable(block: EquationOutputBlock) {
   const sourceColumnPresent = hasSourceColumn(block.input_table.columns)
 
   return (
-    <div className="output-equation__input-table">
+    <div ref={tableRef} className="output-equation__input-table">
       <table className="output-table">
         <thead>
           <tr>
@@ -311,7 +319,12 @@ function renderInputTable(block: EquationOutputBlock) {
         </thead>
         <tbody>
           {block.input_table.rows.map((row, index) => (
-            <tr key={`${block.id}-input-row-${index}`}>
+            <tr
+              key={`${block.id}-input-row-${index}`}
+              className={
+                activeRowIndex === index ? 'output-equation__input-row--active' : undefined
+              }
+            >
               {block.input_table!.columns.map((column) => (
                 <td key={column.key}>
                   {renderInputTableRowCell(column, row, sourceColumnPresent)}
@@ -341,6 +354,7 @@ function renderMathLine(
   suffix: string,
   expression: string,
   equationNumber?: string | null,
+  lineRef?: RefObject<HTMLDivElement | null>,
 ) {
   const pinnedNumber =
     suffix === 'symbolic' ? String(equationNumber ?? '').trim() : ''
@@ -354,7 +368,11 @@ function renderMathLine(
 
   if (pinnedNumber) {
     return (
-      <div key={`${blockId}-${suffix}`} className="output-equation__math-row">
+      <div
+        key={`${blockId}-${suffix}`}
+        ref={lineRef}
+        className="output-equation__math-row"
+      >
         {math}
         <span className="output-equation__number">{formatEquationNumberLabel(pinnedNumber)}</span>
       </div>
@@ -362,15 +380,31 @@ function renderMathLine(
   }
 
   return (
-    <div key={`${blockId}-${suffix}`}>
+    <div key={`${blockId}-${suffix}`} ref={lineRef}>
       {math}
     </div>
   )
 }
 
 export function EquationOutput({ block }: EquationOutputProps) {
+  const { activeParameter } = useCenterPanelEquationFocus()
+  const substitutedLineRef = useRef<HTMLDivElement>(null)
+  const inputTableRef = useRef<HTMLDivElement>(null)
   const trace = block.equation_display_trace
   const presentation = equationPresentationLines(block)
+  const activeRowIndex = findActiveEquationRowIndex(block, activeParameter)
+  const activeParameterName = activeParameter?.name ?? null
+
+  useEffect(() => {
+    if (activeRowIndex == null || !activeParameterName) {
+      return
+    }
+
+    const scrollTarget = presentation.substituted
+      ? substitutedLineRef.current
+      : inputTableRef.current
+    scrollTarget?.scrollIntoView({ block: 'nearest' })
+  }, [activeParameterName, activeRowIndex, presentation.substituted])
   const rowReferenceKeys = new Set<string>()
   if (block.input_table?.rows) {
     for (const row of block.input_table.rows) {
@@ -383,7 +417,7 @@ export function EquationOutput({ block }: EquationOutputProps) {
     (chip) => !rowReferenceKeys.has(chipKey(chip)),
   )
 
-  const inputTable = renderInputTable(block)
+  const inputTable = renderInputTable(block, activeRowIndex, inputTableRef)
   const legacyVariables =
     !block.input_table && block.variables && block.variables.length > 0 ? (
       <dl className="output-equation__variables">
@@ -418,7 +452,13 @@ export function EquationOutput({ block }: EquationOutputProps) {
         ? renderMathLine(block.id, 'symbolic', presentation.symbolic, block.equation_number)
         : null}
       {presentation.substituted
-        ? renderMathLine(block.id, 'substituted', presentation.substituted)
+        ? renderMathLine(
+            block.id,
+            'substituted',
+            presentation.substituted,
+            undefined,
+            substitutedLineRef,
+          )
         : null}
       {presentation.result ? renderMathLine(block.id, 'result', presentation.result) : null}
       {inputTable}

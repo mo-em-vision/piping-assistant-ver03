@@ -3,6 +3,7 @@ import { useMemo, useRef, useState, type MouseEvent } from 'react'
 import { ChatPanel } from '@/components/chat/ChatPanel'
 import { ErrorBanner } from '@/components/errors/ErrorBanner'
 import { SidePanelContextMenu } from '@/components/layout/SidePanelContextMenu'
+import { CenterPanelEquationFocusProvider } from '@/components/layout/CenterPanelEquationFocusContext'
 import { TaskErrorList } from '@/components/errors/TaskErrorList'
 import { getWorkflowAsk } from '@/components/workflow/buildWorkflowHistory'
 import { buildCenterPanelTranscriptParts } from '@/utils/buildCenterPanelTranscript'
@@ -134,27 +135,31 @@ export function CenterPanel() {
           void deleteTask(activeTask.id)
         }}
       />
-      <div className="workflow-panel">
-        {viewModel ? (
-          <WorkflowHistory items={historyItems} />
-        ) : (
-          <div className="workflow-panel__history">
-            <p className="workflow-panel__empty">Loading task state from backend…</p>
-          </div>
-        )}
+      <CenterPanelEquationFocusProvider
+        activeParameter={workflowAsk.kind === 'input' ? workflowAsk.parameter : null}
+      >
+        <div className="workflow-panel">
+          {viewModel ? (
+            <WorkflowHistory items={historyItems} />
+          ) : (
+            <div className="workflow-panel__history">
+              <p className="workflow-panel__empty">Loading task state from backend…</p>
+            </div>
+          )}
 
-        {showCompletionNextSteps ? (
-          <CenterPanelCompletionFooter
-            taskId={activeTask.id}
-            relatedWorkflowsBlock={relatedWorkflowsBlock}
-          />
-        ) : (
-          <WorkflowComposer
-            ask={workflowAsk}
-            disabled={!viewModel || (loading && !activeTaskState)}
-          />
-        )}
-      </div>
+          {showCompletionNextSteps ? (
+            <CenterPanelCompletionFooter
+              taskId={activeTask.id}
+              relatedWorkflowsBlock={relatedWorkflowsBlock}
+            />
+          ) : (
+            <WorkflowComposer
+              ask={workflowAsk}
+              disabled={!viewModel || (loading && !activeTaskState)}
+            />
+          )}
+        </div>
+      </CenterPanelEquationFocusProvider>
 
       {askAiMenu ? (
         <SidePanelContextMenu

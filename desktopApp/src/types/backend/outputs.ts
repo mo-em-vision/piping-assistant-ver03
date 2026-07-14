@@ -114,6 +114,7 @@ export interface EquationResultDto {
 
 export interface EquationInputTableRowDto {
   symbol?: string
+  parameter_id?: string | null
   parameter?: string
   description?: string
   definition?: string

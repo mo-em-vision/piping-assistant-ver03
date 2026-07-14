@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { StandardReferenceLink } from '@/components/standards/StandardReferenceLink'
 import { WorkflowComposer } from '@/components/workflow/WorkflowComposer'
@@ -45,6 +45,46 @@ describe('StandardReferenceLink', () => {
 })
 
 describe('WorkflowHistory', () => {
+  it('does not auto-scroll when items are appended or updated', () => {
+    const scrollIntoView = vi.fn()
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(scrollIntoView)
+
+    const equationItem: WorkflowHistoryItem = {
+      id: 'output-preview-equation',
+      kind: 'output',
+      block: {
+        id: 'preview-equation',
+        type: 'equation',
+        title: 'Governing equation',
+        content: 't = PD / 2(SEW + PY)',
+        display: 't = PD / 2(SEW + PY)',
+      },
+    }
+
+    const { rerender } = render(<WorkflowHistory items={[equationItem]} />)
+    scrollIntoView.mockClear()
+
+    rerender(
+      <WorkflowHistory
+        items={[
+          equationItem,
+          {
+            id: 'output-planning-status',
+            kind: 'output',
+            block: {
+              id: 'planning-status',
+              type: 'text',
+              title: 'Task status:',
+              content: 'Complete the fields below to continue.',
+            },
+          },
+        ]}
+      />,
+    )
+
+    expect(scrollIntoView).not.toHaveBeenCalled()
+  })
+
   it('renders assumptions and equation content without chat labels', () => {
     render(
       <WorkflowHistory

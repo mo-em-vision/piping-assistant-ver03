@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
+import { CenterPanelEquationFocusProvider } from '@/components/layout/CenterPanelEquationFocusContext'
 import { EquationOutput } from '@/components/outputs/EquationOutput'
 import { TableOutput } from '@/components/outputs/TableOutput'
 import { useRightPanelStore } from '@/store/rightPanelStore'
@@ -718,6 +719,210 @@ describe('EquationOutput', () => {
     expect(getByText('Internal Design Gage Pressure')).toBeTruthy()
     expect(getByText('Internal design gage pressure per design conditions')).toBeTruthy()
     expect(getByText('User input')).toBeTruthy()
+  })
+
+  it('highlights the active parameter row and scrolls to the substituted line', () => {
+    const scrollIntoView = vi.fn()
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(scrollIntoView)
+
+    const { container, rerender } = render(
+      <CenterPanelEquationFocusProvider
+        activeParameter={{
+          name: 'internal_design_gage_pressure',
+          label: 'Internal Design Gage Pressure',
+          type: 'number',
+          required: true,
+          units: ['bar'],
+          default_unit: 'bar',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          provenance: {
+            node_id: 'PARAM-P',
+            hover_excerpt: 'Pressure',
+          },
+        }}
+      >
+        <EquationOutput
+          block={{
+            id: 'eq-focus',
+            type: 'equation',
+            display_state: 'preview',
+            input_table: {
+              columns: [
+                { key: 'symbol', label: 'Symbol', sortable: false },
+                { key: 'parameter', label: 'Parameter', sortable: false },
+                { key: 'value', label: 'Value', sortable: false },
+              ],
+              rows: [
+                {
+                  symbol: 'P',
+                  parameter_id: 'PARAM-P',
+                  parameter: 'Internal Design Gage Pressure',
+                  value: 'Awaiting user input',
+                },
+                {
+                  symbol: 'D',
+                  parameter_id: 'PARAM-D',
+                  parameter: 'Outside Diameter',
+                  value: '114.3',
+                },
+              ],
+            },
+            equation_display_trace: {
+              equation_id: 'eq-3a',
+              node_id: '304.1.2-a',
+              symbolic_latex: 't = \\frac{PD}{2(SEW + PY)}',
+              substituted_latex: 't = \\frac{8D}{2(SEW + PY)}',
+              status: 'blocked',
+              inputs: [
+                { symbol: 'P', parameter_id: 'PARAM-P', label: 'Pressure' },
+                { symbol: 'D', parameter_id: 'PARAM-D', label: 'Diameter' },
+              ],
+              intermediate_values: [],
+              result: null,
+              latex_source: 'metadata_display_latex',
+            },
+          }}
+        />
+      </CenterPanelEquationFocusProvider>,
+    )
+
+    const activeRows = container.querySelectorAll('.output-equation__input-row--active')
+    expect(activeRows.length).toBe(1)
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
+    expect(container.querySelector('.output-equation__math--substituted')).toBeTruthy()
+
+    scrollIntoView.mockClear()
+    rerender(
+      <CenterPanelEquationFocusProvider
+        activeParameter={{
+          name: 'outside_diameter',
+          label: 'Outside Diameter',
+          type: 'number',
+          required: true,
+          units: ['mm'],
+          default_unit: 'mm',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          provenance: {
+            node_id: 'PARAM-D',
+            hover_excerpt: 'Diameter',
+          },
+        }}
+      >
+        <EquationOutput
+          block={{
+            id: 'eq-focus',
+            type: 'equation',
+            display_state: 'preview',
+            input_table: {
+              columns: [
+                { key: 'symbol', label: 'Symbol', sortable: false },
+                { key: 'parameter', label: 'Parameter', sortable: false },
+                { key: 'value', label: 'Value', sortable: false },
+              ],
+              rows: [
+                {
+                  symbol: 'P',
+                  parameter_id: 'PARAM-P',
+                  parameter: 'Internal Design Gage Pressure',
+                  value: '8',
+                },
+                {
+                  symbol: 'D',
+                  parameter_id: 'PARAM-D',
+                  parameter: 'Outside Diameter',
+                  value: 'Awaiting user input',
+                },
+              ],
+            },
+            equation_display_trace: {
+              equation_id: 'eq-3a',
+              node_id: '304.1.2-a',
+              symbolic_latex: 't = \\frac{PD}{2(SEW + PY)}',
+              substituted_latex: 't = \\frac{8D}{2(SEW + PY)}',
+              status: 'blocked',
+              inputs: [
+                { symbol: 'P', parameter_id: 'PARAM-P', label: 'Pressure' },
+                { symbol: 'D', parameter_id: 'PARAM-D', label: 'Diameter' },
+              ],
+              intermediate_values: [],
+              result: null,
+              latex_source: 'metadata_display_latex',
+            },
+          }}
+        />
+      </CenterPanelEquationFocusProvider>,
+    )
+
+    const nextActiveRows = container.querySelectorAll('.output-equation__input-row--active')
+    expect(nextActiveRows.length).toBe(1)
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
+  })
+
+  it('falls back to input table scroll when substituted line is absent', () => {
+    const scrollIntoView = vi.fn()
+    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(scrollIntoView)
+
+    const { container } = render(
+      <CenterPanelEquationFocusProvider
+        activeParameter={{
+          name: 'internal_design_gage_pressure',
+          label: 'Internal Design Gage Pressure',
+          type: 'number',
+          required: true,
+          units: ['bar'],
+          default_unit: 'bar',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          provenance: {
+            node_id: 'PARAM-P',
+            hover_excerpt: 'Pressure',
+          },
+        }}
+      >
+        <EquationOutput
+          block={{
+            id: 'eq-focus-fallback',
+            type: 'equation',
+            display_state: 'preview',
+            input_table: {
+              columns: [
+                { key: 'symbol', label: 'Symbol', sortable: false },
+                { key: 'value', label: 'Value', sortable: false },
+              ],
+              rows: [{ symbol: 'P', parameter_id: 'PARAM-P', value: 'Awaiting user input' }],
+            },
+            equation_display_trace: {
+              equation_id: 'eq-3a',
+              node_id: '304.1.2-a',
+              symbolic_latex: 't = \\frac{PD}{2(SEW + PY)}',
+              status: 'blocked',
+              inputs: [{ symbol: 'P', parameter_id: 'PARAM-P', label: 'Pressure' }],
+              intermediate_values: [],
+              result: null,
+              latex_source: 'metadata_display_latex',
+            },
+          }}
+        />
+      </CenterPanelEquationFocusProvider>,
+    )
+
+    expect(container.querySelector('.output-equation__math--substituted')).toBeNull()
+    expect(container.querySelector('.output-equation__input-table')).toBeTruthy()
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' })
   })
 })
 
