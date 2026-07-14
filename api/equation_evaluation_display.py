@@ -251,6 +251,7 @@ def _live_equation_display_trace(
     bindings = resolve_require_bindings(store, equation_metadata.get("requires"))
     symbol_values: dict[str, float] = {}
     facts = task.fact_store.active_facts()
+    deps = dict(task.outputs)
     for binding in bindings:
         input_id = _param_input_id(reader, binding.param_id)
         value = None
@@ -262,13 +263,20 @@ def _live_equation_display_trace(
                 except (TypeError, ValueError):
                     value = None
             if value is None:
-                output_value = task.outputs.get(input_id)
+                output_value = deps.get(input_id)
                 if output_value is None:
-                    output_value = task.outputs.get(binding.sympy_symbol)
+                    output_value = deps.get(binding.sympy_symbol)
                 if isinstance(output_value, (int, float)):
                     value = float(output_value)
         if value is not None:
             symbol_values[binding.sympy_symbol] = value
+
+    output_symbol = _output_symbol_from_metadata(equation_metadata)
+    if output_symbol:
+        for key in (output_symbol,):
+            raw_output = deps.get(key)
+            if isinstance(raw_output, (int, float)):
+                symbol_values.setdefault(output_symbol, float(raw_output))
 
     return build_equation_display_trace(
         reader=reader,
@@ -277,9 +285,19 @@ def _live_equation_display_trace(
         symbol_values=symbol_values,
         source_node_id=source_node_id,
         task_inputs=facts,
-        dependency_outputs=dict(task.outputs),
+        dependency_outputs=deps,
         task=task,
     )
+
+
+def _output_symbol_from_metadata(metadata: dict[str, Any]) -> str:
+    calculates = metadata.get("calculates") or []
+    for item in calculates:
+        if isinstance(item, dict):
+            symbol = str(item.get("symbol") or "").strip()
+            if symbol:
+                return symbol
+    return ""
 
 
 def build_equation_trace_block(
@@ -326,20 +344,12 @@ def equation_display_blocks_for_task(
     *,
     paragraph_node_ids: set[str] | frozenset[str] | None = None,
 ) -> list[dict[str, Any]]:
-    """Emit evaluated trace equations plus the current focus equation."""
-    entries: dict[str, str] = {}
-    for item in _all_equation_trace_entries(task):
-        entries[item["equation_node_id"]] = item["source_node_id"]
-
-    focus_node = resolve_focus_node_for_equation_display(task, planning, reader)
-    if focus_node:
-        equation_id = resolve_equation_node_for_display(reader, focus_node, task)
-        if equation_id:
-            entries[equation_id] = focus_node
+    """Emit tracked equations (registry) plus evaluated traces and current focus."""
+    from api.equation_display_registry import discover_equation_display_entries
 
     paragraph_ids = set(paragraph_node_ids or ())
     blocks: list[dict[str, Any]] = []
-    for equation_id, source_node_id in entries.items():
+    for equation_id, source_node_id in discover_equation_display_entries(task, reader, planning):
         attach_context = source_node_id not in paragraph_ids
         block = build_equation_evaluation_block(
             task,

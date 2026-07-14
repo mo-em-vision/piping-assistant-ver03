@@ -73,6 +73,7 @@
 
 .output-equation__math-row .output-equation__math {
   margin: 0;
+  width: calc(100% - 3rem);
   max-width: calc(100% - 3rem);
 }
 
@@ -88,11 +89,26 @@
 }
 
 .output-equation__math {
-  overflow-x: auto;
-  padding: 0.5rem 0;
-  width: fit-content;
+  box-sizing: border-box;
+  width: 100%;
   max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.5rem 0;
   margin: 0 auto;
+  text-align: center;
+  scrollbar-width: thin;
+}
+
+.output-equation__math .katex-display {
+  margin: 0.25rem 0;
+  overflow-x: visible;
+  overflow-y: hidden;
+}
+
+.output-equation__math .katex-display > .katex {
+  display: inline-block;
+  text-align: center;
 }
 
 .output-equation__display {

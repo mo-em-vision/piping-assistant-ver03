@@ -7,6 +7,55 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // #region agent log
+      window.addEventListener('error', function (event) {
+        fetch('http://127.0.0.1:7445/ingest/50b71ef1-acb8-48e4-9a72-8a7cf07970d2', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'ed32ea' },
+          body: JSON.stringify({
+            sessionId: 'ed32ea',
+            location: 'index.html:window.error',
+            message: 'Uncaught window error before/during module load',
+            data: {
+              message: event.message,
+              filename: event.filename,
+              lineno: event.lineno,
+              colno: event.colno,
+            },
+            timestamp: Date.now(),
+            hypothesisId: 'A',
+          }),
+        }).catch(function () {})
+      })
+      window.addEventListener('unhandledrejection', function (event) {
+        fetch('http://127.0.0.1:7445/ingest/50b71ef1-acb8-48e4-9a72-8a7cf07970d2', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'ed32ea' },
+          body: JSON.stringify({
+            sessionId: 'ed32ea',
+            location: 'index.html:unhandledrejection',
+            message: 'Unhandled promise rejection during startup',
+            data: { reason: String(event.reason) },
+            timestamp: Date.now(),
+            hypothesisId: 'A',
+          }),
+        }).catch(function () {})
+      })
+      fetch('http://127.0.0.1:7445/ingest/50b71ef1-acb8-48e4-9a72-8a7cf07970d2', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'ed32ea' },
+        body: JSON.stringify({
+          sessionId: 'ed32ea',
+          location: 'index.html:inline',
+          message: 'HTML shell loaded, about to import main.tsx',
+          data: { rootPresent: !!document.getElementById('root') },
+          timestamp: Date.now(),
+          hypothesisId: 'C',
+        }),
+      }).catch(function () {})
+      // #endregion
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

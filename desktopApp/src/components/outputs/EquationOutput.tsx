@@ -371,7 +371,6 @@ function renderMathLine(
 export function EquationOutput({ block }: EquationOutputProps) {
   const trace = block.equation_display_trace
   const presentation = equationPresentationLines(block)
-  const isEvaluated = trace?.status === 'evaluated'
   const rowReferenceKeys = new Set<string>()
   if (block.input_table?.rows) {
     for (const row of block.input_table.rows) {
@@ -385,6 +384,26 @@ export function EquationOutput({ block }: EquationOutputProps) {
   )
 
   const inputTable = renderInputTable(block)
+  const legacyVariables =
+    !block.input_table && block.variables && block.variables.length > 0 ? (
+      <dl className="output-equation__variables">
+        {block.variables.map((variable) => (
+          <div key={variable.symbol}>
+            <dt>
+              <InlineMath expression={variable.symbol} />
+            </dt>
+            <dd>
+              <EngineeringMathText text={variable.name} />
+            </dd>
+            <dd>
+              {variable.value != null
+                ? `${variable.value}${variable.unit ? ` ${variable.unit}` : ''}`
+                : ''}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    ) : null
 
   return (
     <article className="output-block output-equation">
@@ -398,31 +417,12 @@ export function EquationOutput({ block }: EquationOutputProps) {
       {presentation.symbolic
         ? renderMathLine(block.id, 'symbolic', presentation.symbolic, block.equation_number)
         : null}
-      {!isEvaluated ? inputTable : null}
-      {!isEvaluated && !block.input_table && block.variables && block.variables.length > 0 ? (
-        <dl className="output-equation__variables">
-          {block.variables.map((variable) => (
-            <div key={variable.symbol}>
-              <dt>
-                <InlineMath expression={variable.symbol} />
-              </dt>
-              <dd>
-                <EngineeringMathText text={variable.name} />
-              </dd>
-              <dd>
-                {variable.value != null
-                  ? `${variable.value}${variable.unit ? ` ${variable.unit}` : ''}`
-                  : ''}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
       {presentation.substituted
         ? renderMathLine(block.id, 'substituted', presentation.substituted)
         : null}
       {presentation.result ? renderMathLine(block.id, 'result', presentation.result) : null}
-      {isEvaluated ? inputTable : null}
+      {inputTable}
+      {legacyVariables}
       {!block.input_table && footerChips.length ? (
         <ReferenceChipList chips={footerChips} className="reference-chip-list--inline" />
       ) : null}

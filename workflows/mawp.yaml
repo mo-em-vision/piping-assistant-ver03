@@ -12,7 +12,7 @@ expected_authorities:
 - AUTH-ASME-B31.3
 - AUTH-ASME-B36.10M
 entry_points:
-- paragraph: 304.1.2-a
+- parameter: PARAM-maximum-allowable-working-pressure
   role: definition_anchor
 expected_parameters:
 - PARAM-straight-pipe-section
@@ -280,8 +280,8 @@ edges:
   target: asme-b313-table-304-1-1-1
 - type: may_use_lookup
   target: asme-b313-table-302-3-5-1
-- type: starts_from_paragraph
-  target: 304.1.2-a
+- type: starts_from_parameter
+  target: PARAM-maximum-allowable-working-pressure
 - type: may_use_equation
   target: asme-b313-pressure-design-thickness
 - type: may_use_equation

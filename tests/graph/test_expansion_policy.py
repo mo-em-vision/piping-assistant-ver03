@@ -260,6 +260,8 @@ def test_outside_diameter_path_selects_eq_3a_only(project_root: Path) -> None:
 
     assert "asme-b313-304-1-2-eq-3b" not in expansion.active_nodes
 
+    assert "asme-b313-mawp-pressure" not in expansion.active_nodes
+
 
 
 

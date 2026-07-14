@@ -490,6 +490,55 @@ describe('EquationOutput', () => {
     expect(container.textContent).toContain('7')
   })
 
+  it('renders partial substitution beneath symbolic and before the input table', () => {
+    const { container } = render(
+      <EquationOutput
+        block={{
+          id: 'eq-partial-sub',
+          type: 'equation',
+          content: 't_m = t + c',
+          display: 't_m = t + c',
+          equation_display_trace: {
+            equation_id: 'eq-2',
+            node_id: '304.1.1-a',
+            symbolic_latex: 't_m = t + c',
+            substituted_latex: 't_m = 2 + c',
+            result_latex: null,
+            latex_source: 'metadata_display_text',
+            status: 'blocked',
+            inputs: [],
+            intermediate_values: [],
+            result: null,
+          },
+          input_table: {
+            columns: [
+              { key: 'symbol', label: 'Symbol', sortable: false },
+              { key: 'definition', label: 'Definition', sortable: false },
+              { key: 'value', label: 'Value', sortable: false },
+            ],
+            rows: [
+              { symbol: 't', definition: 'Required thickness', value: '2' },
+              { symbol: 'c', definition: 'Corrosion allowance', value: 'Awaiting user input' },
+            ],
+          },
+        }}
+      />,
+    )
+
+    const symbolic = container.querySelector('.output-equation__math--symbolic')
+    const substituted = container.querySelector('.output-equation__math--substituted')
+    const table = container.querySelector('.output-equation__input-table')
+    expect(symbolic).toBeTruthy()
+    expect(substituted).toBeTruthy()
+    expect(table).toBeTruthy()
+    expect(
+      symbolic!.compareDocumentPosition(substituted!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(
+      substituted!.compareDocumentPosition(table!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
   it('renders symbolic and input table during blocked parameter collection', () => {
     const { container } = render(
       <EquationOutput

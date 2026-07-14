@@ -29,6 +29,18 @@ def test_workflow_anchor_target_from_entry_points() -> None:
     assert workflow_anchor_target(metadata) == "304.1.1-a"
 
 
+def test_workflow_anchor_target_from_parameter_entry_points() -> None:
+    metadata = {
+        "entry_points": [
+            {
+                "parameter": "PARAM-maximum-allowable-working-pressure",
+                "role": "definition_anchor",
+            },
+        ],
+    }
+    assert workflow_anchor_target(metadata) == "PARAM-maximum-allowable-working-pressure"
+
+
 def test_workflow_anchor_target_prefers_starts_from_paragraph_edge() -> None:
     metadata = {
         "entry_points": [
@@ -39,6 +51,16 @@ def test_workflow_anchor_target_prefers_starts_from_paragraph_edge() -> None:
         ],
     }
     assert workflow_anchor_target(metadata) == "304.1.2-a"
+
+
+def test_mawp_workflow_anchor_from_live_graph() -> None:
+    root = Path(__file__).resolve().parents[2]
+    reader = StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
+    store = reader.graph_store
+    store.load()
+    wf = store.get_node("WF-MAWP")
+    assert wf is not None
+    assert workflow_anchor_target(wf.metadata) == "PARAM-maximum-allowable-working-pressure"
 
 
 def test_pipe_wall_workflow_anchor_from_live_graph() -> None:

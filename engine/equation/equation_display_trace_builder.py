@@ -63,15 +63,50 @@ def _resolve_bindings(
     return _bindings_from_metadata(requires)
 
 
+def _output_symbols(
+    metadata: dict[str, Any],
+    calculation: CalculationResult | None,
+) -> frozenset[str]:
+    symbols: set[str] = set()
+    primary = _output_symbol(metadata, calculation)
+    if primary:
+        symbols.add(primary)
+    for item in metadata.get("calculates") or []:
+        if isinstance(item, dict):
+            symbol = str(item.get("symbol") or "").strip()
+            if symbol:
+                symbols.add(symbol)
+        elif item:
+            symbol = str(item).strip()
+            if symbol:
+                symbols.add(symbol)
+    return frozenset(symbols)
+
+
 def _symbols_for_substitution(
     symbolic_latex: str,
     bindings: list[RequireBinding],
     resolved_values: dict[str, float],
+    *,
+    exclude_symbols: frozenset[str] | None = None,
 ) -> list[str]:
-    ordered = [binding.sympy_symbol for binding in bindings]
-    extras = [symbol for symbol in resolved_values if symbol not in ordered]
+    excluded = exclude_symbols or frozenset()
+    ordered = [
+        binding.sympy_symbol
+        for binding in bindings
+        if binding.sympy_symbol and binding.sympy_symbol not in excluded
+    ]
+    extras = [
+        symbol
+        for symbol in resolved_values
+        if symbol not in ordered and symbol not in excluded
+    ]
     candidates = ordered + sorted(extras, key=len, reverse=True)
-    return [symbol for symbol in candidates if symbol in symbolic_latex or not symbolic_latex]
+    return [
+        symbol
+        for symbol in candidates
+        if symbol in symbolic_latex or not symbolic_latex
+    ]
 
 
 def resolve_symbolic_latex_from_metadata(
@@ -223,6 +258,61 @@ def _output_symbol(metadata: dict[str, Any], calculation: CalculationResult | No
     return ""
 
 
+def _resolve_output_value(
+    output_symbol: str,
+    *,
+    resolved_values: dict[str, float],
+    deps: dict[str, Any],
+    calculation: CalculationResult | None,
+) -> tuple[float | None, str]:
+    if calculation and calculation.final_result and calculation.final_result.value is not None:
+        return float(calculation.final_result.value), str(calculation.final_result.unit or "")
+
+    if output_symbol and output_symbol in resolved_values:
+        return float(resolved_values[output_symbol]), str(deps.get(f"{output_symbol}_unit") or "")
+
+    if output_symbol:
+        raw = deps.get(output_symbol)
+        if isinstance(raw, (int, float)):
+            return float(raw), str(deps.get(f"{output_symbol}_unit") or "")
+
+    return None, ""
+
+
+def _build_substituted_latex(
+    *,
+    symbolic_latex: str,
+    bindings: list[RequireBinding],
+    resolved_values: dict[str, float],
+    inputs: list[EquationDisplayInput],
+    exclude_symbols: frozenset[str] | None = None,
+) -> str | None:
+    excluded = exclude_symbols or frozenset()
+    substitutions: dict[str, str] = {}
+    substitution_symbols = _symbols_for_substitution(
+        symbolic_latex,
+        bindings,
+        resolved_values,
+        exclude_symbols=excluded,
+    )
+    for symbol in substitution_symbols:
+        if symbol in excluded:
+            continue
+        value = resolved_values.get(symbol)
+        if value is None:
+            continue
+        unit = next((item.unit for item in inputs if item.symbol == symbol), None)
+        substitutions[symbol] = format_substituted_term(value, unit)
+
+    if substitutions and symbolic_latex:
+        return format_substituted_equation(
+            symbolic_latex,
+            substitutions,
+            symbol_order=substitution_symbols,
+        )
+    return None
+
+
 def build_equation_display_trace(
     *,
     reader: StandardsReader,
@@ -246,6 +336,13 @@ def build_equation_display_trace(
     resolved_values = dict(symbol_values or {})
     deps = dependency_outputs or {}
     facts = task_inputs or {}
+
+    output_symbol_hint = _output_symbol(metadata, calculation)
+    if output_symbol_hint:
+        for key in (output_symbol_hint,):
+            raw = deps.get(key)
+            if isinstance(raw, (int, float)):
+                resolved_values.setdefault(output_symbol_hint, float(raw))
 
     store = reader.graph_store
     bindings = _resolve_bindings(store, metadata.get("requires"))
@@ -295,6 +392,7 @@ def build_equation_display_trace(
 
         display_value = None
         if value is not None:
+            resolved_values[symbol] = value
             display_value = format_quantity_latex(value, unit)
 
         item_required = True
@@ -331,20 +429,29 @@ def build_equation_display_trace(
         trace_status = "evaluated"
 
     output_symbol = _output_symbol(metadata, calculation)
+    output_symbols = _output_symbols(metadata, calculation)
     result_quantity: EquationDisplayQuantity | None = None
     result_latex: str | None = None
     substituted_latex: str | None = None
 
+    partial_substituted = _build_substituted_latex(
+        symbolic_latex=symbolic_latex,
+        bindings=bindings,
+        resolved_values=resolved_values,
+        inputs=inputs,
+        exclude_symbols=output_symbols,
+    )
+
     if trace_status == "evaluated":
-        final_value: float | None = None
-        final_unit = ""
-        if calculation and calculation.final_result and calculation.final_result.value is not None:
-            final_value = float(calculation.final_result.value)
-            final_unit = str(calculation.final_result.unit or "")
-            output_symbol = output_symbol or str(calculation.final_result.symbol)
-        elif output_symbol and output_symbol in resolved_values:
+        final_value, final_unit = _resolve_output_value(
+            output_symbol,
+            resolved_values=resolved_values,
+            deps=deps,
+            calculation=calculation,
+        )
+        if final_value is None and output_symbol and output_symbol in resolved_values:
             final_value = float(resolved_values[output_symbol])
-        elif resolved_values:
+        elif final_value is None and resolved_values:
             for key, val in resolved_values.items():
                 if key not in {item.symbol for item in inputs}:
                     final_value = float(val)
@@ -360,27 +467,15 @@ def build_equation_display_trace(
             )
             result_latex = format_quantity_latex(final_value, final_unit or None)
 
-        substitutions: dict[str, str] = {}
-        substitution_symbols = _symbols_for_substitution(symbolic_latex, bindings, resolved_values)
-        for symbol in substitution_symbols:
-            value = resolved_values.get(symbol)
-            if value is None:
-                continue
-            unit = next((item.unit for item in inputs if item.symbol == symbol), None)
-            substitutions[symbol] = format_substituted_term(value, unit)
-
-        if substitutions and symbolic_latex:
-            substituted_latex = format_substituted_equation(
-                symbolic_latex,
-                substitutions,
-                symbol_order=substitution_symbols,
-            )
+        substituted_latex = partial_substituted
 
         if render_steps is not None and render_steps.evaluated:
             evaluated = str(render_steps.evaluated).strip()
             if " = " in evaluated:
                 _, rhs = evaluated.split(" = ", 1)
                 result_latex = rhs.strip()
+    elif partial_substituted:
+        substituted_latex = partial_substituted
 
     return EquationDisplayTrace(
         equation_id=equation_id,

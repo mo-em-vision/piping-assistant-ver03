@@ -14,6 +14,7 @@ from engine.executor.functions import get_execution_function
 from engine.equation.sympy_evaluator import evaluate_equation
 from engine.executor.unit_manager import prepare_fact
 from engine.reference.standards_reader import StandardsReader
+from models.calculation import CalculationResult, CalculationStatus, QuantityResult
 from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready, fact_scalar_value
 from models.task import Task, TaskStatus
 
@@ -107,6 +108,15 @@ def try_complete_definition_equations(
                 task.outputs[key] = float(value)
                 task.outputs[f"{key}_unit"] = unit
             task.outputs.setdefault("_equation_substitution", result.substitution)
+            _record_definition_equation_trace(
+                task,
+                reader,
+                spec=spec,
+                variables=variables,
+                value=float(value),
+                unit=unit,
+                render_steps=result.render_steps,
+            )
             changed = True
             continue
         fn = get_execution_function(spec.function_name)
@@ -131,6 +141,15 @@ def try_complete_definition_equations(
         for key in spec.output_keys:
             task.outputs[key] = value
             task.outputs[f"{key}_unit"] = unit
+        _record_definition_equation_trace(
+            task,
+            reader,
+            spec=spec,
+            variables=variables,
+            value=value,
+            unit=unit,
+            calculation=calculation,
+        )
         changed = True
 
     if changed and not pending_definition_equation_inputs(task, reader, execution_order):
@@ -139,6 +158,55 @@ def try_complete_definition_equations(
     if changed:
         return True
     return False
+
+
+def _record_definition_equation_trace(
+    task: Task,
+    reader: StandardsReader,
+    *,
+    spec: DefinitionEquationSpec,
+    variables: dict[str, float],
+    value: float,
+    unit: str,
+    calculation: CalculationResult | None = None,
+    render_steps: Any | None = None,
+) -> None:
+    from api.equation_display_registry import source_node_id_for_equation
+    from engine.equation.display_trace_serializer import record_equation_execution_trace
+
+    try:
+        eq_record = reader.load(spec.node_id)
+    except FileNotFoundError:
+        return
+
+    symbol_values = dict(variables)
+    output_symbol = ""
+    for item in eq_record.metadata.get("calculates") or []:
+        if isinstance(item, dict):
+            output_symbol = str(item.get("symbol") or "").strip()
+            if output_symbol:
+                break
+    if output_symbol:
+        symbol_values[output_symbol] = float(value)
+
+    resolved_calculation = calculation
+    if resolved_calculation is None and output_symbol:
+        resolved_calculation = CalculationResult(
+            calculation_id=spec.node_id,
+            final_result=QuantityResult(symbol=output_symbol, value=float(value), unit=unit),
+            status=CalculationStatus.PASS,
+        )
+
+    record_equation_execution_trace(
+        task,
+        reader,
+        equation_node_id=spec.node_id,
+        source_node_id=source_node_id_for_equation(reader, spec.node_id),
+        equation_metadata=dict(eq_record.metadata),
+        symbol_values=symbol_values,
+        calculation=resolved_calculation,
+        render_steps=render_steps,
+    )
 
 
 def _param_fact_key(param_meta: dict[str, Any]) -> str:
@@ -215,6 +283,14 @@ def _executor_definition_spec(reader: StandardsReader, record) -> DefinitionEqua
             for item in (record.metadata.get("calculates") or [])
         ),
     )
+
+
+def definition_equation_specs_for_order(
+    reader: StandardsReader,
+    execution_order: tuple[str, ...] | list[str],
+) -> list[DefinitionEquationSpec]:
+    """Public accessor for definition-phase equation specs on an execution order."""
+    return _definition_equation_specs(reader, execution_order)
 
 
 def _definition_equation_specs(

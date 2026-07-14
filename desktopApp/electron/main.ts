@@ -1,7 +1,39 @@
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { appendFileSync } from 'node:fs'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  shell,
+  type WebContentsConsoleMessageEventParams,
+} from 'electron'
 import path from 'node:path'
 
 import { constants } from '../src/config/constants'
+
+// #region agent log
+function agentDebugLog(
+  location: string,
+  message: string,
+  data: Record<string, unknown>,
+  hypothesisId: string,
+): void {
+  try {
+    const line =
+      JSON.stringify({
+        sessionId: 'ed32ea',
+        location,
+        message,
+        data,
+        timestamp: Date.now(),
+        hypothesisId,
+      }) + '\n'
+    appendFileSync(path.resolve(__dirname, '../../debug-ed32ea.log'), line, { flag: 'a' })
+  } catch {
+    // ignore logging failures
+  }
+}
+// #endregion
 import { createApplicationMenu } from './menu'
 import { getLogDirectory, initAppLogger, logAppEvent } from './services/appLogger'
 import type { BackendProcessService } from './services/backendProcess'
@@ -33,13 +65,26 @@ function sendWindowDisplayState(): void {
 async function loadRenderer(window: BrowserWindow): Promise<void> {
   const devServerUrl = process.env.VITE_DEV_SERVER_URL
 
+  // #region agent log
+  agentDebugLog('electron/main.ts:loadRenderer:start', 'Loading renderer', {
+    isDev,
+    devServerUrl: devServerUrl ?? null,
+  }, 'C')
+  // #endregion
+
   if (isDev && devServerUrl) {
     const url = normalizeDevServerUrl(devServerUrl)
     await window.loadURL(url)
+    // #region agent log
+    agentDebugLog('electron/main.ts:loadRenderer:dev-done', 'Dev renderer URL loaded', { url }, 'C')
+    // #endregion
     return
   }
 
   await window.loadFile(path.join(__dirname, '../dist/index.html'))
+  // #region agent log
+  agentDebugLog('electron/main.ts:loadRenderer:prod-done', 'Production index.html loaded', {}, 'C')
+  // #endregion
 }
 
 async function createWindow(): Promise<void> {
@@ -59,6 +104,9 @@ async function createWindow(): Promise<void> {
   })
 
   mainWindow.once('ready-to-show', () => {
+    // #region agent log
+    agentDebugLog('electron/main.ts:ready-to-show', 'Electron window ready-to-show, showing window', {}, 'C')
+    // #endregion
     mainWindow?.show()
   })
 
@@ -73,6 +121,28 @@ async function createWindow(): Promise<void> {
     void shell.openExternal(url)
     return { action: 'deny' }
   })
+
+  // #region agent log
+  // Electron 43+: console-message no longer passes level/message/line/sourceId as
+  // separate callback args; read WebContentsConsoleMessageEventParams from the event.
+  mainWindow.webContents.on('console-message', (event) => {
+    const { level, message, lineNumber, sourceId } =
+      event as unknown as WebContentsConsoleMessageEventParams
+    agentDebugLog('electron/main.ts:console-message', 'Renderer console message', {
+      level,
+      message,
+      line: lineNumber,
+      sourceId,
+    }, 'A')
+  })
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    agentDebugLog('electron/main.ts:did-fail-load', 'Renderer failed to load', {
+      errorCode,
+      errorDescription,
+      validatedURL,
+    }, 'C')
+  })
+  // #endregion
 
   await loadRenderer(mainWindow)
   sendWindowDisplayState()

@@ -25,9 +25,9 @@ def test_mawp_expansion_includes_mawp_equation_chain(project_root: Path) -> None
     expansion = expand_workflow(store, root_id, inputs, lazy=False)
     active = set(expansion.active_nodes)
 
-    assert "304.1.2-a" in active
     assert "asme-b313-pressure-design-thickness" in active
     assert "asme-b313-mawp-pressure" in active
+    assert "PARAM-maximum-allowable-working-pressure" in active
 
     # Thickness design equations (eq 3a/3b) must not appear on MAWP path.
     assert "asme-b313-304-1-2-eq-3a" not in active

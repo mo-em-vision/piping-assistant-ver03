@@ -106,4 +106,6 @@
   padding: 0.65rem 0.5rem;
   border-radius: 8px;
   background: #f8fafc;
+  overflow-x: auto;
+  overflow-y: hidden;
 }

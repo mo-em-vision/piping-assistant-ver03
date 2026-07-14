@@ -142,6 +142,7 @@ def collect_workflow_expansion_fields(
                 "contains_paragraph",
                 "references",
                 "starts_from_paragraph",
+                "starts_from_parameter",
                 "related_to",
             }:
                 continue

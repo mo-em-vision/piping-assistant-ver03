@@ -131,6 +131,7 @@ REVERSE_EDGE_TYPE: dict[str, str] = {
     "authorized_by": "referenced_by",
     "belongs_to_authority": "referenced_by",
     "starts_from_paragraph": "referenced_by",
+    "starts_from_parameter": "referenced_by",
     "references_equation": "equation",
     "references_table": "table",
     "may_use_equation": "equation",
@@ -221,7 +222,7 @@ def dimension_allowed_unit_ids(metadata: dict[str, Any]) -> list[str]:
 
 def workflow_anchor_target(metadata: dict[str, Any]) -> str | None:
     """Return the primary section anchor referenced by a workflow node."""
-    anchor_types = ("starts_from_paragraph", "references")
+    anchor_types = ("starts_from_paragraph", "starts_from_parameter", "references")
     for item in iter_stored_edges(metadata):
         edge_type = str(item.get("type") or "")
         if edge_type not in anchor_types:
@@ -238,6 +239,9 @@ def workflow_anchor_target(metadata: dict[str, Any]) -> str | None:
             continue
         if str(entry.get("role") or "") != "definition_anchor":
             continue
+        parameter = str(entry.get("parameter") or "").strip()
+        if parameter:
+            return parameter
         paragraph = str(entry.get("paragraph") or "").strip()
         if paragraph:
             return paragraph

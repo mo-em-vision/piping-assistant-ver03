@@ -64,6 +64,7 @@ _PARAGRAPH_EQ_WF = frozenset(
         "uses_authority",
         "may_use_authority",
         "starts_from_paragraph",
+        "starts_from_parameter",
         "may_use_equation",
         "may_use_lookup",
         "may_use_validation_rule",
@@ -172,6 +173,7 @@ REFERENCE_ROLE_TO_TAXONOMY: dict[str, str] = {
     "belongs_to_authority": "belongs_to_authority",
     "authorized_by": "authorized_by",
     "starts_from_paragraph": "starts_from_paragraph",
+    "starts_from_parameter": "starts_from_parameter",
     "uses_authority": "uses_authority",
     "may_use_authority": "may_use_authority",
     "refines": "refines_authority",
@@ -195,6 +197,7 @@ TAXONOMY_TO_LEGACY_QUERY_ALIASES: dict[str, frozenset[str]] = {
     "belongs_to_authority": frozenset({"references"}),
     "authorized_by": frozenset({"references"}),
     "starts_from_paragraph": frozenset({"references"}),
+    "starts_from_parameter": frozenset({"references"}),
     "uses_authority": frozenset({"references"}),
     "references_equation": frozenset({"equation"}),
     "references_table": frozenset({"table", "references"}),
@@ -237,6 +240,7 @@ DEPENDENCY_TRAVERSAL_TYPES = frozenset(
         "uses",
         "may_use_authority",
         "starts_from_paragraph",
+        "starts_from_parameter",
     }
 )
 
@@ -305,6 +309,10 @@ RELATIONSHIP_RULES: dict[str, RelationshipRule] = {
     "note_for_table": RelationshipRule(source_types=frozenset({"table_note"})),
     "has_table_note": RelationshipRule(source_types=frozenset({"lookup", "table"})),
     "starts_from_paragraph": RelationshipRule(source_types=frozenset({"workflow"})),
+    "starts_from_parameter": RelationshipRule(
+        source_types=frozenset({"workflow"}),
+        target_prefixes=frozenset({"PARAM-"}),
+    ),
     "may_use_equation": RelationshipRule(source_types=frozenset({"workflow"})),
     "may_use_lookup": RelationshipRule(source_types=frozenset({"workflow"})),
     "may_use_validation_rule": RelationshipRule(source_types=frozenset({"workflow"})),

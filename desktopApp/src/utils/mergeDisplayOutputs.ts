@@ -88,7 +88,8 @@ function mergePreviewEquationBlocks(
     if (durableEquationKeys.has(key)) {
       continue
     }
-    byKey.set(key, block)
+    const existing = byKey.get(key)
+    byKey.set(key, existing ? preferRicherEquationBlock(existing, block) : block)
   }
 
   return Array.from(byKey.values())
@@ -96,6 +97,45 @@ function mergePreviewEquationBlocks(
 
 function isStablePreviewEquationKey(key: string | null): key is string {
   return Boolean(key?.startsWith('equation-'))
+}
+
+function equationBlockRichnessScore(block: DisplayOutputBlock): number {
+  if (block.type !== 'equation') {
+    return 0
+  }
+  let score = 0
+  const trace = block.equation_display_trace as
+    | { status?: string; substituted_latex?: string | null; result_latex?: string | null }
+    | undefined
+  if (trace) {
+    score += 50
+    if (trace.substituted_latex) {
+      score += 30
+    }
+    if (trace.status === 'evaluated' || trace.result_latex) {
+      score += 40
+    }
+  }
+  if (block.input_table?.rows?.length) {
+    score += 20
+    const resolvedRows = block.input_table.rows.filter(
+      (row) => row.value && row.value !== 'Awaiting user input',
+    )
+    score += resolvedRows.length * 5
+  }
+  if (block.display_state === 'evaluated') {
+    score += 25
+  }
+  return score
+}
+
+function preferRicherEquationBlock(
+  previous: DisplayOutputBlock,
+  incoming: DisplayOutputBlock,
+): DisplayOutputBlock {
+  return equationBlockRichnessScore(incoming) >= equationBlockRichnessScore(previous)
+    ? incoming
+    : previous
 }
 
 function collectInputWaitingBlocks(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {

@@ -76,7 +76,7 @@ def resolve_activated_definition_node(
         return None
 
     for item in iter_stored_edges(root.metadata):
-        if str(item.get("type", "")) == "starts_from_paragraph":
+        if str(item.get("type", "")) in {"starts_from_paragraph", "starts_from_parameter"}:
             target = edge_target(item)
             if target:
                 return target
@@ -86,6 +86,9 @@ def resolve_activated_definition_node(
             paragraph = entry.get("paragraph")
             if paragraph:
                 return str(paragraph)
+            parameter = entry.get("parameter")
+            if parameter:
+                return str(parameter)
 
     anchor = workflow_anchor_target(root.metadata)
     if isinstance(anchor, str):

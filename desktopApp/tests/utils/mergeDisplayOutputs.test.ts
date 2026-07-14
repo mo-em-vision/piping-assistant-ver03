@@ -366,6 +366,50 @@ describe('mergeDisplayOutputs', () => {
     }
   })
 
+  it('prefers richer preview equation when incoming has partial substitution', () => {
+    const previewEq2: DisplayOutputBlock = {
+      id: 'equation-asme-b313-304-1-1-eq-2',
+      type: 'equation',
+      lifecycle: 'preview',
+      display_role: 'equation',
+      display_state: 'preview',
+      equation_node_id: 'asme-b313-304-1-1-eq-2',
+      content: 't_m = t + c',
+      display: 't_m = t + c',
+      equation_display_trace: {
+        equation_id: 'asme-b313-304-1-1-eq-2',
+        status: 'blocked',
+        symbolic_latex: 't_m = t + c',
+        substituted_latex: null,
+        result_latex: null,
+        inputs: [],
+        intermediate_values: [],
+        result: null,
+      },
+    }
+    const richerEq2: DisplayOutputBlock = {
+      ...previewEq2,
+      equation_display_trace: {
+        equation_id: 'asme-b313-304-1-1-eq-2',
+        status: 'blocked',
+        symbolic_latex: 't_m = t + c',
+        substituted_latex: 't_m = (2\\ \\mathrm{mm}) + c',
+        result_latex: null,
+        inputs: [],
+        intermediate_values: [],
+        result: null,
+      },
+      equation_content: 'substituted',
+    }
+
+    const merged = mergeDisplayOutputs([previewEq2], [richerEq2])
+
+    expect(merged).toHaveLength(1)
+    if (merged[0]?.type === 'equation') {
+      expect(merged[0].equation_display_trace?.substituted_latex).toContain('2')
+    }
+  })
+
   it('replaces preview equation with durable evaluated block for same stable id', () => {
     const previewEq3: DisplayOutputBlock = {
       id: 'equation-asme-b313-304-1-2-eq-3a',

@@ -56,7 +56,7 @@ def _workflow_linked_node_ids(metadata: dict[str, Any]) -> set[str]:
             continue
         edge_type = str(edge.get("type") or "").strip()
         target = str(edge.get("target") or "").strip()
-        if not target or edge_type not in {"depends_on", "starts_from_paragraph"}:
+        if not target or edge_type not in {"depends_on", "starts_from_paragraph", "starts_from_parameter"}:
             continue
         if target.startswith(("WF-", "B313-WF-")):
             continue
@@ -66,6 +66,9 @@ def _workflow_linked_node_ids(metadata: dict[str, Any]) -> set[str]:
             paragraph = str(entry.get("paragraph") or "").strip()
             if paragraph:
                 nodes.add(paragraph)
+            parameter = str(entry.get("parameter") or "").strip()
+            if parameter:
+                nodes.add(parameter)
     return nodes
 
 

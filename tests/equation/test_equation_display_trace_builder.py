@@ -67,7 +67,7 @@ def test_simple_equation_builds_evaluated_trace() -> None:
     assert trace.result.value == pytest.approx(5.0)
 
 
-def test_blocked_trace_omits_substitution() -> None:
+def test_blocked_trace_includes_partial_substitution() -> None:
     metadata = {
         "display": {"text": "a = b + c"},
         "requires": [{"symbol": "b"}, {"symbol": "c"}],
@@ -79,8 +79,60 @@ def test_blocked_trace_omits_substitution() -> None:
         symbol_values={"b": 2.0},
     )
     assert trace.status == "blocked"
-    assert trace.substituted_latex is None
+    assert trace.substituted_latex is not None
+    assert "2" in trace.substituted_latex
+    assert trace.result_latex is None
     assert trace.latex_source == "metadata_display_text"
+
+
+def test_partial_substitution_preserves_output_symbol_on_lhs() -> None:
+    """Output quantity must stay symbolic on the LHS during partial substitution."""
+    metadata = {
+        "display_latex": "t_m = t + c",
+        "requires": [{"symbol": "t"}, {"symbol": "c"}],
+        "calculates": [{"symbol": "t_m"}],
+    }
+    trace = build_equation_display_trace(
+        reader=_StubReader(),
+        equation_id="eq-tm-partial",
+        equation_metadata=metadata,
+        symbol_values={"t": 2.0, "t_m": 5.0},
+        dependency_outputs={"t": 2.0, "t_m": 5.0, "minimum_required_thickness": 5.0},
+    )
+    assert trace.status == "blocked"
+    assert trace.substituted_latex is not None
+    assert trace.substituted_latex.startswith("t_m")
+    lhs, _rhs = trace.substituted_latex.split("=", 1)
+    assert "5" not in lhs
+    assert "2" in trace.substituted_latex
+
+
+def test_evaluated_substitution_preserves_output_symbol_on_lhs() -> None:
+    metadata = {
+        "display_latex": "t_m = t + c",
+        "requires": [{"symbol": "t"}, {"symbol": "c"}],
+        "calculates": [{"symbol": "t_m"}],
+    }
+    trace = build_equation_display_trace(
+        reader=_StubReader(),
+        equation_id="eq-tm-evaluated",
+        equation_metadata=metadata,
+        symbol_values={"t": 2.0, "c": 0.5, "t_m": 2.5},
+        dependency_outputs={"t": 2.0, "c": 0.5, "t_m": 2.5},
+        calculation=CalculationResult(
+            calculation_id="eq-tm-evaluated",
+            final_result=QuantityResult(symbol="t_m", value=2.5, unit="mm"),
+            status=CalculationStatus.PASS,
+        ),
+    )
+    assert trace.status == "evaluated"
+    assert trace.substituted_latex is not None
+    assert trace.substituted_latex.startswith("t_m")
+    lhs, _rhs = trace.substituted_latex.split("=", 1)
+    assert "2.5" not in lhs
+    assert "2" in trace.substituted_latex
+    assert "0.5" in trace.substituted_latex
+    assert trace.result_latex is not None
 
 
 def test_render_steps_enrichment() -> None:

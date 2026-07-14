@@ -74,6 +74,23 @@ def expansion_gate_ready(
     return workflow_expansion_gate_ready(store, root_id, inputs)
 
 
+def _should_skip_expansion_edge(
+    store: GraphStore,
+    node_id: str,
+    edge: GraphEdgeRecord,
+) -> bool:
+    """Skip provenance edges that must not widen workflow execution subgraphs."""
+    edge_type = edge.edge_type
+    node_type = store.node_type(node_id) or ""
+    if node_type == "parameter" and edge_type in {"uses", "used_by"}:
+        # Parameter used_by lists historical consumers; path selection uses producers/requires.
+        return True
+    if node_type in {"equation", "validation_rule"} and edge_type == "authorized_by":
+        # Citation anchors are not execution routing; paragraphs/workflows own path edges.
+        return True
+    return False
+
+
 def _expand_metadata_dependencies(
     store: GraphStore,
     node_set: set[str],
@@ -92,6 +109,8 @@ def _expand_metadata_dependencies(
             node_id,
             edge_types=DEPENDENCY_TRAVERSAL_TYPES,
         ):
+            if _should_skip_expansion_edge(store, node_id, edge):
+                continue
             dep_id = edge.to_id
             when = edge.metadata.get("when") if edge.metadata else None
             if when and isinstance(when, dict) and not when_clause_matches(when, inputs):

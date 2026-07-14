@@ -12,6 +12,7 @@ from engine.equation.input_table import (
     format_value_for_table,
 )
 from engine.reference.parameter_value_source import apply_value_provenance_to_row
+from models.calculation import CalculationResult
 from models.equation_display_trace import EquationDisplayTrace
 from models.task import Task
 from engine.reference.standards_reader import StandardsReader
@@ -125,7 +126,10 @@ def enrich_equation_block(
         enriched.setdefault("content", trace.symbolic_latex)
         enriched.setdefault("display", trace.symbolic_latex)
         enriched.setdefault("display_state", "preview")
-        enriched.setdefault("equation_content", "symbolic")
+        if trace.substituted_latex:
+            enriched["equation_content"] = "substituted"
+        else:
+            enriched.setdefault("equation_content", "symbolic")
 
     from models.display_role import infer_equation_content, lifecycle_for_equation_state
 
@@ -161,3 +165,73 @@ def find_trace_in_execution_payload(payload: dict[str, Any] | None) -> EquationD
     if not isinstance(payload, dict):
         return None
     return trace_from_dict(payload.get("equation_display_trace"))
+
+
+def record_equation_execution_trace(
+    task: Task,
+    reader: StandardsReader,
+    *,
+    equation_node_id: str,
+    source_node_id: str,
+    equation_metadata: dict[str, Any],
+    symbol_values: dict[str, float],
+    calculation: CalculationResult | None = None,
+    render_steps: Any | None = None,
+) -> None:
+    """Append or update an execution-trace entry with equation_display_trace."""
+    from engine.equation.equation_display_trace_builder import build_equation_display_trace
+    from api.equation_display_registry import register_equation_display_key, source_node_id_for_equation
+
+    resolved_source = str(source_node_id or "").strip() or source_node_id_for_equation(
+        reader, equation_node_id
+    )
+    display_trace = build_equation_display_trace(
+        reader=reader,
+        equation_id=equation_node_id,
+        equation_metadata=equation_metadata,
+        symbol_values=symbol_values,
+        source_node_id=resolved_source,
+        dependency_outputs=dict(task.outputs),
+        task_inputs=task.fact_store.active_facts(),
+        calculation=calculation,
+        render_steps=render_steps,
+        task=task,
+    )
+
+    trace_payload: dict[str, Any] = {"equation_display_trace": display_trace.to_dict()}
+    if calculation is not None:
+        final = calculation.final_result
+        if final is not None:
+            trace_payload["calculation"] = {
+                "final_result": {
+                    "symbol": final.symbol,
+                    "value": final.value,
+                    "unit": final.unit,
+                }
+            }
+
+    entries = task.outputs.get("_execution_trace")
+    if not isinstance(entries, list):
+        entries = []
+    updated = False
+    for index, entry in enumerate(entries):
+        if not isinstance(entry, dict):
+            continue
+        entry_node_id = str(entry.get("node_id") or "")
+        existing = entry.get("trace") if isinstance(entry.get("trace"), dict) else {}
+        existing_trace = trace_from_dict(existing.get("equation_display_trace"))
+        if entry_node_id == equation_node_id or (
+            existing_trace is not None and existing_trace.equation_id == equation_node_id
+        ):
+            merged = dict(existing)
+            merged.update(trace_payload)
+            entries[index] = {"node_id": equation_node_id, "trace": merged}
+            updated = True
+            break
+    if not updated:
+        entries.append({"node_id": equation_node_id, "trace": trace_payload})
+    task.outputs["_execution_trace"] = entries
+
+    workflow_id = str(task.outputs.get("workflow") or "").strip()
+    if workflow_id:
+        register_equation_display_key(task, workflow_id, resolved_source, equation_node_id)

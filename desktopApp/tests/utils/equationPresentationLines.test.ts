@@ -4,6 +4,31 @@ import { equationPresentationLines } from '@/utils/equationPresentationLines'
 import type { EquationOutputBlock } from '@/types/backend/outputs'
 
 describe('equationPresentationLines', () => {
+  it('keeps output symbol on substituted line during blocked partial substitution', () => {
+    const block: EquationOutputBlock = {
+      id: 'eq-2-partial',
+      type: 'equation',
+      equation_display_trace: {
+        equation_id: 'eq-2',
+        node_id: '304.1.1-a',
+        symbolic_latex: 't_m = t + c',
+        substituted_latex: 't_m = (2) + c',
+        result_latex: null,
+        latex_source: 'metadata_display_text',
+        status: 'blocked',
+        inputs: [],
+        intermediate_values: [],
+        result: null,
+      },
+    }
+
+    const lines = equationPresentationLines(block)
+    expect(lines.symbolic).toBe('t_m = t + c')
+    expect(lines.substituted).toBe('t_m = (2) + c')
+    expect(lines.substituted?.startsWith('t_m')).toBe(true)
+    expect(lines.result).toBeNull()
+  })
+
   it('splits substituted and result lines for evaluated traces', () => {
     const block: EquationOutputBlock = {
       id: 'eq-1',

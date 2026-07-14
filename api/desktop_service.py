@@ -157,6 +157,10 @@ class DesktopApiService:
         task, transcript_changed = sync_flow_guidance_transcript(task, self._reader())
         if transcript_changed:
             manager.replace_task(task.task_id, task)
+        keys_changed = self._sync_equation_display_registry(task)
+        if keys_changed:
+            manager.replace_task(task.task_id, task)
+            task = manager.get_task(task.task_id)
         repair_changed = False
         if task.status == TaskStatus.COMPLETED:
             task, repair_changed = maybe_repair_completion_next_workflows_transcript(
@@ -165,7 +169,16 @@ class DesktopApiService:
             )
             if repair_changed:
                 manager.replace_task(task.task_id, task)
-        return task, refresh_changed or transcript_changed or repair_changed
+        return task, refresh_changed or transcript_changed or keys_changed or repair_changed
+
+    def _sync_equation_display_registry(self, task) -> bool:
+        from api.equation_display_registry import discover_equation_display_entries
+        from engine.state.goal_projection import planning_projection
+
+        before = list(task.outputs.get("_equation_trace_keys") or [])
+        discover_equation_display_entries(task, self._reader(), planning_projection(task))
+        after = list(task.outputs.get("_equation_trace_keys") or [])
+        return before != after
 
     @classmethod
     def from_project_root(cls, project_root: Path | None = None) -> DesktopApiService:
