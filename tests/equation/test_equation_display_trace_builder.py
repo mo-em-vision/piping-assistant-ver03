@@ -200,3 +200,59 @@ def test_trace_serializes_round_trip() -> None:
     restored = type(trace).from_dict(asdict(trace))
     assert restored.equation_id == trace.equation_id
     assert restored.status == trace.status
+
+
+def test_eq_3a_substitutes_concatenated_symbols_from_fact_values(standards_reader) -> None:
+    """P, D, and Y must substitute even when written as implicit products (PD, PY)."""
+    from engine.state.fact_migration import fact_from_engineering_input
+    from models.input import EngineeringInput, InputSource, InputStatus
+
+    record = standards_reader.load("asme-b313-304-1-2-eq-3a")
+    facts = {
+        "internal_design_gage_pressure": fact_from_engineering_input(
+            EngineeringInput(
+                input_id="internal_design_gage_pressure",
+                value=3_447_378.0,
+                unit="Pa",
+                source=InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+            task_id="trace-test",
+            workflow_id="pipe_wall_thickness_design",
+        ),
+        "outside_diameter": fact_from_engineering_input(
+            EngineeringInput(
+                input_id="outside_diameter",
+                value=254.0,
+                unit="mm",
+                source=InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+            task_id="trace-test",
+            workflow_id="pipe_wall_thickness_design",
+        ),
+    }
+    trace = build_equation_display_trace(
+        reader=standards_reader,
+        equation_id="asme-b313-304-1-2-eq-3a",
+        equation_metadata=record.metadata,
+        symbol_values={
+            "S": 193_000_000.0,
+            "E_j": 1.0,
+            "W": 1.0,
+            "Y": 0.4,
+        },
+        task_inputs=facts,
+        dependency_outputs={
+            "temperature_coefficient_Y": 0.4,
+            "Y": 0.4,
+        },
+    )
+    assert trace.substituted_latex is not None
+    substituted = trace.substituted_latex
+    assert "PD" not in substituted
+    assert "PY" not in substituted
+    for symbol in ("P", "D", "Y"):
+        input_row = next(item for item in trace.inputs if item.symbol == symbol)
+        assert input_row.value is not None
+        assert input_row.display_value in substituted

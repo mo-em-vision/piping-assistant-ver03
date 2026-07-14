@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from engine.equation.latex_format import (
     display_text_to_latex,
+    expand_implicit_symbol_products,
     format_numeric_display,
     format_quantity_latex,
     format_substituted_equation,
@@ -51,3 +52,34 @@ def test_format_substituted_equation_appends_result() -> None:
 
 def test_format_numeric_display_rounds_for_display_only() -> None:
     assert format_numeric_display(2.2520004) == "2.252"
+
+
+def test_expand_implicit_symbol_products_splits_concatenated_symbols() -> None:
+    symbols = ("P", "D", "S", "E_j", "W", "Y")
+    expanded = expand_implicit_symbol_products(
+        r"t = \frac{PD}{2(S E_j W + PY)}",
+        symbols,
+    )
+    assert expanded == r"t = \frac{P D}{2(S E_j W + P Y)}"
+
+
+def test_substitute_symbols_handles_implicit_products_in_eq_3a() -> None:
+    substitutions = {
+        "P": r"(3.447e+06\ \mathrm{Pa})",
+        "D": r"(254\ \mathrm{mm})",
+        "S": r"(1.93e+08\ \mathrm{Pa})",
+        "E_j": "(1)",
+        "W": "(1)",
+        "Y": "(0.4)",
+    }
+    symbolic = display_text_to_latex("t = PD / 2(S E_j W + PY)")
+    substituted = substitute_symbols_in_latex(
+        symbolic,
+        substitutions,
+        symbol_order=("P", "D", "S", "E_j", "W", "Y"),
+    )
+    assert "PD" not in substituted
+    assert "PY" not in substituted
+    assert substitutions["P"] in substituted
+    assert substitutions["D"] in substituted
+    assert substitutions["Y"] in substituted
