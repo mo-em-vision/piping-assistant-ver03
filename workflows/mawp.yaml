@@ -36,6 +36,9 @@ goal_expansion:
   root_goal:
     goal_class: calculation_goal
     target_parameter: PARAM-maximum-allowable-working-pressure
+    completion:
+      when: target_parameter_satisfied
+      status: finished
 phases:
 - key: expansion_assumptions
   purpose: Confirm assumptions required before graph expansion.
@@ -240,10 +243,9 @@ runtime:
     role: initiation
     title: This workflow guides you through calculating the Maximum Allowable Working Pressure (MAWP) of piping components according to ASME B31.3.
     text: Define inputs, assumptions, and nomenclature for MAWP calculation of straight pipe under internal pressure per §304.1.2.
-  - id: mawp-result-text
-    type: text
-    role: result_explanation
-    text: Maximum Allowable Working Pressure (MAWP) has been calculated per §304.1.2.
+  documentation:
+    summary: >
+      Maximum Allowable Working Pressure (MAWP) has been calculated per §304.1.2.
   suggested_workflows:
   - pipe_wall_thickness_design
   goal_output: mawp
@@ -280,8 +282,6 @@ edges:
   target: asme-b313-table-304-1-1-1
 - type: may_use_lookup
   target: asme-b313-table-302-3-5-1
-- type: starts_from_parameter
-  target: PARAM-maximum-allowable-working-pressure
 - type: may_use_equation
   target: asme-b313-pressure-design-thickness
 - type: may_use_equation

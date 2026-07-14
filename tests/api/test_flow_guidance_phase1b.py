@@ -85,7 +85,7 @@ def test_runtime_transcript_candidates_include_result_when_completed() -> None:
         if block.block_id == result_summary_block_id("pipe_wall_thickness_design")
     )
     assert result.payload.get("display_role") == DisplayRole.result_summary.value
-    assert "Minimum required wall thickness" in (result.text or "")
+    assert "selected branch" in (result.text or "")
 
 
 def test_create_task_appends_workflow_title_and_description_once(

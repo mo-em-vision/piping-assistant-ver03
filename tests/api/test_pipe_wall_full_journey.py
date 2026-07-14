@@ -255,6 +255,25 @@ def test_pipe_wall_full_api_journey(tmp_path: Path, project_root: Path) -> None:
         if isinstance(block, dict)
     )
 
+    result_summary_blocks = [
+        block
+        for block in display_outputs
+        if isinstance(block, dict) and block.get("display_role") == "result_summary"
+    ]
+    assert len(result_summary_blocks) == 1
+    summary = result_summary_blocks[0]
+    summary_content = str(summary.get("content") or "")
+    assert "t_m =" in summary_content
+    assert "Applied standard:" in summary_content
+    assert "ASME B31.3 §304.1.1" in summary_content
+    assert "ASME B31.3 §304.1.2" in summary_content
+    assert "The following assumptions have been made in the calculation:" in summary_content
+    assert "Applied conditions:" not in summary_content
+    summary_payload = summary.get("payload") or {}
+    assert summary_payload.get("documentation_summary")
+    assert summary_payload.get("applied_paragraphs")
+    assert summary_payload.get("assumptions")
+
     transcript_after_inputs = _transcript_block_ids(state)
     assert transcript_after_inputs
     for block_id in transcript_after_straight:

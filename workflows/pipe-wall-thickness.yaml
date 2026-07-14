@@ -13,12 +13,15 @@ expected_authorities:
 - AUTH-ASME-B31.3
 - AUTH-ASME-B36.10M
 entry_points:
-- paragraph: 304.1.1-a
+- parameter: PARAM-minimum-required-thickness
   role: definition_anchor
 goal_expansion:
   root_goal:
     goal_class: calculation_goal
     target_parameter: PARAM-minimum-required-thickness
+    completion:
+      when: target_parameter_satisfied
+      status: finished
 applicability:
   applies_to:
   - CONCEPT-pipe
@@ -75,16 +78,12 @@ runtime:
     text: >
       Determine minimum required pipe wall thickness from applicable standards,
       design conditions, and allowances.
-  - id: pipe-wall-result-text
-    type: text
-    role: result_explanation
-    text: >
-      Minimum required wall thickness has been calculated from the active governing
-      equations and validation rules.
   documentation:
     summary: >
-      Determine minimum required pipe wall thickness from applicable standards,
-      material properties, geometry, design conditions, and allowances.
+      Minimum required wall thickness has been calculated from the active governing
+      equations and validation rules on the selected branch. This value is the minimum
+      thickness required for the selected pipe, including the pressure design thickness
+      t and the corrosion allowance c.
     report_summary: >
       Pipe wall thickness design calculation report.
   suggested_workflows:

@@ -9,6 +9,7 @@ from engine.planner.workflow_goal_metadata import (
     workflow_display_title_from_node,
 )
 from engine.reference.standards_reader import StandardsReader
+from models.display_role import DisplayRole
 from models.presentation import PresentationBlock
 from models.task import Task, TaskStatus
 
@@ -53,7 +54,7 @@ def _format_runtime_text(entry: dict[str, Any]) -> str:
 
 
 def load_runtime_documentation_summary(workflow_id: str) -> str:
-    """Load workflow initiation summary from runtime documentation block."""
+    """Load workflow completion summary from runtime documentation block."""
     runtime = load_workflow_runtime_metadata(workflow_id)
     documentation = runtime.get("documentation")
     if isinstance(documentation, dict):
@@ -141,7 +142,7 @@ def workflow_node_transcript_blocks(
 
 
 def runtime_transcript_candidates(task: Task) -> tuple[PresentationBlock, ...]:
-    """Build durable runtime result text blocks for the task transcript."""
+    """Build durable runtime completion summary text blocks for the task transcript."""
     workflow_id = str(task.outputs.get("workflow") or task.outputs.get("selected_root") or "").strip()
     if not workflow_id:
         return ()
@@ -149,12 +150,19 @@ def runtime_transcript_candidates(task: Task) -> tuple[PresentationBlock, ...]:
     if task.status != TaskStatus.COMPLETED:
         return ()
 
-    blocks: list[PresentationBlock] = []
-    for entry in load_runtime_text_entries(workflow_id):
-        role = str(entry.get("role") or "").strip()
-        if role != "result_explanation":
-            continue
-        block = runtime_text_to_presentation_block(entry, workflow_id)
-        if block is not None:
-            blocks.append(block)
-    return tuple(blocks)
+    summary = load_runtime_documentation_summary(workflow_id)
+    if not summary:
+        return ()
+
+    return (
+        PresentationBlock(
+            block_id=result_summary_block_id(workflow_id),
+            kind="text",
+            source="runtime",
+            text=summary,
+            payload={
+                "display_role": DisplayRole.result_summary.value,
+                "documentation_summary": summary,
+            },
+        ),
+    )

@@ -57,7 +57,7 @@ def test_result_summary_structured_payload(standards_reader) -> None:
     assert block is not None
     payload = block.get("payload") or {}
     assert payload.get("primary_result", {}).get("value")
-    assert isinstance(payload.get("applied_conditions"), list)
+    assert isinstance(payload.get("assumptions"), list)
     assert isinstance(payload.get("warnings"), list)
 
 
