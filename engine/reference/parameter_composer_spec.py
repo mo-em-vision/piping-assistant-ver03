@@ -7,6 +7,7 @@ from typing import Any
 
 from engine.graph.resolution_branches import (
     active_resolution_branch_id,
+    default_resolution_branch_id,
     resolution_branch_fact_key,
     resolution_branches_from_metadata,
     via_parameter_keys,
@@ -243,6 +244,7 @@ def build_resolution_ui(
     return {
         "branches": branches,
         "active_branch": active_branch,
+        "default_value": default_resolution_branch_id(meta),
         "branch_fact_key": resolution_branch_fact_key(param_key),
     }
 

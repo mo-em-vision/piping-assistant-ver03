@@ -7,6 +7,8 @@ from pathlib import Path
 from engine.graph.graph_engine import GraphEngine
 from engine.graph.lookup_parameter_resolution import parameter_resolution_for_parameter
 from engine.graph.resolution_branches import (
+    apply_resolution_branch_defaults,
+    default_resolution_branch_id,
     resolution_branch_fact_key,
     resolution_branches_from_metadata,
 )
@@ -27,7 +29,34 @@ def test_outside_diameter_has_two_resolution_branches() -> None:
     )
     meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
     branches = resolution_branches_from_metadata(meta)
-    assert [branch["id"] for branch in branches] == ["direct_od", "nps_lookup"]
+    assert [branch["id"] for branch in branches] == ["nps_lookup", "direct_od"]
+    nested = meta.get("metadata") or {}
+    assert nested.get("default_value") == "nps_lookup"
+
+
+def test_default_resolution_branch_id_reads_param_default_value() -> None:
+    path = (
+        Path(__file__).resolve().parents[2]
+        / "knowledge"
+        / "global"
+        / "parameters"
+        / "nodes"
+        / "PARAM-outside-diameter.yaml"
+    )
+    meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+    assert default_resolution_branch_id(meta) == "nps_lookup"
+
+
+def test_apply_resolution_branch_defaults_seeds_branch_fact() -> None:
+    from engine.state.state_manager import TaskStateManager
+    from models.fact import fact_scalar_value
+
+    manager = TaskStateManager()
+    task = manager.create_task("resolution-branch-default")
+    assert apply_resolution_branch_defaults(task) is True
+    branch = task.fact_store.active_fact("outside_diameter__resolution_branch")
+    assert branch is not None
+    assert fact_scalar_value(branch) == "nps_lookup"
 
 
 def test_outside_diameter_branch_choice_before_selection() -> None:
@@ -49,7 +78,8 @@ def test_outside_diameter_composer_spec_is_resolution_branch() -> None:
     assert spec["type"] == "resolution_branch"
     ui = spec["resolution_ui"]
     assert ui["branch_fact_key"] == resolution_branch_fact_key("outside_diameter")
-    assert {branch["id"] for branch in ui["branches"]} == {"direct_od", "nps_lookup"}
+    assert [branch["id"] for branch in ui["branches"]] == ["nps_lookup", "direct_od"]
+    assert ui["default_value"] == "nps_lookup"
 
 
 def test_mawp_required_inputs_start_with_outside_diameter_anchor() -> None:

@@ -1,56 +1,42 @@
----
-id: PARAM-outside-diameter
-type: parameter
-key: outside_diameter
-name: Outside Diameter
-parameter_class: geometric_quantity
-dimension: DIM-length
-description: >
-  outside diameter of pipe as listed in tables of standards or specifications or as measured
-question: >
-  Enter the outside diameter D of the pipe.
-  This value is used in the pressure design thickness equation.
-  Examples: 10 mm, 1/2 in, 20 in.
-canonical_symbol: D
-aliases:
-  - outside diameter
-  - pipe outside diameter
-  - OD
-introduced_by:
-  - asme-b313-304-1-1-b
-edges:
-  - type: has_dimension
-    target: DIM-length
-  - type: resolves_via
-    target: PARAM-nominal-pipe-size
-    branch_id: nps_lookup
-  - type: used_by
-    target: asme-b3610-pipe-dimensions-lookup
-    when:
-      field: outside_diameter__resolution_branch
-      in: [nps_lookup]
-  - type: used_by
-    target: B3610-table-2-1
-    when:
-      field: outside_diameter__resolution_branch
-      in: [nps_lookup]
-metadata:
-  status: active
-  version: 1
-  last_revision: 2026-07-15
-  edited_by: admin
-  canonical_unit: UNIT-mm
-  short_question: Enter outside diameter D.
-  composer_input: resolution_branch
-  resolution_branches:
-    - id: direct_od
-      label: Outside diameter
-      method: user_input
-      value_composer: number
-    - id: nps_lookup
-      label: NPS
-      method: table_lookup
-      via_parameters:
-        - PARAM-nominal-pipe-size
-      lookup: asme-b3610-pipe-dimensions-lookup
----
+---
+id: PARAM-outside-diameter
+type: parameter
+key: outside_diameter
+name: Outside Diameter
+parameter_class: geometric_quantity
+dimension: DIM-length
+description: >
+  outside diameter of pipe as listed in tables of standards or specifications or as measured
+question: >
+  Enter the outside diameter D of the pipe.
+canonical_symbol: D
+aliases:
+  - outside diameter
+  - pipe outside diameter
+  - OD
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: has_dimension
+    target: DIM-length
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-15
+  edited_by: admin
+  canonical_unit: UNIT-mm
+  short_question: Enter outside diameter D.
+  composer_input: resolution_branch
+  default_value: nps_lookup
+  resolution_branches:
+    - id: nps_lookup
+      label: NPS
+      method: table_lookup
+      via_parameters:
+        - PARAM-nominal-pipe-size
+      lookup: asme-b3610-nps-outside-diameter-lookup
+    - id: direct_od
+      label: Outside diameter
+      method: user_input
+      value_composer: number
+---

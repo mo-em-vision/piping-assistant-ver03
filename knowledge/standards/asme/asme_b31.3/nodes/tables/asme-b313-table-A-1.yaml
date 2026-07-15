@@ -25,9 +25,33 @@ returns:
   symbol: S
 lookup:
   table: asme-b313-table-A-1
-  keys:
-  - PARAM-material-grade
-  - PARAM-design-temperature
+  rule: by_material_temperature
+  bindings:
+    material_grade: PARAM-material-grade
+    design_temperature: PARAM-design-temperature
+lookup_rules:
+  by_material_temperature:
+    strategy: material_temperature
+    inputs:
+      material_grade:
+        resolver: material_catalog
+      design_temperature:
+        resolver: identity
+        column: design_temperature
+        parameter: PARAM-design-temperature
+        match:
+          method: linear_interpolation
+          outside_range: error
+          duplicate_rows: error
+          missing_value: error
+    outputs:
+      allowable_stress:
+        column: allowable_stress
+        parameter: PARAM-allowable-stress
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error
 edges:
 - type: returns_parameter
   target: PARAM-allowable-stress
@@ -36,6 +60,6 @@ edges:
 - type: requires_parameter
   target: PARAM-design-temperature
 metadata:
-  last_revision: 2026-07-06
+  last_revision: 2026-07-15
   edited_by: admin
 ---

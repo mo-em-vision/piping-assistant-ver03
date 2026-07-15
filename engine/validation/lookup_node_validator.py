@@ -81,6 +81,11 @@ def validate_lookup_node(meta: dict[str, Any]) -> list[str]:
             )
 
     issues.extend(_validate_table_note_edges(meta))
+    from engine.validation.lookup_rule_validator import validate_lookup_config
+
+    lookup_cfg = meta.get("lookup") if isinstance(meta.get("lookup"), dict) else {}
+    if lookup_cfg:
+        issues.extend(validate_lookup_config(meta))
     return issues
 
 

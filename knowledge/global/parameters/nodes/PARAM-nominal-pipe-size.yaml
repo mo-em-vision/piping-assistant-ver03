@@ -1,39 +1,39 @@
----
-id: PARAM-nominal-pipe-size
-type: parameter
-key: nominal_pipe_size
-name: Nominal Pipe Size
-parameter_class: selection
-description: >
-  Standard nominal pipe size (NPS) used to look up outside diameter and wall
-  thickness from ASME B36.10 tables.
-question: >
-  Please provide the nominal pipe size (NPS) so outside diameter D can be
-  looked up per ASME B36.10.
-canonical_symbol: NPS
-aliases:
-  - nominal pipe size
-  - NPS
-  - pipe size
-introduced_by:
-  - asme-b313-304-1-1-b
-edges:
-  - type: used_by
-    target: B3610-table-2-1
-applicability:
-  applies_when:
-  - parameter: outside_diameter__resolution_branch
-    operator: equals
-    value: nps_lookup
-metadata:
-  status: active
-  version: 1
-  last_revision: 2026-07-15
-  edited_by: admin
-  composer_input: dropdown
-  canonical_unit: NPS
-  short_question: Enter nominal pipe size (NPS).
-  table_options:
-    table: B3610-table-2-1
-    query: nps_values
----
+---
+id: PARAM-nominal-pipe-size
+type: parameter
+key: nominal_pipe_size
+name: Nominal Pipe Size
+parameter_class: selection
+description: >
+  Standard nominal pipe size (NPS) used to look up outside diameter and wall
+  thickness from ASME B36.10 tables.
+question: >
+  Please provide the nominal pipe size (NPS) so outside diameter D can be
+  looked up per ASME B36.10.
+canonical_symbol: NPS
+aliases:
+  - nominal pipe size
+  - NPS
+  - pipe size
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: used_by
+    target: B3610-table-2-1
+applicability:
+  applies_when:
+  - parameter: outside_diameter__resolution_branch
+    operator: equals
+    value: nps_lookup
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-15
+  edited_by: admin
+  composer_input: dropdown
+  canonical_unit: NPS
+  short_question: Enter nominal pipe size (NPS).
+  table_options:
+    table: B3610-table-2-1
+    query: nps_values
+---

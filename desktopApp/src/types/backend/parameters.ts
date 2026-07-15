@@ -35,6 +35,7 @@ export interface ResolutionBranchDto {
 export interface ResolutionUiDto {
   branches: ResolutionBranchDto[]
   active_branch: string | null
+  default_value?: string | null
   branch_fact_key: string
 }
 

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from engine.messaging.formula_parameter_prompt import classify_formula_parameters
+from engine.graph.assumption_checker import field_value
 from engine.reference.parameter_keys import (
     LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
     MATERIAL_GRADE_KEY,
@@ -205,19 +206,33 @@ def _design_temperature_display(task: Task) -> str | None:
     return f"{_format_scalar(fact_scalar_value(fact))}{unit}"
 
 
-def _d_input_mode(task: Task) -> str:
-    mode_input = task.fact_store.active_fact("d_input_mode")
-    if mode_input is not None and _fact_has_displayable_value(mode_input):
-        return str(fact_scalar_value(mode_input))
+def _outside_diameter_resolution_mode(task_inputs: dict[str, Fact]) -> str:
+    from engine.graph.resolution_branches import active_resolution_branch_id
+
+    branch = active_resolution_branch_id("outside_diameter", task_inputs)
+    if branch in {"direct_od", "nps_lookup"}:
+        return str(branch)
+    mode = field_value("d_input_mode", task_inputs)
+    if mode in {"direct_od", "nps_lookup"}:
+        return str(mode)
     return "nps_lookup"
 
 
 def _uses_nps_for_outside_diameter(task: Task) -> bool:
-    if _d_input_mode(task) == "direct_od":
+    from engine.state.task_facts import active_facts
+
+    if _outside_diameter_resolution_mode(active_facts(task)) == "direct_od":
         return False
+    od_fact = task.fact_store.active_fact("outside_diameter")
+    if (
+        od_fact is not None
+        and od_fact.source.source_type == SourceType.TABLE_LOOKUP
+        and _fact_has_displayable_value(od_fact)
+    ):
+        return True
     if isinstance(task.outputs.get("outside_diameter_lookup"), dict):
         return True
-    return _d_input_mode(task) == "nps_lookup"
+    return _outside_diameter_resolution_mode(active_facts(task)) == "nps_lookup"
 
 
 def _nps_display_label(task: Task) -> str | None:

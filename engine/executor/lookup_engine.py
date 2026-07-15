@@ -165,77 +165,86 @@ class LookupEngine:
         table_ref = self._resolve_table_ref(table_id)
 
         if table_ref in {TABLE_A_1, "asme_b31.3_A-1", "A-1", "asme-b313-table-A-1"}:
-            result = self.execute_lookup(
-                node_id="inline-stress-lookup",
-                lookup_config={"table_id": "A-1", "interpolation": True},
+            rule_result = self.execute_rule_lookup(
+                table_ref="asme-b313-table-A-1",
+                rule="by_material_temperature",
                 inputs=normalized,
             )
-            return TableLookupValue(value=float(result.trace.allowable_stress_pa))
-
-        if table_ref in _Y_TABLE_REFS:
-            from engine.reference.coefficient_resolver import lookup_y_coefficient
-
-            temp_raw = normalized.get("design_temperature", normalized.get("temperature"))
-            if temp_raw is None:
-                raise ValueError("design_temperature is required for coefficient Y lookup")
-            temp = float(temp_raw)
-            temp_unit = str(normalized.get("design_temperature_unit", "F"))
-            metallurgical_group = normalized.get("metallurgical_group")
-            material = read_parameter_value(normalized, MATERIAL_GRADE_KEY)
-            value, _ = lookup_y_coefficient(
-                self._pack_root,
-                design_temperature=temp,
-                design_temperature_unit=temp_unit,
-                metallurgical_group=(
-                    str(metallurgical_group) if metallurgical_group is not None else None
-                ),
-                material=str(material) if material else None,
-            )
+            value = rule_result.outputs.get("allowable_stress")
+            if value is None:
+                raise ValueError("allowable_stress was not resolved from Table A-1 lookup")
             return TableLookupValue(value=float(value))
 
-        if table_ref in {"asme_b36.10", "asme_b36.10m"}:
-            from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
+        if table_ref in _Y_TABLE_REFS:
+            rule_result = self.execute_rule_lookup(
+                table_ref="asme-b313-table-304-1-1-1",
+                rule="by_material_group_temperature",
+                inputs=normalized,
+            )
+            value = rule_result.outputs.get("temperature_coefficient_Y")
+            if value is None:
+                value = rule_result.outputs.get("Y")
+            if value is None:
+                raise ValueError("temperature_coefficient_Y was not resolved from Table 304.1.1-1 lookup")
+            return TableLookupValue(value=float(value))
 
-            standards_root = standards_root_from_pack_root(self._pack_root)
-            nps = str(normalized.get("nominal_pipe_size", "")).strip()
-            if not nps:
-                raise ValueError("nominal_pipe_size is required for pipe dimension lookup")
-            lookup = PipeDimensionLookup(standards_root)
-            result = lookup.lookup(nps)
-            return TableLookupValue(value=float(result.outside_diameter_mm))
+        if table_ref in {"asme_b36.10", "asme_b36.10m", "B3610-table-2-1", "table-2-1"}:
+            rule_result = self.execute_rule_lookup(
+                table_ref="B3610-table-2-1",
+                rule="by_nps",
+                inputs=normalized,
+            )
+            value = rule_result.outputs.get("outside_diameter")
+            if value is None:
+                raise ValueError("outside_diameter was not resolved from pipe dimension lookup")
+            return TableLookupValue(value=float(value))
 
         raise ValueError(f"Unsupported lookup table: {table_ref}")
 
-    def lookup_pipe_dimensions_nps_schedule(self, inputs: dict[str, Any]) -> dict[str, float]:
-        """Resolve outside diameter and wall thickness from NPS and schedule."""
-        from engine.executor.nps_input_resolver import _to_nps_lookup_key
-        from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
+    def execute_rule_lookup(
+        self,
+        *,
+        table_ref: str,
+        rule: str,
+        inputs: dict[str, Any],
+        returns: list[dict[str, Any]] | None = None,
+    ) -> "TableRuleLookupResult":
+        """Resolve table row(s) by authored rule name; map output columns to parameter keys."""
+        from engine.executor.table_rule_lookup import TableRuleLookupResult, execute_table_rule_lookup
 
         normalized = _lookup_inputs_with_units(inputs)
-        nps = str(normalized.get("nominal_pipe_size", "")).strip()
-        schedule = str(normalized.get("pipe_schedule", "")).strip()
-        if not nps:
-            raise ValueError("nominal_pipe_size is required for pipe dimension lookup")
-        if not schedule:
-            raise ValueError("pipe_schedule is required for pipe dimension lookup")
+        result = execute_table_rule_lookup(
+            standards_pack_root=self._pack_root,
+            table_ref=table_ref,
+            rule=rule,
+            inputs=normalized,
+            returns=returns,
+        )
+        if returns:
+            mapped: dict[str, float] = dict(result.outputs)
+            for item in returns:
+                if not isinstance(item, dict):
+                    continue
+                symbol = str(item.get("symbol") or "").strip()
+                if not symbol:
+                    continue
+                param_id = str(item.get("parameter") or "").strip()
+                from engine.reference.workflow_sidecar import _PARAM_TO_FIELD
 
-        entry_unit = str(normalized.get("nominal_pipe_size_unit") or "NPS").strip().upper()
-        lookup_nps = _to_nps_lookup_key(nps, entry_unit if entry_unit in {"NPS", "DN"} else "NPS")
+                fact_key = _PARAM_TO_FIELD.get(param_id, "")
+                if fact_key and fact_key in mapped and symbol not in mapped:
+                    mapped[symbol] = mapped[fact_key]
+            return TableRuleLookupResult(outputs=mapped, meta=result.meta)
+        return result
 
-        standards_root = standards_root_from_pack_root(self._pack_root)
-        lookup = PipeDimensionLookup(standards_root)
-        result = lookup.lookup(lookup_nps, schedule=schedule)
-        if result.wall_thickness_mm is None:
-            raise ValueError(
-                f"Wall thickness for NPS {result.nps!r} schedule {schedule!r} "
-                "was not found in ASME B36.10."
-            )
-        return {
-            "outside_diameter": float(result.outside_diameter_mm),
-            "actual_wall_thickness": float(result.wall_thickness_mm),
-            "D": float(result.outside_diameter_mm),
-            "t_actual": float(result.wall_thickness_mm),
-        }
+    def lookup_pipe_dimensions_nps_schedule(self, inputs: dict[str, Any]) -> dict[str, float]:
+        """Resolve outside diameter and wall thickness from NPS and schedule."""
+        result = self.execute_rule_lookup(
+            table_ref="B3610-table-2-1",
+            rule="by_nps_schedule",
+            inputs=inputs,
+        )
+        return dict(result.outputs)
 
     def _lookup_stress(
         self,

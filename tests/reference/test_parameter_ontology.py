@@ -211,16 +211,14 @@ def test_outside_diameter_parameter() -> None:
     assert _introduced_by_targets(meta) == ["asme-b313-304-1-1-b"]
     assert "applicability" not in meta
     used_by = [edge for edge in meta.get("edges") or [] if edge.get("type") == "used_by"]
-    assert any(edge.get("target") == "B3610-table-2-1" for edge in used_by)
-    b3610_edge = next(edge for edge in used_by if edge.get("target") == "B3610-table-2-1")
-    assert b3610_edge.get("when", {}).get("field") == "outside_diameter__resolution_branch"
+    assert not used_by
     resolves_via = [edge for edge in meta.get("edges") or [] if edge.get("type") == "resolves_via"]
-    assert any(
-        edge.get("target") == "PARAM-nominal-pipe-size" and edge.get("branch_id") == "nps_lookup"
-        for edge in resolves_via
-    )
+    assert not resolves_via
     branches = meta.get("metadata", {}).get("resolution_branches") or []
-    assert {branch.get("id") for branch in branches} == {"direct_od", "nps_lookup"}
+    assert [branch.get("id") for branch in branches] == ["nps_lookup", "direct_od"]
+    nps_branch = next(branch for branch in branches if branch.get("id") == "nps_lookup")
+    assert nps_branch.get("lookup") == "asme-b3610-nps-outside-diameter-lookup"
+    assert meta.get("metadata", {}).get("default_value") == "nps_lookup"
     assert meta.get("metadata", {}).get("composer_input") == "resolution_branch"
 
 

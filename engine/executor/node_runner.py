@@ -9,7 +9,6 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
 from engine.equation.equation_display_trace_builder import build_equation_display_trace
 from engine.equation.equation_renderer import EquationRenderSteps
 from engine.equation.sympy_evaluator import evaluate_equation
@@ -253,13 +252,37 @@ class NodeRunner:
                 errors=["No lookup configuration found"],
             )
 
-        engine_inputs = dict(raw_inputs)
-        if "material_grade" in engine_inputs and "material" not in engine_inputs:
-            engine_inputs["material"] = engine_inputs["material_grade"]
-        if "material" in engine_inputs and "material_grade" not in engine_inputs:
-            engine_inputs["material_grade"] = engine_inputs["material"]
-        if "temperature" in engine_inputs and "design_temperature" not in engine_inputs:
-            engine_inputs["design_temperature"] = engine_inputs["temperature"]
+        from engine.executor.lookup_rule_schema import lookup_bindings
+        from engine.graph.lookup_parameter_resolution import _resolve_lookup_key
+
+        bindings = lookup_bindings(record.metadata)
+        if bindings:
+            engine_inputs: dict[str, Any] = {}
+            store = self._reader.graph_store
+            for logical_key, param_ref in bindings.items():
+                fact_key = _resolve_lookup_key(store, param_ref)
+                source_fact = task_inputs.get(fact_key)
+                if source_fact is None and fact_key == "material_grade" and "material" in task_inputs:
+                    source_fact = task_inputs["material"]
+                if source_fact is None:
+                    continue
+                target_unit = "f" if logical_key == "design_temperature" else None
+                prepared = prepare_fact(source_fact, target_unit=target_unit)
+                engine_inputs[logical_key] = fact_scalar_value(prepared)
+                if logical_key == "design_temperature":
+                    engine_inputs["design_temperature_unit"] = fact_unit(prepared)
+                if logical_key == "nominal_pipe_size":
+                    from engine.reference.nps_normalization import nps_entry_unit
+
+                    engine_inputs["nominal_pipe_size_unit"] = nps_entry_unit(source_fact)
+        else:
+            engine_inputs = dict(raw_inputs)
+            if "material_grade" in engine_inputs and "material" not in engine_inputs:
+                engine_inputs["material"] = engine_inputs["material_grade"]
+            if "material" in engine_inputs and "material_grade" not in engine_inputs:
+                engine_inputs["material_grade"] = engine_inputs["material"]
+            if "temperature" in engine_inputs and "design_temperature" not in engine_inputs:
+                engine_inputs["design_temperature"] = engine_inputs["temperature"]
 
         table_ref = str(
             lookup_config.get("table_id")
@@ -272,51 +295,29 @@ class NodeRunner:
             if db_table_id:
                 table_ref = self._lookup_engine._resolve_table_ref(db_table_id)
         try:
-            lookup_rule = str(lookup_config.get("rule") or "").strip()
-            if lookup_rule == "pipe_dimensions_nps_schedule":
-                outputs = self._lookup_engine.lookup_pipe_dimensions_nps_schedule(engine_inputs)
-                trace_payload = {
-                    "table_id": table_ref or "B3610-table-2-1",
-                    "rule": lookup_rule,
-                    "outputs": dict(outputs),
-                }
-            elif table_ref in {"asme-b313-table-A-1", "A-1", "asme_b31.3_A-1"}:
-                lookup_result = self._lookup_engine.execute_lookup(
+            lookup_rule = str(
+                lookup_config.get("rule") or lookup_config.get("lookup_rule") or ""
+            ).strip()
+            if not lookup_rule:
+                return NodeExecutionResult(
                     node_id=record.node_id,
-                    lookup_config={
-                        "table_id": "A-1",
-                        "interpolation": bool(lookup_config.get("interpolation", True)),
-                    },
+                    status=NodeExecutionStatus.ERROR,
+                    errors=["lookup.rule is required"],
                     inputs=engine_inputs,
                 )
-                stress_value = lookup_result.trace.allowable_stress_pa
-                outputs: dict[str, Any] = {
-                    "allowable_stress": stress_value,
-                    "S": stress_value,
-                }
-                trace_payload = {
-                    "lookup": asdict(lookup_result.trace),
-                    "calculation": asdict(lookup_result.calculation),
-                }
-            else:
-                table_value = self._lookup_engine.lookup(table_ref, engine_inputs)
-                outputs = {"value": table_value.value}
-                for item in record.metadata.get("returns") or []:
-                    if not isinstance(item, dict):
-                        continue
-                    symbol = str(item.get("symbol") or "").strip()
-                    param_id = str(item.get("parameter") or "").strip()
-                    if symbol:
-                        outputs[symbol] = table_value.value
-                    if param_id:
-                        try:
-                            param = self._reader.load(param_id)
-                            fact_key = self._param_fact_key(param.metadata)
-                            if fact_key:
-                                outputs[fact_key] = table_value.value
-                        except FileNotFoundError:
-                            pass
-                trace_payload = {"table_id": table_ref, "value": table_value.value}
+            rule_result = self._lookup_engine.execute_rule_lookup(
+                table_ref=table_ref,
+                rule=lookup_rule,
+                inputs=engine_inputs,
+                returns=list(record.metadata.get("returns") or []),
+            )
+            outputs = dict(rule_result.outputs)
+            trace_payload = {
+                "table_id": table_ref or rule_result.meta.get("table_ref") or "",
+                "rule": lookup_rule,
+                "outputs": dict(outputs),
+                "meta": dict(rule_result.meta),
+            }
         except (ValueError, FileNotFoundError) as exc:
             return NodeExecutionResult(
                 node_id=record.node_id,
@@ -804,26 +805,58 @@ class NodeRunner:
         missing: list[str],
         nomenclature: dict,
     ) -> str | None:
-        del record, nomenclature
+        del record, nomenclature, missing
         from engine.graph.resolution_branches import active_resolution_branch_id
+        from engine.graph.lookup_resolution_service import OUTSIDE_DIAMETER_LOOKUP_NODE, lookup_node_metadata
+        from engine.reference.nps_normalization import nps_entry_unit, to_nps_lookup_key
 
         mode = active_resolution_branch_id("outside_diameter", task_inputs)
         if mode is None:
-            if "outside_diameter" in task_inputs:
-                mode = "direct_od"
-            else:
-                mode = "nps_lookup"
+            mode = "nps_lookup"
+
+        if mode == "direct_od":
+            if "outside_diameter" not in task_inputs:
+                return "outside_diameter"
+            stored = task_inputs["outside_diameter"]
+            prepared = prepare_fact(stored)
+            resolved["D"] = fact_scalar_value(prepared)
+            resolved["D_unit"] = fact_unit(prepared)
+            return None
+
+        if "outside_diameter" in task_inputs:
+            stored = task_inputs["outside_diameter"]
+            if fact_scalar_value(stored) is not None:
+                prepared = prepare_fact(stored)
+                resolved["D"] = fact_scalar_value(prepared)
+                resolved["D_unit"] = fact_unit(prepared)
+                resolved["D_source"] = stored.source.source_id if stored.source else None
+                return None
 
         if mode == "nps_lookup":
             nps = field_value("nominal_pipe_size", task_inputs)
             if nps is None:
                 return "nominal_pipe_size"
+            nps_fact = task_inputs.get("nominal_pipe_size")
             try:
-                lookup = PipeDimensionLookup(self._reader.standards_root)
-                result = lookup.lookup(str(nps))
-                resolved["D"] = result.outside_diameter_mm
+                table_ref, rule, _keys = lookup_node_metadata(self._reader, OUTSIDE_DIAMETER_LOOKUP_NODE)
+                if not table_ref or not rule:
+                    return "nominal_pipe_size"
+                lookup_inputs: dict[str, Any] = {"nominal_pipe_size": str(nps)}
+                if nps_fact is not None:
+                    entry_unit = nps_entry_unit(nps_fact)
+                    lookup_inputs["nominal_pipe_size"] = to_nps_lookup_key(str(nps), entry_unit)
+                    lookup_inputs["nominal_pipe_size_unit"] = entry_unit
+                rule_result = self._lookup_engine.execute_rule_lookup(
+                    table_ref=table_ref,
+                    rule=rule,
+                    inputs=lookup_inputs,
+                )
+                outside_diameter = rule_result.outputs.get("outside_diameter")
+                if outside_diameter is None:
+                    return "nominal_pipe_size"
+                resolved["D"] = outside_diameter
                 resolved["D_unit"] = "mm"
-                resolved["D_source"] = "asme_b36.10"
+                resolved["D_source"] = table_ref
                 return None
             except (ValueError, FileNotFoundError):
                 return "nominal_pipe_size"

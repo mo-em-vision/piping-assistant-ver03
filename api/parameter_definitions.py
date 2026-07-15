@@ -9,12 +9,12 @@ from engine.executor.allowable_stress_resolver import apply_allowable_stress_loo
 from engine.executor.coefficient_lookup import apply_coefficient_lookups
 from engine.executor.metallurgical_group_resolver import apply_metallurgical_group_lookup
 from engine.executor.mawp_geometry_resolver import (
-    apply_nominal_pipe_size_for_mawp,
     apply_pipe_schedule_lookup,
     store_outside_diameter_resolution_branch,
 )
 from engine.graph.resolution_branches import (
     clear_conflicting_branch_facts,
+    clear_outside_diameter_lookup_output,
     resolution_branch_fact_key,
 )
 from engine.executor.nps_input_resolver import apply_nominal_pipe_size_lookup
@@ -445,6 +445,7 @@ def _submit_task_input_impl(
 
     with perf_span("lookup_side_effects", "lookup", notes=f"parameter={parameter}"):
         if parameter == "outside_diameter":
+            clear_outside_diameter_lookup_output(task)
             store_outside_diameter_resolution_branch(task, "direct_od")
             deactivate_fact(task, "inside_diameter")
             manager.replace_task(task_id, task)
@@ -459,10 +460,7 @@ def _submit_task_input_impl(
         if parameter == "nominal_pipe_size":
             if standards_root is None:
                 raise ValueError("Standards root is required to resolve nominal pipe size.")
-            if workflow_id == MAWP_DESIGN:
-                apply_nominal_pipe_size_for_mawp(task, standards_root)
-            else:
-                apply_nominal_pipe_size_lookup(task, standards_root)
+            apply_nominal_pipe_size_lookup(task, standards_root)
             deactivate_fact(task, "inside_diameter")
             manager.replace_task(task_id, task)
             task = manager.get_task(task_id)

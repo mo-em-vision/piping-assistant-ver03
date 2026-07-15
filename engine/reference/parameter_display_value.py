@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
-from engine.graph.assumption_checker import field_value
+from engine.graph.resolution_branches import active_resolution_branch_id
 from engine.reference.parameter_keys import canonical_parameter_key, read_parameter_value
 from engine.reference.standards_reader import StandardsReader
 from models.fact import Fact, FactClass, ValidationStatus, fact_scalar_value, fact_unit
@@ -45,31 +44,26 @@ def resolve_parameter_display_value(
     task_inputs: dict[str, Fact],
 ) -> str | None:
     """Resolve a display value for a parameter key from task facts."""
+    del reader
     canonical = canonical_parameter_key(parameter_id)
     inp = read_parameter_value(task_inputs, canonical)
     if inp is not None:
         direct = format_fact_display_value(inp)
         if direct is not None:
+            if canonical == "outside_diameter":
+                nps = read_parameter_value(task_inputs, "nominal_pipe_size")
+                if (
+                    nps is not None
+                    and is_known_fact(nps)
+                    and active_resolution_branch_id("outside_diameter", task_inputs) != "direct_od"
+                ):
+                    return f"{direct} (NPS {fact_scalar_value(nps)})"
             return direct
 
     if canonical == "outside_diameter":
-        return _outside_diameter_from_nominal_pipe_size(reader, task_inputs)
+        if active_resolution_branch_id("outside_diameter", task_inputs) == "direct_od":
+            return None
+        nps = read_parameter_value(task_inputs, "nominal_pipe_size")
+        if nps is not None and is_known_fact(nps):
+            return f"NPS {fact_scalar_value(nps)} (lookup pending)"
     return None
-
-
-def _outside_diameter_from_nominal_pipe_size(
-    reader: StandardsReader,
-    task_inputs: dict[str, Fact],
-) -> str | None:
-    mode = field_value("d_input_mode", task_inputs)
-    if mode == "direct_od":
-        return None
-    nps = read_parameter_value(task_inputs, "nominal_pipe_size")
-    if nps is None or not is_known_fact(nps):
-        return None
-    try:
-        lookup = PipeDimensionLookup(reader.standards_root)
-        result = lookup.lookup(str(fact_scalar_value(nps)))
-        return f"{result.outside_diameter_mm} mm (NPS {fact_scalar_value(nps)})"
-    except (ValueError, FileNotFoundError):
-        return f"NPS {fact_scalar_value(nps)} (lookup pending)"

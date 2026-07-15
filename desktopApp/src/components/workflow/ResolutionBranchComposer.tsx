@@ -23,8 +23,10 @@ export function ResolutionBranchComposer({
   const branchFactKey =
     resolutionUi?.branch_fact_key ?? `${parameter.name}__resolution_branch`
 
+  const defaultBranchId = resolutionUi?.default_value ?? branches[0]?.id ?? null
+
   const [activeBranchId, setActiveBranchId] = useState<string | null>(
-    () => resolutionUi?.active_branch ?? branches[0]?.id ?? null,
+    () => resolutionUi?.active_branch ?? defaultBranchId,
   )
   const [numericValue, setNumericValue] = useState(() => {
     if (parameter.value == null || parameter.value === '') {
@@ -45,13 +47,13 @@ export function ResolutionBranchComposer({
 
   useEffect(() => {
     setSubmitting(false)
-    setActiveBranchId(resolutionUi?.active_branch ?? branches[0]?.id ?? null)
+    setActiveBranchId(resolutionUi?.active_branch ?? defaultBranchId)
     setNumericValue(
       parameter.value == null || parameter.value === '' ? '' : String(parameter.value),
     )
     setNumericUnit(parameter.default_unit || parameter.units[0] || 'mm')
     setSelectedValue(null)
-  }, [parameter, resolutionUi?.active_branch, branches])
+  }, [parameter, resolutionUi?.active_branch, resolutionUi?.default_value, branches, defaultBranchId])
 
   const busy = Boolean(disabled || submitting)
 

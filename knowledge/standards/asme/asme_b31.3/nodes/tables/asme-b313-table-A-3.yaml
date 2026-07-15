@@ -33,10 +33,27 @@ returns:
   symbol: E_j
 lookup:
   table: asme-b313-table-A-3
-  keys:
-  - PARAM-material-grade
-  - PARAM-pipe-construction-type
-  lookup_rule: material_and_joint_category
+  rule: by_material_joint_category
+  bindings:
+    material_grade: PARAM-material-grade
+    pipe_construction_type: PARAM-pipe-construction-type
+lookup_rules:
+  by_material_joint_category:
+    strategy: material_category
+    inputs:
+      material_grade:
+        resolver: material_catalog
+      pipe_construction_type:
+        resolver: joint_category_normalize
+        column: joint_category
+    outputs:
+      basic_quality_factor:
+        column: quality_factor_E
+        parameter: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error
 edges:
 - type: returns_parameter
   target: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
@@ -45,7 +62,7 @@ edges:
 - type: requires_parameter
   target: PARAM-pipe-construction-type
 metadata:
-  last_revision: 2026-07-06
+  last_revision: 2026-07-15
   edited_by: admin
 option_queries:
   joint_categories_for_material:

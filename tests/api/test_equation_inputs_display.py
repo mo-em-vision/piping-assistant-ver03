@@ -196,6 +196,38 @@ def test_direct_outside_diameter_keeps_nps_row_hidden_without_nps_suffix() -> No
     }
 
 
+def test_direct_outside_diameter_resolution_branch_hides_nps_suffix_with_stale_lookup() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("eq-inputs-test-direct-branch", status=TaskStatus.AWAITING_INPUT)
+    populate_task_facts(task, {
+        "outside_diameter__resolution_branch": EngineeringInput(
+            input_id="outside_diameter__resolution_branch",
+            value="direct_od",
+            unit="dimensionless",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
+        "outside_diameter": EngineeringInput(
+            input_id="outside_diameter",
+            value=10.0,
+            unit="in",
+            source=InputSource.USER,
+            status=InputStatus.CONFIRMED,
+        ),
+    })
+    task.outputs["outside_diameter_lookup"] = {
+        "standard": "asme_b36.10",
+        "nps": "8",
+        "outside_diameter_mm": 219.1,
+    }
+
+    rows = build_formula_inputs_table_rows(task)
+    diameter_row = next(row for row in rows if row["symbol"] == "D")
+    assert diameter_row["value"] == "10.0 in"
+    assert "NPS" not in diameter_row["value"]
+    assert "B36" not in diameter_row["value"]
+
+
 def test_weld_joint_efficiency_includes_joint_category_in_table() -> None:
     manager = TaskStateManager()
     task = manager.create_task("eq-inputs-test-e", status=TaskStatus.AWAITING_INPUT)

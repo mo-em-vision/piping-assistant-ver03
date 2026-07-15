@@ -58,4 +58,5 @@ def test_build_parameter_definitions_includes_outside_diameter_resolution_branch
     assert od["type"] == "resolution_branch"
     ui = od["resolution_ui"]
     assert ui["branch_fact_key"] == "outside_diameter__resolution_branch"
-    assert {branch["id"] for branch in ui["branches"]} == {"direct_od", "nps_lookup"}
+    assert [branch["id"] for branch in ui["branches"]] == ["nps_lookup", "direct_od"]
+    assert ui["default_value"] == "nps_lookup"

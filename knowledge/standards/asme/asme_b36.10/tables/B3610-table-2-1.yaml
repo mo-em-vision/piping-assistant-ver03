@@ -37,6 +37,34 @@ keys:
   - nominal_pipe_size
   - schedule
 
+lookup_rules:
+  by_nps:
+    strategy: pipe_nps
+    inputs:
+      nominal_pipe_size:
+        resolver: nps_key
+    outputs:
+      outside_diameter:
+        column: outside_diameter_mm
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error
+  by_nps_schedule:
+    strategy: pipe_nps_schedule
+    inputs:
+      nominal_pipe_size:
+        resolver: nps_key
+      pipe_schedule:
+        resolver: schedule_key
+    outputs:
+      actual_wall_thickness:
+        column: wall_thickness_mm
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error
+
 aliases:
   nps:
     '1/2"': "1/2"

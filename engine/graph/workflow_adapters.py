@@ -31,7 +31,11 @@ def resolve_workflow_node_id(root_ref: str, *, normalize) -> str:
 
 
 def apply_workflow_planning_defaults(task: Any, workflow_id: str) -> None:
-    """Apply workflow-specific proposed defaults before graph expansion."""
+    """Apply workflow-specific and graph-driven defaults before expansion."""
+    from engine.graph.resolution_branches import apply_resolution_branch_defaults
+
+    apply_resolution_branch_defaults(task)
+
     if workflow_id != MAWP_DESIGN:
         return
     from engine.executor.mawp_geometry_resolver import apply_mawp_pressure_loading_default

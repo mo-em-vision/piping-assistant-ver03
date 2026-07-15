@@ -124,7 +124,8 @@ def test_outside_diameter_infers_table_lookup_on_nps_geometry_path() -> None:
     assert resolution is not None
     assert resolution["method"] == "table_lookup"
     assert "nominal_pipe_size" in resolution["keys"]
-    assert "pipe_schedule" in resolution["keys"]
+    assert "pipe_schedule" not in resolution["keys"]
+    assert resolution.get("lookup_node_id") == "asme-b3610-nps-outside-diameter-lookup"
 
 
 def test_outside_diameter_infers_user_input_on_direct_geometry_path() -> None:

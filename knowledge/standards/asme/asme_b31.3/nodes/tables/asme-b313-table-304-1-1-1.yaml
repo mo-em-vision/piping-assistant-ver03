@@ -23,10 +23,33 @@ returns:
   symbol: Y
 lookup:
   table: asme-b313-table-304-1-1-1
-  keys:
-  - PARAM-metallurgical-group
-  - PARAM-design-temperature
-  interpolation: true
+  rule: by_material_group_temperature
+  bindings:
+    metallurgical_group: PARAM-metallurgical-group
+    design_temperature: PARAM-design-temperature
+lookup_rules:
+  by_material_group_temperature:
+    strategy: material_group_temperature
+    inputs:
+      metallurgical_group:
+        resolver: metallurgical_group_key
+      design_temperature:
+        resolver: identity
+        column: design_temperature
+        parameter: PARAM-design-temperature
+        match:
+          method: linear_interpolation
+          outside_range: error
+          duplicate_rows: error
+          missing_value: error
+    outputs:
+      temperature_coefficient_Y:
+        column: coefficient_Y
+        parameter: PARAM-temperature-coefficient-Y
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error
 edges:
 - type: reads_table
   target: asme-b313-table-304-1-1-1
@@ -37,6 +60,6 @@ edges:
 - type: requires_parameter
   target: PARAM-design-temperature
 metadata:
-  last_revision: 2026-07-06
+  last_revision: 2026-07-15
   edited_by: admin
 ---

@@ -4,13 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from engine.executor.nps_input_resolver import (
-    B36_10_TABLE_REF,
-    _nps_entry_unit,
-    _to_nps_lookup_key,
-)
-from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
 from engine.graph.assumption_checker import field_value
+from engine.graph.lookup_resolution_service import (
+    B36_10_TABLE_REF,
+    resolve_wall_thickness_from_nps_schedule,
+)
 from engine.graph.resolution_branches import (
     active_resolution_branch_id,
     resolution_branch_fact_key,
@@ -19,9 +17,9 @@ from engine.state.task_facts import (
     active_facts,
     fact_scalar_value,
     store_lookup_categorical_fact,
-    store_lookup_numeric_fact,
     store_system_categorical_fact,
 )
+from models.fact import SourceType
 from models.task import Task
 
 
@@ -75,45 +73,15 @@ def store_outside_diameter_resolution_branch(task: Task, branch_id: str) -> None
     )
 
 
-def apply_nominal_pipe_size_for_mawp(task: Task, standards_root: Path) -> None:
-    """Look up outside diameter from NPS (schedule applied separately)."""
-    nps_input = task.fact_store.active_fact("nominal_pipe_size")
-    if nps_input is None or fact_scalar_value(nps_input) is None:
-        return
-
-    raw_nps = str(fact_scalar_value(nps_input)).strip()
-    if not raw_nps:
-        raise ValueError("Nominal pipe size is required.")
-
-    entry_unit = _nps_entry_unit(nps_input)
-    lookup_nps = _to_nps_lookup_key(raw_nps, entry_unit)
-
-    lookup = PipeDimensionLookup(standards_root)
-    try:
-        result = lookup.lookup(lookup_nps)
-    except FileNotFoundError as exc:
-        raise ValueError(
-            "Pipe dimension database is not available. "
-            "Run scripts/build_pipe_dimensions_db.py and retry."
-        ) from exc
-    except ValueError as exc:
-        raise ValueError(
-            f"Nominal pipe size {raw_nps!r} was not found in {lookup.standard_slug}. "
-            "Enter a standard NPS (for example 2, 4, or 6)."
-        ) from exc
-
-    store_lookup_categorical_fact(
-        task,
-        key="nominal_pipe_size",
-        label=str(result.nps),
-        table_ref=B36_10_TABLE_REF,
-        original_value=nps_input.original_value or raw_nps,
-    )
-    store_outside_diameter_resolution_branch(task, "nps_lookup")
+def _od_already_table_derived(task: Task) -> bool:
+    od = task.fact_store.active_fact("outside_diameter")
+    if od is None or fact_scalar_value(od) is None:
+        return False
+    return od.source.source_type == SourceType.TABLE_LOOKUP
 
 
 def apply_pipe_schedule_lookup(task: Task, standards_root: Path) -> None:
-    """Look up outside diameter and wall thickness from NPS and schedule."""
+    """Look up wall thickness from NPS and schedule; do not re-derive OD when already stored."""
     if _geometry_branch(task) != "nps_lookup":
         return
 
@@ -124,55 +92,31 @@ def apply_pipe_schedule_lookup(task: Task, standards_root: Path) -> None:
     if schedule_input is None or fact_scalar_value(schedule_input) is None:
         raise ValueError("Pipe schedule is required.")
 
-    raw_nps = str(fact_scalar_value(nps_input)).strip()
     raw_schedule = str(fact_scalar_value(schedule_input)).strip()
     if not raw_schedule:
         raise ValueError("Pipe schedule is required.")
 
-    entry_unit = _nps_entry_unit(nps_input)
-    lookup_nps = _to_nps_lookup_key(raw_nps, entry_unit)
-
-    lookup = PipeDimensionLookup(standards_root)
     try:
-        result = lookup.lookup(lookup_nps, schedule=raw_schedule)
-    except FileNotFoundError as exc:
-        raise ValueError(
-            "Pipe dimension database is not available. "
-            "Run scripts/build_pipe_dimensions_db.py and retry."
-        ) from exc
+        result = resolve_wall_thickness_from_nps_schedule(task, standards_root)
     except ValueError as exc:
         raise ValueError(str(exc)) from exc
 
-    if result.wall_thickness_mm is None:
+    meta = result.meta
+    wall_thickness_mm = result.outputs.get("actual_wall_thickness")
+    if wall_thickness_mm is None:
         raise ValueError(
-            f"Wall thickness for NPS {result.nps!r} schedule {raw_schedule!r} "
+            f"Wall thickness for NPS {meta.get('nps')!r} schedule {raw_schedule!r} "
             "was not found in ASME B36.10."
         )
 
     store_lookup_categorical_fact(
         task,
         key="pipe_schedule",
-        label=str(result.schedule or raw_schedule),
+        label=str(meta.get("schedule") or raw_schedule),
         table_ref=B36_10_TABLE_REF,
         original_value=schedule_input.original_value or raw_schedule,
-    )
-    store_lookup_numeric_fact(
-        task,
-        key="outside_diameter",
-        amount=result.outside_diameter_mm,
-        unit="mm",
-        table_ref=B36_10_TABLE_REF,
-        symbol="D",
-        description="Outside diameter from ASME B36.10M",
-    )
-    store_lookup_numeric_fact(
-        task,
-        key="actual_wall_thickness",
-        amount=result.wall_thickness_mm,
-        unit="mm",
-        table_ref=B36_10_TABLE_REF,
-        symbol="t_actual",
-        description="Wall thickness from ASME B36.10M",
+        lookup_node=result.lookup_node_id,
+        lookup_rule=result.rule,
     )
     store_system_categorical_fact(
         task,
@@ -180,15 +124,23 @@ def apply_pipe_schedule_lookup(task: Task, standards_root: Path) -> None:
         label="nominal_schedule",
     )
 
+    od_fact = task.fact_store.active_fact("outside_diameter")
+    od_mm = fact_scalar_value(od_fact) if od_fact is not None else None
+    if od_mm is not None and not _od_already_table_derived(task):
+        od_mm = None
+
     task.outputs["outside_diameter_lookup"] = {
-        "standard": result.standard_slug or lookup.standard_slug,
-        "table_id": result.table_id,
-        "nps": result.nps,
-        "schedule": result.schedule,
-        "outside_diameter_in": result.outside_diameter_in,
-        "outside_diameter_mm": result.outside_diameter_mm,
-        "wall_thickness_in": result.wall_thickness_in,
-        "wall_thickness_mm": result.wall_thickness_mm,
+        "standard": meta.get("standard"),
+        "table_id": meta.get("table_id"),
+        "lookup_node_id": result.lookup_node_id,
+        "rule": result.rule,
+        "nps": meta.get("nps"),
+        "schedule": meta.get("schedule"),
+        "outside_diameter_in": meta.get("outside_diameter_in"),
+        "outside_diameter_mm": float(od_mm) if od_mm is not None else None,
+        "wall_thickness_in": meta.get("wall_thickness_in"),
+        "wall_thickness_mm": float(wall_thickness_mm),
+        "row_identity": meta.get("nps", "") + "|" + str(meta.get("schedule") or raw_schedule),
     }
 
     _clear_geometry_from_planning(

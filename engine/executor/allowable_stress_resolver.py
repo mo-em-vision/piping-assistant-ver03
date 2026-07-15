@@ -19,10 +19,8 @@ from models.task import Task
 B31_3_SLUG = "asme_b31.3"
 B31_3_TABLE_A_1 = TABLE_A_1
 B31_3_TABLE_REF = f"{B31_3_SLUG}/{TABLE_A_1}"
-LOOKUP_CONFIG = {
-    "table_id": B31_3_TABLE_A_1,
-    "interpolation": True,
-}
+LOOKUP_TABLE_REF = "asme-b313-table-A-1"
+LOOKUP_RULE = "by_material_temperature"
 
 
 def _clear_allowable_stress(task: Task) -> None:
@@ -58,15 +56,19 @@ def apply_allowable_stress_lookup(task: Task, standards_root: Path) -> None:
     engine = LookupEngine(pack_root)
 
     try:
-        result = engine.execute_lookup(
-            node_id="B313-table-A-1",
-            lookup_config=LOOKUP_CONFIG,
+        rule_result = engine.execute_rule_lookup(
+            table_ref=LOOKUP_TABLE_REF,
+            rule=LOOKUP_RULE,
             inputs={
                 "material": material,
                 "design_temperature": design_temperature,
                 "design_temperature_unit": design_temperature_unit,
             },
         )
+        stress_pa = float(rule_result.outputs["allowable_stress"])
+        interpolated = bool(rule_result.meta.get("interpolated"))
+        table_id = str(rule_result.meta.get("table_id") or B31_3_TABLE_A_1)
+        temp_f = float(rule_result.meta.get("design_temperature_f", design_temperature))
     except FileNotFoundError as exc:
         raise ValueError(
             "ASME B31.3 standards tables database is not available. "
@@ -75,16 +77,15 @@ def apply_allowable_stress_lookup(task: Task, standards_root: Path) -> None:
     except ValueError as exc:
         raise ValueError(str(exc)) from exc
 
-    stress_pa = result.trace.allowable_stress_pa
     task.outputs["allowable_stress"] = stress_pa
     task.outputs["S"] = stress_pa
     task.outputs["allowable_stress_unit"] = "Pa"
     task.outputs["allowable_stress_lookup"] = {
         "standard": B31_3_SLUG,
-        "table_id": result.trace.table_id,
+        "table_id": table_id,
         "material": material,
-        "design_temperature_f": result.trace.design_temperature_f,
-        "interpolated": result.trace.interpolated,
+        "design_temperature_f": temp_f,
+        "interpolated": interpolated,
     }
 
     store_lookup_numeric_fact(

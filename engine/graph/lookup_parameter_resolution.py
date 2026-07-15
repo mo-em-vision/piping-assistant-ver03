@@ -41,6 +41,16 @@ def _resolve_lookup_key(store: GraphStore, key: str) -> str:
 
 def _lookup_keys_from_metadata(store: GraphStore, metadata: dict[str, Any]) -> list[str]:
     keys: list[str] = []
+    lookup_cfg = metadata.get("lookup")
+    if isinstance(lookup_cfg, dict):
+        bindings = lookup_cfg.get("bindings")
+        if isinstance(bindings, dict) and bindings:
+            for param_ref in bindings.values():
+                resolved = _resolve_lookup_key(store, str(param_ref))
+                if resolved and resolved not in keys:
+                    keys.append(resolved)
+            if keys:
+                return keys
     for item in metadata.get("inputs") or []:
         if not isinstance(item, dict):
             continue
@@ -48,12 +58,6 @@ def _lookup_keys_from_metadata(store: GraphStore, metadata: dict[str, Any]) -> l
         resolved = _resolve_lookup_key(store, key)
         if resolved and resolved not in keys:
             keys.append(resolved)
-    lookup_cfg = metadata.get("lookup")
-    if isinstance(lookup_cfg, dict):
-        for raw_key in lookup_cfg.get("keys") or []:
-            resolved = _resolve_lookup_key(store, str(raw_key))
-            if resolved and resolved not in keys:
-                keys.append(resolved)
     return keys
 
 
@@ -106,18 +110,39 @@ def lookup_resolution_for_parameter(
     *,
     active_nodes: set[str] | None = None,
     inputs: dict[str, Fact] | None = None,
+    branch_lookup_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Return table_lookup resolution inferred from active lookup nodes that output this parameter."""
     merged_keys: list[str] = []
     table_ids: list[str] = []
+    lookup_node_ids: list[str] = []
     found_lookup = False
     task_inputs = inputs or {}
 
     from engine.graph.lazy_expander import _node_active_on_path
 
+    branch_lookup = str(branch_lookup_id or "").strip()
+    if branch_lookup:
+        lookup_node = store.get_node(branch_lookup)
+        if lookup_node is not None and lookup_node.node_type == "lookup":
+            if active_nodes is None or branch_lookup in active_nodes:
+                if _node_active_on_path(store, branch_lookup, task_inputs):
+                    keys = _lookup_keys_from_metadata(store, lookup_node.metadata)
+                    if keys:
+                        found_lookup = True
+                        lookup_node_ids.append(branch_lookup)
+                        for key_name in keys:
+                            if key_name not in merged_keys:
+                                merged_keys.append(key_name)
+                        table_id = _table_id_from_metadata(lookup_node.metadata)
+                        if table_id and table_id not in table_ids:
+                            table_ids.append(table_id)
+
     for edge in store.incoming(param_node_id, edge_types={"returns_parameter"}):
         lookup_node = store.get_node(edge.from_id)
         if lookup_node is None or lookup_node.node_type != "lookup":
+            continue
+        if branch_lookup and edge.from_id == branch_lookup:
             continue
         edge_when = edge.metadata.get("when") if edge.metadata else None
         if isinstance(edge_when, dict) and not when_clause_matches(edge_when, task_inputs):
@@ -147,6 +172,8 @@ def lookup_resolution_for_parameter(
         if not keys:
             continue
         found_lookup = True
+        if edge.from_id not in lookup_node_ids:
+            lookup_node_ids.append(edge.from_id)
         for key_name in keys:
             if key_name not in merged_keys:
                 merged_keys.append(key_name)
@@ -158,6 +185,10 @@ def lookup_resolution_for_parameter(
         return None
 
     resolution: dict[str, Any] = {"method": "table_lookup", "keys": merged_keys}
+    if lookup_node_ids:
+        resolution["lookup_node_id"] = lookup_node_ids[0]
+        if len(lookup_node_ids) > 1:
+            resolution["lookup_node_ids"] = lookup_node_ids
     if table_ids:
         resolution["table_id"] = table_ids[0]
         if len(table_ids) > 1:

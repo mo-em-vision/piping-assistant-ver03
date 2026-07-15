@@ -172,9 +172,24 @@ def store_lookup_numeric_fact(
     description: str | None = None,
     original_value: Any | None = None,
     original_unit: str | None = None,
+    lookup_node: str | None = None,
+    lookup_rule: str | None = None,
+    input_facts: list[str] | None = None,
+    lookup_row_identity: str | None = None,
+    authority_id: str | None = None,
+    produced_by_node: str | None = None,
 ) -> Fact:
     """Store a table-lookup numeric fact on the task."""
     from engine.reference.param_resolver import resolve_parameter_id
+
+    source_id = table_ref or "TABLE"
+    if lookup_rule:
+        source_id = f"{source_id}:{lookup_rule}"
+    metadata: dict[str, Any] = {}
+    if lookup_row_identity:
+        metadata["lookup_row_identity"] = lookup_row_identity
+    if authority_id:
+        metadata["authority_id"] = authority_id
 
     fact = build_numeric_fact(
         key=key,
@@ -184,16 +199,24 @@ def store_lookup_numeric_fact(
         fact_class=FactClass.LOOKED_UP,
         source=FactSource(
             source_type=SourceType.TABLE_LOOKUP,
-            source_id=table_ref or "TABLE",
+            source_id=source_id,
             description=description,
+            lookup_node=lookup_node,
+            input_facts=list(input_facts or []),
         ),
-        provenance=FactProvenance(task_id=task.task_id, created_by="lookup"),
+        provenance=FactProvenance(
+            task_id=task.task_id,
+            created_by="lookup",
+            produced_by_node=produced_by_node or lookup_node,
+        ),
         validation_status=ValidationStatus.CONFIRMED,
         symbol=symbol,
         description=description,
         original_value=original_value,
         original_unit=original_unit,
     )
+    if metadata:
+        fact.metadata.update(metadata)
     store_fact(task, fact)
     return fact
 
@@ -207,9 +230,24 @@ def store_lookup_categorical_fact(
     symbol: str | None = None,
     description: str | None = None,
     original_value: Any | None = None,
+    lookup_node: str | None = None,
+    lookup_rule: str | None = None,
+    input_facts: list[str] | None = None,
+    lookup_row_identity: str | None = None,
+    authority_id: str | None = None,
+    produced_by_node: str | None = None,
 ) -> Fact:
     """Store a table-lookup categorical fact on the task."""
     from engine.reference.param_resolver import resolve_parameter_id
+
+    source_id = table_ref or "TABLE"
+    if lookup_rule:
+        source_id = f"{source_id}:{lookup_rule}"
+    metadata: dict[str, Any] = {}
+    if lookup_row_identity:
+        metadata["lookup_row_identity"] = lookup_row_identity
+    if authority_id:
+        metadata["authority_id"] = authority_id
 
     fact = build_categorical_fact(
         key=key,
@@ -219,15 +257,23 @@ def store_lookup_categorical_fact(
         fact_class=FactClass.LOOKED_UP,
         source=FactSource(
             source_type=SourceType.TABLE_LOOKUP,
-            source_id=table_ref or "TABLE",
+            source_id=source_id,
             description=description,
+            lookup_node=lookup_node,
+            input_facts=list(input_facts or []),
         ),
-        provenance=FactProvenance(task_id=task.task_id, created_by="lookup"),
+        provenance=FactProvenance(
+            task_id=task.task_id,
+            created_by="lookup",
+            produced_by_node=produced_by_node or lookup_node,
+        ),
         validation_status=ValidationStatus.CONFIRMED,
         symbol=symbol,
         description=description,
         original_value=original_value,
     )
+    if metadata:
+        fact.metadata.update(metadata)
     store_fact(task, fact)
     return fact
 

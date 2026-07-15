@@ -140,6 +140,39 @@ def test_submit_outside_diameter_from_nps_step(standards_root: Path) -> None:
     assert fact_scalar_value(branch) == "direct_od"
 
 
+def test_submit_nominal_pipe_size_resolves_outside_diameter_for_mawp(standards_root: Path) -> None:
+    from engine.router import MAWP_DESIGN
+
+    manager = TaskStateManager()
+    task = manager.create_task("nps-submit-mawp", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "missing_inputs": ["nominal_pipe_size"],
+        "missing_assumptions": [],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": ["nominal_pipe_size"]},
+    }
+    task.outputs = {"workflow": MAWP_DESIGN}
+    task_with_planning(task, planning, workflow_id=MAWP_DESIGN)
+    manager.replace_task(task.task_id, task)
+
+    updated = submit_task_input(
+        manager,
+        task.task_id,
+        parameter="nominal_pipe_size",
+        value="4",
+        unit=None,
+        standards_root=standards_root,
+    )
+
+    od_fact = updated.fact_store.active_fact("outside_diameter")
+    assert od_fact is not None
+    assert fact_scalar_value(od_fact) == pytest.approx(114.3)
+    assert fact_unit(od_fact) == "mm"
+    lookup = updated.outputs.get("outside_diameter_lookup")
+    assert isinstance(lookup, dict)
+    assert lookup.get("nps") == "4"
+
+
 def test_submit_unknown_nominal_pipe_size_raises(standards_root: Path) -> None:
     manager = TaskStateManager()
     task = manager.create_task("nps-submit-test02", status=TaskStatus.AWAITING_INPUT)
