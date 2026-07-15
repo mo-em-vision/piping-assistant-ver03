@@ -23,7 +23,7 @@ def test_temperature_coefficient_y_infers_table_lookup_from_graph() -> None:
     micro = GraphEngine()._micro_engine(reader)
     assert micro is not None
 
-    resolution = lookup_resolution_for_parameter(micro.store, "PARAM-temperature-coefficient-Y")
+    resolution = lookup_resolution_for_parameter(micro.store, "PARAM-temperature-coefficient-y")
     assert resolution is not None
     assert resolution["method"] == "table_lookup"
     assert "design_temperature" in resolution["keys"]
@@ -53,7 +53,7 @@ def test_weld_strength_reduction_factor_w_infers_table_lookup_from_graph() -> No
     assert micro is not None
 
     resolution = lookup_resolution_for_parameter(
-        micro.store, "PARAM-weld-strength-reduction-factor-W"
+        micro.store, "PARAM-weld-strength-reduction-factor-w"
     )
     assert resolution is not None
     assert resolution["method"] == "table_lookup"
@@ -192,13 +192,13 @@ def test_prerequisite_input_keys_returns_lookup_keys_for_table_derived_parameter
         "material_grade",
         "pipe_construction_type",
     ]
-    assert prerequisite_input_keys(micro.store, "weld_joint_strength_reduction_factor_W") == [
+    assert prerequisite_input_keys(micro.store, "weld_strength_reduction_factor_w") == [
         "material_grade",
         "design_temperature",
         "pipe_construction_type",
     ]
     assert "design_temperature" in prerequisite_input_keys(
-        micro.store, "temperature_coefficient_Y"
+        micro.store, "temperature_coefficient_y"
     )
 
 

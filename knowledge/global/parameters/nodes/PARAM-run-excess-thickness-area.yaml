@@ -4,6 +4,7 @@ type: parameter
 key: run_excess_thickness_area
 name: Run Excess Thickness Area
 parameter_class: calculated_quantity
+dimension: DIM-area
 description: >
   Available reinforcement area A_2 from excess thickness in the run pipe wall,
   per ASME B31.3 §304.3.3(c) eq. (7).
@@ -15,6 +16,8 @@ aliases:
 introduced_by:
   - asme-b313-304-3-3-c
 edges:
+  - type: has_dimension
+    target: DIM-area
   - type: used_by
     target: asme-b313-304-3-3-eq-7
 metadata:

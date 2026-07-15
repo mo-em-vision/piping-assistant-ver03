@@ -24,7 +24,10 @@ requires:
   description: Required reinforcement area
 validates:
 - symbol: reinforcement_adequate
+  description: Available reinforcement area meets required area
+result:
   parameter: PARAM-reinforcement-adequate
+  symbol: reinforcement_adequate
 edges:
 - type: validates_parameter
   target: PARAM-reinforcement-adequate

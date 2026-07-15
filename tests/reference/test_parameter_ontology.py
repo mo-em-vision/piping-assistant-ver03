@@ -183,10 +183,10 @@ def test_longitudinal_weld_joint_quality_factor_parameter_is_factor() -> None:
 
 
 def test_temperature_coefficient_y_parameter_is_coefficient() -> None:
-    path = _parameters_dir() / "PARAM-temperature-coefficient-Y.yaml"
+    path = _parameters_dir() / "PARAM-temperature-coefficient-y.yaml"
     meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
     assert meta.get("parameter_class") == "coefficient"
-    assert meta.get("key") == "temperature_coefficient_Y"
+    assert meta.get("key") == "temperature_coefficient_y"
     assert meta.get("canonical_symbol") == "Y"
     assert meta.get("dimension") == "DIM-dimensionless"
     assert edge_targets(meta, "has_dimension") == ["DIM-dimensionless"]
@@ -195,9 +195,10 @@ def test_temperature_coefficient_y_parameter_is_coefficient() -> None:
 
 
 def test_weld_strength_reduction_factor_w_parameter() -> None:
-    path = _parameters_dir() / "PARAM-weld-strength-reduction-factor-W.yaml"
+    path = _parameters_dir() / "PARAM-weld-strength-reduction-factor-w.yaml"
     meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
     assert meta.get("parameter_class") == "factor"
+    assert meta.get("key") == "weld_strength_reduction_factor_w"
     assert meta.get("canonical_symbol") == "W"
     assert _introduced_by_targets(meta) == ["asme-b313-304-1-1-b"]
     assert "asme-b313-table-302-3-5-1" in edge_targets(meta, "used_by")
@@ -267,8 +268,8 @@ def test_parameter_pack_compiles() -> None:
         "PARAM-pipe-construction-type",
         "PARAM-basic-casting-quality-factor",
         "PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes",
-        "PARAM-temperature-coefficient-Y",
-        "PARAM-weld-strength-reduction-factor-W",
+        "PARAM-temperature-coefficient-y",
+        "PARAM-weld-strength-reduction-factor-w",
         "PARAM-outside-diameter",
         "PARAM-required-wall-thickness",
         "PARAM-minimum-required-thickness",

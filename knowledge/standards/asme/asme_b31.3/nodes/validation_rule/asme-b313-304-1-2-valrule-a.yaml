@@ -27,7 +27,10 @@ requires:
   parameter: PARAM-outside-diameter
 validates:
 - symbol: thin_wall_applicable
+  description: Thin-wall geometry limit per §304.1.2(a)
+result:
   parameter: PARAM-thin-wall-applicability
+  symbol: thin_wall_applicable
 conditions:
   all_of:
   - expression: t < D / 6

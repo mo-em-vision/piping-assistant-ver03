@@ -127,7 +127,7 @@ def test_temperature_coefficient_value_reference_opens_table(standards_reader) -
 
     reference = resolve_parameter_value_reference(
         standards_reader,
-        "PARAM-temperature-coefficient-Y",
+        "PARAM-temperature-coefficient-y",
         task,
     )
     assert reference is not None

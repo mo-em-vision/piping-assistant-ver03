@@ -23,7 +23,7 @@ inputs:
   required: true
   description: Pipe construction type (PARAM-pipe-construction-type)
 returns:
-- parameter: PARAM-weld-strength-reduction-factor-W
+- parameter: PARAM-weld-strength-reduction-factor-w
   symbol: W
 lookup:
   table: asme-b313-table-302-3-5-1
@@ -53,7 +53,7 @@ lookup_rules:
     outputs:
       weld_strength_reduction_factor_W:
         column: weld_strength_reduction_W
-        parameter: PARAM-weld-strength-reduction-factor-W
+        parameter: PARAM-weld-strength-reduction-factor-w
     on_no_match:
       action: error
     on_multiple_matches:
@@ -62,7 +62,7 @@ edges:
 - type: depends_on
   target: 302.3.5-e
 - type: returns_parameter
-  target: PARAM-weld-strength-reduction-factor-W
+  target: PARAM-weld-strength-reduction-factor-w
 - type: requires_parameter
   target: PARAM-material-grade
 - type: requires_parameter

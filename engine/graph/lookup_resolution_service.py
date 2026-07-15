@@ -6,7 +6,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from engine.executor.lookup_engine import LookupEngine
+from engine.executor.lookup_execution_service import (
+    execute_lookup_rule,
+    store_categorical_lookup_result,
+    store_numeric_lookup_result,
+)
 from engine.executor.lookup_rule_schema import lookup_bindings
 from engine.graph.lookup_parameter_resolution import _lookup_keys_from_metadata, _resolve_lookup_key, _table_id_from_metadata
 from engine.reference.nps_normalization import nps_entry_unit, to_nps_lookup_key
@@ -14,8 +18,6 @@ from engine.reference.standards_paths import resolve_standard_pack
 from engine.state.task_facts import (
     active_facts,
     fact_scalar_value,
-    store_lookup_categorical_fact,
-    store_lookup_numeric_fact,
 )
 from models.fact import Fact, SourceType, fact_scalar_value as scalar
 from models.task import Task
@@ -39,10 +41,6 @@ class LookupResolutionResult:
     meta: dict[str, Any] = field(default_factory=dict)
     stored_keys: list[str] = field(default_factory=list)
 
-
-def _lookup_engine_for_standards(standards_root: Path) -> LookupEngine:
-    pack_root = resolve_standard_pack(standards_root, "asme_b31.3")
-    return LookupEngine(pack_root)
 
 
 def _load_lookup_metadata(reader: Any, lookup_node_id: str) -> dict[str, Any]:
@@ -177,9 +175,7 @@ def _store_lookup_output(
     description: str | None = None,
     input_fact_keys: list[str] | None = None,
 ) -> None:
-    from engine.state.task_facts import store_lookup_numeric_fact
-
-    store_lookup_numeric_fact(
+    store_numeric_lookup_result(
         task,
         key=param_key,
         amount=amount,
@@ -192,6 +188,7 @@ def _store_lookup_output(
         input_facts=input_fact_keys or [],
         lookup_row_identity=_row_identity(meta),
         authority_id="AUTH-ASME-B36.10M",
+        produced_by_node=lookup_node_id,
     )
 
 
@@ -248,9 +245,10 @@ def resolve_and_store_lookup(
         engine_inputs["nominal_pipe_size"] = to_nps_lookup_key(raw_nps, entry_unit)
         engine_inputs["nominal_pipe_size_unit"] = entry_unit
 
-    engine = _lookup_engine_for_standards(standards_root)
+    pack_root = resolve_standard_pack(standards_root, "asme_b31.3")
     try:
-        rule_result = engine.execute_rule_lookup(
+        rule_result = execute_lookup_rule(
+            pack_root=pack_root,
             table_ref=table_ref,
             rule=rule,
             inputs=engine_inputs,
@@ -308,7 +306,7 @@ def resolve_and_store_lookup(
             nps_fact = task.fact_store.active_fact("nominal_pipe_size")
             if nps_fact is not None:
                 resolved_nps = str(rule_result.meta.get("nps") or fact_scalar_value(nps_fact))
-                store_lookup_categorical_fact(
+                store_categorical_lookup_result(
                     task,
                     key="nominal_pipe_size",
                     label=resolved_nps,

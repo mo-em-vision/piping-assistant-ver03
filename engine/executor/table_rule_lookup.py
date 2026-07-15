@@ -13,25 +13,11 @@ from engine.executor.lookup_rule_schema import (
     require_rule_spec,
 )
 from engine.executor.lookup_rule_strategies import execute_strategy
-from engine.reference.asme_b31_3_table_ids import (
-    TABLE_302_3_5_1,
-    TABLE_304_1_1_1,
-    TABLE_A_1,
-    TABLE_A_2,
-    TABLE_A_3,
-)
+from engine.executor.table_registry import resolve_graph_node_table_id
 from engine.reference.material_catalog_db import standards_root_from_pack_root
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_tables import StandardsTablesDatabase
 from engine.validation.lookup_rule_validator import validate_lookup_rule_spec
-
-_GRAPH_NODE_TABLE_IDS: dict[str, str] = {
-    "asme-b313-table-A-1": TABLE_A_1,
-    "asme-b313-table-A-2": TABLE_A_2,
-    "asme-b313-table-A-3": TABLE_A_3,
-    "asme-b313-table-304-1-1-1": TABLE_304_1_1_1,
-    "asme-b313-table-302-3-5-1": TABLE_302_3_5_1,
-}
 
 _PIPE_TABLE_REFS = frozenset(
     {
@@ -51,7 +37,7 @@ def _resolve_pack_table_ref(pack_root: Path, table_ref: str) -> str:
     resolved = db.resolve_table_id(wanted)
     if resolved:
         return resolved
-    return _GRAPH_NODE_TABLE_IDS.get(wanted, wanted)
+    return resolve_graph_node_table_id(wanted)
 
 
 def _is_pipe_table(table_ref: str, spec_strategy: str) -> bool:

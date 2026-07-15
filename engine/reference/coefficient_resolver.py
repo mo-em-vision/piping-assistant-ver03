@@ -357,7 +357,7 @@ def propose_coefficient_defaults(
                 metallurgical_group=str(group_value) if group_value else None,
                 material=str(material_value) if material_value and not group_value else None,
             )
-            proposed["temperature_coefficient_Y"] = (
+            proposed["temperature_coefficient_y"] = (
                 y_value,
                 "Table 304.1.1-1 at design temperature (thin-wall, t < D/6)",
             )

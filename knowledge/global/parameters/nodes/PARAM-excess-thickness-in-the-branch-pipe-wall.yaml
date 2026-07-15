@@ -4,6 +4,7 @@ type: parameter
 key: excess_thickness_in_the_branch_pipe_wall
 name: Excess Thickness in the Branch Pipe Wall
 parameter_class: calculated_quantity
+dimension: DIM-area
 description: >
   Available reinforcement area A_3 from excess thickness in the branch pipe wall,
   per ASME B31.3 §304.3.3(c) eq. (8).
@@ -16,6 +17,8 @@ aliases:
 introduced_by:
   - asme-b313-304-3-3-c
 edges:
+  - type: has_dimension
+    target: DIM-area
   - type: used_by
     target: asme-b313-304-3-3-eq-8
 metadata:

@@ -30,7 +30,10 @@ requires:
   description: Pipe wall thickness per purchase specification
 validates:
 - symbol: wall_thickness_adequate
+  description: Selected pipe wall thickness meets minimum required thickness
+result:
   parameter: PARAM-wall-thickness-adequacy
+  symbol: wall_thickness_adequate
 conditions:
   all_of:
   - expression: T >= t + c

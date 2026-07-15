@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from engine.executor.table_registry import resolve_graph_node_table_id
 from engine.reference.asme_b31_3_table_ids import TABLE_304_1_1, TABLE_304_1_1_1, TABLE_A_1
 from engine.reference.material_catalog_db import standards_root_from_pack_root
 from engine.reference.material_resolver import canonical_material_id, resolve_material_table_key
@@ -63,12 +64,6 @@ _Y_TABLE_REFS = frozenset(
     }
 )
 
-_GRAPH_NODE_TABLE_IDS: dict[str, str] = {
-    "asme-b313-table-304-1-1-1": TABLE_304_1_1_1,
-    "asme-b313-table-A-1": TABLE_A_1,
-}
-
-
 class LookupEngine:
     """Execute table lookups defined in standards node metadata."""
 
@@ -84,7 +79,7 @@ class LookupEngine:
         resolved = self._tables_db.resolve_table_id(wanted)
         if resolved:
             return resolved
-        return _GRAPH_NODE_TABLE_IDS.get(wanted, wanted)
+        return resolve_graph_node_table_id(wanted)
 
     def execute_lookup(
         self,
@@ -181,7 +176,9 @@ class LookupEngine:
                 rule="by_material_group_temperature",
                 inputs=normalized,
             )
-            value = rule_result.outputs.get("temperature_coefficient_Y")
+            value = rule_result.outputs.get("temperature_coefficient_y")
+            if value is None:
+                value = rule_result.outputs.get("temperature_coefficient_Y")
             if value is None:
                 value = rule_result.outputs.get("Y")
             if value is None:
@@ -210,9 +207,11 @@ class LookupEngine:
         returns: list[dict[str, Any]] | None = None,
     ) -> "TableRuleLookupResult":
         """Resolve table row(s) by authored rule name; map output columns to parameter keys."""
+        from engine.executor.lookup_input_normalizer import normalize_lookup_inputs
         from engine.executor.table_rule_lookup import TableRuleLookupResult, execute_table_rule_lookup
 
-        normalized = _lookup_inputs_with_units(inputs)
+        canonical = normalize_lookup_inputs(inputs)
+        normalized = _lookup_inputs_with_units(canonical)
         result = execute_table_rule_lookup(
             standards_pack_root=self._pack_root,
             table_ref=table_ref,

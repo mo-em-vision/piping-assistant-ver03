@@ -66,7 +66,7 @@ def _pipe_wall_post_calc_task(manager: TaskStateManager, task_id: str, *, projec
     task.active_nodes = [
         "304.1.1-a",
         "304.1.2-a",
-        "PARAM-weld-strength-reduction-factor-W",
+        "PARAM-weld-strength-reduction-factor-w",
         "PARAM-corrosion-allowance",
     ]
     manager.replace_task(task.task_id, task)
@@ -97,7 +97,7 @@ def test_canonical_awaiting_corrosion_allowance(project_root) -> None:
     graph = canonical["graph"]
     assert "PARAM-corrosion-allowance" in graph["active_node_ids"]
     assert graph["active_node_ids"] != graph["expanded_node_ids"]
-    assert "PARAM-weld-strength-reduction-factor-W" not in graph["active_node_ids"]
+    assert "PARAM-weld-strength-reduction-factor-w" not in graph["active_node_ids"]
     assert canonical["execution"]["current_execution_node_id"] == "PARAM-corrosion-allowance"
 
     values = canonical["values"]

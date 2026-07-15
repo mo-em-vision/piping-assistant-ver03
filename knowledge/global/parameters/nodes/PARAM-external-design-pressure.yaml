@@ -14,7 +14,7 @@ canonical_symbol: P_ext
 aliases:
   - external design pressure
 introduced_by:
-  - 304.1.3
+  - asme-b313-304-1-3
 edges:
   - type: has_dimension
     target: DIM-pressure

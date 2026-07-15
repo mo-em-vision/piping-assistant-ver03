@@ -27,6 +27,8 @@ LEGACY_PARAMETER_KEY_ALIASES: dict[str, str] = {
     "joint_category": "pipe_construction_type",
     "measured_wall_thickness": "actual_wall_thickness",
     "weld_joint_efficiency": LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
+    "temperature_coefficient_Y": "temperature_coefficient_y",
+    "weld_joint_strength_reduction_factor_W": "weld_strength_reduction_factor_w",
 }
 
 

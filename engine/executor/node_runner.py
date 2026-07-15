@@ -28,6 +28,7 @@ from engine.graph.node_interaction import evaluate_node_interactions
 from engine.executor.functions import get_execution_function
 from engine.executor.lookup_engine import LookupEngine
 from engine.executor.unit_manager import prepare_fact, prepare_symbol_map
+from engine.executor.validation_rule_runner import execute_validation_rule
 from engine.reference.nomenclature_resolver import (
     enrich_input_spec,
     input_applies,
@@ -41,6 +42,7 @@ from engine.reference.standards_reader import NodeRecord, StandardsReader
 from engine.rules.rule_engine import RuleEngine
 from models.execution import NodeExecutionResult, NodeExecutionStatus
 from models.fact import Fact, ValidationStatus, fact_is_expansion_ready, fact_scalar_value, fact_unit
+from models.task import Task
 
 
 class NodeRunner:
@@ -63,6 +65,7 @@ class NodeRunner:
         *,
         task_inputs: dict[str, Fact],
         dependency_outputs: dict[str, Any],
+        task: Task | None = None,
     ) -> NodeExecutionResult:
         record = self._reader.load(node_id)
         node_type = str(record.metadata.get("type", ""))
@@ -123,10 +126,11 @@ class NodeRunner:
         if node_type == "lookup":
             return self._run_lookup(record, task_inputs=task_inputs)
         if node_type == "validation_rule":
-            return NodeExecutionResult(
-                node_id=record.node_id,
-                status=NodeExecutionStatus.SKIPPED,
-                trace={"reason": "validation_rule deferred until parent equations complete"},
+            return self._run_validation_rule(
+                record,
+                task_inputs=task_inputs,
+                dependency_outputs=dependency_outputs,
+                task=task,
             )
         if node_type == "calculation":
             return self._run_calculation(
@@ -151,6 +155,26 @@ class NodeRunner:
             node_id=record.node_id,
             status=NodeExecutionStatus.ERROR,
             errors=[f"Unsupported node type: {node_type}"],
+        )
+
+    def _run_validation_rule(
+        self,
+        record: NodeRecord,
+        *,
+        task_inputs: dict[str, Fact],
+        dependency_outputs: dict[str, Any],
+        task: Task | None = None,
+    ) -> NodeExecutionResult:
+        return execute_validation_rule(
+            record,
+            reader=self._reader,
+            rule_engine=self._rule_engine,
+            task_inputs=task_inputs,
+            dependency_outputs=dependency_outputs,
+            resolve_value=self._resolve_parameter_value,
+            param_fact_key=self._param_fact_key,
+            output_alias_keys=self._output_alias_keys,
+            task=task,
         )
 
     @staticmethod

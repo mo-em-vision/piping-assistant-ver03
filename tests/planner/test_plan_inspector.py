@@ -36,7 +36,7 @@ def test_dependency_ids_to_fields_resolves_lookup_chain() -> None:
         "REQ-temperature_coefficient_Y_lookup": PlanRequirement(
             id="REQ-temperature_coefficient_Y_lookup",
             field="temperature_coefficient_Y",
-            parameter_node_id="PARAM-temperature-coefficient-Y",
+            parameter_node_id="PARAM-temperature-coefficient-y",
             requirement_class="table_lookup",
             status="blocked",
             phase="coefficient_resolution",

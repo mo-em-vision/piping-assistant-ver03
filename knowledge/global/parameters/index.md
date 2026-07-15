@@ -23,13 +23,13 @@ Parameter nodes define **contextual engineering roles** — not values, units, r
 | `PARAM-required-wall-thickness` | calculated_quantity | `DIM-length` | [`CONCEPT-wall-thickness`](../concepts/nodes/CONCEPT-wall-thickness.yaml) |
 | `PARAM-minimum-required-thickness` | calculated_quantity | `DIM-length` | [`CONCEPT-wall-thickness`](../concepts/nodes/CONCEPT-wall-thickness.yaml) |
 | `PARAM-outside-diameter` | geometric_quantity | `DIM-length` | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
-| `PARAM-weld-strength-reduction-factor-W` | factor | `DIM-dimensionless` | [`CONCEPT-weld-joint-efficiency`](../concepts/nodes/CONCEPT-weld-joint-efficiency.yaml) |
+| `PARAM-weld-strength-reduction-factor-w` | factor | `DIM-dimensionless` | [`CONCEPT-weld-joint-efficiency`](../concepts/nodes/CONCEPT-weld-joint-efficiency.yaml) |
 | `PARAM-material-grade` | categorical | `DIM-material-designation` | [`CONCEPT-material`](../concepts/nodes/CONCEPT-material.yaml) |
 | `PARAM-metallurgical-group` | selection | — | [`CONCEPT-material`](../concepts/nodes/CONCEPT-material.yaml) |
 | `PARAM-pipe-construction-type` | selection | — | [`CONCEPT-pipe-construction`](../concepts/nodes/CONCEPT-pipe-construction.yaml) |
 | `PARAM-basic-casting-quality-factor` | factor | `DIM-dimensionless` | — |
 | `PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes` | factor | `DIM-dimensionless` | [`CONCEPT-weld-joint-efficiency`](../concepts/nodes/CONCEPT-weld-joint-efficiency.yaml) |
-| `PARAM-temperature-coefficient-Y` | coefficient | `DIM-dimensionless` | [`CONCEPT-temperature-coefficient`](../concepts/nodes/CONCEPT-temperature-coefficient.yaml) |
+| `PARAM-temperature-coefficient-y` | coefficient | `DIM-dimensionless` | [`CONCEPT-temperature-coefficient`](../concepts/nodes/CONCEPT-temperature-coefficient.yaml) |
 | `PARAM-nominal-pipe-size` | selection | — | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
 | `PARAM-pressure-loading` | selection | — | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
 | `PARAM-straight-pipe-section` | selection | — | — |

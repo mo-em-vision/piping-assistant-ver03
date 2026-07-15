@@ -100,7 +100,7 @@ def test_coefficient_concept_temperature_coefficient() -> None:
     assert meta.get("concept_class") == "coefficient"
     assert meta.get("dimension") in {None, "null"}
     assert edge_targets(meta, "has_dimension") == []
-    assert edge_targets(meta, "has_parameter") == ["PARAM-temperature-coefficient-Y"]
+    assert edge_targets(meta, "has_parameter") == ["PARAM-temperature-coefficient-y"]
     assert "asme-b313-table-304-1-1-1" in edge_targets(meta, "used_by")
 
 

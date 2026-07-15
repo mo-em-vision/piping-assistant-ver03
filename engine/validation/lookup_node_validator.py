@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from engine.reference.graph_compile import validate_edge_item, validate_no_links_metadata
+from engine.validation.binding_block_consistency import validate_binding_block_consistency
 from engine.validation.node_revision_metadata import validate_revision_metadata
 from engine.reference.table_metadata import table_reference
 from engine.validation.table_note_node_validator import (
@@ -86,6 +87,7 @@ def validate_lookup_node(meta: dict[str, Any]) -> list[str]:
     lookup_cfg = meta.get("lookup") if isinstance(meta.get("lookup"), dict) else {}
     if lookup_cfg:
         issues.extend(validate_lookup_config(meta))
+    issues.extend(validate_binding_block_consistency(meta))
     return issues
 
 

@@ -278,6 +278,41 @@ def store_lookup_categorical_fact(
     return fact
 
 
+def store_validation_rule_categorical_fact(
+    task: Task,
+    *,
+    key: str,
+    label: str,
+    validation_rule_id: str,
+    symbol: str | None = None,
+    description: str | None = None,
+) -> Fact:
+    """Store a validation-rule result with node-scoped provenance."""
+    from engine.reference.param_resolver import resolve_parameter_id
+
+    fact = build_categorical_fact(
+        key=key,
+        parameter=resolve_parameter_id(key),
+        label=label,
+        normalized_key=None,
+        fact_class=FactClass.SYSTEM_GENERATED,
+        source=FactSource(
+            source_type=SourceType.SYSTEM,
+            source_id=validation_rule_id,
+        ),
+        provenance=FactProvenance(
+            task_id=task.task_id,
+            created_by="validation_rule",
+            produced_by_node=validation_rule_id,
+        ),
+        validation_status=ValidationStatus.CONFIRMED,
+        symbol=symbol,
+        description=description,
+    )
+    store_fact(task, fact)
+    return fact
+
+
 def store_system_categorical_fact(
     task: Task,
     *,

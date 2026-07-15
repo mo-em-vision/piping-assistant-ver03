@@ -19,7 +19,7 @@ inputs:
   task_input_id: design_temperature
   required: true
 returns:
-- parameter: PARAM-temperature-coefficient-Y
+- parameter: PARAM-temperature-coefficient-y
   symbol: Y
 lookup:
   table: asme-b313-table-304-1-1-1
@@ -45,7 +45,7 @@ lookup_rules:
     outputs:
       temperature_coefficient_Y:
         column: coefficient_Y
-        parameter: PARAM-temperature-coefficient-Y
+        parameter: PARAM-temperature-coefficient-y
     on_no_match:
       action: error
     on_multiple_matches:
@@ -54,7 +54,7 @@ edges:
 - type: reads_table
   target: asme-b313-table-304-1-1-1
 - type: returns_parameter
-  target: PARAM-temperature-coefficient-Y
+  target: PARAM-temperature-coefficient-y
 - type: requires_parameter
   target: PARAM-metallurgical-group
 - type: requires_parameter

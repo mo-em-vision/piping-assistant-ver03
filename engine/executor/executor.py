@@ -164,9 +164,6 @@ class Executor:
                 if node_type == "workflow":
                     prior_completed.add(node_id)
                 continue
-            if node_type == "validation_rule":
-                prior_completed.add(node_id)
-                continue
             if node_type == "equation" and str(record.metadata.get("execution_phase", "")) == "definition":
                 prior_completed.add(node_id)
                 continue
@@ -222,6 +219,7 @@ class Executor:
                 node_id,
                 task_inputs=plan.inputs,
                 dependency_outputs=dependency_outputs,
+                task=task,
             )
             duration_ms = (time.perf_counter() - started) * 1000.0
             step_durations[node_id] = duration_ms

@@ -39,7 +39,10 @@ requires:
   parameter: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
 validates:
 - symbol: thick_wall_special_consideration_required
+  description: Thick-wall special consideration per §304.1.2(b)
+result:
   parameter: PARAM-thick-wall-special-consideration-required
+  symbol: thick_wall_special_consideration_required
 conditions:
   any_of:
   - expression: t >= D/6

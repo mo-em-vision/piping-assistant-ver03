@@ -11,14 +11,15 @@ from engine.reference.coefficient_resolver import (
     lookup_w_factor,
     lookup_y_coefficient,
 )
-from engine.reference.standards_paths import resolve_standard_pack
+from engine.executor.lookup_execution_service import store_numeric_lookup_result
 from engine.reference.parameter_keys import (
     LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
     MATERIAL_GRADE_KEY,
     parameter_is_ready,
     read_fact_value,
 )
-from engine.state.task_facts import active_facts, fact_unit, store_lookup_numeric_fact
+from engine.reference.standards_paths import resolve_standard_pack
+from engine.state.task_facts import active_facts, fact_unit
 from models.fact import Fact, FactClass, ValidationStatus, fact_is_expansion_ready, fact_scalar_value
 from models.task import Task
 
@@ -35,8 +36,8 @@ Y_TABLE_REF = f"{B31_3_SLUG}/{TABLE_304_1_1}"
 
 _COEFFICIENT_FIELDS = (
     LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY,
-    "weld_joint_strength_reduction_factor_W",
-    "temperature_coefficient_Y",
+    "weld_strength_reduction_factor_w",
+    "temperature_coefficient_y",
 )
 
 
@@ -90,7 +91,7 @@ def _set_table_coefficient(
     description: str,
     table_ref: str,
 ) -> None:
-    store_lookup_numeric_fact(
+    store_numeric_lookup_result(
         task,
         key=input_id,
         amount=value,
@@ -98,6 +99,7 @@ def _set_table_coefficient(
         table_ref=table_ref,
         symbol=symbol,
         description=description,
+        produced_by_node="coefficient_lookup",
     )
     _remove_from_planning_missing(task, input_id)
 
@@ -163,7 +165,7 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
                 )
 
     if material_ready and joint_ready and temperature_ready:
-        existing = task.fact_store.active_fact("weld_joint_strength_reduction_factor_W")
+        existing = task.fact_store.active_fact("weld_strength_reduction_factor_w")
         if _should_auto_apply(existing):
             try:
                 w_value = lookup_w_factor(
@@ -178,7 +180,7 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
             if w_value is not None:
                 _set_table_coefficient(
                     task,
-                    input_id="weld_joint_strength_reduction_factor_W",
+                    input_id="weld_strength_reduction_factor_w",
                     symbol="W",
                     value=w_value,
                     description="Weld strength reduction factor from Table 302.3.5-1",
@@ -186,7 +188,7 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
                 )
 
     if temperature_ready and _thin_wall_assumed(existing_inputs):
-        existing = task.fact_store.active_fact("temperature_coefficient_Y")
+        existing = task.fact_store.active_fact("temperature_coefficient_y")
         if _should_auto_apply(existing):
             metallurgical_group = _input_value(existing_inputs, "metallurgical_group")
             try:
@@ -208,7 +210,7 @@ def apply_coefficient_lookups(task: Task, standards_root: Path) -> None:
             if y_value is not None:
                 _set_table_coefficient(
                     task,
-                    input_id="temperature_coefficient_Y",
+                    input_id="temperature_coefficient_y",
                     symbol="Y",
                     value=y_value,
                     description="Temperature coefficient from Table 304.1.1-1",

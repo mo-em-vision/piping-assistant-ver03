@@ -89,7 +89,7 @@ def test_execute_rule_lookup_y_coefficient_by_material_group() -> None:
             "design_temperature_unit": "F",
             "metallurgical_group": "ferritic_steels",
         },
-        returns=[{"parameter": "PARAM-temperature-coefficient-Y", "symbol": "Y"}],
+        returns=[{"parameter": "PARAM-temperature-coefficient-y", "symbol": "Y"}],
     )
     assert result.outputs["temperature_coefficient_Y"] == pytest.approx(0.7)
     assert result.outputs["Y"] == pytest.approx(0.7)

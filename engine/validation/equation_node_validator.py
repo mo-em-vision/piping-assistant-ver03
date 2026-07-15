@@ -8,6 +8,7 @@ from engine.reference.equation_authoring_policy import validator_fail_messages_f
 from engine.reference.equation_metadata import equation_reference
 from engine.reference.graph_compile import validate_edge_item, validate_no_links_metadata
 from engine.validation.authority_authorization import validate_authority_authorization
+from engine.validation.binding_block_consistency import validate_binding_block_consistency
 from engine.validation.node_revision_metadata import validate_revision_metadata
 from engine.validation.structural_edges import validate_no_structural_edges
 
@@ -108,6 +109,7 @@ def _validate_unit_transformation_equation(meta: dict[str, Any]) -> list[str]:
             issues.extend(
                 validate_edge_item(item, source_node_type="equation", allow_legacy=False)
             )
+    issues.extend(validate_binding_block_consistency(meta))
     return issues
 
 
@@ -166,6 +168,7 @@ def _validate_standards_equation(meta: dict[str, Any]) -> list[str]:
             issues.extend(
                 validate_edge_item(item, source_node_type="equation", allow_legacy=False)
             )
+    issues.extend(validate_binding_block_consistency(meta))
     return issues
 
 

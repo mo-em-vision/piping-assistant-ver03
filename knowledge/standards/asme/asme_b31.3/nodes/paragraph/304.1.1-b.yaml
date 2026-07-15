@@ -128,11 +128,11 @@ edges:
 
   - type: introduces_parameter
 
-    target: PARAM-weld-strength-reduction-factor-W
+    target: PARAM-weld-strength-reduction-factor-w
 
   - type: introduces_parameter
 
-    target: PARAM-temperature-coefficient-Y
+    target: PARAM-temperature-coefficient-y
 
   - type: introduces_parameter
 

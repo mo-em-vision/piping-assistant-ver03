@@ -60,7 +60,7 @@ def apply_allowable_stress_lookup(task: Task, standards_root: Path) -> None:
             table_ref=LOOKUP_TABLE_REF,
             rule=LOOKUP_RULE,
             inputs={
-                "material": material,
+                "material_grade": material,
                 "design_temperature": design_temperature,
                 "design_temperature_unit": design_temperature_unit,
             },

@@ -14,7 +14,7 @@ aliases:
   - coefficient Y
 edges:
   - type: has_parameter
-    target: PARAM-temperature-coefficient-Y
+    target: PARAM-temperature-coefficient-y
   - type: used_by
     target: asme-b313-table-304-1-1-1
 metadata:

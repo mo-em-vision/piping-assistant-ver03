@@ -1,55 +1,30 @@
 ---
-
-id: PARAM-weld-strength-reduction-factor-W
-
+id: PARAM-weld-strength-reduction-factor-w
 type: parameter
-
-key: weld_joint_strength_reduction_factor_W
-
+key: weld_strength_reduction_factor_w
 name: Weld Strength Reduction Factor W
-
 parameter_class: factor
-
 dimension: DIM-dimensionless
-
 description: >
   Weld joint strength reduction factor W applied in pressure design equations
   when the design temperature exceeds listed limits for the material. Resolved
   from Table 302.3.5-1 per ASME B31.3 §302.3.5(e) using material, design
   temperature, and pipe construction type.
-
 canonical_symbol: W
-
 aliases:
-
   - weld strength reduction factor
-
   - weld joint strength reduction factor
-
   - W factor
-
 introduced_by:
-
   - asme-b313-304-1-1-b
-
 edges:
-
   - type: has_dimension
-
     target: DIM-dimensionless
-
-
   - type: used_by
-
     target: asme-b313-table-302-3-5-1
-
 metadata:
-
   status: active
-
   version: 1
-  last_revision: 2026-07-10
+  last_revision: 2026-07-15
   edited_by: admin
-
 ---
-

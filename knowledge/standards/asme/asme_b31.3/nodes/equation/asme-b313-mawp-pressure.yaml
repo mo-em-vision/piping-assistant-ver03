@@ -22,7 +22,7 @@ requires:
 - symbol: W
   required: true
   description: Weld strength reduction factor per para. 302.3.5-e
-  parameter: PARAM-weld-strength-reduction-factor-W
+  parameter: PARAM-weld-strength-reduction-factor-w
 - symbol: t
   required: true
   description: Available pressure design thickness (t_actual minus allowances)
@@ -34,7 +34,7 @@ requires:
 - symbol: Y
   required: true
   description: Coefficient from Table 304.1.1
-  parameter: PARAM-temperature-coefficient-Y
+  parameter: PARAM-temperature-coefficient-y
 calculates:
 - symbol: MAWP
   parameter: PARAM-maximum-allowable-working-pressure
@@ -46,7 +46,7 @@ edges:
   target: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
   alias: E_j
 - type: requires_parameter
-  target: PARAM-weld-strength-reduction-factor-W
+  target: PARAM-weld-strength-reduction-factor-w
   alias: W
 - type: requires_parameter
   target: PARAM-required-wall-thickness
@@ -55,7 +55,7 @@ edges:
   target: PARAM-outside-diameter
   alias: D
 - type: requires_parameter
-  target: PARAM-temperature-coefficient-Y
+  target: PARAM-temperature-coefficient-y
   alias: Y
 - type: calculates_parameter
   target: PARAM-maximum-allowable-working-pressure

@@ -113,14 +113,14 @@ def test_y_parameter_lookup_conditionals_clamp_temperature() -> None:
         resolve_lookup_input_value,
     )
 
-    conditionals = lookup_conditionals_for_parameter("PARAM-temperature-coefficient-Y")
+    conditionals = lookup_conditionals_for_parameter("PARAM-temperature-coefficient-y")
     design_temp = conditionals["design_temperature"]
     assert apply_lookup_conditional_bounds(100.0, design_temp) == 900.0
     assert resolve_lookup_input_value(
         100.0,
         input_key="design_temperature",
         input_unit="F",
-        output_param_node_id="PARAM-temperature-coefficient-Y",
+        output_param_node_id="PARAM-temperature-coefficient-y",
         table_unit="F",
     ) == 900.0
 
@@ -200,9 +200,9 @@ def test_propose_coefficient_defaults_with_temperature() -> None:
             ),
         },
     )
-    assert proposed["temperature_coefficient_Y"][0] == 0.4
+    assert proposed["temperature_coefficient_y"][0] == 0.4
     assert "weld_joint_efficiency" not in proposed
-    assert "weld_joint_strength_reduction_factor_W" not in proposed
+    assert "weld_strength_reduction_factor_w" not in proposed
 
 
 def test_thin_wall_assumed_reads_boolean_fact_value() -> None:

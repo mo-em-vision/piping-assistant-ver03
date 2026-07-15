@@ -1,7 +1,7 @@
 ---
-id: PARAM-temperature-coefficient-Y
+id: PARAM-temperature-coefficient-y
 type: parameter
-key: temperature_coefficient_Y
+key: temperature_coefficient_y
 name: Temperature Coefficient Y
 parameter_class: coefficient
 dimension: DIM-dimensionless
@@ -30,6 +30,6 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-06
+  last_revision: 2026-07-15
   edited_by: admin
 ---

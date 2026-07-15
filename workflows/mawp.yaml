@@ -27,8 +27,8 @@ expected_parameters:
 - PARAM-design-temperature
 - PARAM-pipe-construction-type
 - PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
-- PARAM-weld-strength-reduction-factor-W
-- PARAM-temperature-coefficient-Y
+- PARAM-weld-strength-reduction-factor-w
+- PARAM-temperature-coefficient-y
 - PARAM-allowable-stress
 - PARAM-maximum-allowable-working-pressure
 goal_expansion:
@@ -62,7 +62,7 @@ phases:
   required_parameters:
   - PARAM-pipe-construction-type
   - PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
-  - PARAM-weld-strength-reduction-factor-W
+  - PARAM-weld-strength-reduction-factor-w
 - key: execution_assumptions
   purpose: Resolve execution assumptions.
   required_parameters: []

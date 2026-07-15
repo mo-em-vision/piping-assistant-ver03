@@ -51,7 +51,11 @@ requires:
   - symbol: D
     parameter: PARAM-outside-diameter
 validates:
-  - parameter: PARAM-thin-wall-applicability
+  - symbol: thin_wall_applicable
+    description: Thin-wall geometry limit
+result:
+  parameter: PARAM-thin-wall-applicability
+  symbol: thin_wall_applicable
 metadata:
   status: active
   last_revision: 2026-07-04
@@ -65,7 +69,9 @@ metadata:
 | --- | --- |
 | `type` | `validation_rule` |
 | `key`, `name`, `description` | Non-empty |
-| `validates` list or `validates_parameter` edge | At least one output check |
+| `validates` list or `validates_parameter` edge | At least one check description |
+| `result.parameter` | Required `PARAM-*` target for boolean/categorical outcome |
+| `result.symbol` | Optional; defaults from PARAM `canonical_symbol` |
 | `authority.authorized_by` | Non-empty paragraph id list |
 | `authority.authority_context_required` | Boolean |
 | `metadata.status` | When metadata block is present |
@@ -79,6 +85,7 @@ metadata:
 | `expression.language`, `expression.formula` | Executable check |
 | `requires` | Input parameter bindings |
 | `conditions` | Structured condition blocks |
+| `result` | `parameter` (required), `symbol` (optional) — sole runtime fact sink |
 | `on_fail` | `severity`, `blocks_goal`, `message`, `creates_warning` |
 | `edges` | `requires_parameter`, `validates_parameter`, `constrains_equation` |
 | Sidecar execution keys | Same loader as equations (`expression`, `steps`, etc.) |
@@ -110,7 +117,7 @@ Also forbidden:
 
 ## 11. Fields consumed by runtime components
 
-Validation engine evaluates `expression`, `conditions`, and `requires` against current Facts. Graph expansion includes rules on active paths. Planner may schedule validation goals for `validates` parameters. Presentation reads `display` and `on_fail.message` for warning blocks.
+Validation engine evaluates `expression`, `conditions`, and `requires` against current Facts. The execution runner stores outcomes on `result.parameter` only — not on `validates[]` entries. Graph expansion includes rules on active paths. Planner may schedule validation goals for result parameters. Presentation reads `display` and `on_fail.message` for warning blocks.
 
 ## 12. Validation procedure
 
