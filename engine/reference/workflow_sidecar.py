@@ -35,7 +35,6 @@ _PARAM_TO_FIELD: dict[str, str] = {
     "PARAM-corrosion-allowance": "corrosion_allowance",
     "PARAM-actual-wall-thickness": "actual_wall_thickness",
     "PARAM-pipe-schedule": "pipe_schedule",
-    "PARAM-geometry-input-mode": "geometry_input_mode",
     "PARAM-allowable-stress": "allowable_stress",
     "PARAM-required-wall-thickness": "required_wall_thickness",
     "PARAM-minimum-required-thickness": "minimum_required_thickness",

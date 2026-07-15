@@ -212,10 +212,23 @@ def _extract_symbol_labeled_inputs(
             result.rejected.append(parsed)
             continue
         result.extracted[input_id] = parsed
-        if input_id == "outside_diameter" and "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = fact_from_user_submission(key="d_input_mode", value="direct_od", unit="dimensionless", task_id=task_id, original_value="direct_od")
-        if input_id == "nominal_pipe_size" and "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = fact_from_user_submission(key="d_input_mode", value="nps_lookup", unit="dimensionless", task_id=task_id, original_value="nps_lookup")
+        branch_key = "outside_diameter__resolution_branch"
+        if input_id == "outside_diameter" and branch_key not in result.extracted:
+            result.extracted[branch_key] = fact_from_user_submission(
+                key=branch_key,
+                value="direct_od",
+                unit="dimensionless",
+                task_id=task_id,
+                original_value="direct_od",
+            )
+        if input_id == "nominal_pipe_size" and branch_key not in result.extracted:
+            result.extracted[branch_key] = fact_from_user_submission(
+                key=branch_key,
+                value="nps_lookup",
+                unit="dimensionless",
+                task_id=task_id,
+                original_value="nps_lookup",
+            )
 
 
 def _parse_symbol_assignment(
@@ -511,9 +524,10 @@ def _extract_nps(
             original_value=match.group(1).strip(),
             original_unit="NPS",
         )
-        if "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = fact_from_user_submission(
-                key="d_input_mode", value="nps_lookup", unit="dimensionless", task_id=task_id, original_value="nps_lookup"
+        branch_key = "outside_diameter__resolution_branch"
+        if branch_key not in result.extracted:
+            result.extracted[branch_key] = fact_from_user_submission(
+                key=branch_key, value="nps_lookup", unit="dimensionless", task_id=task_id, original_value="nps_lookup"
             )
         return
 
@@ -527,8 +541,9 @@ def _extract_nps(
             original_value=bare.group(1),
             original_unit="NPS",
         )
-        if "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = fact_from_user_submission(key="d_input_mode", value="nps_lookup", unit="dimensionless", task_id=task_id, original_value="nps_lookup")
+        branch_key = "outside_diameter__resolution_branch"
+        if branch_key not in result.extracted:
+            result.extracted[branch_key] = fact_from_user_submission(key=branch_key, value="nps_lookup", unit="dimensionless", task_id=task_id, original_value="nps_lookup")
 
 
 def _extract_diameter(
@@ -549,8 +564,9 @@ def _extract_diameter(
         value = float(match.group(1))
         unit = _normalize_length_unit(match.group(2))
         result.extracted["outside_diameter"] = fact_from_user_submission(key="outside_diameter", value=value, unit=unit, task_id=task_id, original_value=value, original_unit=unit)
-        if "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = fact_from_user_submission(key="d_input_mode", value="direct_od", unit="dimensionless", task_id=task_id, original_value="direct_od")
+        branch_key = "outside_diameter__resolution_branch"
+        if branch_key not in result.extracted:
+            result.extracted[branch_key] = fact_from_user_submission(key=branch_key, value="direct_od", unit="dimensionless", task_id=task_id, original_value="direct_od")
         return
 
     # Bare "4 inch" only when not already rejected as mislabeled pressure
@@ -561,8 +577,9 @@ def _extract_diameter(
         value = float(bare.group(1))
         unit = _normalize_length_unit(bare.group(0).split()[-1])
         result.extracted["outside_diameter"] = fact_from_user_submission(key="outside_diameter", value=value, unit=unit, task_id=task_id, original_value=value, original_unit=unit)
-        if "d_input_mode" not in result.extracted:
-            result.extracted["d_input_mode"] = fact_from_user_submission(key="d_input_mode", value="direct_od", unit="dimensionless", task_id=task_id, original_value="direct_od")
+        branch_key = "outside_diameter__resolution_branch"
+        if branch_key not in result.extracted:
+            result.extracted[branch_key] = fact_from_user_submission(key=branch_key, value="direct_od", unit="dimensionless", task_id=task_id, original_value="direct_od")
         return
 
 

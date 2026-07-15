@@ -121,6 +121,7 @@ def test_concept_pack_compiles() -> None:
         "CONCEPT-allowable-stress",
         "CONCEPT-pipe-construction",
         "CONCEPT-weld-joint-efficiency",
+        "CONCEPT-pipe-geometry",
         "CONCEPT-temperature-coefficient",
     }
     assert expected <= set(graph.nodes.keys())
@@ -128,10 +129,11 @@ def test_concept_pack_compiles() -> None:
     assert pressure.node_type == "concept"
     assert pressure.metadata.get("concept_class") == "physical_quantity"
     assert pressure.metadata.get("dimension") == "DIM-pressure"
-    has_param = [
-        edge
-        for edge in graph.edges
-        if edge.from_id == "CONCEPT-pressure" and edge.edge_type == "has_parameter"
+    pipe_geometry = graph.nodes["CONCEPT-pipe-geometry"]
+    assert pipe_geometry.node_type == "concept"
+    assert pipe_geometry.metadata.get("concept_class") == "component"
+    assert edge_targets(pipe_geometry.metadata, "generalizes") == [
+        "CONCEPT-pipe-diameter",
+        "CONCEPT-wall-thickness",
     ]
-    assert len(has_param) == 0  # PARAM nodes live in a separate pack
     write_graph_cache(pack_root, graph)

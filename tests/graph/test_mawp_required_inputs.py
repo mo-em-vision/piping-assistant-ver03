@@ -45,14 +45,71 @@ def test_mawp_required_inputs_include_wall_thickness_basis_in_navigation(
     assert "wall_thickness_basis" not in path_missing
 
 
-def test_mawp_geometry_mode_nps_omits_direct_od_when_gates_open(project_root: Path) -> None:
+def test_mawp_geometry_mode_nps_requires_nps_before_schedule_when_gates_open(
+    project_root: Path,
+) -> None:
     missing = _missing_inputs(project_root)
-    # With nps_and_schedule mode, direct OD may still be required until lookup runs;
-    # design pressure must never be required on MAWP path.
     assert "internal_design_gage_pressure" not in missing
     assert "design_pressure" not in missing
+    assert "nominal_pipe_size" in missing
+    assert "pipe_schedule" not in missing
+    assert "outside_diameter" not in missing
+    assert "actual_wall_thickness" not in missing
+    assert "basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes" not in missing
+
+
+def test_mawp_geometry_mode_nps_requires_schedule_after_nominal_pipe_size(
+    project_root: Path,
+) -> None:
+    from models.input import InputSource, InputStatus
+    from tests.helpers.facts import facts_from_inputs, legacy_input
+
+    inputs = mawp_gate_open_inputs()
+    inputs.update(
+        facts_from_inputs(
+            {
+                "nominal_pipe_size": legacy_input(
+                    "nominal_pipe_size",
+                    "6",
+                    source=InputSource.USER,
+                    status=InputStatus.CONFIRMED,
+                ),
+            },
+            task_id="mawp-schedule-after-nps",
+        )
+    )
+    missing = _missing_inputs(project_root, inputs=inputs)
+    assert "pipe_schedule" in missing
+    assert "outside_diameter" not in missing
+    assert "actual_wall_thickness" not in missing
 
 
 def test_mawp_lookup_derived_coefficients_not_in_missing(project_root: Path) -> None:
     missing = _missing_inputs(project_root)
     assert "allowable_stress" not in missing or "material_grade" in missing
+
+
+def test_mawp_direct_geometry_requires_outside_diameter_user_input(
+    project_root: Path,
+) -> None:
+    from models.input import InputSource, InputStatus
+    from tests.helpers.facts import facts_from_inputs, legacy_input
+
+    inputs = mawp_gate_open_inputs()
+    inputs.update(
+        facts_from_inputs(
+            {
+                "outside_diameter__resolution_branch": legacy_input(
+                    "outside_diameter__resolution_branch",
+                    "direct_od",
+                    source=InputSource.USER,
+                    status=InputStatus.CONFIRMED,
+                ),
+            },
+            task_id="mawp-direct-od",
+        )
+    )
+    missing = _missing_inputs(project_root, inputs=inputs)
+    assert "outside_diameter" in missing
+    assert "nominal_pipe_size" not in missing
+    assert "pipe_schedule" not in missing

@@ -27,7 +27,10 @@ def test_execute_workflow_completes() -> None:
     task_id = "pipe-wall-thickness-design-exec"
     manager.create_task(task_id)
     for engineering_input in _sample_inputs().values():
-        manager.store_input(task_id, engineering_input)
+        manager.store_input(
+            task_id,
+            fact_from_engineering_input(engineering_input, task_id=task_id),
+        )
 
     result = execute_workflow(
         task_id,
@@ -60,10 +63,15 @@ def test_execute_workflow_pauses_on_missing_input() -> None:
     task_id = "pipe-wall-thickness-design-pause"
     manager.create_task(task_id)
     manager.store_input(
-        task_id, fact_from_engineering_input(legacy_input(input_id="design_pressure",
-            value=500,
-            unit="psi",
-            source=InputSource.USER,
+        task_id,
+        fact_from_engineering_input(
+            legacy_input(
+                input_id="internal_design_gage_pressure",
+                value=500,
+                unit="psi",
+                source=InputSource.USER,
+            ),
+            task_id=task_id,
         ),
     )
 
@@ -91,11 +99,17 @@ def test_report_reflects_execution_outputs() -> None:
     task_id = "pipe-wall-thickness-design-report"
     manager.create_task(task_id)
     for engineering_input in _sample_inputs().values():
-        manager.store_input(task_id, engineering_input)
+        manager.store_input(
+            task_id,
+            fact_from_engineering_input(engineering_input, task_id=task_id),
+        )
 
-    execute_workflow(task_id, "pipe_wall_thickness_design", state=manager, reader=_reader(), task_id=
-        task_id, workflow_id=str(manager.get_task(
-        task_id).outputs.get('workflow') or '')))
+    execute_workflow(
+        task_id,
+        "pipe_wall_thickness_design",
+        state=manager,
+        reader=_reader(),
+    )
     task = manager.get_task(task_id)
     report = build_report_from_task(task, _reader())
 

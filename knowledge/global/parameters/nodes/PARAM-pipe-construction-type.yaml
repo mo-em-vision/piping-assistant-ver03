@@ -28,4 +28,8 @@ metadata:
   last_revision: 2026-07-04
   edited_by: admin
   short_question: Select pipe construction or longitudinal joint type.
+  composer_input: dropdown
+  table_options:
+    table: asme-b313-table-A-3
+    query: joint_categories_for_material
 ---

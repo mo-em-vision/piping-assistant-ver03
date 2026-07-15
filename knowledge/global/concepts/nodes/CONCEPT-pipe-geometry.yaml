@@ -1,0 +1,31 @@
+---
+id: CONCEPT-pipe-geometry
+type: concept
+key: pipe_geometry
+name: Pipe Geometry
+concept_class: component
+description: >
+  The engineering concept of pipe geometry, including outside diameter, nominal
+  pipe size, wall thickness, and related measures used in pressure design.
+aliases:
+  - pipe geometry
+  - pipe dimensions
+edges:
+  - type: generalizes
+    target: CONCEPT-pipe-diameter
+  - type: generalizes
+    target: CONCEPT-wall-thickness
+  - type: has_parameter
+    target: PARAM-outside-diameter
+  - type: has_parameter
+    target: PARAM-nominal-pipe-size
+  - type: has_parameter
+    target: PARAM-pipe-schedule
+  - type: has_parameter
+    target: PARAM-actual-wall-thickness
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-15
+  edited_by: admin
+---

@@ -54,9 +54,8 @@ def _prioritize_submittable_by_phase(
     return candidates
 
 
-_HIDDEN_TIMELINE_INPUTS = frozenset({"d_input_mode", "thin_wall"})
-_MAWP_HIDDEN_TIMELINE_INPUTS = frozenset(
-    {"geometry_input_mode", "thin_wall", "d_input_mode"}
+_HIDDEN_TIMELINE_INPUTS = frozenset(
+    {"d_input_mode", "thin_wall", "outside_diameter__resolution_branch"}
 )
 
 
@@ -418,13 +417,7 @@ def _pipe_wall_step_applies(task: Task, step_id: str) -> bool:
 
 
 def composer_parameter_id(task: Task, parameter_id: str) -> str:
-    """Map graph diameter fields to the parameter id shown in the workflow composer."""
-    if (
-        is_pipe_wall_thickness_task(task)
-        and parameter_id == "outside_diameter"
-        and not _pipe_wall_uses_inside_diameter(task)
-    ):
-        return "nominal_pipe_size"
+    """Map graph parameter ids to the parameter id shown in the workflow composer."""
     return parameter_id
 
 
@@ -508,62 +501,14 @@ def revealed_pipe_wall_input_ids(
     return _order_revealed_ids(task, revealed, planning=planning, reader=reader)
 
 
-def _mawp_geometry_mode(task: Task) -> str | None:
-    mode = field_value("geometry_input_mode", active_facts(task))
-    if mode in {"nps_and_schedule", "direct_od_and_thickness"}:
-        return str(mode)
-    return None
-
-
-def _mawp_step_applies(task: Task, step_id: str) -> bool:
-    mode = _mawp_geometry_mode(task)
-    if step_id == "nominal_pipe_size" or step_id == "pipe_schedule":
-        return mode != "direct_od_and_thickness"
-    if step_id in {"outside_diameter", "actual_wall_thickness"}:
-        return mode != "nps_and_schedule"
-    return True
-
-
 def revealed_mawp_input_ids(
     task: Task,
     planning: dict[str, Any],
     *,
     reader: StandardsReader | None = None,
 ) -> list[str]:
-    phase_missing = planning.get("phase_missing") or {}
-    current_phase = str(planning.get("current_phase") or "")
-
-    revealed: set[str] = set()
-    for input_id in task.fact_store.active_facts():
-        if input_id not in _MAWP_HIDDEN_TIMELINE_INPUTS:
-            revealed.add(input_id)
-
-    if current_phase and isinstance(phase_missing, dict):
-        for phase in _NAVIGATION_PHASE_SEQUENCE:
-            if phase == NavigationPhase.READY.value:
-                break
-            fields = phase_missing.get(phase) or []
-            if isinstance(fields, list):
-                revealed.update(str(item) for item in fields)
-            if phase == current_phase:
-                break
-    else:
-        for key in ("missing_inputs", "missing_assumptions"):
-            revealed.update(
-                str(item)
-                for item in (planning.get(key) or [])
-                if str(item) not in _MAWP_HIDDEN_TIMELINE_INPUTS
-            )
-
-    if task.outputs.get("allowable_stress") is not None or task.outputs.get("S") is not None:
-        revealed.add("allowable_stress")
-
-    revealed = {
-        step_id
-        for step_id in revealed
-        if step_id not in _MAWP_HIDDEN_TIMELINE_INPUTS and _mawp_step_applies(task, step_id)
-    }
-    return _order_revealed_ids(task, revealed, planning=planning, reader=reader)
+    """MAWP timeline uses the same graph-driven reveal rules as other workflows."""
+    return revealed_pipe_wall_input_ids(task, planning, reader=reader)
 
 
 def _workflow_id(task: Task) -> str:
@@ -571,8 +516,6 @@ def _workflow_id(task: Task) -> str:
 
 
 def _hidden_timeline_inputs(task: Task) -> frozenset[str]:
-    if is_mawp_task(task):
-        return _MAWP_HIDDEN_TIMELINE_INPUTS
     return _HIDDEN_TIMELINE_INPUTS
 
 
@@ -639,6 +582,12 @@ def revealed_input_ids(
     return revealed_pipe_wall_input_ids(task, planning, reader=reader)
 
 
+def _step_applies_for_timeline(task: Task, step_id: str) -> bool:
+    if is_pipe_wall_thickness_task(task):
+        return _pipe_wall_step_applies(task, step_id)
+    return True
+
+
 def _ordered_submittable_ids(
     task: Task,
     candidates: set[str],
@@ -650,18 +599,10 @@ def _ordered_submittable_ids(
     step_order = collection_step_order(task, planning, reader=reader)
     ordered: list[str] = []
     for step_id in step_order:
-        if step_id in candidates and (
-            (is_mawp_task(task) and _mawp_step_applies(task, step_id))
-            or (is_pipe_wall_thickness_task(task) and _pipe_wall_step_applies(task, step_id))
-            or (not is_mawp_task(task) and not is_pipe_wall_thickness_task(task))
-        ):
+        if step_id in candidates and _step_applies_for_timeline(task, step_id):
             ordered.append(step_id)
     for item in _sort_ids_by_step_order(candidates.difference(ordered), step_order):
-        if item not in hidden and (
-            (is_mawp_task(task) and _mawp_step_applies(task, item))
-            or (is_pipe_wall_thickness_task(task) and _pipe_wall_step_applies(task, item))
-            or (not is_mawp_task(task) and not is_pipe_wall_thickness_task(task))
-        ):
+        if item not in hidden and _step_applies_for_timeline(task, item):
             ordered.append(item)
     return ordered
 
@@ -702,7 +643,36 @@ def _unconfirmed_proposed_defaults_for_phase(
     return extras
 
 
+def _with_resolution_branch_submittable(task: Task, parameter_ids: list[str]) -> list[str]:
+    """Expose branch fact keys when the anchor parameter is submittable but branch is unset."""
+    from engine.graph.resolution_branches import (
+        active_resolution_branch_id,
+        resolution_branch_fact_key,
+    )
+    from engine.state.task_facts import active_facts
+
+    if "outside_diameter" not in parameter_ids:
+        return parameter_ids
+    if active_resolution_branch_id("outside_diameter", active_facts(task)) is not None:
+        return parameter_ids
+    branch_key = resolution_branch_fact_key("outside_diameter")
+    if branch_key in parameter_ids:
+        return parameter_ids
+    expanded = list(parameter_ids)
+    anchor_index = expanded.index("outside_diameter")
+    expanded.insert(anchor_index + 1, branch_key)
+    return expanded
+
+
 def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]:
+    """Parameters the user may submit on the current navigation phase."""
+    return _with_resolution_branch_submittable(
+        task,
+        _raw_submittable_parameter_ids(task, planning),
+    )
+
+
+def _raw_submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]:
     """Parameters the user may submit on the current navigation phase."""
     from engine.planner.goal_navigation import goal_guided_parameter_ids, goal_parameter_key, next_actionable_goal
 
@@ -716,9 +686,7 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
         filtered = [
             param
             for param in goal_params
-            if param not in hidden
-            and (not is_mawp_task(task) or _mawp_step_applies(task, param))
-            and (not is_pipe_wall_thickness_task(task) or _pipe_wall_step_applies(task, param))
+            if param not in hidden and _step_applies_for_timeline(task, param)
         ]
         missing_keys = set(missing_input_keys(task))
         filtered = list(dict.fromkeys([*filtered, *[p for p in missing_keys if p not in hidden]]))
@@ -730,11 +698,7 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
                     str(item)
                     for item in (phase_missing.get(current_phase) or [])
                     if str(item) not in hidden
-                    and (not is_mawp_task(task) or _mawp_step_applies(task, str(item)))
-                    and (
-                        not is_pipe_wall_thickness_task(task)
-                        or _pipe_wall_step_applies(task, str(item))
-                    )
+                    and _step_applies_for_timeline(task, str(item))
                 ]
                 allowed_ids = _phase_allowed_input_ids(task, current_phase, planning)
                 step_order = collection_step_order(task, planning)
@@ -761,11 +725,7 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
             str(item)
             for item in (phase_missing.get(current_phase) or [])
             if str(item) not in hidden
-            and (not is_mawp_task(task) or _mawp_step_applies(task, str(item)))
-            and (
-                not is_pipe_wall_thickness_task(task)
-                or _pipe_wall_step_applies(task, str(item))
-            )
+            and _step_applies_for_timeline(task, str(item))
         ]
         if phase_fields:
             allowed_ids = _phase_allowed_input_ids(task, current_phase, planning)
@@ -787,9 +747,7 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
             item_id = str(item)
             if item_id in hidden:
                 continue
-            if is_mawp_task(task) and not _mawp_step_applies(task, item_id):
-                continue
-            if is_pipe_wall_thickness_task(task) and not _pipe_wall_step_applies(task, item_id):
+            if not _step_applies_for_timeline(task, item_id):
                 continue
             if item_id not in requested_ids:
                 requested_ids.append(item_id)
@@ -799,8 +757,7 @@ def submittable_parameter_ids(task: Task, planning: dict[str, Any]) -> list[str]
             input_id not in hidden
             and _is_proposed_default(existing)
             and input_id not in requested_ids
-            and (not is_mawp_task(task) or _mawp_step_applies(task, input_id))
-            and (not is_pipe_wall_thickness_task(task) or _pipe_wall_step_applies(task, input_id))
+            and _step_applies_for_timeline(task, input_id)
         ):
             requested_ids.append(input_id)
 

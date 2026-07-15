@@ -18,7 +18,7 @@ LEGACY_ROOT_ALIASES: dict[str, str] = {
 }
 
 # Branch-driving task fields (paragraph applicability uses these).
-PATH_DECISION_FIELDS: frozenset[str] = frozenset({"pressure_loading", "geometry_input_mode"})
+PATH_DECISION_FIELDS: frozenset[str] = frozenset({"pressure_loading"})
 
 # Parameters collected in the definition-equation completion phase.
 DEFINITION_PHASE_INPUTS: frozenset[str] = frozenset({"corrosion_allowance"})
@@ -34,12 +34,6 @@ def apply_workflow_planning_defaults(task: Any, workflow_id: str) -> None:
     """Apply workflow-specific proposed defaults before graph expansion."""
     if workflow_id != MAWP_DESIGN:
         return
-    from engine.executor.mawp_geometry_resolver import (
-        apply_geometry_input_mode_default,
-        apply_mawp_pressure_loading_default,
-        apply_wall_thickness_basis_from_geometry,
-    )
+    from engine.executor.mawp_geometry_resolver import apply_mawp_pressure_loading_default
 
-    apply_geometry_input_mode_default(task)
     apply_mawp_pressure_loading_default(task)
-    apply_wall_thickness_basis_from_geometry(task)

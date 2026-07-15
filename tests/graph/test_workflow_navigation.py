@@ -15,17 +15,18 @@ def test_load_navigation_from_workflow_yaml() -> None:
         standard="asme_b31.3",
     )
     config = load_workflow_navigation(reader, "pipe_wall_thickness_design")
-    assert "design_pressure" in config.fields_for_phase(NavigationPhase.PARAMETER_GATHERING)
+    assert "internal_design_gage_pressure" in config.fields_for_phase(NavigationPhase.PARAMETER_GATHERING)
     assert "pressure_loading" in config.assumption_gate_fields
 
 
-def test_mawp_navigation_geometry_mode_in_path_decisions() -> None:
+def test_mawp_navigation_wall_thickness_basis_in_path_decisions() -> None:
     reader = StandardsReader(
         __import__("pathlib").Path(__file__).resolve().parents[2] / "knowledge" / "standards",
         standard="asme_b31.3",
     )
     config = load_workflow_navigation(reader, "mawp_design")
-    assert "geometry_input_mode" in config.fields_for_phase(NavigationPhase.PATH_DECISIONS)
+    assert "wall_thickness_basis" in config.fields_for_phase(NavigationPhase.PATH_DECISIONS)
+    assert "outside_diameter" in config.fields_for_phase(NavigationPhase.PARAMETER_GATHERING)
     assert "pressure_loading" not in config.fields_for_phase(NavigationPhase.PATH_DECISIONS)
 
 
@@ -39,12 +40,12 @@ def test_phased_navigation_uses_config_order() -> None:
         config=config,
         assumption_eval=AssumptionEvaluation(),
         expansion_eval=AssumptionEvaluation(),
-        user_inputs=["outside_diameter", "design_pressure"],
+        user_inputs=["outside_diameter", "internal_design_gage_pressure"],
         execution_eval=AssumptionEvaluation(),
         question_map={},
     )
     gathering = phased.phase_missing[NavigationPhase.PARAMETER_GATHERING.value]
-    assert gathering.index("design_pressure") < gathering.index("outside_diameter")
+    assert gathering.index("internal_design_gage_pressure") < gathering.index("outside_diameter")
 
 
 def test_internal_pressure_omits_external_design_pressure_from_phase_missing() -> None:

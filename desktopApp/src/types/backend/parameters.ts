@@ -8,6 +8,7 @@ export type ParameterType =
   | 'checkbox'
   | 'material'
   | 'unit'
+  | 'resolution_branch'
 
 export type ParameterStatus = 'pending' | 'confirmation_required' | 'confirmed'
 
@@ -16,6 +17,28 @@ export interface ParameterOptionDto {
   label: string
 }
 
+export interface ResolutionBranchComposerDto {
+  type: string
+  units?: string[]
+  default_unit?: string
+  options?: ParameterOptionDto[]
+  validation?: ParameterValidationDto | null
+}
+
+export interface ResolutionBranchDto {
+  id: string
+  label: string
+  composer: ResolutionBranchComposerDto
+  submit_parameter?: string | null
+}
+
+export interface ResolutionUiDto {
+  branches: ResolutionBranchDto[]
+  active_branch: string | null
+  branch_fact_key: string
+}
+
+/** @deprecated Use resolution_ui on resolution_branch parameters */
 export interface DiameterUiDto {
   input_modes: ParameterOptionDto[]
   related_options: Record<string, ParameterOptionDto[]>
@@ -43,6 +66,8 @@ export interface ParameterDefinitionDto {
   editing?: boolean
   submittable?: boolean
   provenance?: NodeProvenanceDto
+  resolution_ui?: ResolutionUiDto
+  /** @deprecated Use resolution_ui */
   diameter_ui?: DiameterUiDto
 }
 

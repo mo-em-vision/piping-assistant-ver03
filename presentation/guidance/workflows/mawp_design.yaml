@@ -19,12 +19,12 @@ entries:
 
   - id: geometry-mode-branch
     match:
-      current_phase: path_decisions
+      current_phase: parameter_gathering
       traversal_event: branch_decision_required
-      edge_reason: geometry_input_mode
+      edge_reason: outside_diameter
     text: >-
-      Select how pipe geometry will be provided: nominal pipe size and schedule
-      lookup, or direct outside diameter and wall thickness entry.
+      Select how outside diameter will be provided: nominal pipe size lookup
+      per ASME B36.10, or direct outside diameter entry.
     refs:
       node_id: "304.1.2-a"
 

@@ -47,4 +47,14 @@ edges:
 metadata:
   last_revision: 2026-07-06
   edited_by: admin
+option_queries:
+  joint_categories_for_material:
+    storage: standards_tables
+    table_id: asme_b31.3_A-3
+    requires: [material_grade]
+    value_column: joint_category
+    label_template: "{value}"
+    distinct: true
+    filter:
+      material_grade: material_id
 ---

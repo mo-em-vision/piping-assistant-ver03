@@ -45,9 +45,9 @@ def test_submit_nominal_pipe_size_resolves_outside_diameter(standards_root: Path
     assert od_fact is not None
     assert fact_scalar_value(od_fact) == pytest.approx(114.3)
     assert fact_unit(od_fact) == "mm"
-    d_mode = updated.fact_store.active_fact("d_input_mode")
-    assert d_mode is not None
-    assert fact_scalar_value(d_mode) == "nps_lookup"
+    branch = updated.fact_store.active_fact("outside_diameter__resolution_branch")
+    assert branch is not None
+    assert fact_scalar_value(branch) == "nps_lookup"
     lookup = updated.outputs["outside_diameter_lookup"]
     assert lookup["nps"] == "4"
     assert lookup["outside_diameter_in"] == pytest.approx(4.5)
@@ -134,10 +134,10 @@ def test_submit_outside_diameter_from_nps_step(standards_root: Path) -> None:
 
     od_fact = updated.fact_store.active_fact("outside_diameter")
     assert od_fact is not None
-    assert fact_scalar_value(od_fact) == pytest.approx(114.3)
-    d_mode = updated.fact_store.active_fact("d_input_mode")
-    assert d_mode is not None
-    assert fact_scalar_value(d_mode) == "direct_od"
+    assert float(fact_scalar_value(od_fact)) == pytest.approx(114.3)
+    branch = updated.fact_store.active_fact("outside_diameter__resolution_branch")
+    assert branch is not None
+    assert fact_scalar_value(branch) == "direct_od"
 
 
 def test_submit_unknown_nominal_pipe_size_raises(standards_root: Path) -> None:

@@ -14,6 +14,25 @@ title: Dimensions and Weights (Masses) of Welded and Seamless Wrought Steel Pipe
 publish_date: 2018
 unit_system: imperial
 
+option_queries:
+  nps_values:
+    storage: pipe_dimensions
+    value_column: nps
+    label_template: "NPS {value}"
+    order_by: outside_diameter_mm
+  schedules_for_nps:
+    storage: pipe_dimensions
+    requires: [nominal_pipe_size]
+    value_column: schedule
+    label_template: "Schedule {value} ({wall_thickness_mm:g} mm / {wall_thickness_in:g} in)"
+    filter:
+      nominal_pipe_size: nps
+  nps_od_values:
+    storage: pipe_dimensions
+    value_column: outside_diameter_mm
+    label_template: "{outside_diameter_in:g} in ({outside_diameter_mm:g} mm)"
+    order_by: outside_diameter_mm
+
 keys:
   - nominal_pipe_size
   - schedule

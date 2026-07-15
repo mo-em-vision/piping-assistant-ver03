@@ -113,8 +113,14 @@ def apply_nominal_pipe_size_lookup(task: Task, standards_root: Path) -> None:
         original_value=nps_input.original_value or raw_nps,
     )
 
-    if field_value("d_input_mode", active_facts(task)) != "direct_od":
-        store_system_categorical_fact(task, key="d_input_mode", label="nps_lookup")
+    from engine.graph.resolution_branches import (
+        active_resolution_branch_id,
+        resolution_branch_fact_key,
+    )
+
+    branch_key = resolution_branch_fact_key("outside_diameter")
+    if active_resolution_branch_id("outside_diameter", active_facts(task)) != "direct_od":
+        store_system_categorical_fact(task, key=branch_key, label="nps_lookup")
 
     store_lookup_numeric_fact(
         task,

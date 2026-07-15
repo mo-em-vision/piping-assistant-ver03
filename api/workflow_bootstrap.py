@@ -128,7 +128,6 @@ _PROPOSE_DEFAULTS_ON_FIELDS = frozenset(
         "outside_diameter",
         "pipe_schedule",
         "actual_wall_thickness",
-        "geometry_input_mode",
         "joint_category",
         "weld_joint_efficiency",
         "weld_joint_strength_reduction_factor_W",

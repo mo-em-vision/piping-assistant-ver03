@@ -63,7 +63,7 @@ def test_mawp_task_detection() -> None:
     assert is_mawp_task(task) is True
 
 
-def test_mawp_bootstrap_seeds_pressure_loading_and_geometry_defaults(
+def test_mawp_bootstrap_seeds_pressure_loading_not_geometry_default(
     temp_service: DesktopApiService,
 ) -> None:
     project = temp_service.create_project("MAWP Defaults")
@@ -71,7 +71,8 @@ def test_mawp_bootstrap_seeds_pressure_loading_and_geometry_defaults(
     manager = temp_service._store_for(project["id"]).load_state_manager()
     task = manager.get_task(state["task_id"])
     assert task.fact_store.active_fact("pressure_loading") is not None
-    assert task.fact_store.active_fact("geometry_input_mode") is not None
+    # Outside-diameter resolution branch is chosen at the anchor parameter — not seeded.
+    assert task.fact_store.active_fact("outside_diameter__resolution_branch") is None
 
 
 def test_revealed_mawp_inputs_include_geometry() -> None:

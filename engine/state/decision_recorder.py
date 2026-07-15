@@ -11,7 +11,7 @@ from models.task import Task
 
 
 _SELECTION_PARAMETERS = frozenset(
-    {"pressure_loading", "geometry_input_mode", "d_input_mode"}
+    {"pressure_loading"}
 )
 
 

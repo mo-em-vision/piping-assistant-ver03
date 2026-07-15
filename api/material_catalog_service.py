@@ -77,8 +77,11 @@ def search_material_catalog(
     *,
     limit: int = 12,
 ) -> list[dict[str, str]]:
+    from engine.reference.table_options_resolver import resolve_table_search_options
+
     warm_material_catalog(standards_root)
-    catalog = get_material_catalog(standards_root)
-    if not catalog.exists:
-        _try_build_material_catalog(standards_root)
-    return catalog.search(query, limit=limit)
+    return resolve_table_search_options(
+        standards_root=standards_root,
+        search_text=query,
+        limit=limit,
+    )

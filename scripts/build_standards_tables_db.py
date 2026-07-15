@@ -52,6 +52,7 @@ from engine.reference.material_ids import (
 
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 
+from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.standards_tables import StandardsTablesDatabase
 
 
@@ -59,6 +60,19 @@ from engine.reference.standards_tables import StandardsTablesDatabase
 _PACK_ROOT = _ROOT / "knowledge" / "standards" / "asme" / "asme_b31.3"
 
 _DB_PATH = resolve_pack_tables_db(_PACK_ROOT)
+
+
+def _option_queries_from_table_yaml(path: Path) -> dict[str, object]:
+    if not path.is_file():
+        return {}
+    meta, _ = split_frontmatter(path.read_text(encoding="utf-8"))
+    queries = meta.get("option_queries")
+    return dict(queries) if isinstance(queries, dict) else {}
+
+
+_TABLE_A_3_OPTION_QUERIES = _option_queries_from_table_yaml(
+    _PACK_ROOT / "nodes" / "tables" / "asme-b313-table-A-3.yaml"
+)
 
 # B31.3 Table A-2 base-metal group headings (row field: base_metal_group).
 BASE_METAL_GROUP_STAINLESS_STEEL = "Stainless Steel"
@@ -349,11 +363,15 @@ def build_database(db_path: Path = _DB_PATH) -> StandardsTablesDatabase:
 
         source_node="B313-table-A-3",
 
+        metadata={"option_queries": _TABLE_A_3_OPTION_QUERIES} if _TABLE_A_3_OPTION_QUERIES else None,
+
         aliases=[
 
             "A-3",
 
             "A-1B",
+
+            "asme-b313-table-A-3",
 
             "table_b31_3_A-3",
 

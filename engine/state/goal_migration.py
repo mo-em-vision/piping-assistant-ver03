@@ -119,8 +119,6 @@ def _goal_for_field(
 ) -> Goal:
     if phase == NavigationPhase.PATH_DECISIONS.value and field_id in {
         "pressure_loading",
-        "geometry_input_mode",
-        "d_input_mode",
     }:
         return selection_goal(
             key=f"select-{field_id}",

@@ -1,0 +1,60 @@
+---
+id: asme-b3610-pipe-dimensions-lookup
+standard: asme_b31.3
+source:
+  pack: asme_b36.10
+  yaml: tables/B3610-table-2-1.yaml
+  db_file: pipe_dimensions.db
+  table_id: table-2-1
+type: lookup
+title: Pipe dimensions from NPS and schedule (ASME B36.10M Table 2-1)
+description: >
+  Resolve outside diameter and wall thickness from nominal pipe size and schedule
+  per ASME B36.10M Table 2-1.
+inputs:
+- id: nominal_pipe_size
+  name: nominal_pipe_size
+  task_input_id: nominal_pipe_size
+  required: true
+  source: user_input
+  unit: dimensionless
+- id: pipe_schedule
+  name: pipe_schedule
+  task_input_id: pipe_schedule
+  required: true
+  source: user_input
+  unit: dimensionless
+returns:
+- parameter: PARAM-outside-diameter
+  symbol: D
+- parameter: PARAM-actual-wall-thickness
+  symbol: t_actual
+lookup:
+  table: B3610-table-2-1
+  rule: pipe_dimensions_nps_schedule
+  keys:
+  - PARAM-nominal-pipe-size
+  - PARAM-pipe-schedule
+applicability:
+  applies_when:
+  - parameter: outside_diameter__resolution_branch
+    operator: equals
+    value: nps_lookup
+edges:
+- type: returns_parameter
+  target: PARAM-outside-diameter
+- type: returns_parameter
+  target: PARAM-actual-wall-thickness
+- type: requires_parameter
+  target: PARAM-nominal-pipe-size
+- type: requires_parameter
+  target: PARAM-pipe-schedule
+  when:
+    field: nominal_pipe_size
+    present: true
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-15
+  edited_by: admin
+---

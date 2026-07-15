@@ -70,6 +70,7 @@ ALLOWED_EDGE_METADATA = frozenset(
         "equation",
         "reason",
         "required",
+        "branch_id",
     }
 )
 

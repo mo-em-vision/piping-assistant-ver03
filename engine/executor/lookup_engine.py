@@ -206,6 +206,37 @@ class LookupEngine:
 
         raise ValueError(f"Unsupported lookup table: {table_ref}")
 
+    def lookup_pipe_dimensions_nps_schedule(self, inputs: dict[str, Any]) -> dict[str, float]:
+        """Resolve outside diameter and wall thickness from NPS and schedule."""
+        from engine.executor.nps_input_resolver import _to_nps_lookup_key
+        from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
+
+        normalized = _lookup_inputs_with_units(inputs)
+        nps = str(normalized.get("nominal_pipe_size", "")).strip()
+        schedule = str(normalized.get("pipe_schedule", "")).strip()
+        if not nps:
+            raise ValueError("nominal_pipe_size is required for pipe dimension lookup")
+        if not schedule:
+            raise ValueError("pipe_schedule is required for pipe dimension lookup")
+
+        entry_unit = str(normalized.get("nominal_pipe_size_unit") or "NPS").strip().upper()
+        lookup_nps = _to_nps_lookup_key(nps, entry_unit if entry_unit in {"NPS", "DN"} else "NPS")
+
+        standards_root = standards_root_from_pack_root(self._pack_root)
+        lookup = PipeDimensionLookup(standards_root)
+        result = lookup.lookup(lookup_nps, schedule=schedule)
+        if result.wall_thickness_mm is None:
+            raise ValueError(
+                f"Wall thickness for NPS {result.nps!r} schedule {schedule!r} "
+                "was not found in ASME B36.10."
+            )
+        return {
+            "outside_diameter": float(result.outside_diameter_mm),
+            "actual_wall_thickness": float(result.wall_thickness_mm),
+            "D": float(result.outside_diameter_mm),
+            "t_actual": float(result.wall_thickness_mm),
+        }
+
     def _lookup_stress(
         self,
         table_data: dict[str, Any],

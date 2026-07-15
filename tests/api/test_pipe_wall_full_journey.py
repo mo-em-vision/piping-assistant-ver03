@@ -21,8 +21,10 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 _EXPECTED_DIR = _REPO_ROOT / "tests" / "data" / "expected"
 
 _PIPE_WALL_USER_SUBMISSIONS: list[tuple[str, object, str | None]] = [
+    ("outside_diameter__resolution_branch", "nps_lookup", None),
     ("internal_design_gage_pressure", 8.0, "bar"),
     ("nominal_pipe_size", "6", None),
+    ("pipe_schedule", "40", None),
     ("material_grade", "SA-106B", None),
     ("design_temperature", 38.0, "C"),
     ("pipe_construction_type", "Seamless pipe", None),
@@ -72,7 +74,10 @@ def _submit_while_requested(
         still_remaining: list[tuple[str, object, str | None]] = []
         progressed = False
         for parameter, value, unit in remaining:
-            if parameter not in submittable:
+            if parameter not in submittable and not (
+                parameter == "outside_diameter__resolution_branch"
+                and "outside_diameter" in submittable
+            ):
                 still_remaining.append((parameter, value, unit))
                 continue
             state = service.submit_input(

@@ -1,0 +1,25 @@
+.resolution-branch-composer__modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.resolution-branch-composer__mode {
+  border: 1px solid var(--border-subtle, #d0d5dd);
+  background: var(--surface-elevated, #fff);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.resolution-branch-composer__mode--active {
+  border-color: var(--accent, #2563eb);
+  background: color-mix(in srgb, var(--accent, #2563eb) 12%, white);
+}
+
+.resolution-branch-composer__mode:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

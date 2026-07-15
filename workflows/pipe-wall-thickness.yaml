@@ -50,7 +50,6 @@ runtime:
       - pressure_loading
       parameter_gathering:
       - internal_design_gage_pressure
-      - nominal_pipe_size
       - outside_diameter
       - material_grade
       - design_temperature

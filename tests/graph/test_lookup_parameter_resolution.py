@@ -96,6 +96,66 @@ def test_required_user_inputs_do_not_include_temperature_coefficient_y() -> None
     assert "temperature_coefficient_Y" not in missing
 
 
+def test_outside_diameter_infers_table_lookup_on_nps_geometry_path() -> None:
+    from engine.graph.lookup_parameter_resolution import parameter_resolution_for_parameter
+    from models.input import InputSource, InputStatus
+    from tests.helpers.facts import facts_from_inputs, legacy_input
+
+    reader = _reader()
+    micro = GraphEngine()._micro_engine(reader)
+    assert micro is not None
+
+    inputs = facts_from_inputs(
+        {
+            "outside_diameter__resolution_branch": legacy_input(
+                "outside_diameter__resolution_branch",
+                "nps_lookup",
+                source=InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+        },
+        task_id="od-nps-resolution",
+    )
+    resolution = parameter_resolution_for_parameter(
+        micro.store,
+        "PARAM-outside-diameter",
+        inputs=inputs,
+    )
+    assert resolution is not None
+    assert resolution["method"] == "table_lookup"
+    assert "nominal_pipe_size" in resolution["keys"]
+    assert "pipe_schedule" in resolution["keys"]
+
+
+def test_outside_diameter_infers_user_input_on_direct_geometry_path() -> None:
+    from engine.graph.lookup_parameter_resolution import parameter_resolution_for_parameter
+    from models.input import InputSource, InputStatus
+    from tests.helpers.facts import facts_from_inputs, legacy_input
+
+    reader = _reader()
+    micro = GraphEngine()._micro_engine(reader)
+    assert micro is not None
+
+    inputs = facts_from_inputs(
+        {
+            "outside_diameter__resolution_branch": legacy_input(
+                "outside_diameter__resolution_branch",
+                "direct_od",
+                source=InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+        },
+        task_id="od-direct-resolution",
+    )
+    resolution = parameter_resolution_for_parameter(
+        micro.store,
+        "PARAM-outside-diameter",
+        inputs=inputs,
+    )
+    assert resolution is not None
+    assert resolution["method"] == "user_input"
+
+
 def test_metallurgical_group_infers_material_catalog_resolution() -> None:
     reader = _reader()
     micro = GraphEngine()._micro_engine(reader)

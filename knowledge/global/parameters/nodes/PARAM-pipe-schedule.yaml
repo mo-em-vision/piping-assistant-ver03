@@ -6,24 +6,34 @@ name: Pipe Schedule
 parameter_class: selection
 description: >
   Pipe schedule designation used with nominal pipe size to look up outside
-  diameter and wall thickness from ASME B36.10 tables.
+  diameter and wall thickness from ASME B36.10M Table 2-1. Schedule choices
+  are resolved from the B36.10 table row for the confirmed nominal pipe size.
 question: >
-  Enter the pipe schedule so outside diameter and wall thickness can be
-  looked up per ASME B36.10.
+  Select the pipe schedule so outside diameter and wall thickness can be
+  looked up per ASME B36.10M for the chosen nominal pipe size.
 canonical_symbol: pipe_schedule
 aliases:
   - pipe schedule
   - schedule
-introduced_by:
-  - asme-b313-304-1-2-a
 edges:
   - type: used_by
+    target: asme-b3610-pipe-dimensions-lookup
+    when:
+      field: nominal_pipe_size
+      present: true
+  - type: used_by
     target: B3610-table-2-1
+    when:
+      field: nominal_pipe_size
+      present: true
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-06
+  last_revision: 2026-07-15
   edited_by: admin
   composer_input: dropdown
-  short_question: Enter pipe schedule.
+  short_question: Select pipe schedule for the chosen NPS.
+  table_options:
+    table: B3610-table-2-1
+    query: schedules_for_nps
 ---

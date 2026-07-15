@@ -9,18 +9,21 @@ from engine.executor.allowable_stress_resolver import apply_allowable_stress_loo
 from engine.executor.coefficient_lookup import apply_coefficient_lookups
 from engine.executor.metallurgical_group_resolver import apply_metallurgical_group_lookup
 from engine.executor.mawp_geometry_resolver import (
-    apply_direct_geometry_mode,
     apply_nominal_pipe_size_for_mawp,
     apply_pipe_schedule_lookup,
+    store_outside_diameter_resolution_branch,
+)
+from engine.graph.resolution_branches import (
+    clear_conflicting_branch_facts,
+    resolution_branch_fact_key,
 )
 from engine.executor.nps_input_resolver import apply_nominal_pipe_size_lookup
-from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
 from engine.executor.unit_manager import normalize_unit
 from engine.state.goal_projection import planning_projection
 from engine.reference.material_resolver import canonical_material_id
 from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.state.state_manager import TaskStateManager
-from engine.state.task_facts import deactivate_fact
+from engine.state.task_facts import deactivate_fact, store_system_categorical_fact
 from engine.inspection.performance_trace import perf_span
 from models.fact import FactClass, ValidationStatus, fact_from_user_submission, fact_scalar_value
 from models.task import Task
@@ -36,77 +39,18 @@ from api.workflow_timeline import (
 )
 from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
 from engine.messaging.parameter_prompt_context import parameter_metadata_context, parameter_prompt_from_metadata
-from engine.reference.coefficient_resolver import list_pipe_construction_type_options
 from engine.reference.parameter_composer_spec import build_composer_parameter_spec
+from engine.reference.table_options_resolver import resolve_table_dropdown_options
 from engine.reference.parameter_keys import (
     LEGACY_PARAMETER_KEY_ALIASES,
-    MATERIAL_GRADE_KEY,
     active_fact_for_key,
     api_parameter_id,
     canonical_parameter_key,
     is_material_grade_parameter,
-    read_fact_value,
 )
-from engine.reference.standards_paths import resolve_standard_pack
 from engine.reference.standards_reader import StandardsReader
 
 _DIAMETER_INPUT_PARAMETERS = frozenset({"nominal_pipe_size", "outside_diameter", "inside_diameter"})
-_DIAMETER_INPUT_MODES: list[dict[str, str]] = [
-    {"value": "nps_lookup", "label": "NPS"},
-    {"value": "direct_od", "label": "Outside diameter"},
-    {"value": "direct_id", "label": "Inside diameter"},
-]
-
-
-def _nps_dropdown_options(standards_root: Path) -> list[dict[str, str]]:
-    lookup = PipeDimensionLookup(standards_root)
-    return [
-        {"value": nps, "label": f"NPS {nps}"}
-        for nps in lookup.list_nps_sizes()
-    ]
-
-
-def _pipe_construction_type_dropdown_options(
-    standards_root: Path,
-    task: Task,
-) -> list[dict[str, str]]:
-    pack_root = resolve_standard_pack(standards_root, "asme_b31.3")
-    existing_inputs = dict(task.fact_store.active_facts())
-    material = read_fact_value(existing_inputs, MATERIAL_GRADE_KEY)
-    return list_pipe_construction_type_options(
-        pack_root,
-        material=str(material) if material else None,
-    )
-
-
-def _outside_diameter_dropdown_options(standards_root: Path) -> list[dict[str, str]]:
-    lookup = PipeDimensionLookup(standards_root)
-    by_mm: dict[float, str] = {}
-    for nps in lookup.list_nps_sizes():
-        try:
-            result = lookup.lookup(nps)
-        except ValueError:
-            continue
-        od_mm = round(float(result.outside_diameter_mm), 4)
-        if od_mm not in by_mm:
-            by_mm[od_mm] = (
-                f"{result.outside_diameter_in:g} in ({result.outside_diameter_mm:g} mm)"
-            )
-    return [
-        {"value": str(od_mm), "label": label}
-        for od_mm, label in sorted(by_mm.items())
-    ]
-
-
-def _diameter_ui_payload(standards_root: Path) -> dict[str, Any]:
-    return {
-        "input_modes": list(_DIAMETER_INPUT_MODES),
-        "related_options": {
-            "nominal_pipe_size": _nps_dropdown_options(standards_root),
-            "outside_diameter": _outside_diameter_dropdown_options(standards_root),
-        },
-    }
-
 
 def _parameter_status(task: Task, parameter_id: str) -> str:
     if active_edit_parameter(task) == parameter_id:
@@ -173,14 +117,18 @@ def build_parameter_definitions(
             parameter_id,
             reader=reader,
             param_index=param_index,
+            task=task,
+            standards_root=reader.standards_root if reader is not None else None,
         )
         options = list(spec.get("options") or [])
-        if parameter_id == "nominal_pipe_size" and reader is not None:
-            options = _nps_dropdown_options(reader.standards_root)
-        if parameter_id == "outside_diameter" and reader is not None:
-            options = _outside_diameter_dropdown_options(reader.standards_root)
-        if parameter_id == "pipe_construction_type" and reader is not None:
-            options = _pipe_construction_type_dropdown_options(reader.standards_root, task)
+        if reader is not None:
+            table_options = resolve_table_dropdown_options(
+                task,
+                parameter_id,
+                standards_root=reader.standards_root,
+            )
+            if table_options:
+                options = table_options
         if options and spec.get("type") not in {"material", "checkbox"}:
             spec["type"] = "dropdown"
         existing = active_fact_for_key(task, parameter_id)
@@ -201,8 +149,8 @@ def build_parameter_definitions(
             "editing": editing == parameter_id,
             "submittable": canonical_parameter_key(parameter_id) in canonical_submittable_ids,
         }
-        if parameter_id in _DIAMETER_INPUT_PARAMETERS and reader is not None:
-            payload["diameter_ui"] = _diameter_ui_payload(reader.standards_root)
+        if spec.get("resolution_ui"):
+            payload["resolution_ui"] = spec["resolution_ui"]
         if reader is not None:
             provenance = parameter_input_provenance(reader, task, parameter_id)
             if provenance is None:
@@ -427,8 +375,18 @@ def _submit_task_input_impl(
         and _DIAMETER_INPUT_PARAMETERS & allowed_ids
     ):
         allowed_ids |= _DIAMETER_INPUT_PARAMETERS
+    branch_fact_key = resolution_branch_fact_key("outside_diameter")
+    if "outside_diameter" in allowed_ids:
+        allowed_ids.add(branch_fact_key)
     if original_parameter not in allowed_ids and parameter not in allowed_ids:
         raise ValueError(f"Parameter is not currently requested: {original_parameter}")
+
+    if parameter == branch_fact_key or parameter.endswith("__resolution_branch"):
+        store_system_categorical_fact(task, key=branch_fact_key, label=str(value))
+        anchor_key = branch_fact_key.replace("__resolution_branch", "")
+        clear_conflicting_branch_facts(task, anchor_key=anchor_key, branch_id=str(value))
+        manager.replace_task(task_id, task)
+        return manager.get_task(task_id)
 
     definitions = {
         item["name"]: item
@@ -484,18 +442,15 @@ def _submit_task_input_impl(
 
     task = manager.get_task(task_id)
     workflow_id = _task_workflow_id(task)
+
     with perf_span("lookup_side_effects", "lookup", notes=f"parameter={parameter}"):
         if parameter == "outside_diameter":
-            from engine.state.task_facts import deactivate_fact, store_system_categorical_fact
-
-            store_system_categorical_fact(task, key="d_input_mode", label="direct_od")
+            store_outside_diameter_resolution_branch(task, "direct_od")
             deactivate_fact(task, "inside_diameter")
             manager.replace_task(task_id, task)
             task = manager.get_task(task_id)
 
         if parameter == "inside_diameter":
-            from engine.state.task_facts import deactivate_fact
-
             deactivate_fact(task, "outside_diameter")
             deactivate_fact(task, "nominal_pipe_size")
             manager.replace_task(task_id, task)
@@ -508,8 +463,6 @@ def _submit_task_input_impl(
                 apply_nominal_pipe_size_for_mawp(task, standards_root)
             else:
                 apply_nominal_pipe_size_lookup(task, standards_root)
-            from engine.state.task_facts import deactivate_fact
-
             deactivate_fact(task, "inside_diameter")
             manager.replace_task(task_id, task)
             task = manager.get_task(task_id)
@@ -518,11 +471,6 @@ def _submit_task_input_impl(
             if standards_root is None:
                 raise ValueError("Standards root is required to resolve pipe schedule.")
             apply_pipe_schedule_lookup(task, standards_root)
-            manager.replace_task(task_id, task)
-            task = manager.get_task(task_id)
-
-        if parameter == "geometry_input_mode" and workflow_id == MAWP_DESIGN:
-            apply_direct_geometry_mode(task)
             manager.replace_task(task_id, task)
             task = manager.get_task(task_id)
 

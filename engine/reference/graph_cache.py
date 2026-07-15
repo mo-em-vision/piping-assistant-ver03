@@ -51,7 +51,10 @@ def build_or_load_graph(pack_root: Path, *, prefer_cache: bool = True) -> PackGr
             return cached
     graph = GraphBuilder(pack_root).build()
     if prefer_cache and graph.nodes:
-        write_graph_cache(pack_root, graph)
+        try:
+            write_graph_cache(pack_root, graph)
+        except Exception:
+            invalidate_graph_cache(pack_root)
     return graph
 
 

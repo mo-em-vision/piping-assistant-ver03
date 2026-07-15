@@ -90,8 +90,4 @@ def resolve_path_decision(
     if loading:
         return {"field": "pressure_loading", "value": loading}
 
-    geometry = field_value("geometry_input_mode", inputs)
-    if geometry:
-        return {"field": "geometry_input_mode", "value": geometry}
-
     return None

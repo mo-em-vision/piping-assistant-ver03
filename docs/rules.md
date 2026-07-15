@@ -286,16 +286,28 @@ Correct: `Resolved from `**`ASME B31.3 Table A-1`** (only the citation is clicka
 | --- | --- |
 | `PARAM-*` node | Required before the parameter appears in workflow phases, sidecars, or composer |
 | `metadata.composer_input` | UI control: `number`, `dropdown`, `checkbox`, `material`, … |
-| `metadata.composer_options` | Static `{value, label}` pairs for path decisions and categorical choices |
-| `metadata.canonical_unit` | Default unit (`UNIT-mm`, `NPS`, …) |
-| `metadata.default_value` | Proposed default (e.g. straight-pipe assumption `true`) |
+| `metadata.composer_options` | Static `{value, label}` pairs for path decisions and categorical choices **only** (mutually exclusive with `table_options`) |
+| `metadata.table_options` | Table-backed dropdown/search: `{table, query}` binding to a named `option_queries` profile on the table/catalog YAML |
 | `parameter_class` + `dimension` | Default composer type when `composer_input` is omitted |
-| `build_composer_parameter_spec()` | Sole resolver; raises if PARAM node is missing |
-| Dynamic option lists | NPS / schedule / catalog options loaded from databases in `parameter_definitions.py` **after** PARAM establishes type — not a missing-node fallback |
+| `build_composer_parameter_spec()` | Sole resolver for label/type/units/static options; raises if PARAM node is missing |
+| Table-backed option lists | Generic `engine/reference/table_options_resolver.py` executes parameterized SQL from table YAML `option_queries` — **not** per-parameter helpers in `api/parameter_definitions.py` |
+
+### Static vs table-backed options (mutually exclusive)
+
+| Pattern | PARAM metadata | Options source |
+| --- | --- | --- |
+| Static | `composer_options` only | Authored labels on the PARAM node (e.g. pressure loading) |
+| Table-backed | `table_options` only | SQL via `option_queries` on table/catalog YAML |
+
+Table-backed PARAMs must **not** declare `composer_options`. Unrestricted query profiles (no `requires` / `filter`) return **all** table rows by default; YAML `requires` / `filter` or task facts narrow the SQL.
+
+See also §18-style table option rules: `.cursor/rules/table-options-queries.mdc`.
 
 ### Do not
 
-- Add `_PARAMETER_SPECS`, `_LOOKUP_DEFAULT_UNITS`, or per-parameter `if parameter_id == …` type/unit maps in API or engine code.
+- Add `_PARAMETER_SPECS`, `_LOOKUP_DEFAULT_UNITS`, or per-parameter `if parameter_id == …` type/unit/**options** maps in API or engine code.
+- Add `_nps_dropdown_options`, `_pipe_schedule_dropdown_options`, or similar per-table API helpers.
+- Declare both `composer_options` and `table_options` on the same PARAM node.
 - Fall back to workflow `interactions` when PARAM metadata is absent.
 - Author runtime field lists or `_PARAM_TO_FIELD` entries without a matching `PARAM-*.yaml` file.
 - Put composer type or default-unit logic in the frontend.
@@ -303,7 +315,7 @@ Correct: `Resolved from `**`ASME B31.3 Table A-1`** (only the citation is clicka
 ### Design references
 
 - `engine/reference/parameter_composer_spec.py` — PARAM-only composer resolver
-- `api/parameter_definitions.py` — merges dynamic lookup options onto PARAM-derived specs
+- `api/parameter_definitions.py` — merges table-backed options from `table_options_resolver` onto PARAM-derived specs
 - [`audits/contracts/nodes/parameter.md`](../audits/contracts/nodes/parameter.md) — composer metadata fields
 - §14 — parameter `key` consistency
 - `.cursor/rules/param-composer-metadata.mdc`

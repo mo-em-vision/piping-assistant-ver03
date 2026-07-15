@@ -139,6 +139,14 @@ def compute_source_fingerprint(pack_root: Path) -> str:
         rel = workflow_source_rel_path(path)
         parts.append(f"{rel}:{stat.st_mtime_ns}:{stat.st_size}")
 
+    params_dir = parameters_root() / "nodes"
+    if params_dir.is_dir():
+        for path in sorted(params_dir.glob("PARAM-*.yaml")):
+            stat = path.stat()
+            parts.append(
+                f"global/parameters/nodes/{path.name}:{stat.st_mtime_ns}:{stat.st_size}"
+            )
+
     payload = "\n".join(parts).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
 

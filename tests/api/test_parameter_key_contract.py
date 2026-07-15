@@ -20,8 +20,10 @@ from tests.helpers.parameter_key_contract import (
 _INTERNAL_PRESSURE_SUBMISSIONS: dict[str, tuple[object, str | None]] = {
     "straight_pipe_section": (True, None),
     "pressure_loading": ("internal_pressure", None),
+    "outside_diameter__resolution_branch": ("nps_lookup", None),
     "internal_design_gage_pressure": (8.0, "bar"),
     "nominal_pipe_size": ("6", None),
+    "pipe_schedule": ("40", None),
     "material_grade": ("SA-106B", None),
     "design_temperature": (38.0, "C"),
     "pipe_construction_type": ("Seamless pipe", None),
@@ -73,6 +75,12 @@ def test_pipe_wall_api_state_uses_canonical_parameter_keys_through_journey(
         parameter_id = current_ask.get("parameter_id")
         if parameter_id not in submittable:
             parameter_id = submittable[0]
+
+        if (
+            parameter_id == "outside_diameter"
+            and "outside_diameter__resolution_branch" in submittable
+        ):
+            parameter_id = "outside_diameter__resolution_branch"
 
         if parameter_id not in _INTERNAL_PRESSURE_SUBMISSIONS:
             collected = collect_api_parameter_fields(state)

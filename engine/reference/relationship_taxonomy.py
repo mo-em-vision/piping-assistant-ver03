@@ -23,6 +23,7 @@ _ONTOLOGY = frozenset(
         "related_to",
         "has_parameter",
         "parameter_of",
+        "resolves_via",
     }
 )
 

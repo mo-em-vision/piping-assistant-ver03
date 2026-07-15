@@ -4,8 +4,18 @@ from __future__ import annotations
 
 from typing import Any
 
+from engine.graph.conditions import when_clause_matches
+from engine.graph.resolution_branches import (
+    active_resolution_branch_id,
+    branch_table_lookup_resolution,
+    find_resolution_branch,
+    has_resolution_branches,
+    resolution_branches_from_metadata,
+    via_parameter_keys,
+)
 from engine.graph.graph_store import GraphStore
 from engine.reference.parameter_keys import MATERIAL_GRADE_KEY, canonical_parameter_key
+from models.fact import Fact
 
 _CATALOG_INPUT_KEYS = frozenset({MATERIAL_GRADE_KEY, "material"})
 
@@ -65,19 +75,74 @@ def _table_id_from_metadata(metadata: dict[str, Any]) -> str:
     return ""
 
 
+def _explicit_resolution_from_metadata(
+    explicit: Any,
+    inputs: dict[str, Fact] | None,
+) -> dict[str, Any] | None:
+    """Return the first authored resolution spec whose ``when`` clause matches task inputs."""
+    task_inputs = inputs or {}
+    if isinstance(explicit, list):
+        for spec in explicit:
+            if not isinstance(spec, dict):
+                continue
+            when = spec.get("when")
+            if isinstance(when, dict) and not when_clause_matches(when, task_inputs):
+                continue
+            method = str(spec.get("method", "")).strip()
+            if method:
+                return spec
+        return None
+    if isinstance(explicit, dict) and explicit.get("method"):
+        when = explicit.get("when")
+        if isinstance(when, dict) and not when_clause_matches(when, task_inputs):
+            return None
+        return explicit
+    return None
+
+
 def lookup_resolution_for_parameter(
     store: GraphStore,
     param_node_id: str,
+    *,
+    active_nodes: set[str] | None = None,
+    inputs: dict[str, Fact] | None = None,
 ) -> dict[str, Any] | None:
-    """Return table_lookup resolution inferred from lookup nodes that output this parameter."""
+    """Return table_lookup resolution inferred from active lookup nodes that output this parameter."""
     merged_keys: list[str] = []
     table_ids: list[str] = []
     found_lookup = False
+    task_inputs = inputs or {}
+
+    from engine.graph.lazy_expander import _node_active_on_path
 
     for edge in store.incoming(param_node_id, edge_types={"returns_parameter"}):
         lookup_node = store.get_node(edge.from_id)
         if lookup_node is None or lookup_node.node_type != "lookup":
             continue
+        edge_when = edge.metadata.get("when") if edge.metadata else None
+        if isinstance(edge_when, dict) and not when_clause_matches(edge_when, task_inputs):
+            continue
+        if active_nodes is not None and edge.from_id not in active_nodes:
+            continue
+        if not _node_active_on_path(store, edge.from_id, task_inputs):
+            continue
+        param_lookup_edge_active = False
+        for outgoing in store.outgoing(param_node_id, edge_types={"used_by"}):
+            if outgoing.to_id != edge.from_id:
+                continue
+            outgoing_when = outgoing.metadata.get("when") if outgoing.metadata else None
+            if isinstance(outgoing_when, dict) and not when_clause_matches(outgoing_when, task_inputs):
+                continue
+            param_lookup_edge_active = True
+            break
+        if not param_lookup_edge_active:
+            has_conditional_used_by = any(
+                isinstance((outgoing.metadata or {}).get("when"), dict)
+                for outgoing in store.outgoing(param_node_id, edge_types={"used_by"})
+                if outgoing.to_id == edge.from_id
+            )
+            if has_conditional_used_by:
+                continue
         keys = _lookup_keys_from_metadata(store, lookup_node.metadata)
         if not keys:
             continue
@@ -152,20 +217,54 @@ def catalog_resolution_for_parameter(
 def parameter_resolution_for_parameter(
     store: GraphStore,
     param_node_id: str,
+    *,
+    active_nodes: set[str] | None = None,
+    inputs: dict[str, Fact] | None = None,
 ) -> dict[str, Any] | None:
-    """Resolve explicit, lookup-output, or catalog-derived parameter resolution."""
+    """Resolve explicit, lookup-output, branch-choice, or catalog-derived parameter resolution."""
     node = store.get_node(param_node_id)
     if node is None:
         return None
 
-    explicit = node.metadata.get("resolution")
+    task_inputs = inputs or {}
+    param_key = str(node.metadata.get("key") or "").strip()
+
+    if has_resolution_branches(node.metadata):
+        branch_id = active_resolution_branch_id(param_key, task_inputs)
+        if not branch_id:
+            return {
+                "method": "branch_choice",
+                "anchor": param_key,
+                "branches": resolution_branches_from_metadata(node.metadata),
+            }
+        branch = find_resolution_branch(node.metadata, branch_id)
+        if branch is not None:
+            method = str(branch.get("method", "")).strip()
+            if method == "user_input":
+                return {"method": "user_input", "branch_id": branch_id}
+            if method == "table_lookup":
+                return branch_table_lookup_resolution(
+                    store,
+                    param_node_id,
+                    node.metadata,
+                    branch,
+                    active_nodes=active_nodes,
+                    inputs=task_inputs,
+                )
+
+    explicit = _explicit_resolution_from_metadata(node.metadata.get("resolution"), inputs)
     if isinstance(explicit, dict) and explicit.get("method"):
         method = str(explicit.get("method", ""))
         if method == "material_catalog":
             return catalog_resolution_for_parameter(store, param_node_id)
         return explicit
 
-    lookup_resolution = lookup_resolution_for_parameter(store, param_node_id)
+    lookup_resolution = lookup_resolution_for_parameter(
+        store,
+        param_node_id,
+        active_nodes=active_nodes,
+        inputs=inputs,
+    )
     if lookup_resolution is not None:
         return lookup_resolution
 
@@ -197,7 +296,12 @@ def prerequisite_input_keys(
     if param_node_id is None:
         return [canonical]
 
-    resolution = parameter_resolution_for_parameter(store, param_node_id)
+    resolution = parameter_resolution_for_parameter(
+        store,
+        param_node_id,
+        active_nodes=None,
+        inputs=None,
+    )
     if not isinstance(resolution, dict):
         return [canonical]
 

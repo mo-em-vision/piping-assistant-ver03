@@ -32,6 +32,10 @@ metadata:
   last_revision: 2026-07-04
   edited_by: admin
   short_question: Enter material specification and grade.
+  composer_input: material
+  table_options:
+    table: MAT-catalog
+    query: material_search
   input_examples:
     - ASTM A106 Grade B
 ---

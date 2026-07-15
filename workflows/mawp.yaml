@@ -17,7 +17,6 @@ entry_points:
 expected_parameters:
 - PARAM-straight-pipe-section
 - PARAM-wall-thickness-basis
-- PARAM-geometry-input-mode
 - PARAM-nominal-pipe-size
 - PARAM-pipe-schedule
 - PARAM-outside-diameter
@@ -45,16 +44,15 @@ phases:
   required_parameters:
   - PARAM-straight-pipe-section
 - key: path_decisions
-  purpose: Select geometry input mode and wall thickness basis.
+  purpose: Select wall thickness basis.
   required_parameters:
-  - PARAM-geometry-input-mode
   - PARAM-wall-thickness-basis
 - key: parameter_gathering
   purpose: Collect geometry and material inputs.
   required_parameters:
+  - PARAM-outside-diameter
   - PARAM-nominal-pipe-size
   - PARAM-pipe-schedule
-  - PARAM-outside-diameter
   - PARAM-actual-wall-thickness
   - PARAM-corrosion-allowance
   - PARAM-material-grade
@@ -75,18 +73,16 @@ runtime:
   navigation:
     assumption_gate_fields:
     - straight_pipe_section
-    - geometry_input_mode
     - wall_thickness_basis
     phases:
       expansion_assumptions:
       - straight_pipe_section
       path_decisions:
-      - geometry_input_mode
       - wall_thickness_basis
       parameter_gathering:
+      - outside_diameter
       - nominal_pipe_size
       - pipe_schedule
-      - outside_diameter
       - actual_wall_thickness
       - corrosion_allowance
       - material_grade
@@ -110,16 +106,6 @@ runtime:
   - field: pressure_loading
     default: internal_pressure
     description: MAWP applies to internal pressure loading per §304.1.2.
-  interactions:
-  - variable: geometry_input_mode
-    mode: decision
-    required: true
-    required_for_expansion: true
-    options:
-    - nps_and_schedule
-    - direct_od_and_thickness
-    question: >
-      How should pipe geometry be provided for this MAWP calculation?
   inputs:
   - id: pressure_design_thickness
     name: t
@@ -282,6 +268,8 @@ edges:
   target: asme-b313-table-304-1-1-1
 - type: may_use_lookup
   target: asme-b313-table-302-3-5-1
+- type: may_use_lookup
+  target: asme-b3610-pipe-dimensions-lookup
 - type: may_use_equation
   target: asme-b313-pressure-design-thickness
 - type: may_use_equation

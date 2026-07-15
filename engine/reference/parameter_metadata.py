@@ -13,9 +13,13 @@ _NESTED_PARAMETER_META_KEYS = frozenset(
         "unit",
         "composer_input",
         "composer_options",
+        "table_options",
         "default",
         "default_value",
         "input_examples",
+        "lookup_conditionals",
+        "resolution",
+        "resolution_branches",
         "short_question",
         "prompt_use_description",
     }

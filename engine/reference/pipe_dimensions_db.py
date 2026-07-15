@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 from dataclasses import dataclass
@@ -68,6 +69,19 @@ CREATE INDEX IF NOT EXISTS idx_schedule_entries_pipe
     ON schedule_entries(pipe_entry_id);
 """
 
+_OPTION_QUERIES_COLUMN = "option_queries_json"
+
+
+def _ensure_option_queries_column(connection: sqlite3.Connection) -> None:
+    columns = {
+        str(row[1])
+        for row in connection.execute("PRAGMA table_info(dimension_tables)").fetchall()
+    }
+    if _OPTION_QUERIES_COLUMN not in columns:
+        connection.execute(
+            f"ALTER TABLE dimension_tables ADD COLUMN {_OPTION_QUERIES_COLUMN} TEXT"
+        )
+
 
 @dataclass(frozen=True)
 class PipeScheduleEntry:
@@ -117,6 +131,7 @@ class PipeDimensionsDatabase:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         with sqlite3.connect(self.db_path) as connection:
             connection.executescript(_SCHEMA)
+            _ensure_option_queries_column(connection)
 
     def import_yaml(
         self,
@@ -130,16 +145,22 @@ class PipeDimensionsDatabase:
             raise ValueError(f"Invalid pipe dimension YAML: {yaml_path}")
 
         table_id = str(data.get("table_id", yaml_path.stem))
+        option_queries = data.get("option_queries")
+        option_queries_json = (
+            json.dumps(option_queries) if isinstance(option_queries, dict) and option_queries else None
+        )
         self.initialize_schema()
 
         with sqlite3.connect(self.db_path) as connection:
             connection.execute("PRAGMA foreign_keys = ON")
+            _ensure_option_queries_column(connection)
             connection.execute("DELETE FROM dimension_tables WHERE table_id = ?", (table_id,))
             connection.execute(
                 """
                 INSERT INTO dimension_tables (
-                    table_id, standard_slug, title, version, source, unit_system, yaml_source
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    table_id, standard_slug, title, version, source, unit_system, yaml_source,
+                    option_queries_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     table_id,
@@ -149,6 +170,7 @@ class PipeDimensionsDatabase:
                     str(data.get("source")) if data.get("source") is not None else None,
                     str(data.get("unit_system")) if data.get("unit_system") is not None else None,
                     yaml_source or str(yaml_path.name),
+                    option_queries_json,
                 ),
             )
 

@@ -209,7 +209,19 @@ def test_outside_diameter_parameter() -> None:
     assert meta.get("parameter_class") == "geometric_quantity"
     assert meta.get("canonical_symbol") == "D"
     assert _introduced_by_targets(meta) == ["asme-b313-304-1-1-b"]
-    assert "B3610-table-2-1" in edge_targets(meta, "used_by")
+    assert "applicability" not in meta
+    used_by = [edge for edge in meta.get("edges") or [] if edge.get("type") == "used_by"]
+    assert any(edge.get("target") == "B3610-table-2-1" for edge in used_by)
+    b3610_edge = next(edge for edge in used_by if edge.get("target") == "B3610-table-2-1")
+    assert b3610_edge.get("when", {}).get("field") == "outside_diameter__resolution_branch"
+    resolves_via = [edge for edge in meta.get("edges") or [] if edge.get("type") == "resolves_via"]
+    assert any(
+        edge.get("target") == "PARAM-nominal-pipe-size" and edge.get("branch_id") == "nps_lookup"
+        for edge in resolves_via
+    )
+    branches = meta.get("metadata", {}).get("resolution_branches") or []
+    assert {branch.get("id") for branch in branches} == {"direct_od", "nps_lookup"}
+    assert meta.get("metadata", {}).get("composer_input") == "resolution_branch"
 
 
 def test_design_pressure_introduced_by_304_1_1_b() -> None:

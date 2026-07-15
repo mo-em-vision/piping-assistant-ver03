@@ -180,13 +180,23 @@ def _expand_output_producers(
     queue = [node_id for node_id in order if store.node_type(node_id) == "parameter"]
     while queue:
         param_id = queue.pop(0)
-        for edge in store.incoming(param_id, edge_types={"implements", "parameter", "outputs"}):
+        for edge in store.incoming(
+            param_id,
+            edge_types={"implements", "parameter", "outputs", "returns_parameter"},
+        ):
             producer_id = edge.from_id
             if producer_id in node_set:
                 continue
             if not node_allows_child_traversal(store, producer_id, inputs):
                 continue
-            if not _node_active_on_path(store, producer_id, inputs):
+            producer_type = store.node_type(producer_id)
+            if producer_type == "lookup":
+                producer_node = store.get_node(producer_id)
+                if producer_node is None:
+                    continue
+                if applicability_expansion_status(producer_node.metadata, inputs) != "satisfied":
+                    continue
+            elif not _node_active_on_path(store, producer_id, inputs):
                 continue
             producer_order, producer_edges = dfs_collect_respecting_node_gates(
                 store,

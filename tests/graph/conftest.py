@@ -47,9 +47,9 @@ def mawp_gate_open_inputs(*, task_id: str = "mawp-graph-test") -> dict[str, Fact
         {
             "straight_pipe_section": straight_section_assumption(),
             "pressure_loading": internal_pressure_assumption(),
-            "geometry_input_mode": legacy_input(
-                "geometry_input_mode",
-                "nps_and_schedule",
+            "outside_diameter__resolution_branch": legacy_input(
+                "outside_diameter__resolution_branch",
+                "nps_lookup",
                 source=InputSource.USER,
                 status=InputStatus.CONFIRMED,
             ),

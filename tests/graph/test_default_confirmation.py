@@ -25,7 +25,7 @@ from models.agent import AgentAction, IntentResult
 from models.input import EngineeringInput, InputSource, InputStatus, proposed_default_input
 from models.task import TaskStatus
 from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
-from tests.helpers.facts import fact_get_value
+from tests.helpers.facts import fact_get_value, legacy_input
 from models.fact import SourceType, ValidationStatus, fact_scalar_value
 from engine.state.fact_migration import fact_from_engineering_input
 
@@ -121,18 +121,21 @@ def test_planner_proposes_defaults_for_internal_path() -> None:
     state.store_input(
         "pipe-wall-defaults",
         fact_from_engineering_input(
-            legacy_input("design_pressure", 500, "psi", InputSource.USER),
+            legacy_input("internal_design_gage_pressure", 500, "psi", InputSource.USER),
             task_id="pipe-wall-defaults",
         ),
     )
     state.store_input(
         "pipe-wall-defaults",
-        EngineeringInput(
-            "d_input_mode",
-            "direct_od",
-            "dimensionless",
-            InputSource.USER,
-            status=InputStatus.CONFIRMED,
+        fact_from_engineering_input(
+            legacy_input(
+                "outside_diameter__resolution_branch",
+                "direct_od",
+                "dimensionless",
+                InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+            task_id="pipe-wall-defaults",
         ),
     )
     state.store_input(
@@ -174,18 +177,32 @@ def test_planner_expands_after_all_defaults_confirmed() -> None:
     reader = _reader()
     state = TaskStateManager()
     task = state.create_task("pipe-wall-ready", status=TaskStatus.AWAITING_INPUT)
-    state.store_input("pipe-wall-ready", straight_section_assumption(), task_id="pipe-wall-defaults"))
-    state.store_input("pipe-wall-ready", fact_from_engineering_input(internal_pressure_assumption(), task_id="pipe-wall-ready"))
-    state.store_input("pipe-wall-ready", fact_from_engineering_input(legacy_input("design_pressure", 500, "psi", InputSource.USER),
+    state.store_input(
+        "pipe-wall-ready",
+        fact_from_engineering_input(straight_section_assumption(), task_id="pipe-wall-ready"),
     )
     state.store_input(
         "pipe-wall-ready",
-        EngineeringInput(
-            "d_input_mode",
-            "direct_od",
-            "dimensionless",
-            InputSource.USER,
-            status=InputStatus.CONFIRMED,
+        fact_from_engineering_input(internal_pressure_assumption(), task_id="pipe-wall-ready"),
+    )
+    state.store_input(
+        "pipe-wall-ready",
+        fact_from_engineering_input(
+            legacy_input("internal_design_gage_pressure", 500, "psi", InputSource.USER),
+            task_id="pipe-wall-ready",
+        ),
+    )
+    state.store_input(
+        "pipe-wall-ready",
+        fact_from_engineering_input(
+            legacy_input(
+                "outside_diameter__resolution_branch",
+                "direct_od",
+                "dimensionless",
+                InputSource.USER,
+                status=InputStatus.CONFIRMED,
+            ),
+            task_id="pipe-wall-ready",
         ),
     )
     state.store_input(
@@ -228,21 +245,27 @@ def test_planner_expands_after_all_defaults_confirmed() -> None:
         confidence=0.95,
     )
 
-    first = planner.plan(intent, state.get_task("pipe-wall-ready"), task_id="pipe-wall-ready"))
+    first = planner.plan(intent, state.get_task("pipe-wall-ready"))
     assert first.action == AgentAction.REQUEST_INPUT
 
     task = state.get_task("pipe-wall-ready")
     for input_id in ("weld_joint_efficiency", "weld_joint_strength_reduction_factor_W"):
         proposed = task.fact_store.active_fact(input_id)
-        state.store_input("pipe-wall-ready", fact_from_engineering_input(legacy_input(input_id=proposed.input_id,
-                value=fact_scalar_value(proposed),
-                unit=proposed.unit,
-                source=InputSource.USER,
-                status=InputStatus.CONFIRMED,
+        state.store_input(
+            "pipe-wall-ready",
+            fact_from_engineering_input(
+                legacy_input(
+                    input_id=proposed.input_id,
+                    value=fact_scalar_value(proposed),
+                    unit=proposed.unit,
+                    source=InputSource.USER,
+                    status=InputStatus.CONFIRMED,
+                ),
+                task_id="pipe-wall-ready",
             ),
         )
 
-    second = planner.plan(intent, state.get_task("pipe-wall-ready"), task_id="pipe-wall-ready"))
+    second = planner.plan(intent, state.get_task("pipe-wall-ready"))
     assert second.action == AgentAction.PROPOSE_PATH
     assert "304.1.2-a" in second.selected_nodes or "B313-eq-wall-thickness" in second.selected_nodes
 

@@ -7,7 +7,7 @@ import { DEFAULT_WORKFLOW_ASK_PROMPT } from './workflowAsk'
 import type { WorkflowAsk } from './workflowAsk'
 import { ComposerInlineInput } from './ComposerInlineInput'
 import { MaterialSearchInput } from './MaterialSearchInput'
-import { DiameterScrollComposer } from './DiameterScrollComposer'
+import { ResolutionBranchComposer } from './ResolutionBranchComposer'
 import { ScrollSelectPicker } from './ScrollSelectPicker'
 
 import './ComposerInlineInput.css'
@@ -59,12 +59,8 @@ function usesComposerUnitPills(parameter: ParameterDefinitionDto): boolean {
   return parameter.units.length > 0
 }
 
-function isDiameterParameter(parameter: ParameterDefinitionDto | null): boolean {
-  return (
-    parameter?.name === 'nominal_pipe_size' ||
-    parameter?.name === 'outside_diameter' ||
-    parameter?.name === 'inside_diameter'
-  )
+function isResolutionBranchParameter(parameter: ParameterDefinitionDto | null): boolean {
+  return parameter?.type === 'resolution_branch'
 }
 
 function isPipeConstructionParameter(parameter: ParameterDefinitionDto | null): boolean {
@@ -85,7 +81,7 @@ function usesInlineComposerRow(parameter: ParameterDefinitionDto | null): boolea
 }
 
 function usesSelectionComposerRow(parameter: ParameterDefinitionDto | null): boolean {
-  if (!parameter || isDiameterParameter(parameter) || isPipeConstructionParameter(parameter)) {
+  if (!parameter || isResolutionBranchParameter(parameter) || isPipeConstructionParameter(parameter)) {
     return false
   }
 
@@ -241,7 +237,8 @@ export function WorkflowComposer({
   const textValue = value == null ? '' : String(value)
   const inlineComposerRow = usesInlineComposerRow(parameter)
   const selectionComposerRow = usesSelectionComposerRow(parameter)
-  const diameterComposerRow = isDiameterParameter(parameter) && ask.kind === 'input'
+  const resolutionBranchComposerRow =
+    isResolutionBranchParameter(parameter) && ask.kind === 'input'
   const pipeConstructionComposerRow =
     isPipeConstructionParameter(parameter) &&
     ask.kind === 'input' &&
@@ -250,7 +247,7 @@ export function WorkflowComposer({
     askPrompt ||
       inlineComposerRow ||
       selectionComposerRow ||
-      diameterComposerRow ||
+      resolutionBranchComposerRow ||
       pipeConstructionComposerRow,
   )
 
@@ -386,12 +383,12 @@ export function WorkflowComposer({
                 }}
               />
             </div>
-          ) : diameterComposerRow && parameter && ask.kind === 'input' ? (
+          ) : resolutionBranchComposerRow && parameter && ask.kind === 'input' ? (
             <div className={`workflow-panel__next-step-inline${lockedClassName}`}>
               {askPrompt ? (
                 <span className="workflow-panel__next-step-text">{askPrompt}</span>
               ) : null}
-              <DiameterScrollComposer
+              <ResolutionBranchComposer
                 parameter={parameter}
                 disabled={busy}
                 onSubmit={async (name, payload, payloadUnit) => {

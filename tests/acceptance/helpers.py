@@ -97,8 +97,8 @@ def sample_inputs(
     inputs = {
         "straight_pipe_section": straight_section_assumption(),
         "pressure_loading": internal_pressure_assumption(),
-        "d_input_mode": EngineeringInput(
-            input_id="d_input_mode",
+        "outside_diameter__resolution_branch": EngineeringInput(
+            input_id="outside_diameter__resolution_branch",
             value="direct_od",
             unit="dimensionless",
             source=InputSource.USER,
@@ -112,13 +112,6 @@ def sample_inputs(
             status=InputStatus.CONFIRMED,
             original_value=pressure if isinstance(pressure, (int, float)) else None,
             original_unit="psi",
-        ),
-        "nominal_pipe_size": EngineeringInput(
-            input_id="nominal_pipe_size",
-            value=4,
-            unit="dimensionless",
-            source=InputSource.USER,
-            status=InputStatus.CONFIRMED,
         ),
         "outside_diameter": EngineeringInput(
             input_id="outside_diameter",
@@ -231,9 +224,9 @@ def mawp_sample_inputs() -> dict[str, EngineeringInput]:
     inputs = {
         "straight_pipe_section": straight_section_assumption(),
         "pressure_loading": internal_pressure_assumption(),
-        "geometry_input_mode": EngineeringInput(
-            input_id="geometry_input_mode",
-            value="direct_od_and_thickness",
+        "outside_diameter__resolution_branch": EngineeringInput(
+            input_id="outside_diameter__resolution_branch",
+            value="direct_od",
             unit="dimensionless",
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,

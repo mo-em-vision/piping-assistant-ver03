@@ -1,34 +1,39 @@
----
-id: PARAM-actual-wall-thickness
-type: parameter
-key: actual_wall_thickness
-name: Actual Wall Thickness
-parameter_class: geometric_quantity
-dimension: DIM-length
-description: >
-  Pipe wall thickness used as t_{actual} for MAWP derivation. May be measured or
-  ordered actual thickness, nominal schedule thickness from NPS/schedule lookup,
-  or minimum thickness after mill tolerance depending on wall_thickness_basis.
-question: Enter the actual or ordered wall thickness of the pipe.
-canonical_symbol: t_actual
-aliases:
-  - actual wall thickness
-  - measured wall thickness
-  - ordered wall thickness
-introduced_by:
-  - asme-b313-304-1-1-b
-edges:
-  - type: has_dimension
-    target: DIM-length
-  - type: used_by
-    target: asme-b313-304-1-1-a
-  - type: used_by
-    target: asme-b313-pressure-design-thickness
-metadata:
-  status: active
-  version: 1
-  last_revision: 2026-07-07
-  edited_by: admin
-  canonical_unit: UNIT-mm
-  short_question: Enter actual or ordered wall thickness.
----
+---
+id: PARAM-actual-wall-thickness
+type: parameter
+key: actual_wall_thickness
+name: Actual Wall Thickness
+parameter_class: geometric_quantity
+dimension: DIM-length
+description: >
+  Pipe wall thickness used as t_{actual} for MAWP derivation. May be measured or
+  ordered actual thickness, nominal schedule thickness from NPS/schedule lookup,
+  or minimum thickness after mill tolerance depending on wall_thickness_basis.
+question: Enter the actual or ordered wall thickness of the pipe.
+canonical_symbol: t_actual
+aliases:
+  - actual wall thickness
+  - measured wall thickness
+  - ordered wall thickness
+introduced_by:
+  - asme-b313-304-1-1-b
+edges:
+  - type: has_dimension
+    target: DIM-length
+  - type: used_by
+    target: asme-b313-304-1-1-a
+  - type: used_by
+    target: asme-b313-pressure-design-thickness
+applicability:
+  applies_when:
+  - parameter: outside_diameter__resolution_branch
+    operator: equals
+    value: direct_od
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-15
+  edited_by: admin
+  canonical_unit: UNIT-mm
+  short_question: Enter actual or ordered wall thickness.
+---

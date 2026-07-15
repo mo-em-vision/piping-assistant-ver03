@@ -864,6 +864,11 @@ def build_graph_requirements(
 
 
 def _diameter_mode(existing_inputs: dict) -> str | None:
+    from engine.graph.resolution_branches import active_resolution_branch_id
+
+    branch = active_resolution_branch_id("outside_diameter", existing_inputs)
+    if branch in {"direct_od", "nps_lookup"}:
+        return str(branch)
     for mode_field in ("d_input_mode", "diameter_input_mode"):
         mode = field_value(mode_field, existing_inputs)
         if mode in {"direct_od", "nps_lookup", "direct_id"}:
@@ -901,10 +906,9 @@ def apply_alternative_resolution_statuses(
     elif diameter_mode == "nps_lookup":
         if parameter_is_ready(existing_inputs, "outside_diameter"):
             diameter.status = "resolved"
-        elif parameter_is_ready(existing_inputs, "nominal_pipe_size"):
-            diameter.status = "blocked"
         else:
-            diameter.status = "missing"
+            # Branch choice is complete; outside diameter will be lookup-derived.
+            diameter.status = "resolved"
     elif diameter.status == "missing":
         pass
 

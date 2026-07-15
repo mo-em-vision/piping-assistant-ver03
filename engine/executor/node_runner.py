@@ -272,7 +272,15 @@ class NodeRunner:
             if db_table_id:
                 table_ref = self._lookup_engine._resolve_table_ref(db_table_id)
         try:
-            if table_ref in {"asme-b313-table-A-1", "A-1", "asme_b31.3_A-1"}:
+            lookup_rule = str(lookup_config.get("rule") or "").strip()
+            if lookup_rule == "pipe_dimensions_nps_schedule":
+                outputs = self._lookup_engine.lookup_pipe_dimensions_nps_schedule(engine_inputs)
+                trace_payload = {
+                    "table_id": table_ref or "B3610-table-2-1",
+                    "rule": lookup_rule,
+                    "outputs": dict(outputs),
+                }
+            elif table_ref in {"asme-b313-table-A-1", "A-1", "asme_b31.3_A-1"}:
                 lookup_result = self._lookup_engine.execute_lookup(
                     node_id=record.node_id,
                     lookup_config={
@@ -797,7 +805,9 @@ class NodeRunner:
         nomenclature: dict,
     ) -> str | None:
         del record, nomenclature
-        mode = field_value("d_input_mode", task_inputs)
+        from engine.graph.resolution_branches import active_resolution_branch_id
+
+        mode = active_resolution_branch_id("outside_diameter", task_inputs)
         if mode is None:
             if "outside_diameter" in task_inputs:
                 mode = "direct_od"
@@ -847,14 +857,26 @@ class NodeRunner:
                     continue
                 if fact_key == "material" and "material_grade" in task_inputs:
                     continue
-                if input_id == "outside_diameter" and field_value("d_input_mode", task_inputs) == "nps_lookup":
+                from engine.graph.resolution_branches import active_resolution_branch_id
+
+                od_branch = active_resolution_branch_id("outside_diameter", task_inputs)
+                if input_id == "outside_diameter" and od_branch == "nps_lookup":
                     if "nominal_pipe_size" not in task_inputs:
                         missing.append("nominal_pipe_size")
                     continue
-                if input_id == "nominal_pipe_size" and field_value("d_input_mode", task_inputs) == "direct_od":
+                if input_id == "nominal_pipe_size" and od_branch == "direct_od":
                     continue
                 missing.append(input_id)
-        if field_value("d_input_mode", task_inputs) is None and "d_input_mode" not in task_inputs:
+        from engine.graph.resolution_branches import (
+            active_resolution_branch_id,
+            resolution_branch_fact_key,
+        )
+
+        branch_key = resolution_branch_fact_key("outside_diameter")
+        if (
+            active_resolution_branch_id("outside_diameter", task_inputs) is None
+            and branch_key not in task_inputs
+        ):
             if "outside_diameter" not in task_inputs and "nominal_pipe_size" not in task_inputs:
                 missing.append("nominal_pipe_size")
         return missing

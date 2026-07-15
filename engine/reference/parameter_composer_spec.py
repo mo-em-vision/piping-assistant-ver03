@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
+from engine.graph.resolution_branches import (
+    active_resolution_branch_id,
+    resolution_branch_fact_key,
+    resolution_branches_from_metadata,
+    via_parameter_keys,
+)
 from engine.reference.parameter_keys import (
     api_parameter_id,
     load_parameter_node_metadata,
@@ -11,8 +18,10 @@ from engine.reference.parameter_keys import (
 )
 from engine.reference.parameter_metadata import prepare_parameter_metadata
 from engine.reference.standards_reader import StandardsReader
+from engine.reference.table_options_resolver import resolve_table_dropdown_options
 from engine.units.unit_ids import symbol_from_unit_id
 from engine.units.unit_registry import get_unit_registry
+from models.task import Task
 
 _DESIGNATION_DIMENSIONS = frozenset({"DIM-material-designation", "DIM-designation"})
 _COMPOSER_META_KEYS = frozenset(
@@ -20,9 +29,11 @@ _COMPOSER_META_KEYS = frozenset(
         "allowed_units",
         "composer_input",
         "composer_options",
+        "table_options",
         "canonical_unit",
         "default_value",
         "default",
+        "resolution_branches",
     }
 )
 
@@ -143,11 +154,106 @@ def _unit_symbols_for_metadata(meta: dict[str, Any]) -> tuple[list[str], str]:
     return units, default_unit
 
 
+def _branch_composer_spec(
+    branch: dict[str, Any],
+    *,
+    reader: StandardsReader | None,
+    param_index: dict[str, str] | None,
+    task: Task | None,
+    standards_root: Path | None,
+) -> dict[str, Any]:
+    method = str(branch.get("method") or "").strip()
+    value_composer = str(branch.get("value_composer") or "number").strip()
+    if method == "user_input":
+        units, default_unit = _unit_symbols_for_metadata(
+            {"parameter_class": "geometric_quantity", "dimension": "DIM-length"}
+        )
+        return {
+            "type": value_composer,
+            "units": units,
+            "default_unit": default_unit,
+            "validation": {"min": 0},
+        }
+
+    via_keys = []
+    for raw in branch.get("via_parameters") or []:
+        text = str(raw or "").strip()
+        if text.startswith("PARAM-"):
+            from engine.reference.workflow_sidecar import _PARAM_TO_FIELD
+
+            mapped = _PARAM_TO_FIELD.get(text)
+            if mapped:
+                via_keys.append(mapped)
+                continue
+        via_keys.append(api_parameter_id(text.replace("PARAM-", "").replace("-", "_")))
+
+    submit_parameter = via_keys[0] if via_keys else None
+    options: list[dict[str, str]] = []
+    if submit_parameter and task is not None and standards_root is not None:
+        options = resolve_table_dropdown_options(
+            task,
+            submit_parameter,
+            standards_root=standards_root,
+        )
+    elif submit_parameter and reader is not None:
+        via_meta = _load_param_metadata(submit_parameter, reader=reader, param_index=param_index)
+        if via_meta is not None:
+            options = _composer_options_from_meta(via_meta)
+    return {
+        "type": "dropdown",
+        "units": [],
+        "default_unit": "dimensionless",
+        "options": options,
+        "submit_parameter": submit_parameter,
+    }
+
+
+def build_resolution_ui(
+    meta: dict[str, Any],
+    *,
+    task: Task | None = None,
+    reader: StandardsReader | None = None,
+    param_index: dict[str, str] | None = None,
+    standards_root: Path | None = None,
+) -> dict[str, Any]:
+    param_key = str(meta.get("key") or "").strip()
+    active_branch = None
+    if task is not None:
+        active_branch = active_resolution_branch_id(param_key, task.fact_store.active_facts())
+    branches: list[dict[str, Any]] = []
+    for branch in resolution_branches_from_metadata(meta):
+        branch_id = str(branch.get("id") or "").strip()
+        if not branch_id:
+            continue
+        composer = _branch_composer_spec(
+            branch,
+            reader=reader,
+            param_index=param_index,
+            task=task,
+            standards_root=standards_root,
+        )
+        branches.append(
+            {
+                "id": branch_id,
+                "label": str(branch.get("label") or branch_id.replace("_", " ").title()),
+                "composer": composer,
+                "submit_parameter": composer.get("submit_parameter"),
+            }
+        )
+    return {
+        "branches": branches,
+        "active_branch": active_branch,
+        "branch_fact_key": resolution_branch_fact_key(param_key),
+    }
+
+
 def build_composer_parameter_spec(
     parameter_id: str,
     *,
     reader: StandardsReader | None = None,
     param_index: dict[str, str] | None = None,
+    task: Task | None = None,
+    standards_root: Path | None = None,
 ) -> dict[str, Any]:
     """Return label/type/units/validation for the workflow composer."""
     parameter_id = api_parameter_id(parameter_id)
@@ -173,7 +279,23 @@ def build_composer_parameter_spec(
         default_value = meta.get("default")
     if default_value is not None:
         spec["default_value"] = default_value
-    options = _composer_options_from_meta(meta)
-    if options:
-        spec["options"] = options
+
+    if spec["type"] == "resolution_branch":
+        spec["resolution_ui"] = build_resolution_ui(
+            meta,
+            task=task,
+            reader=reader,
+            param_index=param_index,
+            standards_root=standards_root,
+        )
+        return spec
+
+    table_options = meta.get("table_options")
+    has_table_options = isinstance(table_options, dict) and bool(
+        str(table_options.get("query") or "").strip()
+    )
+    if not has_table_options:
+        options = _composer_options_from_meta(meta)
+        if options:
+            spec["options"] = options
     return spec

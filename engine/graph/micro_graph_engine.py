@@ -16,6 +16,7 @@ from engine.graph.display_emitter import emit_initiation_blocks
 from engine.graph.graph_store import GraphStore
 from engine.graph.lazy_expander import (
     ExpansionState,
+    _node_active_on_path,
     expand_workflow,
     expansion_gate_ready,
     next_pending_parameter,
@@ -184,17 +185,23 @@ def _parameter_required_on_active_path(
     from engine.reference.relationship_taxonomy import REQUIRES_TRAVERSAL_TYPES
 
     producer_types = frozenset({"equation", "lookup", "validation_rule", "calculation"})
-    has_producer_requirement = False
+    saw_requirement = False
     for edge in store.incoming(param_node_id, edge_types=REQUIRES_TRAVERSAL_TYPES):
         producer_id = edge.from_id
         if store.node_type(producer_id) not in producer_types:
             continue
-        has_producer_requirement = True
+        edge_when = edge.metadata.get("when") if edge.metadata else None
+        if isinstance(edge_when, dict) and not when_clause_matches(edge_when, inputs):
+            saw_requirement = True
+            continue
+        saw_requirement = True
         if producer_id not in active_nodes:
             continue
         if _node_active_on_path(store, producer_id, inputs):
             return True
-    return not has_producer_requirement
+    if saw_requirement:
+        return False
+    return True
 
 
 def _append_nomenclature_user_inputs(
@@ -523,19 +530,42 @@ class MicroGraphEngine:
                 continue
             if not _parameter_required_on_active_path(self._store, node_id, active_nodes, inputs):
                 continue
+            if not _node_active_on_path(self._store, node_id, inputs):
+                continue
             input_id = str(node.metadata.get("input_id") or node.metadata.get("key") or "").strip()
             if not input_id or input_id in seen or input_id in _DEFINITION_PHASE_INPUTS:
                 continue
-            resolution = parameter_resolution_for_parameter(self._store, node_id) or {}
+            resolution = parameter_resolution_for_parameter(
+                self._store,
+                node_id,
+                active_nodes=active_nodes,
+                inputs=inputs,
+            ) or {}
             method = str(resolution.get("method", "user_input")) if isinstance(resolution, dict) else "user_input"
-            if method == "user_input" and field_value(input_id, inputs) is None:
+            if method == "branch_choice" and input_id not in seen:
+                seen.add(input_id)
+                required.append(input_id)
+            elif method == "user_input" and field_value(input_id, inputs) is None:
                 seen.add(input_id)
                 required.append(input_id)
             elif method == "table_lookup" and field_value(input_id, inputs) is None:
                 # Require lookup key parameters, not the looked-up symbol itself.
+                from engine.graph.lookup_parameter_resolution import param_node_id_for_fact_key
+
+                lookup_keys: list[str] = []
+                for key in (resolution.get("keys") or []):
+                    key_name = str(key).strip()
+                    if not key_name:
+                        continue
+                    param_id = param_node_id_for_fact_key(self._store, key_name)
+                    if param_id and not _parameter_required_on_active_path(
+                        self._store, param_id, active_nodes, inputs
+                    ):
+                        continue
+                    lookup_keys.append(key_name)
                 _append_missing_input_keys(
                     self._store,
-                    keys=[str(key) for key in (resolution.get("keys") or [])],
+                    keys=lookup_keys,
                     required=required,
                     seen=seen,
                     inputs=inputs,

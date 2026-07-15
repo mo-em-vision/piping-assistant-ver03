@@ -16,7 +16,7 @@ from engine.reference.standards_markdown import split_frontmatter
 # System/runtime fact keys used on pipe-wall paths but not global PARAM ``key`` fields.
 PIPE_WALL_SYSTEM_FACT_KEYS = frozenset(
     {
-        "d_input_mode",
+        "outside_diameter__resolution_branch",
         "thin_wall",
     }
 )
@@ -97,6 +97,8 @@ def assert_api_state_uses_canonical_parameter_keys(
                 )
 
     for key in sorted(parameter_slots):
+        if key in system_fact_keys:
+            continue
         if key not in registry:
             pytest.fail(
                 f"parameter_id field {key!r} is not in the global PARAM registry"

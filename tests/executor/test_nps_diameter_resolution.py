@@ -6,6 +6,7 @@ from pathlib import Path
 
 from engine.executor.executor import execute_workflow
 from engine.reference.standards_reader import StandardsReader
+from engine.state.fact_migration import fact_from_engineering_input
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
 from tests.acceptance.helpers import confirmed_default_inputs, internal_pressure_assumption, straight_section_assumption
@@ -21,8 +22,8 @@ def test_nps_lookup_resolves_outside_diameter_for_calculation() -> None:
     inputs = {
         "straight_pipe_section": straight_section_assumption(),
         "pressure_loading": internal_pressure_assumption(),
-        "d_input_mode": EngineeringInput(
-            input_id="d_input_mode",
+        "outside_diameter__resolution_branch": EngineeringInput(
+            input_id="outside_diameter__resolution_branch",
             value="nps_lookup",
             unit="dimensionless",
             source=InputSource.USER,
@@ -34,12 +35,18 @@ def test_nps_lookup_resolves_outside_diameter_for_calculation() -> None:
             unit="dimensionless",
             source=InputSource.USER,
         ),
-        "design_pressure": EngineeringInput("design_pressure", 500, "psi", InputSource.USER),
-        "material": EngineeringInput("material", "SA-106B", "dimensionless", InputSource.USER),
-        "design_temperature": EngineeringInput("design_temperature", 200, "F", InputSource.USER),
-        "joint_category": EngineeringInput(
-            input_id="joint_category",
-            value="seamless",
+        "internal_design_gage_pressure": EngineeringInput(
+            "internal_design_gage_pressure", 500, "psi", InputSource.USER
+        ),
+        "material_grade": EngineeringInput(
+            "material_grade", "SA-106B", "dimensionless", InputSource.USER
+        ),
+        "design_temperature": EngineeringInput(
+            "design_temperature", 200, "F", InputSource.USER
+        ),
+        "pipe_construction_type": EngineeringInput(
+            input_id="pipe_construction_type",
+            value="Seamless pipe",
             unit="dimensionless",
             source=InputSource.USER,
             status=InputStatus.CONFIRMED,
@@ -54,7 +61,10 @@ def test_nps_lookup_resolves_outside_diameter_for_calculation() -> None:
         **confirmed_default_inputs(),
     }
     for engineering_input in inputs.values():
-        state.store_input(task_id, engineering_input)
+        state.store_input(
+            task_id,
+            fact_from_engineering_input(engineering_input, task_id=task_id),
+        )
 
     result = execute_workflow(task_id, "pipe_wall_thickness_design", state=state, reader=reader)
     assert result.status.value == "completed"

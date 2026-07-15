@@ -9,4 +9,12 @@ edges: []
 metadata:
   last_revision: 2026-07-04
   edited_by: admin
+option_queries:
+  material_search:
+    storage: material_catalog
+    mode: search
+    min_query_length: 3
+    query_param: search_text
+    value_column: material_id
+    label_column: label
 ---

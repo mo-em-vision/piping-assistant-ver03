@@ -34,7 +34,6 @@ Parameter nodes define **contextual engineering roles** — not values, units, r
 | `PARAM-pressure-loading` | selection | — | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
 | `PARAM-straight-pipe-section` | selection | — | — |
 | `PARAM-pipe-schedule` | selection | — | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
-| `PARAM-geometry-input-mode` | selection | — | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
 | `PARAM-actual-wall-thickness` | geometric_quantity | `DIM-length` | [`CONCEPT-wall-thickness`](../concepts/nodes/CONCEPT-wall-thickness.yaml) |
 | `PARAM-inside-diameter` | geometric_quantity | `DIM-length` | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
 | `PARAM-external-design-pressure` | physical_quantity | `DIM-pressure` | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
