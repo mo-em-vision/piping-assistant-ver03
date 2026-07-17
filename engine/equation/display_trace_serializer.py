@@ -179,8 +179,9 @@ def record_equation_execution_trace(
     render_steps: Any | None = None,
 ) -> None:
     """Append or update an execution-trace entry with equation_display_trace."""
+    from api.equation_display_registry import register_equation_display_key
     from engine.equation.equation_display_trace_builder import build_equation_display_trace
-    from api.equation_display_registry import register_equation_display_key, source_node_id_for_equation
+    from engine.graph.equation_source import source_node_id_for_equation
 
     resolved_source = str(source_node_id or "").strip() or source_node_id_for_equation(
         reader, equation_node_id

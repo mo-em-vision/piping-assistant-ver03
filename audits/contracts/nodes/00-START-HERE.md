@@ -1,5 +1,7 @@
 # Knowledge Nodes — Start Here
 
+> **Authoring authority:** This index and the per-type contracts in this folder are the **sole source of truth** for new node YAML. They supersede narrative in [`docs/core/7. node_structure_design.md`](../../docs/core/7.%20node_structure_design.md). Enforcement: `engine/validation/*_node_validator.py` (do not edit validators during doc reconciliation).
+
 ## What are knowledge nodes?
 
 Knowledge nodes are immutable YAML (and optional markdown body) files under `knowledge/` and `workflows/`. Each file declares one engineering object — a paragraph of standard text, a parameter definition, an equation, a lookup rule, a workflow objective, and so on. The graph compiler loads these files into a `PackGraph`; runtime execution reads the graph but never stores engineering truth back into node files.

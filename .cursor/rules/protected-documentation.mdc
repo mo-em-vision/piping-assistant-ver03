@@ -1,5 +1,5 @@
 ---
-description: Protected docs, audits, and standards knowledge — read registry each session; no edits without user approval
+description: Protected docs, audits, standards knowledge, and Cursor rules — read registry each session; no edits without user approval
 alwaysApply: true
 ---
 
@@ -19,6 +19,7 @@ Use the **Protected glob patterns** table as the source of truth for paths that 
 | --- | --- |
 | `docs/**` | All project documentation |
 | `docs/protected-files/**` | This registry and policy |
+| `.cursor/rules/**` | Cursor agent rules (`.mdc` policy files) |
 | `audits/**` | Standalone audit notes at repo root |
 | `knowledge/standards/**` | Standards knowledge packs (YAML/MD nodes, pack config, compiled `*.db` caches) |
 
@@ -33,7 +34,7 @@ Full enumerated lists and maintenance rules: [`docs/protected-files/registry.md`
    - **File(s):** full repo-relative path(s)
    - **What:** sections, fields, or lines affected
    - **Why:** user request, correction, or other justified reason
-5. **User-requested protected work is allowed** — when the user asks to update docs, audits, or standards nodes, edit only what they asked for and still state what and why before editing.
+5. **User-requested protected work is allowed** — when the user asks to update docs, audits, standards nodes, or Cursor rules, edit only what they asked for and still state what and why before editing.
 
 ## Minimum reads by task type
 

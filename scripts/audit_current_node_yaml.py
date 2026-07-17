@@ -466,13 +466,18 @@ def _audit_section_c(paths: list[Path], workflow_index: dict[str, dict[str, Any]
     rows: list[AuditRow] = []
     for path in paths:
         rel = _repo_rel(path)
-        row = AuditRow(rel_path=rel, contract="workflow-runtime.md", validator="workflow_sidecar_loader_keys")
+        row = AuditRow(
+            rel_path=rel,
+            contract="workflow.md",
+            validator="legacy_workflow_runtime_file_keys",
+        )
+        row.role = "legacy-workflow-config-file"
         wf_dir = path.parent.name
         row.parent = wf_dir
         if not LEGACY_SIDECAR_COMPAT:
             row.add(
                 "FAIL",
-                "LEGACY_SIDECAR_METADATA: workflow runtime sidecars are no longer permitted",
+                "LEGACY_SIDECAR_METADATA: legacy workflow runtime file sidecars are no longer permitted",
                 code="LEGACY_SIDECAR_METADATA",
             )
         if wf_dir not in workflow_index and wf_dir.replace("-", "_") not in workflow_index:
@@ -631,6 +636,7 @@ def render_report(
             "- One primary YAML per node: nested `execution` / `runtime` blocks in primary files.",
             "- `material_catalog` (`MAT-catalog.yaml`) is not in `CANONICAL_NODE_TYPES`.",
             "- Legacy node-owned sidecars are rejected when `LEGACY_SIDECAR_COMPAT` is false.",
+            "- Legacy `workflows/*/runtime.yaml` and `navigation.yaml` files are rejected when `LEGACY_SIDECAR_COMPAT` is false; canonical runtime metadata is nested `runtime` in primary workflow YAML.",
             "- Types `text`, `quantity`, `table` have no dedicated validators — audit uses revision + generic checks only.",
             "- `designation` uses `validate_designation_node` (see `audits/contracts/nodes/designation.md`).",
             "- `table_note` uses `validate_table_note_node` (see `audits/contracts/nodes/table-note.md`).",
@@ -728,7 +734,7 @@ def _is_workflow_row(row: AuditRow) -> bool:
     rel = row.rel_path.replace("\\", "/")
     if rel.startswith("workflows/"):
         return True
-    if row.contract == "workflow-runtime.md":
+    if row.role == "legacy-workflow-config-file":
         return True
     return False
 
@@ -748,12 +754,12 @@ def render_workflow_report(section_a: list[AuditRow], section_c: list[AuditRow])
         f"**Overall status:** {overall}",
         "",
         "_Filtered projection aligned with `audits/contracts/nodes/workflow.md` "
-        "and `audits/contracts/nodes/sidecars/workflow-runtime.md`._",
+        "(legacy separate runtime files are audited for presence only; nested `runtime` in primary YAML is canonical)._",
         "",
         "## Summary",
         "",
         f"- Workflow primary files inspected: {len(primary_rows)}",
-        f"- Workflow runtime sidecar files inspected: {len(sidecar_rows)}",
+        f"- Legacy workflow runtime files inspected: {len(sidecar_rows)}",
         f"- Passing: {pass_n}",
         f"- Warnings: {warn_n}",
         f"- Failing: {fail_n}",
@@ -783,7 +789,7 @@ def render_workflow_report(section_a: list[AuditRow], section_c: list[AuditRow])
     lines.extend(
         [
             "",
-            "## Workflow runtime sidecar inventory",
+            "## Legacy workflow runtime file inventory",
             "",
             "| YAML file | Parent workflow | Contract | Result | Problems |",
             "| --- | --- | --- | --- | --- |",

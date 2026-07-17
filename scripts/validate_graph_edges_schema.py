@@ -59,7 +59,7 @@ def main() -> int:
             if issues:
                 all_issues[f"global/{domain}"] = issues
 
-    report_path = ROOT / "docs" / "migration" / "graph_edges_migration_report.md"
+    report_path = ROOT / "docs" / "audit" / "graph_edges_validation.md"
     report_path.parent.mkdir(parents=True, exist_ok=True)
     lines = ["# Graph Edges Migration Validation\n"]
     if not all_issues:

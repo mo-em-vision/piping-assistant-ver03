@@ -496,7 +496,7 @@ flatten_b313_nodes.py             nested paths → nodes/{node_id}/
 build_all_standards_dbs.py        refresh SQLite caches
 ```
 
-Exact order used in production migration: **Unknown from static analysis** (inferred from docstrings and `docs/standards/*` only).
+Exact order used in production migration: **Unknown from static analysis** (inferred from one-time B31.3 reorganize script docstrings only).
 
 ---
 

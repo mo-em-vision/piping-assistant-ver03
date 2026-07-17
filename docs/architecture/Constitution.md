@@ -51,29 +51,34 @@ Every execution begins with one or more engineering Goals. Goals determine which
 
 ## Law 14
 Facts are append-only. Corrections create new Facts rather than modifying existing ones.
-## Law 15 
-Decision Separation Principle:
- ```
-The Planner decides 'what is needed' 
-The Kernel decides 'what happens next'
- ```
+## Law 15 — Decision Separation Principle
+
+The Planner orders navigation; the Graph Engine determines active engineering requirements (Law 5). The Kernel schedules and executes an already resolved plan — it does not select branches or invent missing requirements.
 
 **Planner:**
 ```
 - understands goals
-- builds navigation plan and orders next missing information
+- selects/ranks workflow candidates
+- orders the next graph-active unresolved requirement
 - interacts with graph expansion output
-- does not alone determine active engineering requirements
+- does not alone determine active engineering requirements, branches, or parameter asks
 ```
 
-
-**Kernel:**
-
+**Graph Engine:**
 ```
-- schedules execution
-- stores facts
-- manages concurrency
-- tracks state
+- owns expansion, reachability, branch activation, dependencies, and execution ordering
+- produces the active subgraph and ExecutionPlan inputs
+```
+
+**Kernel / Executor:**
+```
+- schedules and executes a resolved ExecutionPlan deterministically
+- does not interpret engineering meaning or perform raw-graph dependency discovery in the canonical runtime path
+```
+
+**State Manager:**
+```
+- owns persisted task state, invalidation, and execution history
 ```
 
 

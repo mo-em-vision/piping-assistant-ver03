@@ -26,7 +26,7 @@ Figure assets belong under the relevant node folder (e.g. `nodes/304.1.2-a/figur
 
 ## Sample implementation
 
-The first sample nodes follow `docs/core/7. node_structure_design.md` and `docs/core/8. Node Template.md`:
+The first sample nodes follow `docs/core/7. node_structure_design.md` and [`audits/contracts/nodes/00-START-HERE.md`](../../../../audits/contracts/nodes/00-START-HERE.md):
 
 - `nodes/B313-304.1.1/` — definition node: nomenclature, expansion interactions, eq. 2 (`t_m = t + c`)
 - `nodes/304.1.2-a/` — internal pressure wall thickness (`t = PD / 2(SEW + PY)`, §304.1.2)

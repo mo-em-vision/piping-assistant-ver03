@@ -201,7 +201,8 @@ When filling **Architecture Alignment**, check against existing docs — do not 
 | **Execution** | Deterministic formula/lookup runs | Workflow selection, validation rules authoring |
 | **Validation** | Compliance checks before/during execution | Calculations, report formatting |
 | **Report** | Format structured results | Modify engineering values |
-| **Flow Guidance** | Traversal narration, composed presentation blocks | Engineering truth, planner navigation |
+| **GuidanceResolver** (Flow Guidance) | Traversal narration and workflow-guidance content (`presentation/guidance/workflows/`) | Parameter prompts, equation bodies, planner copy, graph traversal |
+| **ResponseComposer** (Flow Guidance) | Final merge and composition of presentation blocks (guidance, messaging prompts, warnings, asset refs) | Planning, graph traversal, validation, execution, engineering truth |
 | **Messaging** | Deterministic prompt text | Which parameter is active |
 | **Desktop / API / chat** | Display structured blocks, collect input | Engineering logic, graph traversal |
 | **Frontend** | Visualization, stores, API calls | Calculations, standards logic, workflow branching |

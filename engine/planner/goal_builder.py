@@ -97,10 +97,8 @@ def _build_with_engineering_plan(
     path_decision: dict[str, str] | None,
 ) -> GoalStore | None:
     from engine.planner.engineering_plan_builder import build_engineering_plan
-    from engine.planner.legacy_goal_adapter import (
-        apply_engineering_plan_to_goal_store,
-        store_engineering_plan_on_task,
-    )
+    from engine.planner.legacy_goal_adapter import store_engineering_plan_on_task
+    from engine.planning.plan_projection_sync import sync_plan_projections
 
     plan = build_engineering_plan(
         task,
@@ -113,7 +111,8 @@ def _build_with_engineering_plan(
     if plan is None:
         return None
     store_engineering_plan_on_task(task, plan)
-    return apply_engineering_plan_to_goal_store(task, plan)
+    sync_plan_projections(task)
+    return task.goal_store
 
 
 def build_goal_tree(
@@ -156,7 +155,7 @@ def build_goal_tree(
         task_inputs=existing_inputs,
         plan=preview,
     )
-    from api.workflow_timeline import composer_parameter_ids
+    from engine.navigation import composer_parameter_ids
 
     missing_inputs = composer_parameter_ids(task, missing_inputs)
     execution_eval = graph.evaluate_execution_assumptions(slug, existing_inputs=existing_inputs, plan=preview)
@@ -220,6 +219,11 @@ def build_goal_tree(
     )
     if plan_store is not None:
         return plan_store
+
+    from engine.router import is_supported_planning_workflow
+
+    if is_supported_planning_workflow(workflow_id):
+        return task.goal_store
 
     clear_goal_store(task)
     target = root_target_for_workflow(

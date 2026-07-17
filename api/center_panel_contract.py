@@ -22,6 +22,7 @@ from api.center_panel_block_registry import (
     center_panel_block_types,
     filter_center_panel_blocks,
 )
+from api.transcript_projection import project_transcript_blocks_for_display
 
 def _resolve_contract_path() -> Path:
     return Path(__file__).resolve().parents[1] / "contracts" / "center_panel_report_role_order.json"
@@ -130,6 +131,7 @@ def assemble_center_panel_scroll_blocks(
     display_outputs: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Assemble scroll blocks from transcript history + engineering snapshot."""
+    projected_transcript = project_transcript_blocks_for_display(transcript_blocks)
     transcript_ids = {
         str(block.get("block_id") or "").strip()
         for block in transcript_blocks
@@ -137,10 +139,12 @@ def assemble_center_panel_scroll_blocks(
     }
     guidance_blocks = [
         block
-        for block in transcript_blocks_to_scroll_blocks(transcript_blocks)
+        for block in transcript_blocks_to_scroll_blocks(projected_transcript)
         if str(block.get("display_role") or "") not in {
             DisplayRole.ask_archive.value,
             DisplayRole.answer_archive.value,
+            DisplayRole.title.value,
+            DisplayRole.workflow_description.value,
         }
     ]
     workflow_intro = [

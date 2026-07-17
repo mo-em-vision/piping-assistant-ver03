@@ -14,6 +14,7 @@ from engine.graph.lookup_parameter_resolution import (
 )
 from engine.graph.navigation_phases import PhasedNavigation
 from engine.graph.workflow_navigation import WorkflowNavigationConfig, load_workflow_navigation
+from models.planning import NavigationPhase
 from engine.planner.question_spec_builder import build_question_spec
 from engine.planner.workflow_goal_metadata import lookup_fields_for_workflow, selection_fields_for_workflow
 from engine.reference.parameter_keys import (
@@ -99,15 +100,20 @@ def _collect_planning_fields(
                     seen.add(field)
     else:
         for phase, fields in nav_config.phase_order:
+            if phase not in {
+                NavigationPhase.EXPANSION_ASSUMPTIONS,
+                NavigationPhase.PATH_DECISIONS,
+            }:
+                continue
             for field in fields:
                 if field not in seen:
                     ordered.append((field, phase.value))
                     seen.add(field)
-
-    for field in missing_inputs or []:
-        if field not in seen:
-            ordered.append((field, "parameter_gathering"))
-            seen.add(field)
+        for field in missing_inputs or []:
+            if field not in seen:
+                phase = _phase_for_field(field, None, nav_config)
+                ordered.append((field, phase))
+                seen.add(field)
     return ordered
 
 
@@ -342,10 +348,20 @@ def _shared_dimension_table(
     return first
 
 
+def _activation_from_parameter_node(
+    store: GraphStore,
+    param_node_id: str | None,
+) -> ActivationCondition | None:
+    """Resolve authored parameter applicability as a requirement activation condition."""
+    if not param_node_id:
+        return None
+    return _branch_activation_from_node(store, param_node_id, selection_fields=None)
+
+
 def _branch_activation_from_node(
     store: GraphStore,
     node_id: str,
-    selection_fields: frozenset[str],
+    selection_fields: frozenset[str] | None,
 ) -> ActivationCondition | None:
     node = store.get_node(node_id)
     if node is None:
@@ -357,7 +373,7 @@ def _branch_activation_from_node(
         if not isinstance(item, dict):
             continue
         field = _param_to_field(str(item.get("parameter") or ""))
-        if field not in selection_fields:
+        if selection_fields is not None and field not in selection_fields:
             continue
         operator = str(item.get("operator") or "equals")
         if operator not in {"equals", "not_equals", "in"}:
@@ -565,7 +581,11 @@ def _maybe_emit_diameter_resolution(
         nps_req = requirements.get(requirement_id(nps_field))
         if nps_req is not None:
             nps_req.question_spec = build_question_spec(nps_field, ask_policy="ask_if_needed")
-            nps_req.resolution = {"method": "user_input", "output_field": nps_field}
+            nps_req.resolution = {
+                "method": "user_input",
+                "output_field": nps_field,
+                "role": "lookup_key",
+            }
 
     if _OUTSIDE_DIAMETER_LOOKUP_ID not in requirements:
         nps_dep = requirement_id(nps_field) if requirement_id(nps_field) in requirements else []
@@ -582,6 +602,7 @@ def _maybe_emit_diameter_resolution(
                 "method": "lookup",
                 "source_node_id": table_id,
                 "output_field": od_field,
+                "role": "lookup_output",
             },
         )
 
@@ -841,10 +862,13 @@ def build_graph_requirements(
     )
 
     path_activation = _collect_path_activation(store, execution_order, selection_fields)
-    if path_activation is not None:
-        for req in requirements.values():
-            if req.phase in _GATE_PHASES:
-                continue
+    for req in requirements.values():
+        if req.phase in _GATE_PHASES:
+            continue
+        param_activation = _activation_from_parameter_node(store, req.parameter_node_id)
+        if param_activation is not None:
+            req.activation_condition = param_activation
+        elif path_activation is not None:
             req.activation_condition = path_activation
 
     if _workflow_has_report(reader, workflow_id):

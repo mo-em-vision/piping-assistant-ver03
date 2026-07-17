@@ -124,7 +124,7 @@ describe('mergeDisplayOutputs', () => {
     expect(mergeDisplayOutputs([previous], [])).toEqual([])
   })
 
-  it('passes through ephemeral input_waiting from incoming snapshot only', () => {
+  it('drops volatile input_waiting blocks from merge history', () => {
     const waiting: DisplayOutputBlock = {
       id: 'input-waiting',
       type: 'text',
@@ -136,11 +136,8 @@ describe('mergeDisplayOutputs', () => {
     }
 
     const merged = mergeDisplayOutputs([stableEq2Block], [waiting])
-    expect(merged).toHaveLength(2)
-    expect(merged[1]?.id).toBe('input-waiting')
-
-    const afterSubmit = mergeDisplayOutputs(merged, [stableEq2Block])
-    expect(afterSubmit.some((block) => block.id === 'input-waiting')).toBe(false)
+    expect(merged).toHaveLength(1)
+    expect(merged[0]?.id).toBe(stableEq2Block.id)
   })
 
   it('retains stable preview equations when incoming snapshot omits them', () => {

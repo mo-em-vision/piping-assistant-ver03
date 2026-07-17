@@ -118,7 +118,10 @@ def test_gates_resolved_graph_navigation_collects_parameter_gathering() -> None:
     assert nav["missing_coefficient_inputs"] == []
 
 
-def test_bootstrap_stores_graph_navigation_on_task(tmp_path: Path) -> None:
+def test_bootstrap_stores_engineering_plan_not_navigation_caches(tmp_path: Path) -> None:
+    from engine.planner.graph_navigation import build_graph_navigation_from_plan, validate_graph_navigation
+    from engine.planner.plan_selection import engineering_plan_for_task
+
     root = Path(__file__).resolve().parents[2]
     config = CLIConfig(
         report_format="html",
@@ -134,14 +137,15 @@ def test_bootstrap_stores_graph_navigation_on_task(tmp_path: Path) -> None:
     task = state.create_task("graph-nav-bootstrap", status=TaskStatus.AWAITING_INPUT)
     bootstrap_new_task(task, "pipe_wall_thickness_design", config)
 
-    nav = task.outputs.get("graph_navigation")
-    assert isinstance(nav, dict)
+    assert "graph_navigation" not in task.outputs
+    assert "engineering_plan_view" not in task.outputs
+    plan = engineering_plan_for_task(task)
+    assert plan is not None
+    nav = build_graph_navigation_from_plan(plan)
     assert nav.get("active_field") == "straight_pipe_section"
-    assert "missing_assumptions" not in nav
-    assert "missing_inputs" not in nav
     assert not validate_graph_navigation(nav)
 
     refresh_task_planning(task, _reader(), propose_defaults=False)
-    nav = task.outputs.get("graph_navigation")
-    assert isinstance(nav, dict)
+    assert "graph_navigation" not in task.outputs
+    nav = build_graph_navigation_from_plan(engineering_plan_for_task(task))
     assert nav.get("current_phase") == "expansion_assumptions"

@@ -87,9 +87,6 @@ def test_fresh_pipe_wall_no_facts_input_strategy_and_phase_contract() -> None:
     assert _phase_statuses(plan) == {
         "expansion_assumptions": "active",
         "path_decisions": "pending",
-        "parameter_gathering": "pending",
-        "coefficient_resolution": "blocked",
-        "definition_equation_completion": "pending",
         "equation_execution": "blocked",
         "reporting": "blocked",
     }
@@ -104,10 +101,7 @@ def test_fresh_pipe_wall_phase_statuses_single_active_phase() -> None:
     statuses = _phase_statuses(plan)
     assert statuses["expansion_assumptions"] == "active"
     assert statuses["path_decisions"] == "pending"
-    assert statuses["parameter_gathering"] == "pending"
-    assert statuses["coefficient_resolution"] == "blocked"
-    assert statuses["equation_execution"] == "blocked"
-    assert statuses["reporting"] == "blocked"
+    assert "parameter_gathering" not in statuses
     assert "validation" not in statuses
     assert sum(1 for status in statuses.values() if status == "active") == 1
     active_phases = _active_phases(plan)
@@ -133,8 +127,7 @@ def test_straight_pipe_resolved_only_path_decisions_active() -> None:
     statuses = _phase_statuses(plan)
     assert statuses["expansion_assumptions"] == "complete"
     assert statuses["path_decisions"] == "active"
-    assert statuses["parameter_gathering"] == "pending"
-    assert statuses["coefficient_resolution"] == "blocked"
+    assert "parameter_gathering" not in statuses
     assert sum(1 for status in statuses.values() if status == "active") == 1
 
 
@@ -156,23 +149,12 @@ def test_fresh_pipe_wall_internal_pressure_requirements_are_conditional() -> Non
     _, task = _fresh_pipe_wall_task()
     plan = build_engineering_plan(task, _reader())
 
-    internal_pressure = plan.requirements["REQ-internal_design_gage_pressure"]
-    assert internal_pressure.activation_status == "conditional"
-    assert internal_pressure.activation_condition is not None
-    assert internal_pressure.activation_condition.field == "pressure_loading"
-    assert internal_pressure.activation_condition.operator == "equals"
-    assert internal_pressure.activation_condition.value == "internal_pressure"
+    assert "REQ-internal_design_gage_pressure" not in plan.requirements
+    assert "REQ-allowable_stress_lookup" not in plan.requirements
 
-    lookup = plan.requirements["REQ-allowable_stress_lookup"]
-    assert lookup.activation_status == "conditional"
-
-    assert plan.root_goal.blocked_by == ["REQ-straight_pipe_section", "REQ-pressure_loading"]
-    assert "REQ-internal_design_gage_pressure" in plan.root_goal.provisional_blocked_by
-    assert "REQ-diameter_resolution" in plan.root_goal.provisional_blocked_by
-    assert "REQ-allowable_stress_lookup" in plan.root_goal.provisional_blocked_by
-    assert REQ_REQUIRED_WALL_THICKNESS in plan.root_goal.provisional_blocked_by
-    assert REQ_MINIMUM_REQUIRED_THICKNESS_EQ in plan.root_goal.provisional_blocked_by
-    assert "REQ-internal_design_gage_pressure" not in plan.root_goal.blocked_by
+    assert "REQ-straight_pipe_section" in plan.root_goal.blocked_by
+    assert "REQ-pressure_loading" in plan.root_goal.blocked_by
+    assert "REQ-internal_design_gage_pressure" not in plan.root_goal.provisional_blocked_by
     assert plan.input_strategy is not None
     assert "internal_design_gage_pressure" not in plan.input_strategy.next_fields
 
@@ -216,11 +198,7 @@ def test_external_pressure_branch_marks_internal_requirements_not_applicable() -
     task = state.get_task(task.task_id)
     plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
 
-    internal_pressure = plan.requirements["REQ-internal_design_gage_pressure"]
-    assert internal_pressure.activation_status == "not_applicable"
-    assert internal_pressure.status == "not_applicable"
-    assert plan.requirements[REQ_REQUIRED_WALL_THICKNESS].activation_status == "not_applicable"
-    assert plan.requirements[REQ_MINIMUM_REQUIRED_THICKNESS_EQ].activation_status == "not_applicable"
+    assert "REQ-internal_design_gage_pressure" not in plan.requirements
     assert plan.input_strategy is not None
     assert "internal_design_gage_pressure" not in plan.input_strategy.next_fields
     assert "REQ-internal_design_gage_pressure" not in plan.root_goal.blocked_by
@@ -284,20 +262,14 @@ def test_fresh_pipe_wall_planner_inspector_summary_single_next_input() -> None:
     assert outstanding_fields[0] == "straight_pipe_section"
     assert "pressure_loading" in outstanding_fields
     assert "internal_design_gage_pressure" not in outstanding_fields
+    assert "material_grade" not in outstanding_fields
 
     conditional_fields = {item["field"] for item in summary["conditional_requirements"]}
-    assert "allowable_stress" in conditional_fields or "internal_design_gage_pressure" in conditional_fields
+    assert "internal_design_gage_pressure" not in conditional_fields
 
     assert summary["calculations"]
     calc_fields = {item["field"] for item in summary["calculations"]}
     assert "minimum_required_thickness" in calc_fields
-
-    conditional = [
-        item
-        for item in summary["system_resolved_requirements"]
-        if item.get("activation_status") == "conditional"
-    ]
-    assert any(item["field"] == "allowable_stress" for item in conditional)
 
 
 def test_planner_inspector_summary_rebuilt_from_engineering_plan_dict() -> None:
@@ -483,7 +455,9 @@ def test_goal_tree_from_engineering_plan_no_selected_nodes_on_root() -> None:
     assert "selected_nodes" not in root.metadata
     assert "To continue the calculation" not in root.name
 
-    view = task.outputs.get("engineering_plan_view")
+    from engine.planner.plan_inspector import engineering_plan_view_for_task
+
+    view = engineering_plan_view_for_task(task)
     assert isinstance(view, dict)
     assert view.get("overview", {}).get("goal")
 

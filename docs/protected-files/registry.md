@@ -8,14 +8,13 @@ Cursor agents must read this registry at the start of each session (via [`.curso
 
 | Pattern | Purpose |
 | --- | --- |
-| `docs/**` | Architecture, process, templates, desktopApp specs, tests docs, standards notes |
+| `docs/**` | Architecture, process, templates, desktopApp specs, tests docs |
 | `docs/protected-files/**` | This registry and protected-files policy (includes this file) |
+| `.cursor/rules/**` | Cursor agent rules (`.mdc` policy files); includes `agent-rules.mdc`, plan-review gate, graph-expansion, and other always-on or requestable rules |
 | `audits/**` | Standalone audit / review notes at repository root |
 | `knowledge/standards/**` | Engineering standards knowledge packs: paragraph/equation/table/lookup nodes, pack metadata, section indexes, and compiled SQLite caches under each standard |
 
 `docs/audit/**` is included under `docs/**`.
-
-`docs/standards/**` (documentation about standards layout) is included under `docs/**`.
 
 ## Edit policy
 
@@ -45,6 +44,19 @@ Do not use protected files as a substitute for reading implementation code; use 
 
 ---
 
+## `.cursor/rules/` (glob — do not enumerate as permission to edit unlisted files)
+
+All files under `.cursor/rules/**` are protected, including but not limited to:
+
+- `.cursor/rules/agent-rules.mdc` — points agents to `docs/rules.md`
+- `.cursor/rules/protected-documentation.mdc` — this registry's enforcement rule
+- `.cursor/rules/plan-review-gate.mdc`, `.cursor/rules/feature-planning.mdc`
+- `.cursor/rules/graph-expansion.mdc`, `.cursor/rules/paragraph-subsection-naming.mdc`, and other specialized `.mdc` rules
+
+Changes require **explicit user approval** in the current task (same edit policy as `docs/**`). Do not edit Cursor rules opportunistically while implementing unrelated code.
+
+---
+
 ## `knowledge/standards/` (glob — do not enumerate as permission to edit unlisted files)
 
 All files under `knowledge/standards/**` are protected, including but not limited to:
@@ -68,7 +80,6 @@ Prefer `python scripts/build_graph_db.py` and related build scripts over hand-ed
 
 - `docs/architecture/Constitution.md`
 - `docs/architecture/ontology architecture.md`
-- `docs/architecture/Principles.md`
 
 ## `docs/audit/`
 
@@ -81,20 +92,19 @@ Prefer `python scripts/build_graph_db.py` and related build scripts over hand-ed
 
 ## `docs/core/`
 
+- `docs/core/README.md`
 - `docs/core/1. Architecture.md`
-- `docs/core/2. system_overview.md`
 - `docs/core/3. component_responsibilities.md`
-- `docs/core/4. data_models.md`
 - `docs/core/5. workflow_design.md`
 - `docs/core/6. ai_agent_design.md`
 - `docs/core/7. node_structure_design.md`
-- `docs/core/8. Node Template.md`
 - `docs/core/10. report_generation_design.md`
 - `docs/core/11. planner_layer_design.md`
 - `docs/core/12. Cursor Build Sequence (SAFE STEP-BY-STEP PLAN).md`
 - `docs/core/13. execution_layer_design.md`
 - `docs/core/14. graph_engine_design.md`
 - `docs/core/15. validation_layer.md`
+- `docs/core/16. task_outputs_authority.md`
 
 ## `docs/desktopApp/`
 
@@ -106,7 +116,6 @@ Prefer `python scripts/build_graph_db.py` and related build scripts over hand-ed
 - `docs/desktopApp/05_backend_ui_contract.md`
 - `docs/desktopApp/06_component_architecture.md`
 - `docs/desktopApp/07_frontend_data_models.md`
-- `docs/desktopApp/08_frontend_development_workflow.md`
 - `docs/desktopApp/09_desktop_app_folder_structure.md`
 - `docs/desktopApp/10_frontend_api_integration.md`
 - `docs/desktopApp/11_frontend_testing_strategy.md`
@@ -114,11 +123,6 @@ Prefer `python scripts/build_graph_db.py` and related build scripts over hand-ed
 - `docs/desktopApp/13_frontend_development_workflow_with_cursor.md`
 - `docs/desktopApp/14_desktop_app_implementation_roadmap.md`
 - `docs/desktopApp/center_panel_output_contract.md`
-
-## `docs/migration/`
-
-- `docs/migration/graph_edges_migration_report.json`
-- `docs/migration/graph_edges_migration_report.md`
 
 ## `audits/contracts/nodes/` (YAML authoring contracts)
 
@@ -143,7 +147,6 @@ Human-readable node authoring source. **Enforcement authority:** `engine/validat
 - `audits/contracts/nodes/sidecars/paragraph-execution.md`
 - `audits/contracts/nodes/sidecars/paragraph-nomenclature.md`
 - `audits/contracts/nodes/sidecars/equation-execution.md`
-- `audits/contracts/nodes/sidecars/workflow-runtime.md`
 - `audits/contracts/nodes/sidecars/pack-metadata.md`
 
 ## `audits/contracts/runtime/` (runtime model reference — not YAML authoring)
@@ -160,6 +163,7 @@ Human-readable node authoring source. **Enforcement authority:** `engine/validat
 ## `docs/process/`
 
 - `docs/process/plan_review_gate.md`
+- `docs/process/architecture_audit_mode.md`
 
 ## `docs/protected-files/`
 
@@ -170,36 +174,11 @@ Human-readable node authoring source. **Enforcement authority:** `engine/validat
 
 - `docs/workflows/pipe_wall_thickness/acceptance_contract.md`
 
-## `docs/standards/` (documentation only — not `knowledge/standards/`)
-
-- `docs/standards/b313_asset_inline_summary.md`
-- `docs/standards/b313_folder_flatten_summary.md`
-- `docs/standards/b313_graph_node_move_map.md`
-- `docs/standards/b313_reorganize_map.md`
-
-## `docs/temp folder/`
-
-- `docs/temp folder/ASTM_A106.md`
-- `docs/temp folder/material_families.yaml.md`
-- `docs/temp folder/table_304.1.1.md`
-
 ## `docs/tests/`
 
 - `docs/tests/1. end_to_end_test_cases.md`
 - `docs/tests/2. acceptance_criteria.md`
 - `docs/tests/3. mvp_test_strategy.md`
-- `docs/tests/node_test_cases.md`
-- `docs/tests/regression_test_strategy.md`
-- `docs/tests/test_data_design.md`
-
-## `docs/todo/`
-
-- `docs/todo/Architecture Audit Mode.md`
-- `docs/todo/Developer Inspection Framework.md`
-- `docs/todo/Graph Algorithms.md`
-- `docs/todo/redesigning nodes.md`
-- `docs/todo/Refactor Standards Folder Structure (Do Not Modify Node Content).md`
-- `docs/todo/to do.md`
 
 ## `contracts/` (repository root)
 

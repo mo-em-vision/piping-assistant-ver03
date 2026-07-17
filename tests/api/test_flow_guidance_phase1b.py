@@ -7,10 +7,8 @@ from pathlib import Path
 from api.desktop_service import DesktopApiService
 from api.flow_guidance_runtime_texts import (
     result_summary_block_id,
-    workflow_description_block_id,
     workflow_intro_block_id,
     workflow_node_transcript_blocks,
-    workflow_title_block_id,
 )
 from api.output_blocks import build_display_outputs
 from api.result_summary_display import build_result_summary_display_block
@@ -35,7 +33,7 @@ def _service(tmp_path: Path, project_root: Path) -> DesktopApiService:
     return DesktopApiService(config=config, session_id="default")
 
 
-def test_workflow_node_transcript_blocks_include_title_and_description_only_while_active(
+def test_workflow_node_transcript_blocks_emit_workflow_intro_only_while_active(
     standards_reader,
 ) -> None:
     from engine.state.state_manager import TaskStateManager
@@ -47,25 +45,15 @@ def test_workflow_node_transcript_blocks_include_title_and_description_only_whil
     blocks = workflow_node_transcript_blocks(task, standards_reader)
     block_ids = {block.block_id for block in blocks}
 
-    assert workflow_title_block_id("pipe_wall_thickness_design") in block_ids
-    assert workflow_description_block_id("pipe_wall_thickness_design") in block_ids
+    assert workflow_intro_block_id("pipe_wall_thickness_design") in block_ids
     assert result_summary_block_id("pipe_wall_thickness_design") not in block_ids
+    assert len(blocks) == 1
 
-    title = next(
-        block
-        for block in blocks
-        if block.block_id == workflow_title_block_id("pipe_wall_thickness_design")
-    )
-    assert title.payload.get("display_role") == DisplayRole.title.value
-    assert title.text == "Pipe Wall Thickness Design"
-
-    description = next(
-        block
-        for block in blocks
-        if block.block_id == workflow_description_block_id("pipe_wall_thickness_design")
-    )
-    assert description.payload.get("display_role") == DisplayRole.workflow_description.value
-    assert "graph expansion" in (description.text or "").lower()
+    intro = blocks[0]
+    assert intro.payload.get("display_role") == DisplayRole.workflow_intro.value
+    assert intro.payload.get("title") == "Pipe Wall Thickness Design"
+    assert intro.text.startswith("Pipe Wall Thickness Design")
+    assert "graph expansion" in (intro.text or "").lower()
 
 
 def test_completed_task_result_summary_comes_from_display_outputs_only(
@@ -100,7 +88,7 @@ def test_completed_task_result_summary_comes_from_display_outputs_only(
     assert len(result_blocks) == 1
 
 
-def test_create_task_appends_workflow_title_and_description_once(
+def test_create_task_appends_workflow_intro_once(
     tmp_path: Path,
     project_root: Path,
 ) -> None:
@@ -111,23 +99,16 @@ def test_create_task_appends_workflow_title_and_description_once(
 
     state = service.get_task(task_id, session_id)
     transcript = state["flow_guidance"]["transcript_blocks"]
-    title_blocks = [
+    intro_blocks = [
         block
         for block in transcript
-        if block.get("block_id") == workflow_title_block_id("pipe_wall_thickness_design")
+        if block.get("block_id") == workflow_intro_block_id("pipe_wall_thickness_design")
     ]
-    description_blocks = [
-        block
-        for block in transcript
-        if block.get("block_id") == workflow_description_block_id("pipe_wall_thickness_design")
-    ]
-    assert len(title_blocks) == 1
-    assert len(description_blocks) == 1
-    assert title_blocks[0]["payload"]["display_role"] == DisplayRole.title.value
-    assert description_blocks[0]["payload"]["display_role"] == DisplayRole.workflow_description.value
+    assert len(intro_blocks) == 1
+    assert intro_blocks[0]["payload"]["display_role"] == DisplayRole.workflow_intro.value
 
 
-def test_repeated_get_task_does_not_duplicate_workflow_title(
+def test_repeated_get_task_does_not_duplicate_workflow_intro(
     tmp_path: Path,
     project_root: Path,
 ) -> None:
@@ -141,12 +122,12 @@ def test_repeated_get_task_does_not_duplicate_workflow_title(
 
     state = service.get_task(task_id, session_id)
     transcript = state["flow_guidance"]["transcript_blocks"]
-    title_id = workflow_title_block_id("pipe_wall_thickness_design")
-    title_blocks = [block for block in transcript if block.get("block_id") == title_id]
-    assert len(title_blocks) == 1
+    intro_id = workflow_intro_block_id("pipe_wall_thickness_design")
+    intro_blocks = [block for block in transcript if block.get("block_id") == intro_id]
+    assert len(intro_blocks) == 1
 
 
-def test_workflow_node_transcript_blocks_exclude_legacy_workflow_intro(
+def test_workflow_node_transcript_blocks_emit_workflow_intro(
     standards_reader,
 ) -> None:
     from engine.state.state_manager import TaskStateManager
@@ -157,5 +138,5 @@ def test_workflow_node_transcript_blocks_exclude_legacy_workflow_intro(
 
     blocks = workflow_node_transcript_blocks(task, standards_reader)
     block_ids = {block.block_id for block in blocks}
-    assert workflow_intro_block_id("pipe_wall_thickness_design") not in block_ids
+    assert workflow_intro_block_id("pipe_wall_thickness_design") in block_ids
     assert result_summary_block_id("pipe_wall_thickness_design") not in block_ids

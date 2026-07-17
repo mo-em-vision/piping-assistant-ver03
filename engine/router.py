@@ -59,6 +59,16 @@ def route(request: str) -> str | None:
     return None
 
 
+def supported_planning_workflows() -> frozenset[str]:
+    """Workflow ids that use EngineeringPlan as the navigation authority."""
+    return _SUPPORTED_WORKFLOWS
+
+
+def is_supported_planning_workflow(workflow_id: str | None) -> bool:
+    """Return True when *workflow_id* is a supported EngineeringPlan workflow."""
+    return bool(workflow_id) and workflow_id in _SUPPORTED_WORKFLOWS
+
+
 class Router:
     """Classifies user requests into workflow names."""
 

@@ -12,7 +12,7 @@ This contract applies to all center-panel rendered output, including:
     
 3. equation output
     
-4. input waiting output
+4. composer active ask (not a center-panel scroll block)
     
 5. summary output
     
@@ -36,16 +36,16 @@ The rendering layer shall not output loose, untyped text as primary workflow out
 Allowed block categories include:
 
 ```text
-title block
-workflow description block
+workflow_intro block (single durable introduction)
 paragraph block
 equation block
-input waiting block
 summary block
 reference block
 warning block
 future table / lookup block
 ```
+
+The **composer** owns the active parameter ask (`current_ask` / `active_prompt`). The center-panel scroll shall **not** require a separate generic waiting-user-input block. Optional `ask_archive` / `answer_archive` live in transcript storage only (excluded from scroll per `docs/desktopApp/center_panel_output_contract.md`).
 
 Each block shall have an explicit display role/type.
 
@@ -54,6 +54,8 @@ Each block shall have an explicit display role/type.
 ### 2. Durable output shall be append-only
 
 Durable workflow history shall not disappear when later workflow steps occur.
+
+**Append-only identity:** per `docs/rules.md` §25 — new durable blocks receive new `block_id`s; an existing durable block with the same `block_id` may update in place when it gains information. Prior durable blocks are never removed or duplicated on reload.
 
 Previously rendered durable blocks shall remain visible after:
 
@@ -83,12 +85,11 @@ A durable block shall not be replaced by a separate duplicate block.
 
 ### 3. Temporary output shall not become stale history
 
-Temporary blocks may be shown while the workflow is waiting or resolving.
+Temporary blocks may be shown while the workflow is resolving (e.g. equation preview tiers).
 
 Examples:
 
 ```text
-temporary input waiting block
 temporary preview block
 temporary progress block
 ```
@@ -97,7 +98,9 @@ Temporary blocks shall be clearly identifiable as temporary.
 
 Temporary blocks shall be removed, replaced, or resolved when their condition is no longer true.
 
-Temporary waiting blocks shall not remain visible after the related input has been submitted.
+The active user ask is **not** a center-panel scroll block — it is owned by the **composer** via `current_ask` / `active_prompt` (`docs/rules.md` §25; `docs/desktopApp/center_panel_output_contract.md`).
+
+**Implementation drift (Phase 2B):** volatile `input_waiting` in `display_outputs` may still be emitted by legacy output builders — not a permanent contract requirement.
 
 Temporary preview blocks shall not duplicate durable evaluated blocks.
 
@@ -112,8 +115,7 @@ The same logical content shall use the same stable block identity across updates
 Examples:
 
 ```text
-workflow title -> one stable title block
-workflow description -> one stable description block
+workflow introduction -> one stable workflow_intro block (workflow-intro-{workflow_id})
 paragraph node output -> one stable paragraph block per paragraph node
 equation node output -> one stable equation block per equation node / equation execution context
 summary -> one stable summary block
@@ -130,13 +132,11 @@ The same logical content shall not appear twice in the center panel.
 Duplicate patterns to prevent:
 
 ```text
-same workflow title twice
-same workflow description twice
+same workflow_intro twice
 same paragraph text twice
 same equation rendered as both preview and durable trace
-same temporary waiting text after input is resolved
+composer ask duplicated as scroll waiting copy
 same summary twice
-same result shown through two competing pipelines
 ```
 
 Deduplication shall be based on stable block identity and logical content, not only string comparison.
@@ -382,7 +382,7 @@ Required backend coverage:
 Display output blocks have explicit display roles
 Durable blocks have stable block IDs
 Same logical block updates in place instead of duplicating
-Temporary waiting block is removed/resolved after input submission
+Composer active ask via current_ask when awaiting input (not a scroll waiting block)
 Raw internal IDs are not primary display text
 Raw waiting_user_input does not appear in user-facing output
 Workflow reload does not duplicate durable blocks
@@ -408,7 +408,7 @@ Required frontend coverage:
 Center panel renders blocks by display role/type
 Center panel preserves durable blocks after later updates
 Center panel updates same block instead of appending duplicate
-Center panel removes/resolves temporary waiting block
+Composer renders current_ask for active parameter ask (scroll does not duplicate waiting copy)
 Center panel does not render raw JSON
 Center panel does not render raw internal IDs as primary text
 Center panel keeps output order deterministic
@@ -506,7 +506,7 @@ Implement only the smallest changes required to satisfy the reviewed audit.
 
 Scope:
 - Use the specific contract as the implementation target.
-- Respect audits/contracts/global-rendering-contract.md.
+- Respect audits/contracts/Global Rendering Contract.md.
 - Do not change unrelated behavior.
 - Do not edit node/workflow/standard source files unless explicitly approved.
 - Do not invent engineering content in the rendering layer.

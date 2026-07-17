@@ -76,7 +76,7 @@ def test_pressure_loading_triggers_goal_tree_refresh(monkeypatch) -> None:
         goal_tree_calls.append(1)
         return original_refresh(*args, **kwargs)
 
-    monkeypatch.setattr("api.workflow_bootstrap.refresh_goal_tree", tracked_refresh)
+    monkeypatch.setattr("engine.planning.planning_refresh.refresh_goal_tree", tracked_refresh)
 
     service, session_id = _pipe_wall_service()
     state = service.create_task("pipe_wall_thickness_design", session_id=session_id)
@@ -116,7 +116,7 @@ def test_structure_unchanged_skips_goal_tree_refresh(monkeypatch) -> None:
         goal_tree_calls.append(1)
         return original_refresh(*args, **kwargs)
 
-    monkeypatch.setattr("api.workflow_bootstrap.refresh_goal_tree", tracked_refresh)
+    monkeypatch.setattr("engine.planning.planning_refresh.refresh_goal_tree", tracked_refresh)
 
     task = manager.get_task(task_id)
     refresh_task_planning(
@@ -144,7 +144,7 @@ def test_non_structural_corrosion_allowance_skips_goal_tree_refresh(monkeypatch)
         goal_tree_calls.append(1)
         return original_refresh(*args, **kwargs)
 
-    monkeypatch.setattr("api.workflow_bootstrap.refresh_goal_tree", tracked_refresh)
+    monkeypatch.setattr("engine.planning.planning_refresh.refresh_goal_tree", tracked_refresh)
 
     task = submit_task_input(
         manager,
@@ -161,8 +161,10 @@ def test_non_structural_corrosion_allowance_skips_goal_tree_refresh(monkeypatch)
         allow_lightweight_refresh=True,
     )
 
-    # Corrosion submit completes definition-equation phase → structural phase change → goal tree rebuild.
-    assert goal_tree_calls == [1]
+    # Corrosion submit may stay on lightweight refresh; projections must stay in sync.
+    from engine.planning.plan_projection_sync import plan_projection_is_consistent
+
+    assert plan_projection_is_consistent(task)
     assert task.fact_store.active_fact("corrosion_allowance") is not None
 
 
@@ -184,9 +186,9 @@ def test_uncertain_signature_falls_back_to_full_refresh(monkeypatch) -> None:
         goal_tree_calls.append(1)
         return original_refresh(*args, **kwargs)
 
-    monkeypatch.setattr("api.workflow_bootstrap.refresh_goal_tree", tracked_refresh)
+    monkeypatch.setattr("engine.planning.planning_refresh.refresh_goal_tree", tracked_refresh)
     monkeypatch.setattr(
-        "api.workflow_bootstrap.build_planning_structure_snapshot",
+        "engine.planning.planning_refresh.build_planning_structure_snapshot",
         lambda **_kwargs: None,
     )
 

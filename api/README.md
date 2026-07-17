@@ -1,6 +1,6 @@
 # `api/` — Architecture Audit
 
-Audit date: 2026-07-01. Documents the HTTP API layer as it exists today (36 Python files). See [Architecture Audit Mode](../docs/todo/Architecture%20Audit%20Mode.md).
+Audit date: 2026-07-01. Documents the HTTP API layer as it exists today (36 Python files). See [Architecture Audit Mode](../docs/process/architecture_audit_mode.md).
 
 ---
 

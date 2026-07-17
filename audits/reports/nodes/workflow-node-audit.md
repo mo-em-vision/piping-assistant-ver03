@@ -2,12 +2,12 @@
 
 **Overall status:** WARN
 
-_Filtered projection aligned with `audits/contracts/nodes/workflow.md` and `audits/contracts/nodes/sidecars/workflow-runtime.md`._
+_Filtered projection aligned with `audits/contracts/nodes/workflow.md` (legacy separate runtime files are audited for presence only; nested `runtime` in primary YAML is canonical)._
 
 ## Summary
 
 - Workflow primary files inspected: 2
-- Workflow runtime sidecar files inspected: 0
+- Legacy workflow runtime files inspected: 0
 - Passing: 0
 - Warnings: 2
 - Failing: 0
@@ -28,7 +28,7 @@ _Filtered projection aligned with `audits/contracts/nodes/workflow.md` and `audi
 | `workflows/mawp.yaml` | `WF-MAWP` | `validate_workflow_node` | **WARN** | filename stem 'mawp' differs from id 'WF-MAWP' |
 | `workflows/pipe-wall-thickness.yaml` | `WF-PIPE-WALL-THICKNESS` | `validate_workflow_node` | **WARN** | filename stem 'pipe-wall-thickness' differs from id 'WF-PIPE-WALL-THICKNESS' |
 
-## Workflow runtime sidecar inventory
+## Legacy workflow runtime file inventory
 
 | YAML file | Parent workflow | Contract | Result | Problems |
 | --- | --- | --- | --- | --- |

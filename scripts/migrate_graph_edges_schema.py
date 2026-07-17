@@ -365,7 +365,7 @@ def migrate_pack(pack_root: Path, *, write: bool) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Migrate node relationship fields to edges schema")
     parser.add_argument("--write", action="store_true", help="Write migrated files")
-    parser.add_argument("--report", type=Path, default=ROOT / "docs" / "migration" / "graph_edges_migration_report.json")
+    parser.add_argument("--report", type=Path, default=ROOT / "docs" / "audit" / "graph_edges_migration_report.json")
     args = parser.parse_args()
 
     standards_root = ROOT / "knowledge" / "standards"

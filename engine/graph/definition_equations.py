@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from engine.graph.equation_source import source_node_id_for_equation
 from engine.graph.param_priority import normalize_require_ids
 from engine.graph.relationship_resolver import resolve_require_bindings
 from engine.executor.functions import get_execution_function
@@ -171,7 +172,6 @@ def _record_definition_equation_trace(
     calculation: CalculationResult | None = None,
     render_steps: Any | None = None,
 ) -> None:
-    from api.equation_display_registry import source_node_id_for_equation
     from engine.equation.display_trace_serializer import record_equation_execution_trace
 
     try:

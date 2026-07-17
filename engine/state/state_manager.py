@@ -23,6 +23,8 @@ class TaskAlreadyExistsError(ValueError):
 
 @dataclass
 class StepProgress:
+    """Ephemeral executor telemetry — not engineering navigation state."""
+
     step_id: str
     status: str
     result: Any | None = None

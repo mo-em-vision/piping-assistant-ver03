@@ -9,7 +9,7 @@ Table lookup outputs (E, W, Y, S, allowable stress, etc.) are **not** user-input
 | Concern | Author on |
 | --- | --- |
 | Which parameter a table returns | Lookup node `returns_parameter` → `PARAM-*` |
-| Prerequisites to resolve the value | Lookup `inputs[].id` / `lookup.keys` (canonical parameter `key`) |
+| Prerequisites to resolve the value | Lookup `lookup.bindings` keys → canonical `PARAM-*` nodes |
 | Boundary / clamp rules for lookup keys | Output `PARAM-*` node `lookup_conditionals` (see `docs/rules.md` §18) |
 | User-facing description of the symbol | Global `PARAM-*` node `description` only |
 
@@ -24,7 +24,7 @@ Table lookup outputs (E, W, Y, S, allowable stress, etc.) are **not** user-input
 
 - Add `weld_joint_efficiency`, `temperature_coefficient_Y`, etc. to workflow phase lists as gatherable inputs.
 - Propose `E = 1.0` / `W = 1.0` defaults in `propose_coefficient_defaults` or execution assumptions.
-- Use `source: default` + `requires_confirmation` on lookup outputs in workflow sidecars.
+- Use `source: default` + `requires_confirmation` on lookup-output `PARAM-*` nodes, or on workflow `inputs[]` entries, to prompt confirmation of table-derived coefficients (e.g. E, W, Y, S).
 - Prompt "confirm E = 1.0 (default for seamless pipe)" — ask for `pipe_construction_type` instead.
 
 ## Tests

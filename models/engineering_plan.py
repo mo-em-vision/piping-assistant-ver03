@@ -170,11 +170,15 @@ class InputStrategy:
     mode: str
     current_phase: str
     next_fields: list[str] = field(default_factory=list)
+    submittable_fields: list[str] | None = None
     blocked_fields: list[str] = field(default_factory=list)
     resolved_fields: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        payload = asdict(self)
+        if self.submittable_fields is None:
+            payload.pop("submittable_fields", None)
+        return payload
 
 
 @dataclass

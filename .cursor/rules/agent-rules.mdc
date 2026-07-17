@@ -31,6 +31,8 @@ These extend `docs/rules.md` — they do not replace it:
 - `.cursor/rules/parameter-key-consistency.mdc` — §14
 - `.cursor/rules/param-composer-metadata.mdc` — §17
 - `.cursor/rules/lookup-conditionals.mdc` — §18
+- `.cursor/rules/lookup-derived-parameters.mdc` — §16
+- `.cursor/rules/table-options-queries.mdc` — table option queries
 - `.cursor/rules/plan-review-gate.mdc` — §22–§23
 - `.cursor/rules/paragraph-subsection-naming.mdc` — §11
 - `.cursor/rules/feature-planning.mdc` — planning workflow

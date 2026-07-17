@@ -274,7 +274,9 @@ Facts may be:
 - user supplied
 - calculated
 - imported
-- looked up
+- looked up (lookup outputs such as E, W, Y, S, allowable stress — **derived automatically** from lookup keys; not user-confirmed defaults)
+
+Users provide lookup **keys** or select authored resolution branches; lookup strategy comes from lookup node contracts.
 
 ---
 
@@ -321,6 +323,15 @@ Immutable canonical authoritative sources (`AUTH-*`) in [`knowledge/global/autho
 Contract: [`audits/contracts/nodes/authority.md`](../../audits/contracts/nodes/authority.md). Canonical type `authority` in [`engine/reference/node_types.py`](../../engine/reference/node_types.py).
 
 Authority nodes define **what sources exist**. Authority Context selects **which sources are active** for one execution.
+
+**Authority selection vs conflict resolution:**
+
+| Situation | Resolution |
+| --- | --- |
+| Design basis or Authority Context incomplete / ambiguous | User selection among applicable authorities may be required |
+| True conflict between already applicable authorities | Must follow explicit authority hierarchy — user choice alone must not silently override a higher governing authority |
+
+**Implementation gap:** Not all runtime paths enforce hierarchy-based conflict resolution before accepting user authority overrides.
 
 ---
 
@@ -540,3 +551,19 @@ The Execution Layer determines what can be calculated.
 The Report explains why the conclusion is correct.
 
 Everything is reproducible, traceable, and grounded in authoritative engineering knowledge.
+
+---
+
+# Node authoring (implementation)
+
+Ontology concepts above are authored as immutable YAML nodes under `knowledge/` and `workflows/`.
+
+| Concern | Authority |
+| --- | --- |
+| Node type, required fields, forbidden fields, edges | [`audits/contracts/nodes/00-START-HERE.md`](../../audits/contracts/nodes/00-START-HERE.md) and per-type contracts |
+| Shared edge and metadata rules | [`audits/contracts/nodes/01-shared-node-contract.md`](../../audits/contracts/nodes/01-shared-node-contract.md) |
+| Enforcement | `engine/validation/*_node_validator.py` (validators implement contracts; edit contracts first) |
+| Node YAML authoring | [`audits/contracts/nodes/00-START-HERE.md`](../../audits/contracts/nodes/00-START-HERE.md) and per-type contracts |
+| Design summary | [`docs/core/7. node_structure_design.md`](../core/7.%20node_structure_design.md) |
+
+Graph-driven workflow paths and parameter asks: `docs/rules.md` §13.

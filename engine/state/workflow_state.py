@@ -51,6 +51,19 @@ _GRAPH_METADATA_KEYS = frozenset(
 _EQUATION_SYMBOL_ALIASES = frozenset({"S", "P", "D", "E_j", "W", "Y", "c", "t", "t_m", "MAWP"})
 
 
+def _visited_nodes_from_execution_trace(task: Task) -> tuple[str, ...]:
+    """Visited graph nodes from persisted execution trace (not step_progress telemetry)."""
+    resolved: list[str] = []
+    trace = task.outputs.get("_execution_trace")
+    if isinstance(trace, list):
+        for item in trace:
+            if isinstance(item, dict) and item.get("node_id"):
+                node_id = str(item["node_id"])
+                if node_id not in resolved:
+                    resolved.append(node_id)
+    return tuple(resolved)
+
+
 def build_workflow_state(
     task: Task,
     *,
@@ -60,7 +73,7 @@ def build_workflow_state(
     """Build a serializable runtime-state view from the existing task model."""
 
     progress = step_progress or []
-    visited_nodes = tuple(item.step_id for item in progress)
+    visited_nodes = _visited_nodes_from_execution_trace(task)
     workflow_id = str(
         task.outputs.get("workflow")
         or task.outputs.get("selected_root")
@@ -156,7 +169,7 @@ def build_workflow_state(
 def _current_node(task: Task, progress: list[StepProgress]) -> str | None:
     from engine.state.goal_projection import planning_projection
     from engine.state.task_state_canonical import _build_current_blocker
-    from api.workflow_timeline import submittable_parameter_ids
+    from engine.navigation import submittable_parameter_ids
 
     planning = planning_projection(task)
     submittable = submittable_parameter_ids(task, planning)
@@ -167,8 +180,6 @@ def _current_node(task: Task, progress: list[StepProgress]) -> str | None:
         from engine.reference.parameter_keys import param_node_id_for_input
 
         return param_node_id_for_input(str(blocker["field"]))
-    if progress:
-        return progress[-1].step_id
     return None
 
 

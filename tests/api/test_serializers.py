@@ -374,8 +374,8 @@ def test_task_state_is_json_serializable_when_step_progress_contains_datetime() 
         },
     )
 
-    state = task_state(manager.get_task(task.task_id), manager)
+    state = task_state(manager.get_task(task.task_id), manager, projection_mode="full")
     payload = json_dumps(state)
 
     assert '"timestamp": "2026-06-25T12:00:00+00:00"' in payload
-    assert "step_progress" in payload
+    assert state.get("debug", {}).get("step_progress")

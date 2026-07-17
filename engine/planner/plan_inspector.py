@@ -809,6 +809,9 @@ def build_engineering_plan_view(plan: EngineeringPlan) -> dict[str, Any]:
             "resolved_fields": list(plan.input_strategy.resolved_fields),
             "blocked_fields": list(plan.input_strategy.blocked_fields),
             "next_fields": list(plan.input_strategy.next_fields),
+            "submittable_fields": list(plan.input_strategy.submittable_fields or [])
+            if plan.input_strategy.submittable_fields is not None
+            else None,
         }
     warnings = list((plan.debug or {}).get("validation_warnings") or [])
     warnings.extend(list((plan.debug or {}).get("validation_errors") or []))
@@ -974,6 +977,11 @@ def engineering_plan_from_dict(raw: dict[str, Any]) -> EngineeringPlan | None:
                 mode=str(strategy_raw.get("mode", "")),
                 current_phase=str(strategy_raw.get("current_phase", "")),
                 next_fields=list(strategy_raw.get("next_fields") or []),
+                submittable_fields=(
+                    list(strategy_raw.get("submittable_fields") or [])
+                    if "submittable_fields" in strategy_raw
+                    else None
+                ),
                 blocked_fields=list(strategy_raw.get("blocked_fields") or []),
                 resolved_fields=list(strategy_raw.get("resolved_fields") or []),
             )
@@ -1075,13 +1083,15 @@ def build_engineering_plan_view_from_dict(raw: dict[str, Any]) -> dict[str, Any]
 
 
 def engineering_plan_view_for_task(task) -> dict[str, Any] | None:
-    """Readable engineering plan view from task outputs."""
-    view = task.outputs.get("engineering_plan_view")
-    if isinstance(view, dict):
-        return view
+    """Readable engineering plan view derived from canonical engineering_plan."""
     raw = task.outputs.get("engineering_plan")
-    if isinstance(raw, dict):
-        return build_engineering_plan_view_from_dict(raw)
+    if isinstance(raw, dict) and "requirements" in raw and "root_goal" in raw:
+        rebuilt = build_engineering_plan_view_from_dict(raw)
+        if rebuilt is not None:
+            return rebuilt
+    cached = task.outputs.get("engineering_plan_view")
+    if isinstance(cached, dict):
+        return dict(cached)
     return None
 
 

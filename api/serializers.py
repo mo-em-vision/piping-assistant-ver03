@@ -170,6 +170,7 @@ _OUTPUT_DEBUG_KEYS = frozenset(
         "planner_inspector_summary",
         "planner_debug_projection",
         "engineering_plan_view",
+        "graph_navigation",
         "_execution_trace",
         "_expansion_traversal_trace",
         "_skipped_trace",
@@ -880,8 +881,11 @@ def _task_state_impl(
         **canonical_progress,
         "steps": timeline,
         "timeline": timeline,  # deprecated alias for UI backward compatibility
-        "step_progress": step_progress,
     }
+    if include_debug_projections:
+        legacy_extras["debug"] = {
+            "step_progress": step_progress,
+        }
 
     payload = build_legacy_task_state_view(canonical, legacy_extras=legacy_extras)
     payload["status"] = task.status.value

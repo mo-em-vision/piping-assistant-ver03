@@ -6,19 +6,23 @@ alwaysApply: false
 
 # Architecture Audit Mode
 
-## Living sync (default during implementation)
+## Living sync (during implementation)
 
-When the user edits code, **update affected audit documentation in the same task**:
+Living-audit documents (`docs/audit/**`, per-folder audit `README.md` files listed in [docs/audit/INDEX.md](docs/audit/INDEX.md)) are **protected** — see [`.cursor/rules/protected-documentation.mdc`](.cursor/rules/protected-documentation.mdc).
 
-1. Find the audit doc via [docs/audit/INDEX.md](docs/audit/INDEX.md).
-2. Update only impacted sections per [docs/audit/MAINTENANCE.md](docs/audit/MAINTENANCE.md).
-3. If the user cites `@audit path#section`, edit that section first.
+When code changes affect living documentation:
 
-Cross-cutting updates when relevant: `docs/audit/DUPLICATES.md`, `docs/audit/EXECUTION_TRACES.md`.
+1. **Identify** which audit docs or maintained README sections require updates (use [docs/audit/INDEX.md](docs/audit/INDEX.md) and [docs/audit/MAINTENANCE.md](docs/audit/MAINTENANCE.md)).
+2. **If the user has explicitly authorized** those documentation edits in the current task — update only the impacted sections in the same task per MAINTENANCE. If the user cites `@audit path#section`, edit that section first.
+3. **If authorization has not been given** — leave protected files unchanged; report the required documentation updates (file paths and sections); request explicit user approval before editing.
+
+An instruction to “keep audits updated” does **not** override protected-file approval unless the task explicitly authorizes the affected files or defined documentation scope.
+
+Cross-cutting updates when relevant and authorized: `docs/audit/DUPLICATES.md`, `docs/audit/EXECUTION_TRACES.md`.
 
 ## Audit-only pass (explicit request)
 
-When the user asks for an architecture **audit** (not a feature), follow [docs/todo/Architecture Audit Mode.md](docs/todo/Architecture Audit Mode.md):
+When the user asks for an architecture **audit** (not a feature), follow [docs/process/architecture_audit_mode.md](docs/process/architecture_audit_mode.md):
 
 - DO NOT modify application code.
 - Document the code as it exists today.
@@ -28,4 +32,4 @@ When the user asks for an architecture **audit** (not a feature), follow [docs/t
 
 Purpose, Files, Entry Points, Dependencies, Runtime Usage, Possible Dead Code, Notes, Per-file inventory, Execution traces.
 
-Accuracy over speed in audit-only mode; surgical section updates in living sync mode.
+Accuracy over speed in audit-only mode; surgical section updates in living sync mode when documentation edits are explicitly authorized.

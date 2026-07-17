@@ -6,7 +6,6 @@ import {
   isVolatileDisplayBlock,
   mergeEquationTraceHistoryKey,
 } from '@/utils/displayBlockLifecycle'
-import { blockDisplayRole } from '@/utils/displayRole'
 
 function withoutVolatileBlocks(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
   return blocks.filter((block) => !isVolatileDisplayBlock(block))
@@ -138,16 +137,12 @@ function preferRicherEquationBlock(
     : previous
 }
 
-function collectInputWaitingBlocks(blocks: DisplayOutputBlock[]): DisplayOutputBlock[] {
-  return blocks.filter((block) => blockDisplayRole(block) === 'input_waiting')
-}
-
 /**
  * Merge display outputs by lifecycle:
  * - durable blocks update/append by stable block id only
  * - preview equation blocks keyed by stable equation id; retain visited previews from previous
  * - other preview blocks replace by display_channel when present
- * - volatile blocks are dropped except ephemeral input_waiting from the incoming snapshot
+ * - volatile blocks are dropped (active ask lives in composer current_ask only)
  */
 export function mergeDisplayOutputs(
   previous: DisplayOutputBlock[],
@@ -155,7 +150,6 @@ export function mergeDisplayOutputs(
 ): DisplayOutputBlock[] {
   const filteredPrevious = withoutVolatileBlocks(previous)
   const filteredIncoming = withoutVolatileBlocks(incoming)
-  const inputWaiting = collectInputWaitingBlocks(incoming)
 
   const { durable: durablePrevious, preview: previewPrevious } =
     partitionByLifecycle(filteredPrevious)
@@ -188,7 +182,6 @@ export function mergeDisplayOutputs(
     ...mergedDurable,
     ...previewEquations,
     ...Array.from(previewByChannel.values()),
-    ...inputWaiting,
   ]
 }
 

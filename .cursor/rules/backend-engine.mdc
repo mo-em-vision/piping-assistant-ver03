@@ -20,8 +20,8 @@ alwaysApply: false
 ## User-facing prompts
 
 - **Planner** (`engine/planner/`) — navigation only: phases, missing fields, submittable ids. No prompt copy as source of truth.
-- **Messaging** (`engine/messaging/`) — deterministic user-facing text. Entry point: `parameter_input_prompt.build_parameter_input_prompt()`. Defaults: `workflow_parameter_prompts.py`.
-- See `docs/rules.md` §12 and `docs/core/11. planner_layer_design.md`.
+- **Messaging** (`engine/messaging/`) — deterministic user-facing text from `PARAM-*` metadata. Entry point: `parameter_input_prompt.build_parameter_input_prompt()`. See `docs/rules.md` §12 and §17.
+- See `docs/core/11. planner_layer_design.md`.
 
 ## User data (packaged desktop)
 

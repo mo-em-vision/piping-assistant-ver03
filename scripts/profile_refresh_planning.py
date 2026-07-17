@@ -44,11 +44,24 @@ def _build_service() -> DesktopApiService:
 
 
 def profile_refresh(task, reader: StandardsReader) -> list[tuple[str, float]]:
-    from api.workflow_bootstrap import _refresh_task_planning_impl
+    from api.workflow_bootstrap import _finalize_planning_state
+    from engine.planning.planning_refresh import refresh_task_planning_state
 
     timings: list[tuple[str, float]] = []
     t0 = time.perf_counter()
-    _refresh_task_planning_impl(task, reader, propose_defaults=False)
+    ctx = refresh_task_planning_state(task, reader, propose_defaults=False)
+    if ctx is not None:
+        _finalize_planning_state(
+            task,
+            reader,
+            workflow_id=ctx.workflow_id,
+            root_slug=ctx.root_slug,
+            preview=ctx.preview,
+            graph=ctx.graph,
+            engine=ctx.engine,
+            active_nodes=ctx.active_nodes,
+            uses_micro=ctx.uses_micro,
+        )
     timings.append(("refresh_task_planning_total", (time.perf_counter() - t0) * 1000.0))
     return timings
 

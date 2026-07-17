@@ -2,10 +2,32 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+from api.desktop_service import DesktopApiService
+from config.loader import CLIConfig
 from engine.state.state_manager import TaskStateManager
 from models.task import TaskStatus
+from tests.api.conftest import api_session_id
 from tests.api.test_equation_display_trace import EQ_2_ID, EQ_3A_ID, _apply_simulated_completed_state
 from tests.helpers.goals import task_with_planning
+
+EQ_2_BLOCK_ID = f"equation-{EQ_2_ID}"
+EQ_3A_BLOCK_ID = f"equation-{EQ_3A_ID}"
+
+
+def _service(tmp_path: Path, project_root: Path) -> DesktopApiService:
+    config = CLIConfig(
+        report_format="html",
+        language="english",
+        default_standard="ASME_B31.3",
+        sessions_dir=tmp_path / "sessions",
+        standards_root=project_root / "knowledge" / "standards",
+        openai_api_key=None,
+        openai_model="gpt-4o-mini",
+        openai_base_url=None,
+    )
+    return DesktopApiService(config=config, session_id="default")
 
 
 def test_discover_includes_definition_equation_after_execution_trace(standards_reader) -> None:
@@ -184,3 +206,77 @@ def test_definition_equation_completion_records_display_trace(standards_reader) 
     assert eq2_trace.get("status") == "evaluated"
     assert eq2_trace.get("substituted_latex")
     assert eq2_trace.get("result_latex")
+
+
+def test_bootstrap_equation_preview_is_not_durable_display(
+    tmp_path: Path,
+    project_root: Path,
+) -> None:
+    service = _service(tmp_path, project_root)
+    session_id = api_session_id(service)
+    created = service.create_task("pipe_wall_thickness_design", session_id)
+    task_id = created["task_id"]
+
+    manager = service._store_for(session_id).load_state_manager()
+    task = manager.get_task(task_id)
+    assert EQ_2_ID in {
+        key.split("|")[2]
+        for key in (task.outputs.get("_equation_trace_keys") or [])
+        if isinstance(key, str)
+    }
+
+    service.submit_input(
+        task_id,
+        parameter="straight_pipe_section",
+        value=True,
+        session_id=session_id,
+    )
+    service.submit_input(
+        task_id,
+        parameter="pressure_loading",
+        value="internal_pressure",
+        session_id=session_id,
+    )
+
+    state = service.get_task(task_id, session_id)
+    equation_ids = [
+        str(block.get("id"))
+        for block in state.get("display_outputs") or []
+        if isinstance(block, dict)
+        and (block.get("type") == "equation" or str(block.get("id", "")).startswith("equation-"))
+    ]
+
+    assert EQ_2_BLOCK_ID not in equation_ids
+    assert equation_ids == [EQ_3A_BLOCK_ID]
+
+    task = manager.get_task(task_id)
+    assert EQ_2_ID in {
+        key.split("|")[2]
+        for key in (task.outputs.get("_equation_trace_keys") or [])
+        if isinstance(key, str)
+    }
+
+
+def test_definition_equation_appears_when_prerequisites_available(standards_reader) -> None:
+    from api.output_blocks import build_display_outputs
+
+    manager = TaskStateManager()
+    task = manager.create_task("eq-registry-prereq-visible", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "path_decision": {"selected_node": "304.1.2-a"},
+        "current_phase": "definition_equation_completion",
+    }
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    _apply_simulated_completed_state(task, standards_reader)
+    trace = task.outputs["_execution_trace"]
+    task.outputs["_execution_trace"] = [entry for entry in trace if entry.get("node_id") != EQ_2_ID]
+
+    blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
+    equation_ids = [
+        str(block.get("equation_node_id"))
+        for block in blocks
+        if str(block.get("type") or "") == "equation"
+    ]
+
+    assert EQ_3A_ID in equation_ids
+    assert EQ_2_ID in equation_ids

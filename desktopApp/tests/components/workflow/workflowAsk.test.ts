@@ -138,6 +138,60 @@ describe('getWorkflowAsk', () => {
     expect(ask.prompt).toBe('Select the pipe material. (start typing to see the available options)')
   })
 
+  it('uses backend current_ask parameter when it is submittable but not first in submittable list', () => {
+    const ask = getWorkflowAsk({
+      ...mockTaskState,
+      current_ask: {
+        kind: 'input',
+        parameter_id: 'material_grade',
+        prompt: 'Select the pipe material.',
+      },
+      progress: {
+        ...mockTaskState.progress,
+        submittable_parameters: ['nominal_pipe_size', 'material_grade'],
+        current_step_id: 'nominal_pipe_size',
+      },
+      parameters: [
+        {
+          name: 'nominal_pipe_size',
+          label: 'Nominal Pipe Size',
+          type: 'number',
+          required: true,
+          units: [],
+          default_unit: 'dimensionless',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          submittable: true,
+          guidance: 'Enter NPS first in timeline order.',
+        },
+        {
+          name: 'material_grade',
+          label: 'Material Grade',
+          type: 'material',
+          required: true,
+          units: [],
+          default_unit: 'dimensionless',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          submittable: true,
+          guidance: 'Ignored when backend ask matches.',
+        },
+      ],
+    })
+
+    expect(ask.kind).toBe('input')
+    expect(ask.parameter?.name).toBe('material_grade')
+    expect(ask.prompt).toBe('Select the pipe material.')
+  })
+
   it('prefers backend current_ask when provided', () => {
     const ask = getWorkflowAsk({
       ...mockTaskState,

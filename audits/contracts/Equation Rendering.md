@@ -39,17 +39,17 @@ Raw internal values such as `waiting_user_input` shall not be displayed.
 
 ### 3. Solved equation rendering
 
-Once all required parameters for the equation are available, the equation display shall update to show:
+Once all required parameters for the equation are available, the equation display shall update within **one stable equation block** (`equation-{equation_node_id}`) to show progressive stages from `equation_display_trace`:
 
 ```text
 Raw symbolic equation
-Substituted equation
+Parameter input table
+Substituted equation (when inputs resolve)
 Final evaluated result
-Parameter table
 References / chips, if available
 ```
 
-The parameter table shall move beneath the final evaluated result once the equation is solved.
+The parameter input table **remains visible after evaluation** within the same block — it is not relocated to a separate post-solve position.
 
 The raw symbolic equation shall remain visible after substitution and evaluation.
 
@@ -57,11 +57,13 @@ The substituted equation shall show actual values inserted into the equation.
 
 The final result shall be shown clearly, including units where applicable.
 
+**Substitution authority (closed):** The backend `equation_display_trace` defines **both content and ordering** of equation display stages. Frontend rendering is a **pure projection** of this ordered trace. The frontend must not generate substitution strings, reorder trace stages, relocate the parameter table, or perform KaTeX/engineering formatting. Authority: `docs/rules.md` §24.
+
 ---
 
 ## Parameter table rendering
 
-When the equation is solved, the related parameter table shall be rendered beneath the final evaluated result.
+The parameter input table is rendered as stage 2 within the single equation block (see §3 progressive layout). After evaluation, the table **remains in place** within that block — not moved beneath the final result as a separate layout step.
 
 The table shall use parameter metadata from parameter nodes only.
 
@@ -129,7 +131,9 @@ The dependent equation must not permanently show unresolved placeholders after t
 
 ## Append-only behavior
 
-Equation rendering shall follow the center panel transcript contract.
+Equation rendering shall follow the center panel transcript contract and `docs/rules.md` §25.
+
+**Append-only identity:** new durable blocks receive new `block_id`s; an existing durable block with the same `block_id` updates in place. Prior durable blocks are never removed or duplicated on reload.
 
 Previously rendered equations shall not disappear when later nodes are visited.
 
@@ -157,11 +161,11 @@ The equation rendering contract is satisfied only if all of the following are tr
     
 2. Before the equation is solved, unresolved parameter/request state is shown using user-friendly wording.
     
-3. Once parameters are available, substitution appears beneath the raw equation.
+3. Once parameters are available, substitution appears as the next stage within the same equation block (after the parameter input table).
     
-4. Final evaluated result appears beneath the substituted equation.
+4. Final evaluated result appears after the substituted expression within the same block.
     
-5. Parameter table appears beneath the final evaluated result after the equation is solved.
+5. Parameter input table remains visible within the same block before and after solve — not relocated post-solve.
     
 6. Parameter names are retrieved from parameter nodes only.
     
@@ -198,11 +202,13 @@ References / chips, if available
 ```text
 Equation title / friendly label
 Raw symbolic equation
+Parameter input table
 Substituted equation
 Final evaluated result
-Parameter table
 References / chips, if available
 ```
+
+(All stages within one stable `equation-{equation_node_id}` block per `equation_display_trace`.)
 
 ---
 
@@ -276,7 +282,7 @@ Audit questions:
     
 2. Does the frontend render substitution and result only when values are available?
     
-3. Does the frontend place the parameter table beneath the final result when solved?
+3. Does the frontend render `equation_display_trace` stages in backend-provided order (pure projection — no substitution generation or independent layout)?
     
 4. Does the frontend preserve previous equation blocks?
     
@@ -304,7 +310,7 @@ Equation node visited -> raw equation block emitted
 Equation unresolved -> user-friendly unresolved state emitted
 Equation parameters resolved -> substitution emitted
 Equation parameters resolved -> final result emitted
-Equation solved -> parameter table emitted after final result
+Equation solved -> parameter table remains in same block per equation_display_trace order
 Parameter table -> names retrieved from parameter nodes
 Parameter table -> descriptions retrieved from parameter nodes
 Lookup-derived parameter -> source table provenance emitted
@@ -331,9 +337,9 @@ Required coverage:
 
 ```text
 EquationOutput renders symbolic equation
-EquationOutput renders substitution after values resolve
+EquationOutput projects equation_display_trace stages in backend order (no client-side substitution)
 EquationOutput renders final result
-EquationOutput renders parameter table beneath final result
+EquationOutput renders parameter table within same equation block per trace order
 EquationOutput renders parameter description from parameter node metadata
 EquationOutput renders lookup-table provenance in Source column
 EquationOutput renders equation-derived provenance in Source column
@@ -362,7 +368,7 @@ For each checked workflow, capture:
 3. Raw equation rendered
 4. Substitution rendered
 5. Final result rendered
-6. Parameter table rendered beneath final result
+6. Parameter table visible within same equation block (trace order: symbolic -> table -> substituted -> result)
 7. Parameter names retrieved from parameter nodes
 8. Parameter descriptions retrieved from parameter nodes
 9. Lookup-derived parameters, if any
@@ -389,7 +395,7 @@ Known failure patterns to check:
 previous equations disappearing
 same equation rendered twice
 only some equations showing substitution
-parameter table shown in the wrong position after equation is solved
+parameter table layout diverging from equation_display_trace order
 dependent parameter showing waiting_user_input after evaluation
 raw internal IDs shown in visible output
 preview equation duplicating durable equation trace
@@ -415,5 +421,5 @@ The following details are not yet fixed and should be decided before implementat
     
 5. Whether equation references use equation labels, node titles, or reference chips.
     
-6. Whether substitution is generated backend-side, frontend-side, or from a shared structured equation trace.
+6. **Substitution source (closed):** Backend execution builds `equation_display_trace`; API serializes; frontend renders the ordered trace only. Authority: `docs/rules.md` §24.
     

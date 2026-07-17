@@ -395,7 +395,7 @@ describe('CenterPanel equation scroll ordering', () => {
     } as Partial<ReturnType<typeof useChatStore.getState>>)
   })
 
-  it('renders input_waiting after equation blocks and keeps equation layout in one article', () => {
+  it('renders equation blocks in scroll and routes active ask to composer only', () => {
     useTaskStore.setState({
       activeTask: {
         id: mockTaskState.task_id,
@@ -430,15 +430,6 @@ describe('CenterPanel equation scroll ordering', () => {
               ],
             },
           },
-          {
-            id: 'input-waiting',
-            type: 'text',
-            content: 'Waiting for your input to continue the workflow.',
-            display_role: 'input_waiting',
-            lifecycle: 'volatile',
-            volatile: true,
-            history_eligible: false,
-          },
         ],
         current_ask: {
           kind: 'input',
@@ -454,11 +445,11 @@ describe('CenterPanel equation scroll ordering', () => {
     const { container } = render(<CenterPanel />)
 
     const equationArticle = container.querySelector('.output-equation')
-    const waitingText = screen.getByText('Waiting for your input to continue the workflow.')
     expect(equationArticle).toBeTruthy()
     expect(equationArticle?.querySelector('.output-equation__input-table')).toBeTruthy()
+    expect(screen.getByText('Enter design pressure.')).toBeInTheDocument()
     expect(
-      equationArticle!.compareDocumentPosition(waitingText) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+      screen.queryByText('Waiting for your input to continue the workflow.'),
+    ).not.toBeInTheDocument()
   })
 })

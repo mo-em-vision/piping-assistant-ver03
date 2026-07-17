@@ -7,10 +7,10 @@ Engineering workflow entry points (not part of `knowledge/`). Workflows are stan
 ```
 workflows/
 ├── pipe-wall-thickness.yaml
-├── mawp.yaml
-├── WF-PIPE-WALL-THICKNESS/runtime.yaml
-└── WF-MAWP/runtime.yaml
+└── mawp.yaml
 ```
+
+Deterministic runtime metadata (`navigation`, `interactions`, `texts`, `documentation`, etc.) lives in the nested `runtime:` block inside each primary workflow YAML — not in separate sidecar files.
 
 ## Compile
 

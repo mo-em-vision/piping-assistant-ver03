@@ -12,7 +12,7 @@ Pack metadata (`pack.yaml`) declares standards-pack defaults inherited by all ch
 
 ## 3. Do not use this sidecar when
 
-- You need node-specific execution or navigation (use paragraph or workflow sidecars).
+- You need node-specific execution or navigation (use paragraph `execution` metadata or the nested `runtime:` block in the primary workflow YAML — not `pack.yaml`).
 - You are defining global ontology nodes (`knowledge/global/`).
 - A field must differ per node (set on the node; node wins over pack defaults).
 

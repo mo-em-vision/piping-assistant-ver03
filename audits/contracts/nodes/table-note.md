@@ -16,6 +16,7 @@ A table note node stores authoritative footnote prose for a standards lookup or 
 - You need official paragraph subsection text (use `paragraph` with `text.original`).
 - You need workflow UI copy (use `text` with a presentation `role`).
 - You need gatherable user input (use `parameter`).
+- You need executable table resolution (`lookup.table`, `lookup.rule`, `lookup.bindings`, `returns`) — author a `lookup` node per [lookup.md](lookup.md). A `table_note` stores footnote prose only.
 
 ## 4. File location
 
@@ -98,6 +99,8 @@ metadata:
 | `related_to` | any other node | Optional — cited content only, not the parent table |
 
 ## 11. Parent table authoring
+
+Parent nodes are typically `type: lookup`. Executable table resolution (`lookup.table`, `lookup.rule`, `lookup.bindings`, `returns`) is authored on that **lookup** node per [lookup.md](lookup.md). This contract governs footnote prose and parent linkage only — not lookup execution configuration.
 
 Parent lookup nodes list notes for aggregation **and** declare `has_table_note` edges:
 

@@ -38,37 +38,6 @@ goal_expansion:
     completion:
       when: target_parameter_satisfied
       status: finished
-phases:
-- key: expansion_assumptions
-  purpose: Confirm assumptions required before graph expansion.
-  required_parameters:
-  - PARAM-straight-pipe-section
-- key: path_decisions
-  purpose: Select wall thickness basis.
-  required_parameters:
-  - PARAM-wall-thickness-basis
-- key: parameter_gathering
-  purpose: Collect geometry and material inputs.
-  required_parameters:
-  - PARAM-outside-diameter
-  - PARAM-nominal-pipe-size
-  - PARAM-pipe-schedule
-  - PARAM-actual-wall-thickness
-  - PARAM-corrosion-allowance
-  - PARAM-material-grade
-  - PARAM-design-temperature
-- key: coefficient_resolution
-  purpose: Resolve coefficients required by the MAWP equation.
-  required_parameters:
-  - PARAM-pipe-construction-type
-  - PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
-  - PARAM-weld-strength-reduction-factor-w
-- key: execution_assumptions
-  purpose: Resolve execution assumptions.
-  required_parameters: []
-- key: definition_equation_completion
-  purpose: Complete definition and equation inputs.
-  required_parameters: []
 runtime:
   navigation:
     assumption_gate_fields:
@@ -80,17 +49,16 @@ runtime:
       path_decisions:
       - wall_thickness_basis
       parameter_gathering:
-      - outside_diameter
       - nominal_pipe_size
       - pipe_schedule
-      - actual_wall_thickness
-      - corrosion_allowance
+      - outside_diameter
       - material_grade
       - design_temperature
       coefficient_resolution:
       - pipe_construction_type
       execution_assumptions: []
-      definition_equation_completion: []
+      definition_equation_completion:
+      - corrosion_allowance
   assumptions:
   - id: pressure_loading
     field: pressure_loading

@@ -5,12 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from api.equation_inputs_display import format_value_with_unit_for_display
-from api.workflow_timeline import (
-    collect_all_missing,
-    submittable_parameter_ids,
-)
+from engine.navigation import collect_all_missing, submittable_parameter_ids, timeline_step_id_for_parameter
 from engine.inspection.value_classification import is_inspection_excluded_output_key
 from engine.planner.goal_navigation import build_current_ask, next_actionable_goal
+from engine.planner.workflow_goal_metadata import workflow_display_title_from_node
+from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
 from engine.reference.parameter_keys import param_node_id_for_input
 from engine.reference.standards_reader import StandardsReader
 from engine.state.goal_projection import (
@@ -89,6 +88,11 @@ _INPUT_STEP_IDS = frozenset(
     }
 )
 
+_CATALOG_DISPLAY_TITLES = {
+    PIPE_WALL_THICKNESS_DESIGN: "Pipe Wall Thickness Design",
+    MAWP_DESIGN: "Maximum Allowable Working Pressure (MAWP)",
+}
+
 
 def build_canonical_task_state(
     task: Task,
@@ -121,7 +125,7 @@ def build_canonical_task_state(
         "task": {
             "id": task.task_id,
             "workflow_id": _task_workflow_id(task),
-            "name": _task_display_name(task),
+            "name": _task_display_name(task, reader=reader),
             "status": status,
         },
         "execution": execution,
@@ -318,16 +322,21 @@ def _task_workflow_id(task: Task) -> str:
     return ""
 
 
-def _task_display_name(task: Task) -> str:
+def _task_display_name(task: Task, *, reader: StandardsReader | None = None) -> str:
     custom = task.outputs.get("display_name")
     if isinstance(custom, str) and custom.strip():
         return custom.strip()
     workflow_id = _task_workflow_id(task)
     if not workflow_id:
         return task.task_id
-    from api.workflow_display import task_display_title
-
-    return task_display_title(workflow_id)
+    if reader is not None:
+        node_title = workflow_display_title_from_node(reader, workflow_id)
+        if node_title:
+            return node_title
+    catalog_title = _CATALOG_DISPLAY_TITLES.get(workflow_id)
+    if catalog_title:
+        return catalog_title
+    return workflow_id.replace("_", " ").title()
 
 
 def _build_current_blocker(
@@ -340,6 +349,22 @@ def _build_current_blocker(
     if task.status != TaskStatus.AWAITING_INPUT:
         return {"type": "none"}
 
+    ask = build_current_ask(task, planning, reader=reader)
+    if isinstance(ask, dict) and ask.get("kind") == "input":
+        param = ask.get("parameter_id")
+        if isinstance(param, str) and param.strip():
+            field = timeline_step_id_for_parameter(task, param)
+            return {
+                "type": "missing_input",
+                "field": field,
+                "parameter_node_id": param_node_id_for_input(field),
+            }
+
+    from engine.planner.plan_selection import task_has_stored_engineering_plan
+
+    if task_has_stored_engineering_plan(task):
+        return {"type": "none"}
+
     goal = next_actionable_goal(task)
     if goal is not None:
         field = goal_parameter_key(goal)
@@ -348,19 +373,6 @@ def _build_current_blocker(
             "field": field,
             "parameter_node_id": param_node_id_for_input(field),
         }
-
-    ask = build_current_ask(task, planning, reader=reader)
-    if isinstance(ask, dict) and ask.get("kind") == "input":
-        param = ask.get("parameter_id")
-        if isinstance(param, str) and param.strip():
-            from api.workflow_timeline import timeline_step_id_for_parameter
-
-            field = timeline_step_id_for_parameter(task, param)
-            return {
-                "type": "missing_input",
-                "field": field,
-                "parameter_node_id": param_node_id_for_input(field),
-            }
 
     if submittable:
         field = submittable[0]

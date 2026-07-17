@@ -1,6 +1,6 @@
 # Parameter key consistency
 
-When authoring or editing global parameters, lookup tables, workflow runtime sidecars, or engine code that reads/writes Facts:
+When authoring or editing global parameters, lookup tables, workflow nested runtime metadata, or engine code that reads/writes Facts:
 
 ## Name / id / key convention
 
@@ -24,7 +24,7 @@ Helpers: `param_id_from_name()`, `param_key_from_param_id()`, `validate_paramete
 Use the **`key`** field from `knowledge/global/parameters/nodes/PARAM-*.yaml` as the runtime parameter id everywhere:
 
 - Lookup table node `inputs[].id`
-- Workflow `runtime.yaml` phase field lists
+- Workflow nested `runtime.navigation` phase field lists
 - Fact storage and API `parameter` submit id
 - Planner `required_facts` and graph expansion field names
 

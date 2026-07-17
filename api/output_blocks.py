@@ -27,7 +27,7 @@ from api.workflow_bootstrap import resolve_activated_definition_node
 from engine.reference.formula_display import load_equation_context
 from engine.reference.standards_reader import StandardsReader
 from engine.state.goal_projection import planning_projection
-from models.task import Task, TaskStatus
+from models.task import Task
 
 
 def build_display_outputs(
@@ -48,7 +48,6 @@ def build_display_outputs(
     blocks.extend(_workflow_scope_blocks(task, planning, resolved_reader))
     blocks.extend(_paragraph_context_blocks(task, planning, resolved_reader, trace=trace_list))
     blocks.extend(_equation_display_blocks(task, planning, resolved_reader, trace=trace_list))
-    blocks.extend(_input_waiting_blocks(task, blocks))
 
     summary = build_result_summary_display_block(task, resolved_reader)
     if summary is not None:
@@ -145,31 +144,6 @@ def _reader_for(standards_root: Path | None) -> StandardsReader:
 
 def _warning_blocks_from_task(task: Task) -> list[dict[str, Any]]:
     return [_warning_block(message) for message in task.warnings]
-
-
-def _input_waiting_blocks(
-    task: Task,
-    existing_blocks: list[dict[str, Any]] | None = None,
-) -> list[dict[str, Any]]:
-    if task.status != TaskStatus.AWAITING_INPUT:
-        return []
-    if _equation_blocks_show_awaiting_input(existing_blocks or []):
-        return []
-    from engine.messaging.center_panel_copy import GENERIC_INPUT_WAITING_MESSAGE
-
-    return [
-        tag_display_block(
-            {
-                "id": "input-waiting",
-                "type": "text",
-                "content": GENERIC_INPUT_WAITING_MESSAGE,
-                "variant": "caption",
-            },
-            display_role=DisplayRole.input_waiting.value,
-            history_eligible=False,
-            volatile=True,
-        )
-    ]
 
 
 def _equation_blocks_show_awaiting_input(blocks: list[dict[str, Any]]) -> bool:

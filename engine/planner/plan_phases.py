@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from models.engineering_plan import EngineeringPlan, InputStrategy, PlanPhase, PlanRequirement
-from models.fact import Fact
+from models.fact import Fact, FactClass, ValidationStatus
 from models.planning import NavigationPhase
 
 _PHASE_ORDER = [
@@ -40,6 +40,55 @@ def strategy_field(req: PlanRequirement) -> str:
     return req.field
 
 
+_LOOKUP_OUTPUT_METHODS = frozenset({"table_lookup", "catalog_lookup", "lookup"})
+_NON_ASKABLE_CLASSES = frozenset(
+    {"equation_result", "derived_value", "report_output", "validation_check"}
+)
+
+
+def _is_lookup_produced_output(req: PlanRequirement) -> bool:
+    """True when the requirement value is produced by lookup/equation execution."""
+    if req.requirement_class in _NON_ASKABLE_CLASSES:
+        return True
+    resolution = req.resolution or {}
+    role = str(resolution.get("role") or "").strip()
+    if role == "lookup_output":
+        return True
+    if role == "lookup_key":
+        return False
+    if req.requirement_class == "table_lookup":
+        method = str(resolution.get("method") or "").strip()
+        output_field = resolution.get("output_field")
+        if method in _LOOKUP_OUTPUT_METHODS:
+            return True
+        if output_field and str(output_field) == req.field and method in _LOOKUP_OUTPUT_METHODS:
+            return True
+        if req.id.endswith("_lookup") and method in _LOOKUP_OUTPUT_METHODS:
+            return True
+    method = str(resolution.get("method") or "").strip()
+    output_field = resolution.get("output_field")
+    if method in _LOOKUP_OUTPUT_METHODS and output_field and str(output_field) == req.field:
+        return True
+    return False
+
+
+def _ask_policy_allows_next_field(req: PlanRequirement) -> bool:
+    if req.question_spec is None:
+        return False
+    policy = req.question_spec.ask_policy
+    if policy == "ask_now":
+        return True
+    if policy in {"ask_later", "do_not_ask"}:
+        return False
+    if policy == "ask_if_needed":
+        if req.activation_status != "active" or req.status != "missing":
+            return False
+        if _is_lookup_produced_output(req):
+            return False
+        return req.requirement_class in {"user_input", "branch_decision"}
+    return False
+
+
 def _is_askable_requirement(req: PlanRequirement) -> bool:
     if req.activation_status != "active":
         return False
@@ -47,9 +96,7 @@ def _is_askable_requirement(req: PlanRequirement) -> bool:
         return False
     if req.requirement_class not in {"user_input", "branch_decision"}:
         return False
-    if req.question_spec is None:
-        return False
-    if req.question_spec.ask_policy in {"ask_later", "do_not_ask", "ask_if_needed"}:
+    if not _ask_policy_allows_next_field(req):
         return False
     return True
 
@@ -212,12 +259,120 @@ def _resolved_input_fields(requirements: dict[str, PlanRequirement]) -> list[str
     ]
 
 
+def _is_gatherable_submittable_requirement(req: PlanRequirement) -> bool:
+    if req.activation_status != "active":
+        return False
+    if req.status != "missing":
+        return False
+    if req.requirement_class in _NON_ASKABLE_CLASSES:
+        return False
+    if req.requirement_class not in {"user_input", "branch_decision"}:
+        return False
+    if _is_lookup_produced_output(req):
+        return False
+    return True
+
+
+def _resolution_branch_submittable_extras(
+    requirements: dict[str, PlanRequirement],
+    next_fields: list[str],
+    known_facts: dict[str, Fact] | None,
+) -> list[str]:
+    """Metadata-driven branch fact keys when an anchor with alternatives is submittable."""
+    if not next_fields:
+        return []
+    next_set = set(next_fields)
+    extras: list[str] = []
+    for req in requirements.values():
+        if not req.alternatives:
+            continue
+        anchor = str(req.field).strip()
+        if not anchor or anchor not in next_set:
+            continue
+        from engine.graph.resolution_branches import (
+            active_resolution_branch_id,
+            resolution_branch_fact_key,
+        )
+
+        if active_resolution_branch_id(anchor, known_facts or {}) is not None:
+            continue
+        branch_key = resolution_branch_fact_key(anchor)
+        if branch_key in next_set or branch_key in extras:
+            continue
+        extras.append(branch_key)
+    return extras
+
+
+def _proposed_default_confirmation_fields(
+    requirements: dict[str, PlanRequirement],
+    *,
+    current_phase: str,
+    next_fields: list[str],
+    known_facts: dict[str, Fact] | None,
+) -> list[str]:
+    """Unresolved proposed-default confirmations represented as missing planner requirements."""
+    if not known_facts or not next_fields:
+        return []
+    next_field = next_fields[0]
+    for req in requirements.values():
+        if req.phase != current_phase:
+            continue
+        if not _is_gatherable_submittable_requirement(req):
+            continue
+        field = strategy_field(req)
+        if field != next_field:
+            continue
+        for candidate_key in (field, req.field):
+            existing = known_facts.get(candidate_key)
+            if existing is None:
+                continue
+            if (
+                existing.fact_class == FactClass.DEFAULT_CONFIRMED
+                and existing.validation.status == ValidationStatus.PENDING
+            ):
+                return []
+    return []
+
+
+def derive_submittable_fields(
+    requirements: dict[str, PlanRequirement],
+    *,
+    next_fields: list[str],
+    current_phase: str,
+    mode: str,
+    known_facts: dict[str, Fact] | None = None,
+) -> list[str]:
+    """Planner-owned forward-submission fields for the current plan state."""
+    if current_phase in {NavigationPhase.READY.value, *_COMPUTATION_PHASES}:
+        return []
+    if not next_fields:
+        return []
+
+    if mode == "single_next_question":
+        submittable = list(dict.fromkeys(next_fields))
+        for extra in _resolution_branch_submittable_extras(
+            requirements,
+            submittable,
+            known_facts,
+        ):
+            if extra not in submittable:
+                submittable.append(extra)
+        _proposed_default_confirmation_fields(
+            requirements,
+            current_phase=current_phase,
+            next_fields=submittable,
+            known_facts=known_facts,
+        )
+        return submittable
+
+    return list(dict.fromkeys(next_fields))
+
+
 def derive_input_strategy(
     plan: EngineeringPlan,
     known_facts: dict[str, Fact] | None = None,
 ) -> InputStrategy:
     """Derive single-next-question input strategy from plan requirements and phase state."""
-    del known_facts
     requirements = plan.requirements
     phases = list(plan.phases)
     if not phases:
@@ -226,11 +381,20 @@ def derive_input_strategy(
     current_phase = first_incomplete_phase(requirements)
     askable = _askable_fields_for_phase(requirements, current_phase)
     next_fields = [field for _, field in askable[:1]]
+    mode = "single_next_question"
+    submittable_fields = derive_submittable_fields(
+        requirements,
+        next_fields=next_fields,
+        current_phase=current_phase,
+        mode=mode,
+        known_facts=known_facts,
+    )
 
     return InputStrategy(
-        mode="single_next_question",
+        mode=mode,
         current_phase=current_phase,
         next_fields=next_fields,
+        submittable_fields=submittable_fields,
         blocked_fields=_blocked_fields(requirements, phases, next_fields),
         resolved_fields=_resolved_input_fields(requirements),
     )
@@ -241,14 +405,15 @@ def build_plan_phases_and_strategy(
     known_facts: dict[str, Fact] | None = None,
 ) -> tuple[list[PlanPhase], InputStrategy]:
     """Derive phases and input strategy together for plan construction."""
-    del known_facts
     current_phase = first_incomplete_phase(requirements)
     askable = _askable_fields_for_phase(requirements, current_phase)
     next_fields = [field for _, field in askable[:1]]
+    mode = "single_next_question"
     strategy_shell = InputStrategy(
-        mode="single_next_question",
+        mode=mode,
         current_phase=current_phase,
         next_fields=next_fields,
+        submittable_fields=[],
         blocked_fields=[],
         resolved_fields=[],
     )
@@ -256,10 +421,18 @@ def build_plan_phases_and_strategy(
         requirements,
         input_strategy=strategy_shell,
     )
+    submittable_fields = derive_submittable_fields(
+        requirements,
+        next_fields=next_fields,
+        current_phase=current_phase,
+        mode=mode,
+        known_facts=known_facts,
+    )
     strategy = InputStrategy(
-        mode="single_next_question",
+        mode=mode,
         current_phase=current_phase,
         next_fields=next_fields,
+        submittable_fields=submittable_fields,
         blocked_fields=_blocked_fields(requirements, phases, next_fields),
         resolved_fields=_resolved_input_fields(requirements),
     )
@@ -268,3 +441,35 @@ def build_plan_phases_and_strategy(
 
 # Backward-compatible alias used by older planner tests and docs.
 derive_plan_phase_statuses = derive_plan_phases
+
+
+def refresh_stored_plan_input_strategy(
+    task: Task,
+    known_facts: dict[str, Fact] | None = None,
+) -> bool:
+    """Re-derive phases and input strategy on a stored plan without rebuilding requirements."""
+    from engine.graph.definition_equations import has_execution_trace
+    from engine.planner.legacy_goal_adapter import store_engineering_plan_on_task
+    from engine.planner.plan_selection import engineering_plan_for_task
+    from engine.state.task_facts import active_facts
+
+    plan = engineering_plan_for_task(task)
+    if plan is None or not plan.requirements:
+        return False
+
+    facts = known_facts if known_facts is not None else dict(active_facts(task))
+    from engine.planner.engineering_plan_builder import _promote_late_phase_inputs
+    from engine.planner.generic_plan import (
+        apply_alternative_resolution_statuses,
+        apply_generic_requirement_statuses,
+    )
+
+    apply_generic_requirement_statuses(plan.requirements, existing_inputs=facts)
+    apply_alternative_resolution_statuses(plan.requirements, existing_inputs=facts)
+    if has_execution_trace(task):
+        _promote_late_phase_inputs(plan)
+    phases, strategy = build_plan_phases_and_strategy(plan.requirements, known_facts=facts)
+    plan.phases = phases
+    plan.input_strategy = strategy
+    store_engineering_plan_on_task(task, plan)
+    return True

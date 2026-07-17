@@ -1,0 +1,56 @@
+---
+description: Table-backed composer options via SQL option_queries — no static composer_options on table PARAMs
+globs: knowledge/global/parameters/**,knowledge/standards/**/tables/**,knowledge/global/materials/**,engine/reference/table_options_resolver.py,api/parameter_definitions.py,api/material_catalog_service.py
+alwaysApply: false
+---
+
+# Table-backed composer options (SQL)
+
+Selectable values from SQLite tables use **generic SQL profiles** — not per-parameter Python in `api/`.
+
+**Source of truth:** `docs/rules.md` §17, `.cursor/rules/param-composer-metadata.mdc`.
+
+## Two patterns (mutually exclusive on PARAM)
+
+| Pattern | PARAM fields | Options from |
+| --- | --- | --- |
+| Static | `composer_options` only | PARAM YAML (path decisions, pressure loading, …) |
+| Table-backed | `table_options: {table, query}` only | `option_queries` on table/catalog YAML + `table_options_resolver` |
+
+Never author `composer_options` and `table_options` on the same PARAM node.
+
+## Table / catalog YAML (`option_queries`)
+
+```yaml
+option_queries:
+  nps_values:
+    storage: pipe_dimensions
+    value_column: nps
+    label_template: "NPS {value}"
+    order_by: outside_diameter_mm
+  schedules_for_nps:
+    storage: pipe_dimensions
+    requires: [nominal_pipe_size]
+    value_column: schedule
+    label_template: "Schedule {value} ({wall_thickness_mm:g} mm / {wall_thickness_in:g} in)"
+    filter:
+      nominal_pipe_size: nps
+```
+
+Supported `storage`: `pipe_dimensions`, `standards_tables`, `material_catalog`.
+
+## Default query behavior
+
+- Profile with **no** `requires` / `filter` → unfiltered SQL (all table values).
+- Profile with `requires` / `filter` → empty options until prerequisite facts exist in task state, then filtered SQL.
+- `mode: search` (material catalog) → typeahead only; requires `search_text` query param.
+
+## Do not
+
+- Add `_foo_dropdown_options()` or `if parameter_id == …` option branches in `api/parameter_definitions.py`.
+- Put static `composer_options` on table-backed PARAMs (NPS, schedule, material grade, …).
+- Hardcode table-specific option lists in `engine/reference/` or `api/`.
+
+## Verification
+
+- `python -m pytest tests/reference/test_table_options_policy.py tests/api/test_nps_dropdown_definitions.py -q`

@@ -8,7 +8,7 @@ import {
 import type { DisplayOutputBlock } from '@/types/backend/outputs'
 
 describe('guidanceTranscriptToDisplayBlocks', () => {
-  it('converts workflow node title and description blocks to durable text display blocks', () => {
+  it('projects legacy workflow title and description to workflow_intro', () => {
     const blocks = guidanceTranscriptToDisplayBlocks([
       {
         block_id: 'workflow-title-pipe_wall_thickness_design',
@@ -26,12 +26,13 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
       },
     ])
 
-    expect(blocks).toHaveLength(2)
-    expect(blocks[0]?.display_role).toBe('title')
-    expect(blocks[1]?.display_role).toBe('workflow_description')
+    expect(blocks).toHaveLength(1)
+    expect(blocks[0]?.display_role).toBe('workflow_intro')
+    expect(blocks[0]?.id).toBe('workflow-intro-pipe_wall_thickness_design')
+    expect(blocks[0]?.title).toBe('Pipe Wall Thickness Design')
   })
 
-  it('includes title and description before guidance and engineering blocks', () => {
+  it('includes workflow_intro before guidance and engineering blocks', () => {
     const displayOutputs: DisplayOutputBlock[] = [
       {
         id: 'equation-asme-b313-304-1-2-eq-3a',
@@ -67,14 +68,14 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
     ]
 
     const items = buildCenterPanelTranscript(displayOutputs, transcript, 'pipe_wall_thickness_design')
-    expect(items).toHaveLength(4)
-    expect(items[0]?.block.id).toBe('workflow-title-pipe_wall_thickness_design')
-    expect(items[1]?.block.id).toBe('workflow-description-pipe_wall_thickness_design')
-    expect(items[2]?.block.id).toContain('guidance-')
-    expect(items[3]?.block.id).toBe('equation-asme-b313-304-1-2-eq-3a')
+    expect(items).toHaveLength(3)
+    expect(items[0]?.block.id).toBe('workflow-intro-pipe_wall_thickness_design')
+    expect(items[0]?.block.display_role).toBe('workflow_intro')
+    expect(items[1]?.block.id).toContain('guidance-')
+    expect(items[2]?.block.id).toBe('equation-asme-b313-304-1-2-eq-3a')
   })
 
-  it('renders ephemeral input_waiting block from display outputs', () => {
+  it('excludes volatile input_waiting blocks from center panel scroll', () => {
     const items = buildCenterPanelTranscript(
       [
         {
@@ -90,22 +91,12 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
       [],
     )
 
-    expect(items).toHaveLength(1)
-    expect(items[0]?.block.display_role).toBe('input_waiting')
+    expect(items).toHaveLength(0)
   })
 
-  it('orders input_waiting after durable equation blocks in center panel merge', () => {
+  it('orders equation blocks without input_waiting in center panel merge', () => {
     const items = buildCenterPanelTranscript(
       [
-        {
-          id: 'input-waiting',
-          type: 'text',
-          content: 'Waiting for your input to continue the workflow.',
-          display_role: 'input_waiting',
-          lifecycle: 'volatile',
-          volatile: true,
-          history_eligible: false,
-        },
         {
           id: 'equation-asme-b313-304-1-2-eq-3a',
           type: 'equation',
@@ -118,9 +109,8 @@ describe('guidanceTranscriptToDisplayBlocks', () => {
       [],
     )
 
-    expect(items).toHaveLength(2)
+    expect(items).toHaveLength(1)
     expect(items[0]?.block.display_role).toBe('equation')
-    expect(items[1]?.block.display_role).toBe('input_waiting')
   })
 
   it('filters leaked internal text from center panel merge', () => {

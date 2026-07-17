@@ -47,6 +47,16 @@ Documented during Architecture Audit Mode. **No recommendation** on which to kee
 |----------------|------|---------|
 | Desktop SQLite | `storage/project_session_store.py` | API / desktop |
 | Filesystem session store | `storage/session_store.py` | API chat helpers, tests |
+| Workflow transcript persistence | `api/flow_guidance_sync.py` → `task.outputs["flow_guidance_transcript"]` | Desktop workflow durable transcript (authority: `docs/desktopApp/center_panel_output_contract.md`) |
+
+## Center-panel rendering (target vs drift)
+
+| Topic | Target (contracts) | Drift (Phase 2B decision) |
+|-------|-------------------|---------------------------|
+| Active user ask | Composer `current_ask` only | `api/output_blocks._input_waiting_blocks()` emits volatile `input_waiting` |
+| Workflow intro | Single `workflow_intro` block | Separate `DisplayRole.title` in some tests/API paths |
+
+Do not remove drift implementations during documentation-only reconciliation (Phase 2A).
 
 ## Parameter registry
 
@@ -74,6 +84,18 @@ Documented during Architecture Audit Mode. **No recommendation** on which to kee
 |----------------|------|
 | `standards_reader._split_frontmatter` | `engine/reference/standards_reader.py` |
 | `standards_markdown.split_frontmatter` | `engine/reference/standards_markdown.py` |
+
+## Documentation duplication register
+
+Consolidated 2026-07 — design docs trimmed; deleted `docs/core/2. system_overview.md`, `4. data_models.md`, `8. Node Template.md`.
+
+| Topic | Canonical home | Retired / duplicate sources |
+| --- | --- | --- |
+| Architecture overview | `docs/core/1. Architecture.md` | `2. system_overview.md` (deleted) |
+| Layer boundaries | `docs/core/3. component_responsibilities.md` + `docs/rules.md` §12–13, §21 | Repeated pipeline diagrams in layer docs |
+| Runtime models | `models/README.md`, `docs/desktopApp/07_frontend_data_models.md` | `4. data_models.md` (deleted) |
+| Node authoring | `audits/contracts/nodes/00-START-HERE.md` | `8. Node Template.md` (deleted) |
+| Doc index | `docs/core/README.md` | Ad-hoc cross-links in every core file |
 
 ## Limitation hints (both unused)
 

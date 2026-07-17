@@ -1,6 +1,6 @@
 # Architecture audit — maintenance
 
-Living documentation workflow: keep audit files aligned with the code as you edit.
+Living documentation workflow: keep audit files aligned with the code as you edit — subject to protected-file approval ([`.cursor/rules/protected-documentation.mdc`](../../.cursor/rules/protected-documentation.mdc)).
 
 See also: [INDEX.md](INDEX.md) (all audit paths and section anchors), [PROGRESS.md](PROGRESS.md) (completion status).
 
@@ -8,7 +8,7 @@ See also: [INDEX.md](INDEX.md) (all audit paths and section anchors), [PROGRESS.
 
 ## When to update
 
-Update audit docs **in the same change** (or immediately after) when you:
+When implementation affects living documentation, **identify** which audit docs need changes for:
 
 - Add, remove, or rename files in an audited folder
 - Change entry points (CLI commands, API routes, Electron startup, scripts)
@@ -17,13 +17,19 @@ Update audit docs **in the same change** (or immediately after) when you:
 - Introduce or remove a parallel implementation
 - Change an end-to-end flow (desktop, CLI, compile pipeline)
 
+**If the user has explicitly authorized** the affected documentation in the current task, update audit docs in the same change (or immediately after).
+
+**If authorization has not been given**, leave protected files unchanged; report the required updates (paths and sections); request explicit user approval before editing.
+
+An instruction to “keep audits updated” does not by itself authorize protected-file edits.
+
 **Do not** rewrite audit docs for trivial edits (comments, formatting) unless the described behavior changes.
 
 ---
 
 ## Change checklist
 
-After a code change, walk this list for the **affected folder(s)**:
+When documentation updates are **explicitly authorized**, walk this list for the **affected folder(s)** after a code change:
 
 1. **`#files`** — table row for each touched file
 2. **`#entry-points`** — if invoke path changed
@@ -57,12 +63,14 @@ Update [engine/planner/README.md#execution-traces](../../engine/planner/README.m
 for the new phased navigation path.
 ```
 
-The agent should:
+The agent should (when documentation edits are **explicitly authorized** in the current task):
 
 1. Read the cited section
 2. Re-grep / read code for evidence
 3. Edit only the affected sections (surgical doc diff)
 4. Mention which sections were updated in the PR/summary
+
+If authorization has not been given, identify the drift, report required paths and sections, and request explicit user approval — do not edit protected files. See [`.cursor/rules/protected-documentation.mdc`](../../.cursor/rules/protected-documentation.mdc).
 
 ---
 
@@ -92,10 +100,11 @@ When creating a **new** audited folder, add `README.md` with these headings (sta
 
 | Mode | When | Rules |
 |------|------|-------|
-| **Audit-only** | Deliberate documentation pass | No code changes; accuracy over speed ([Architecture Audit Mode](../todo/Architecture%20Audit%20Mode.md)) |
-| **Living sync** | Normal feature/fix work | Code + matching audit sections updated together |
+| **Audit-only** | Deliberate documentation pass | No code changes; accuracy over speed ([Architecture Audit Mode](../process/architecture_audit_mode.md)) |
+| **Living sync** | Normal feature/fix work with **explicit documentation authorization** | Code + matching authorized audit sections updated in the same task |
+| **Living sync (report only)** | Normal feature/fix work without documentation authorization | Code only; identify audit drift, report required updates, request approval before editing protected files |
 
-Living sync does **not** require re-auditing entire folders—only sections impacted by your diff.
+Living sync does **not** require re-auditing entire folders—only sections impacted by your diff (when authorized).
 
 ---
 

@@ -97,10 +97,7 @@ export function buildCenterPanelTranscriptParts(
 
   const engineering = filterRegisteredCenterPanelBlocks(
     displayOutputs.filter(
-      (block) =>
-        !guidanceIds.has(block.id) &&
-        (!isVolatileDisplayBlock(block) || blockDisplayRole(block) === 'input_waiting') &&
-        isUserVisibleBlock(block),
+      (block) => !guidanceIds.has(block.id) && !isVolatileDisplayBlock(block) && isUserVisibleBlock(block),
     ),
   )
 

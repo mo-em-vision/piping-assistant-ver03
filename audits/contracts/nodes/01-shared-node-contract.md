@@ -31,6 +31,18 @@ You need runtime task state (Facts, Goals, user values). Those belong in Executi
 | Canonical `type` | Must match one of the canonical kinds in `engine/reference/node_types.py`. |
 | Pack prefixes | Standards equations use `asme-b313-*`; global params use `PARAM-*`; workflows use `WF-*`; etc. — see per-type contracts. |
 
+### ID qualification (cross-type)
+
+| Reference context | Id form | Example |
+| --- | --- | --- |
+| Paragraph `id` / `paragraph_number` within a pack | Bare hyphen subsection id | `304.1.2-a` |
+| `authority.authorized_by` on equation, lookup, validation_rule (same pack) | Bare paragraph id in-pack | `304.1.2-a` |
+| `introduced_by` on global `PARAM-*` | Pack-qualified paragraph id when citing standards prose | `asme-b313-304-1-1-b` |
+| Global ontology nodes | Prefix per type contract | `PARAM-*`, `AUTH-*`, `WF-*` |
+| Workflow entry | Repo `workflows/{machine-key}.yaml` slug | `pipe_wall_thickness_design` |
+
+Do not pack-qualify `authority.authorized_by` paragraph ids when the governing paragraph is in the same standards pack as the node. Use pack-qualified ids for `introduced_by` when the parameter is global and the introducing paragraph is pack-scoped.
+
 ## 6. Copyable minimal YAML skeleton
 
 Every node file opens with YAML frontmatter delimited by `---`:
@@ -108,7 +120,7 @@ Rules:
 
 ## 11. Fields consumed by runtime components
 
-Graph compilation reads `id`, `type`, `edges`, and type-specific metadata to build `PackGraph`. Expansion policy reads paragraph `applicability`, workflow sidecar `interactions`, and equation `requires`/`calculates` to decide active paths. Execution kernel resolves parameter symbols from equation and lookup bindings. Messaging reads parameter prompt fields. Presentation layer reads `presentation`, `display`, and text bodies for rendered blocks.
+Graph compilation reads `id`, `type`, `edges`, and type-specific metadata to build `PackGraph`. Graph edges, node `applicability`, and equation `requires` / `calculates` dependencies determine which paths are active. Workflow `runtime.interactions` supplies workflow-level gate interaction metadata for pre-expansion decisions; it does not determine active paths or replace graph expansion. Execution kernel resolves parameter symbols from equation and lookup bindings. Messaging reads parameter prompt fields. Presentation layer reads `presentation`, `display`, and text bodies for rendered blocks.
 
 ## 12. Validation procedure
 
@@ -122,7 +134,7 @@ Graph compilation reads `id`, `type`, `edges`, and type-specific metadata to bui
 ## 13. Common authoring mistakes
 
 - Setting `paragraph_number` to parenthetical form `304.1.2(a)` instead of hyphen id `304.1.2-a`.
-- Putting `navigation`, `interactions`, or `assumptions` in workflow frontmatter instead of `runtime.yaml`.
+- Putting `navigation`, `interactions`, or `assumptions` at workflow frontmatter top level instead of under nested `runtime:`.
 - Authoring `hierarchy.previous` / `hierarchy.next` on paragraphs.
 - Storing prompt copy only in the planner or frontend instead of on `PARAM-*` nodes.
 - Using `calculates_parameter` on lookup nodes (use `returns_parameter`).

@@ -190,19 +190,25 @@ def test_completed_task_cross_phase_contract(
     assert guidance
     assert len({block["block_id"] for block in guidance}) == len(guidance)
 
-    titles = [
+    intros = [
+        block
+        for block in transcript
+        if block.get("block_id", "").startswith("workflow-intro-")
+    ]
+    assert len(intros) == 1
+
+    legacy_titles = [
         block
         for block in transcript
         if block.get("block_id", "").startswith("workflow-title-")
     ]
-    assert len(titles) == 1
-
-    descriptions = [
+    legacy_descriptions = [
         block
         for block in transcript
         if block.get("block_id", "").startswith("workflow-description-")
     ]
-    assert len(descriptions) == 1
+    assert len(legacy_titles) == 0
+    assert len(legacy_descriptions) == 0
 
     results = [
         block

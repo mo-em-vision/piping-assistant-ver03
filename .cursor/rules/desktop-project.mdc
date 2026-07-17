@@ -40,4 +40,7 @@ Structure → data flow → backend connection → visualization → interaction
 
 ## Architecture audit docs (living)
 
-After code changes, update affected audit README sections per [docs/audit/MAINTENANCE.md](docs/audit/MAINTENANCE.md). Locate docs via [docs/audit/INDEX.md](docs/audit/INDEX.md). User may cite sections as `@audit path#section-anchor`.
+Living-audit documents are protected per [`.cursor/rules/protected-documentation.mdc`](.cursor/rules/protected-documentation.mdc). After code changes, **identify** affected audit README sections per [docs/audit/MAINTENANCE.md](docs/audit/MAINTENANCE.md). Locate docs via [docs/audit/INDEX.md](docs/audit/INDEX.md).
+
+- **Explicitly authorized** — update the authorized sections in the same task. User may cite `@audit path#section-anchor`.
+- **Not authorized** — leave protected files unchanged; report required updates (paths and sections) and request explicit user approval before editing.

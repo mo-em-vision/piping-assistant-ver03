@@ -353,18 +353,8 @@ def apply_engineering_plan_to_goal_store(task: Task, plan: EngineeringPlan) -> G
 
 def store_engineering_plan_on_task(task: Task, plan: EngineeringPlan) -> None:
     from engine.inspection.performance_trace import perf_span
-    from engine.planner.graph_navigation import build_graph_navigation_from_plan
-    from engine.planner.plan_inspector import (
-        build_engineering_plan_view,
-        build_planner_inspector_summary,
-    )
 
     with perf_span("store_engineering_plan_on_task", "planner"):
         finalized = finalize_engineering_plan(plan)
         with perf_span("engineering_plan_to_dict", "planner"):
             task.outputs["engineering_plan"] = finalized.to_dict()
-        view = build_engineering_plan_view(finalized)
-        task.outputs["engineering_plan_view"] = view
-        with perf_span("planner_inspector_summary", "planner"):
-            task.outputs["planner_inspector_summary"] = build_planner_inspector_summary(finalized)
-        task.outputs["graph_navigation"] = build_graph_navigation_from_plan(finalized)

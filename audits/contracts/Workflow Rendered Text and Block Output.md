@@ -12,7 +12,7 @@ This contract covers rendered workflow text during:
     
 3. equation node expansion/evaluation
     
-4. user-input waiting states
+4. composer active ask (not a center-panel scroll block)
     
 5. workflow summary/completion output
     
@@ -25,27 +25,24 @@ This contract applies to every workflow, not only the pipe wall thickness workfl
 
 ### 1. Workflow initiation output
 
-When a workflow is initiated, the center panel shall render a workflow title block.
+When a workflow is initiated, the center panel shall render **one durable `workflow_intro` block** (`display_role: workflow_intro`, stable id `workflow-intro-{workflow_id}`).
 
-Each workflow node shall have a user-facing title and description.
+Content comes from workflow runtime `texts` (title + description composed in the backend projection). Do not emit separate title and description scroll blocks.
 
-The workflow title shall be gathered only from the workflow node.
+The rendering layer shall not invent, infer, or hardcode workflow title or description.
 
-The workflow description shall be gathered only from the workflow node.
-
-The rendering layer shall not invent, infer, or hardcode the workflow title.
-
-The rendering layer shall not invent, infer, or hardcode the workflow description.
-
-The workflow title and description shall not expose raw workflow IDs or internal node IDs as primary visible text.
+Workflow introduction shall not expose raw workflow IDs or internal node IDs as primary visible text.
 
 Expected initiation order:
 
 ```text
-Title block
-Workflow description block
+workflow_intro block
 Initial guidance block, if applicable
 ```
+
+Authority: `docs/desktopApp/center_panel_output_contract.md` §Lifecycle table, §Stable block_id rules.
+
+**Implementation drift (Phase 2B):** some API paths/tests still use separate `title` display role — migration decision deferred.
 
 ---
 
@@ -84,7 +81,7 @@ When an equation node is visited, expanded, or evaluated, an equation block shal
 Equation node output shall follow the separate equation-rendering audit contract:
 
 ```text
-audits/equation-rendering.md
+audits/contracts/Equation Rendering.md
 ```
 
 The equation rendering audit defines the complete equation block behavior, including:
@@ -107,28 +104,19 @@ Equation blocks shall not duplicate live preview or durable equation trace block
 
 ---
 
-### 4. Temporary user-input waiting text
+### 4. User-input waiting (composer-owned)
 
-When the workflow is waiting for user input, the center panel may render a temporary waiting-user-input block.
+When the workflow is waiting for user input, the **composer** owns the active ask via `task_state.current_ask` (short prompt) and full messaging via `build_parameter_input_prompt()` / `active_prompt`.
 
-This block shall use generic user-facing temporary wording.
+The center-panel **scroll area shall not** render a separate generic waiting-user-input block.
 
-This block shall not extract text from the parameter node.
+After submission, durable Q/A may archive as `ask_archive` / `answer_archive` in `transcript_blocks` (transcript storage only — excluded from center-panel scroll).
 
-This temporary center-panel waiting text is separate from the input control text shown at the bottom of the central panel.
+Raw internal states such as `waiting_user_input`, `required_input`, `missing_parameter`, and raw `PARAM-*` ids shall not appear as primary user-facing text.
 
-The temporary waiting text shall not display raw internal states such as:
+Authority: `docs/rules.md` §25; `docs/desktopApp/center_panel_output_contract.md` §Surfaces.
 
-```text
-waiting_user_input
-required_input
-missing_parameter
-PARAM-*
-```
-
-The temporary waiting text shall be removed once the input is provided.
-
-It shall not remain as stale guidance after the parameter is resolved.
+**Implementation drift (Phase 2B):** `api/output_blocks._input_waiting_blocks()` may still emit volatile `display_role: input_waiting` — not a permanent contract requirement.
 
 ---
 
@@ -139,11 +127,9 @@ All rendered center-panel content shall be grouped into explicit display blocks.
 Expected block types include:
 
 ```text
-title block
-workflow description block
+workflow_intro block
 paragraph block
 equation block
-input waiting block
 summary block
 reference block
 warning block
@@ -169,13 +155,13 @@ Node expansion output shall be based on node content and structured execution re
 
 ### 7. Append-only behavior
 
-Durable workflow-rendered content shall follow the center panel transcript contract.
+Durable workflow-rendered content shall follow the center panel transcript contract and `docs/rules.md` §25.
+
+**Append-only identity:** new durable blocks receive new `block_id`s; an existing durable block with the same `block_id` may update in place when it gains structured information. Prior durable blocks are never removed or duplicated on reload.
 
 Previously rendered durable blocks shall not disappear when later nodes are expanded.
 
 A previous durable block may be updated in place only when the same logical block gains additional structured information.
-
-Temporary waiting blocks may be removed or replaced after they are resolved.
 
 ---
 
@@ -186,11 +172,10 @@ The same logical content shall not appear twice as separate visible blocks for t
 Examples of duplicates to prevent:
 
 ```text
-same workflow title rendered twice
-same workflow description rendered twice
+same workflow_intro twice
 same paragraph rendered twice
 same equation rendered as both preview and durable block
-same waiting text remaining after answer is submitted
+composer ask duplicated as scroll waiting copy
 same summary rendered twice
 ```
 
@@ -201,10 +186,8 @@ same summary rendered twice
 ### Workflow start
 
 ```text
-Title block
-Workflow description block
+workflow_intro block
 Initial guidance block, if applicable
-First temporary waiting-user-input block, if applicable
 ```
 
 ### Paragraph node expanded
@@ -224,21 +207,20 @@ Equation block
 Equation block details are governed by:
 
 ```text
-audits/equation-rendering.md
+audits/contracts/Equation Rendering.md
 ```
 
 ### Waiting for user input
 
 ```text
-Temporary waiting-user-input block
-Bottom input control prompt remains separate
+Composer current_ask / active_prompt (not a scroll waiting block)
 ```
 
 ### After user input submitted
 
 ```text
-Temporary waiting-user-input block removed or resolved
-Answer may be archived separately if required by transcript contract
+Composer clears active ask
+Optional ask_archive / answer_archive in transcript (not scroll)
 Next node expansion output rendered
 ```
 
@@ -257,45 +239,41 @@ Next workflow suggestions, if applicable
 
 This contract is satisfied only if all of the following are true:
 
-1. Workflow initiation renders a title block.
+1. Workflow initiation renders one durable `workflow_intro` block.
     
-2. Workflow title is retrieved only from the workflow node.
+2. Workflow introduction content is retrieved only from workflow node runtime `texts`.
     
-3. Workflow initiation renders the workflow description block.
+3. The rendering layer does not invent or hardcode workflow title or description.
     
-4. Workflow description is retrieved only from the workflow node.
+4. Paragraph nodes with an output text field render paragraph blocks.
     
-5. The rendering layer does not invent or hardcode workflow title or description.
+5. Paragraph nodes without an output text field do not create unnecessary center-panel output.
     
-6. Paragraph nodes with an output text field render paragraph blocks.
+6. Paragraph blocks include the full paragraph reference path.
     
-7. Paragraph nodes without an output text field do not create unnecessary center-panel output.
+7. Paragraph blocks are linkable and open the paragraph node in the right panel tab.
     
-8. Paragraph blocks include the full paragraph reference path.
+8. Equation nodes render as equation blocks governed by `audits/contracts/Equation Rendering.md`.
     
-9. Paragraph blocks are linkable and open the paragraph node in the right panel tab.
+9. Equation blocks follow `equation_display_trace` progressive layout per equation-rendering contract.
     
-10. Equation nodes render as equation blocks governed by `audits/equation-rendering.md`.
+10. Waiting for input: composer owns `current_ask` — no generic center-panel waiting-user-input block.
     
-11. Equation blocks include the equation parameter table as defined in the equation-rendering audit.
+11. Prompt copy is not extracted from parameter nodes into scroll waiting blocks.
     
-12. Waiting for input renders only a generic temporary waiting-user-input block.
+12. Composer ask is separate from scroll narration blocks.
     
-13. Temporary waiting-user-input text is not extracted from the parameter node.
+13. After input is submitted, composer does not show stale ask for resolved parameter.
     
-14. Temporary waiting-user-input text in the center panel is separate from the bottom input prompt.
+14. Rendered text does not expose raw internal IDs as primary visible text.
     
-15. Temporary waiting-user-input text does not remain stale after input is submitted.
+15. Rendered text does not expose raw JSON or planner state.
     
-16. Rendered text does not expose raw internal IDs as primary visible text.
+16. Durable blocks remain visible after later node expansions.
     
-17. Rendered text does not expose raw JSON or planner state.
+17. Duplicate workflow_intro, paragraph, equation, or summary blocks are not rendered.
     
-18. Durable blocks remain visible after later node expansions.
-    
-19. Duplicate title, description, paragraph, equation, waiting, or summary blocks are not rendered.
-    
-20. Blocks have clear display roles/types.
+18. Blocks have clear display roles/types.
     
 
 ---
@@ -339,11 +317,11 @@ Audit questions:
     
 10. Are equation blocks emitted through the equation-rendering pipeline?
     
-11. Is generic temporary waiting-user-input text emitted when waiting for input?
+11. Is `current_ask` emitted when awaiting input (composer path)?
     
-12. Is temporary waiting text independent from parameter node text?
+12. Is prompt copy sourced from messaging/PARAM (not scroll waiting blocks)?
     
-13. Is the temporary waiting text distinct from the bottom input prompt?
+13. Is the composer ask distinct from scroll narration blocks?
     
 14. Are block roles/types explicit and stable?
     
@@ -377,7 +355,7 @@ reference chip rendering
 
 Audit questions:
 
-1. Does the frontend distinguish title, workflow description, paragraph, equation, input waiting, and summary blocks?
+1. Does the frontend distinguish workflow_intro, paragraph, equation, and summary blocks?
     
 2. Does the frontend render workflow title and description from backend-provided workflow-node data?
     
@@ -391,7 +369,7 @@ Audit questions:
     
 7. Does the frontend preserve durable blocks after later node expansions?
     
-8. Does the frontend remove or replace temporary waiting blocks after resolution?
+8. Does the composer render current_ask without duplicating scroll waiting copy?
     
 9. Does the frontend avoid rendering duplicate blocks with the same logical identity?
     
@@ -399,7 +377,7 @@ Audit questions:
     
 11. Does the frontend avoid showing raw internal IDs as primary visible text?
     
-12. Does the bottom input prompt remain separate from center-panel temporary waiting text?
+12. Does the composer own the active ask (not the scroll area)?
     
 
 ---
@@ -411,20 +389,17 @@ Audit questions:
 Required coverage:
 
 ```text
-Workflow started -> title block emitted from workflow node
-Workflow started -> description block emitted from workflow node
-Workflow title/description -> no renderer hardcoded fallback used
+Workflow started -> workflow_intro block emitted from workflow runtime texts
+Workflow intro -> no renderer hardcoded fallback used
 Paragraph node with output text field -> paragraph block emitted
 Paragraph node without output text field -> no unnecessary output block
 Paragraph block -> includes full reference path
 Paragraph block -> includes link target for right panel node opening
 Equation node expanded -> equation block emitted through equation-rendering pipeline
-Waiting for input -> generic temporary waiting-user-input block emitted
-Waiting for input -> temporary text not extracted from parameter node
-Input submitted -> temporary waiting-user-input block does not remain stale
+Awaiting input -> current_ask populated (composer); no scroll waiting block required
 No raw internal IDs in rendered text
 No raw JSON/planner state in rendered text
-No duplicate block IDs for title/description/paragraph/equation/summary
+No duplicate block IDs for workflow_intro/paragraph/equation/summary
 ```
 
 Suggested test locations:
@@ -443,16 +418,14 @@ tests/mvp/
 Required coverage:
 
 ```text
-Center panel renders title block
-Center panel renders workflow description block
+Center panel renders workflow_intro block
 Center panel renders paragraph block when output text exists
 Center panel does not render paragraph block when output text is absent
 Paragraph block renders full reference path
 Paragraph block click opens paragraph node in right panel tab
 Center panel renders equation block using EquationOutput
-Equation block follows audits/equation-rendering.md behavior
-Center panel renders temporary waiting-user-input block separately from bottom input prompt
-Center panel removes or updates stale temporary waiting block after input
+Equation block follows audits/contracts/Equation Rendering.md behavior
+Composer renders current_ask for awaiting input (scroll does not require waiting block)
 Center panel preserves previous durable blocks after node expansion
 Center panel does not duplicate same logical block
 Center panel does not render raw JSON
@@ -474,21 +447,18 @@ For each audited workflow, capture:
 ```text
 1. Workflow name
 2. Workflow node ID
-3. Workflow node title field
-4. Workflow node description field
-5. Rendered title text
-6. Rendered workflow description text
-7. Expanded paragraph node IDs
-8. Paragraph output text field, if present
-9. Paragraph text rendered, if any
-10. Paragraph reference path rendered
-11. Paragraph link target / right panel opening behavior
-12. Equation blocks rendered
-13. Temporary waiting-user-input text rendered
-14. Whether bottom input prompt is separate
-15. Whether stale waiting text disappears after input
-16. Screenshot or rendered output text
-17. Tests proving the behavior
+3. Workflow runtime texts used for workflow_intro
+4. Rendered workflow_intro text
+5. Expanded paragraph node IDs
+6. Paragraph output text field, if present
+7. Paragraph text rendered, if any
+8. Paragraph reference path rendered
+9. Paragraph link target / right panel opening behavior
+10. Equation blocks rendered
+11. Composer current_ask when awaiting input
+12. Whether composer ask clears after input
+13. Screenshot or rendered output text
+14. Tests proving the behavior
 ```
 
 ---
@@ -501,11 +471,9 @@ Expected behavior:
 
 1. Workflow starts.
     
-2. User-friendly workflow title is rendered from the workflow node.
+2. User-friendly workflow introduction is rendered as one `workflow_intro` block from workflow runtime texts.
     
-3. Workflow description is extracted from the workflow node and rendered.
-    
-4. Paragraph nodes render only if they contain an output text field.
+3. Paragraph nodes render only if they contain an output text field.
     
 5. Paragraph blocks include the full paragraph reference path, such as:
     
@@ -520,14 +488,14 @@ Reference: ASME B31.3 304.1.1
     
 
 ```text
-audits/equation-rendering.md
+audits/contracts/Equation Rendering.md
 ```
 
-8. When waiting for user input, a generic temporary waiting-user-input block is rendered.
+8. When waiting for user input, composer owns `current_ask` (no scroll waiting block required).
     
-9. Bottom input prompt remains separate from the center-panel waiting text.
+9. Composer ask is separate from scroll narration.
     
-10. Stale temporary waiting text is removed or updated after user input.
+10. Stale composer ask clears after user input.
     
 11. Previous durable blocks remain visible.
     
@@ -537,12 +505,10 @@ audits/equation-rendering.md
 ## Known failure patterns to check
 
 ```text
-workflow title missing
-workflow title shown as raw workflow ID
-workflow title hardcoded in rendering layer
-workflow description missing
-workflow description hardcoded in rendering layer
-workflow description not sourced from workflow node
+workflow_intro missing
+workflow_intro shown as raw workflow ID
+workflow introduction hardcoded in rendering layer
+duplicate title/description blocks instead of workflow_intro
 paragraph text not rendered when output text field exists
 paragraph text rendered from wrong field
 paragraph reference path missing
@@ -551,13 +517,13 @@ paragraph click does not open node in right panel tab
 too many internal paragraph nodes rendered as noise
 equation rendered as generic text instead of equation block
 equation block bypasses equation-rendering audit behavior
-temporary waiting text extracted from parameter node
-temporary waiting text duplicated with bottom input prompt
-temporary waiting text remains after input is submitted
+scroll waiting block required when composer has current_ask
+composer ask duplicated in scroll waiting block
+stale composer ask after input submitted
 raw node IDs visible as primary text
 raw JSON or planner state visible in center panel
 previous durable text disappears after node expansion
-same title/description/paragraph/equation/summary rendered twice
+same workflow_intro/paragraph/equation/summary rendered twice
 ```
 
 ---
@@ -566,25 +532,23 @@ same title/description/paragraph/equation/summary rendered twice
 
 The following details should be confirmed before implementation changes:
 
-1. Exact workflow node field used for user-facing workflow title.
+1. Exact workflow runtime `texts` fields composed into `workflow_intro`.
     
-2. Exact workflow node field used for workflow description.
+2. Exact paragraph node field used as the output text field.
     
-3. Exact paragraph node field used as the output text field.
+3. Exact paragraph reference path format.
     
-4. Exact paragraph reference path format.
+4. Exact paragraph link payload required to open the node in the right panel tab.
     
-5. Exact paragraph link payload required to open the node in the right panel tab.
+5. Exact list of allowed block types/display roles (see `docs/desktopApp/center_panel_output_contract.md`).
     
-6. Exact generic wording for temporary waiting-user-input blocks.
-    
-7. Exact lifecycle rule for temporary waiting blocks: remove completely, mark resolved, or archive.
-    
-8. Exact list of allowed block types/display roles.
-    
-9. Whether workflow description is durable transcript history or only session introduction.
-    
-10. Whether paragraph references/chips are required immediately or in a later phase.
+6. Whether paragraph references/chips are required immediately or in a later phase.
+
+**Closed (Phase 2A):**
+
+- **Workflow introduction:** single durable `workflow_intro` block — not separate title/description scroll blocks.
+- **User-input waiting:** composer `current_ask` only — no generic center-panel waiting-user-input block contract.
+- **Waiting lifecycle:** composer clears active ask on submit; optional `ask_archive`/`answer_archive` in transcript only.
     
 
 
@@ -604,23 +568,19 @@ Scope:
 - Do not change global app behavior outside center-panel rendered workflow output.
 
 Required behavior:
-1. Render workflow title block when workflow starts.
-2. Retrieve workflow title only from workflow node data.
-3. Render workflow description from workflow node data.
-4. Do not invent or hardcode workflow title or description in the rendering layer.
-5. Render paragraph block when expanded paragraph node has an output text field.
-6. Render full paragraph reference path in paragraph blocks.
-7. Make paragraph blocks linkable so they open the paragraph node in the right panel tab.
-8. Render equation nodes as equation blocks governed by audits/equation-rendering.md.
-9. Ensure equation block includes the equation parameter table defined in audits/equation-rendering.md.
-10. Render a generic temporary center-panel waiting-user-input block when waiting for user input.
-11. Do not extract temporary waiting text from parameter nodes.
-12. Keep temporary center-panel waiting text separate from the bottom input prompt.
-13. Remove, replace, or resolve temporary waiting text after input is submitted.
-14. Preserve previous durable blocks after later node expansions.
-15. Prevent duplicate visible blocks.
-16. Do not expose raw internal IDs, raw JSON, or planner/debug state as primary center-panel text.
-17. Use explicit block roles/types.
+1. Render one durable workflow_intro block when workflow starts.
+2. Retrieve workflow introduction only from workflow runtime texts.
+3. Do not invent or hardcode workflow title or description in the rendering layer.
+4. Render paragraph block when expanded paragraph node has an output text field.
+5. Render full paragraph reference path in paragraph blocks.
+6. Make paragraph blocks linkable so they open the paragraph node in the right panel tab.
+7. Render equation nodes as equation blocks governed by audits/contracts/Equation Rendering.md.
+8. Ensure equation blocks follow equation_display_trace layout per equation-rendering contract.
+9. When awaiting input, populate composer current_ask — do not require center-panel waiting scroll block.
+10. Preserve previous durable blocks after later node expansions.
+11. Prevent duplicate visible blocks.
+12. Do not expose raw internal IDs, raw JSON, or planner/debug state as primary center-panel text.
+13. Use explicit block roles/types.
 
 Before editing:
 - Identify the failing tests or missing tests.

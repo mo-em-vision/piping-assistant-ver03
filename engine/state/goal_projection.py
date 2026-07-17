@@ -146,8 +146,51 @@ def root_goal_name(task: Task) -> str | None:
     return None
 
 
+def _goal_summary_from_engineering_plan(task: Task, plan) -> dict[str, object]:
+    from engine.planner.graph_navigation import build_graph_navigation_from_plan
+
+    nav = build_graph_navigation_from_plan(plan)
+    missing_inputs = sorted(
+        {
+            str(field)
+            for fields in (nav.get("phase_missing") or {}).values()
+            for field in (fields or [])
+        }
+    )
+    missing_assumptions = sorted(
+        set(nav.get("missing_expansion_assumptions") or [])
+        | set(nav.get("missing_path_decisions") or [])
+    )
+    missing_execution_assumptions = sorted(nav.get("missing_execution_assumptions") or [])
+    current = str(nav.get("current_phase") or NavigationPhase.READY.value)
+    action = (
+        AgentAction.REQUEST_INPUT.value
+        if missing_inputs or missing_assumptions or missing_execution_assumptions
+        else AgentAction.PROPOSE_PATH.value
+    )
+    return {
+        "goal": plan.root_goal.title if plan.root_goal else None,
+        "intent": str(task.outputs.get("workflow") or ""),
+        "missing_inputs": missing_inputs,
+        "missing_assumptions": missing_assumptions,
+        "missing_execution_assumptions": missing_execution_assumptions,
+        "current_phase": current,
+        "phase_missing": dict(nav.get("phase_missing") or {}),
+        "phase_questions": phase_questions(task),
+        "action": action,
+    }
+
+
 def goal_summary_dict(task: Task) -> dict[str, object]:
-    """Planning-compatible summary derived from goal_store."""
+    """Planning-compatible summary derived from EngineeringPlan when present."""
+    from engine.planner.plan_selection import engineering_plan_for_task
+    from engine.router import is_supported_planning_workflow
+
+    workflow_id = str(task.outputs.get("workflow") or task.outputs.get("selected_root") or "")
+    plan = engineering_plan_for_task(task)
+    if plan is not None and is_supported_planning_workflow(workflow_id):
+        return _goal_summary_from_engineering_plan(task, plan)
+
     roots = task.goal_store.roots()
     root = roots[0] if roots else None
     return {
@@ -183,21 +226,27 @@ def planning_projection(task: Task) -> dict[str, object]:
     summary["graph_step_titles"] = task.outputs.get("graph_step_titles")
     summary["collection_field_order"] = task.outputs.get("collection_field_order")
     summary["confidence"] = 1.0
-    engineering_plan_view = task.outputs.get("engineering_plan_view")
     canonical_plan = task.outputs.get("engineering_plan")
-    if isinstance(engineering_plan_view, dict):
-        summary["engineering_plan_view"] = engineering_plan_view
-    elif isinstance(canonical_plan, dict):
-        from engine.planner.plan_inspector import build_engineering_plan_view_from_dict
-
-        rebuilt = build_engineering_plan_view_from_dict(canonical_plan)
-        if rebuilt:
-            summary["engineering_plan_view"] = rebuilt
     if isinstance(canonical_plan, dict) and "plan_id" in canonical_plan:
         summary["engineering_plan"] = canonical_plan
-    planner_summary = task.outputs.get("planner_inspector_summary")
-    if isinstance(planner_summary, dict):
-        summary["planner_inspector_summary"] = planner_summary
+        from engine.planner.plan_inspector import (
+            build_engineering_plan_view_from_dict,
+            build_planner_inspector_summary_from_dict,
+        )
+
+        rebuilt_view = build_engineering_plan_view_from_dict(canonical_plan)
+        if rebuilt_view:
+            summary["engineering_plan_view"] = rebuilt_view
+        rebuilt_summary = build_planner_inspector_summary_from_dict(canonical_plan)
+        if rebuilt_summary:
+            summary["planner_inspector_summary"] = rebuilt_summary
+    else:
+        engineering_plan_view = task.outputs.get("engineering_plan_view")
+        if isinstance(engineering_plan_view, dict):
+            summary["engineering_plan_view"] = engineering_plan_view
+        planner_summary = task.outputs.get("planner_inspector_summary")
+        if isinstance(planner_summary, dict):
+            summary["planner_inspector_summary"] = planner_summary
     return summary
 
 

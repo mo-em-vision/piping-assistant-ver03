@@ -11,9 +11,11 @@ from api.display_block_metadata import (
     equation_trace_semantic_key,
 )
 from engine.graph.definition_equations import (
+    _resolve_output_value,
     definition_equation_specs_for_order,
     has_execution_trace,
 )
+from engine.graph.equation_source import source_node_id_for_equation
 from engine.reference.standards_reader import StandardsReader
 from models.task import Task
 
@@ -112,28 +114,6 @@ def _definition_equation_ids_on_target_path(
     return definition_ids
 
 
-def source_node_id_for_equation(reader: StandardsReader, equation_node_id: str) -> str:
-    """Resolve the paragraph/definition node that owns an equation for display provenance."""
-    try:
-        record = reader.load(equation_node_id)
-    except FileNotFoundError:
-        return equation_node_id
-
-    metadata = record.metadata
-    authority = metadata.get("authority") or {}
-    authorized = authority.get("authorized_by") or []
-    if authorized:
-        candidate = str(authorized[0]).strip()
-        if candidate:
-            return candidate
-
-    paragraph_number = str(metadata.get("paragraph_number") or "").strip()
-    if paragraph_number:
-        return paragraph_number
-
-    return equation_node_id
-
-
 def _definition_equation_entries(
     task: Task,
     reader: StandardsReader,
@@ -166,6 +146,120 @@ def _definition_equation_entries(
         append(equation_node_id)
 
     return entries
+
+
+def _evaluated_equation_node_ids(task: Task) -> frozenset[str]:
+    return frozenset(
+        item["equation_node_id"] for item in _evaluated_equation_trace_entries(task)
+    )
+
+
+def _focus_equation_node_id(
+    task: Task,
+    planning: dict[str, Any],
+    reader: StandardsReader,
+) -> str | None:
+    from api.equation_evaluation_display import (
+        resolve_equation_node_for_display,
+        resolve_focus_node_for_equation_display,
+    )
+
+    focus_node = resolve_focus_node_for_equation_display(task, planning, reader)
+    if not focus_node:
+        return None
+    return resolve_equation_node_for_display(reader, focus_node, task)
+
+
+def _parameter_requires_upstream_output(reader: StandardsReader, param_id: str) -> bool:
+    if not param_id:
+        return False
+    try:
+        param = reader.load(param_id)
+    except FileNotFoundError:
+        return False
+    return str(param.metadata.get("parameter_class") or "").strip() == "calculated_quantity"
+
+
+def _definition_equation_upstream_prerequisites_met(
+    task: Task,
+    reader: StandardsReader,
+    equation_node_id: str,
+) -> bool:
+    """True when upstream calculated inputs for a definition equation are available."""
+    try:
+        record = reader.load(equation_node_id)
+    except FileNotFoundError:
+        return False
+    if str(record.metadata.get("execution_phase", "")).strip() != "definition":
+        return True
+
+    upstream_symbols: list[str] = []
+    for item in record.metadata.get("requires") or []:
+        if not isinstance(item, dict):
+            continue
+        symbol = str(item.get("symbol") or item.get("alias") or "").strip()
+        param_id = str(item.get("parameter") or "").strip()
+        if not symbol or not param_id:
+            continue
+        if _parameter_requires_upstream_output(reader, param_id):
+            upstream_symbols.append(symbol)
+
+    if not upstream_symbols:
+        return True
+    return all(_resolve_output_value(task, symbol) is not None for symbol in upstream_symbols)
+
+
+def _equation_visible_for_display(
+    task: Task,
+    reader: StandardsReader,
+    planning: dict[str, Any],
+    equation_node_id: str,
+    *,
+    evaluated_ids: frozenset[str],
+    focus_equation_id: str | None,
+) -> bool:
+    """Projection-only visibility gate; registry history is not modified here."""
+    if equation_node_id in evaluated_ids:
+        return True
+    if focus_equation_id and equation_node_id == focus_equation_id:
+        return True
+
+    try:
+        record = reader.load(equation_node_id)
+    except FileNotFoundError:
+        return False
+
+    execution_phase = str(record.metadata.get("execution_phase", "")).strip()
+    if execution_phase == "definition":
+        return _definition_equation_upstream_prerequisites_met(task, reader, equation_node_id)
+
+    return False
+
+
+def filter_visible_equation_display_entries(
+    task: Task,
+    reader: StandardsReader,
+    planning: dict[str, Any],
+    entries: list[tuple[str, str]],
+) -> list[tuple[str, str]]:
+    """Keep only equation entries that should render in the current projection."""
+    if not entries:
+        return []
+
+    evaluated_ids = _evaluated_equation_node_ids(task)
+    focus_equation_id = _focus_equation_node_id(task, planning, reader)
+    visible: list[tuple[str, str]] = []
+    for equation_node_id, source_node_id in entries:
+        if _equation_visible_for_display(
+            task,
+            reader,
+            planning,
+            equation_node_id,
+            evaluated_ids=evaluated_ids,
+            focus_equation_id=focus_equation_id,
+        ):
+            visible.append((equation_node_id, source_node_id))
+    return visible
 
 
 def discover_equation_display_entries(
@@ -208,7 +302,7 @@ def discover_equation_display_entries(
         if equation_id:
             add(equation_id, focus_node)
 
-    return ordered
+    return filter_visible_equation_display_entries(task, reader, planning, ordered)
 
 
 def register_equation_display_key(

@@ -188,23 +188,51 @@ Flange Selection
 
 # 7. Task State
 
-Frontend receives task state from backend.
+Frontend receives task lifecycle status from the backend API. The frontend does not compute `TaskStatus`.
 
-The frontend does not calculate state.
+This section documents **`TaskStatus` only** — the task lifecycle enum on `Task` ([`models/task.py`](../../models/task.py)). It is **not** the same as:
 
-Example:
+- workflow orchestration macro-states in [`docs/core/5. workflow_design.md`](../core/5.%20workflow_design.md) (for example `GRAPH_DISCOVERED`, `INPUT_COLLECTION`);
+- `progress.timeline[].status` step markers (`done` | `active` | `pending` on [`ProgressStepDto`](../../desktopApp/src/types/backend/api.ts));
+- planner queue reasons or `awaiting_user_input` provenance metadata;
+- validation or execution-result statuses on individual nodes.
 
-Backend:
+`Task.status` is a projection of `execution_context.status` via [`context_status_to_task_status`](../../models/execution_context.py). Internal `ExecutionContextStatus` values (for example `executing`, `ready`, `blocked`) collapse into the `TaskStatus` members below before API serialization.
 
+## TaskStatus map (current implementation)
+
+Serialized on the API as snake_case strings on:
+
+- `GET /api/v1/tasks/{id}/state` → `TaskStateDto.status` ([`api/serializers.py`](../../api/serializers.py) `task_state`, `task.status.value`);
+- task list / recent-task summaries → `TaskSummaryDto.status` ([`task_summary`](../../api/serializers.py)).
+
+| Backend enum (`TaskStatus`) | API wire value | Meaning (runtime) | Active-task UI label ([`taskStateManager.ts`](../../desktopApp/src/store/taskStateManager.ts) `statusLabel`) | Workspace list label ([`mapBackendStatus`](../../desktopApp/src/types/backend/api.ts) → [`TaskStatus`](../../desktopApp/src/types/frontend/workspace.ts)) |
+| --- | --- | --- | --- | --- |
+| `ACTIVE` | `active` | Task exists and is not waiting on input, paused, completed, or invalidated. Default for new tasks. | Active | `in_progress` |
+| `AWAITING_INPUT` | `awaiting_input` | Task is blocked on user input (parameter, gate, or post-execution definition input). | Awaiting input | `in_progress` |
+| `IN_PROGRESS` | `in_progress` | Task is in an in-flight execution context state (for example `ExecutionContextStatus.EXECUTING` maps here). | `in progress` (title-cased from wire) | `in_progress` |
+| `PAUSED` | `paused` | Task was explicitly paused ([`TaskStateManager.pause_task`](../../engine/state/state_manager.py)). | Paused | `in_progress` (default branch) |
+| `COMPLETED` | `completed` | Workflow execution finished successfully. | Completed | `completed` |
+| `INVALIDATED` | `invalidated` | Execution or validation failed; API may attach `errors` (for example `calculation_failed`). | Invalidated | `in_progress` (default branch) |
+
+**Workspace list note:** `TaskSummary.status` uses the frontend-only union `'available' | 'in_progress' | 'completed'`. The value `available` is **not** a backend `TaskStatus` wire value; `mapBackendStatus` maps unknown or non-terminal backend statuses (including `paused` and `invalidated`) to `in_progress`.
+
+**Inspector / debug projection (optional):** When `task_state` is built with `projection_mode="full"`, `canonical.task.status` uses a separate vocabulary (`running`, `idle`, `failed`, …) from [`_canonical_status`](../../engine/state/task_state_canonical.py). Prefer top-level `status` for desktop UI; use `canonical.task.status` only in developer inspection views.
+
+Example API payload fragment:
+
+```json
+{
+  "status": "awaiting_input",
+  "progress": {
+    "timeline": [
+      { "id": "pressure", "title": "Pressure", "status": "active" }
+    ]
+  }
+}
 ```
-planning
-waiting_input
-calculating
-completed
-failed
-```
 
-Frontend renders the current state.
+The top-level `status` is `TaskStatus`. Each timeline entry’s `status` is step progress only (`done` | `active` | `pending`), not task lifecycle.
 
 ---
 

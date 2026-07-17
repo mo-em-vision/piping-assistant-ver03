@@ -479,4 +479,3 @@ cd desktopApp && npm run test:run -- ../dev/desktop_ui/tests/ExecutionTracePanel
 ## 15. Related documentation
 
 - [Graph platform architecture](architecture/graph_platform.md) — compile pipeline and runtime graph
-- [Developer Inspection Framework spec](todo/Developer%20Inspection%20Framework.md) — original requirements document

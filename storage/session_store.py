@@ -20,6 +20,14 @@ from models.input import EngineeringInput, InputSource, InputStatus, ParameterDe
 from models.presentation import PresentationBlock, append_transcript_blocks, presentation_block_from_dict
 from models.task import Task, TaskStatus, new_task
 
+_DEPRECATED_NAVIGATION_CACHE_KEYS = frozenset(
+    {
+        "engineering_plan_view",
+        "graph_navigation",
+        "planner_inspector_summary",
+    }
+)
+
 
 def _json_default(value: Any) -> Any:
     if isinstance(value, Enum):
@@ -162,11 +170,14 @@ class SessionStore:
 
 
 def _task_to_dict(task: Task) -> dict[str, Any]:
+    outputs = dict(task.outputs)
+    for key in _DEPRECATED_NAVIGATION_CACHE_KEYS:
+        outputs.pop(key, None)
     payload: dict[str, Any] = {
         "task_id": task.task_id,
         "active_nodes": task.active_nodes,
         "execution_context": execution_context_to_dict(task.execution_context),
-        "outputs": task.outputs,
+        "outputs": outputs,
         "parameter_registry": {
             key: _descriptor_to_dict(value) for key, value in task.parameter_registry.items()
         },
@@ -200,6 +211,13 @@ def _task_from_dict(data: dict[str, Any]) -> Task:
         payload_version=int(migrated.get("payload_version", 5)),
     )
     migrate_task_goals_from_outputs(task)
+    from engine.planning.plan_projection_sync import plan_projection_is_consistent, sync_plan_projections
+    from engine.router import is_supported_planning_workflow
+
+    workflow_id = str(task.outputs.get("workflow") or task.outputs.get("selected_root") or "")
+    if is_supported_planning_workflow(workflow_id) and task.outputs.get("engineering_plan"):
+        if not plan_projection_is_consistent(task):
+            sync_plan_projections(task)
     refresh_execution_context_for_task(task)
     return task
 

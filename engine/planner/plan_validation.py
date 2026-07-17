@@ -6,8 +6,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from engine.planner.graph_requirements import requirement_id
-from engine.planner.plan_phases import strategy_field
+from engine.planner.plan_phases import strategy_field, _is_gatherable_submittable_requirement
 from models.engineering_plan import EngineeringPlan, LEGACY_REQUIREMENT_FIELD_NAMES
+from models.planning import NavigationPhase
 
 _MAX_GOAL_TITLE_LENGTH = 80
 _MUTUALLY_EXCLUSIVE_DIAMETER_REQS = frozenset(
@@ -18,6 +19,7 @@ _LOOKUP_INPUT_SOURCE_CLASSES = frozenset({"user_input", "derived_value"})
 _LOOKUP_RESOLUTION_METHODS = frozenset({"lookup", "material_catalog", "table_lookup"})
 _DIAMETER_ALT_METHODS = frozenset({"direct_input", "lookup"})
 _GATE_PHASES = frozenset({"expansion_assumptions", "path_decisions"})
+_COMPUTATION_PHASES = frozenset({"equation_execution", "validation", "reporting"})
 
 _CANONICAL_TOP_LEVEL_KEYS = frozenset(
     {
@@ -271,6 +273,86 @@ def _validate_conditional_activation(
             )
 
 
+def _gatherable_strategy_fields(requirements: dict) -> set[str]:
+    fields: set[str] = set()
+    for req in requirements.values():
+        if not _is_gatherable_submittable_requirement(req):
+            continue
+        fields.add(strategy_field(req))
+    return fields
+
+
+def _approved_submittable_exception_fields(
+    requirements: dict,
+    submittable_field: str,
+) -> bool:
+    from engine.graph.resolution_branches import resolution_branch_fact_key
+
+    for req in requirements.values():
+        if not req.alternatives:
+            continue
+        anchor = str(req.field).strip()
+        if not anchor:
+            continue
+        if submittable_field == resolution_branch_fact_key(anchor):
+            return True
+    return False
+
+
+def _validate_submittable_fields(plan: EngineeringPlan, result: PlannerValidationResult) -> None:
+    strategy = plan.input_strategy
+    if strategy is None or strategy.submittable_fields is None:
+        return
+    requirements = plan.requirements
+    gatherable = _gatherable_strategy_fields(requirements)
+    submittable = list(strategy.submittable_fields)
+    next_fields = list(strategy.next_fields)
+
+    if strategy.current_phase in {
+        NavigationPhase.READY.value,
+        *_COMPUTATION_PHASES,
+    }:
+        if submittable:
+            result.errors.append(
+                "input_strategy.submittable_fields must be empty when the plan is ready or in computation phases."
+            )
+            result.valid = False
+        return
+
+    if len(submittable) != len(set(submittable)):
+        result.errors.append("input_strategy.submittable_fields must not contain duplicates.")
+        result.valid = False
+
+    for next_field in next_fields:
+        if next_field not in submittable:
+            result.errors.append(
+                f"input_strategy.next_fields field {next_field!r} is not submittable."
+            )
+            result.valid = False
+
+    for field in submittable:
+        if field in gatherable:
+            continue
+        if _approved_submittable_exception_fields(requirements, field):
+            continue
+        result.errors.append(
+            f"input_strategy.submittable_fields contains non-gatherable field {field!r}."
+        )
+        result.valid = False
+
+    if strategy.mode == "single_next_question" and submittable and next_fields:
+        if submittable[0] != next_fields[0]:
+            result.errors.append(
+                "input_strategy.submittable_fields[0] must match next_fields[0] in single_next_question mode."
+            )
+            result.valid = False
+        if len(submittable) > len(next_fields) + 1:
+            result.errors.append(
+                "input_strategy.submittable_fields exceeds supported single-next submission width."
+            )
+            result.valid = False
+
+
 def _validate_gate_next_field(plan: EngineeringPlan, result: PlannerValidationResult) -> None:
     strategy = plan.input_strategy
     if strategy is None or not strategy.next_fields:
@@ -454,6 +536,7 @@ def validate_engineering_plan(plan: EngineeringPlan) -> PlannerValidationResult:
     _validate_requirement_resolution_metadata(requirements, result)
     _validate_conditional_activation(plan, result)
     _validate_gate_next_field(plan, result)
+    _validate_submittable_fields(plan, result)
 
     has_derived_edges = any(
         req.requirement_class in {"table_lookup", "equation_result", "report_output"}

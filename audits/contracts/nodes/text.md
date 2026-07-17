@@ -22,7 +22,7 @@ A text node stores human-readable explanatory prose — workflow initiation copy
 | --- | --- |
 | Standalone | `knowledge/**/nodes/**/{id}.yaml` with `type: text` |
 | Embedded | Parent `node.yaml` under `texts:` container (preferred for section nodes) |
-| Workflow sidecar | `workflows/{WF-ID}/runtime.yaml` under `texts:` |
+| Workflow nested runtime | `workflows/{machine-key}.yaml` under `runtime.texts:` |
 
 ## 5. ID convention
 
@@ -108,7 +108,7 @@ Also forbidden:
 
 ## 11. Fields consumed by runtime components
 
-Flow guidance and presentation layers read `texts` blocks for initiation and result narration. Response composer may emit text blocks with `role` for center-panel display. Embedded texts compile as first-class nodes via `embedded_nodes`. Workflow runtime sidecar `texts` merge into workflow metadata at load.
+Flow guidance and presentation layers read `texts` blocks for initiation and result narration. Response composer may emit text blocks with `role` for center-panel display. Embedded texts compile as first-class nodes via `embedded_nodes`. Workflow nested `runtime.texts` merge into workflow metadata at load.
 
 ## 12. Validation procedure
 
@@ -131,7 +131,7 @@ No dedicated validator. Validate manually:
 ## 14. Current repository examples
 
 - `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1-note-1.yaml` (see [table-note.md](table-note.md) for table footnotes)
-- `workflows/WF-PIPE-WALL-THICKNESS/runtime.yaml` (embedded `texts:` entries)
+- `workflows/pipe-wall-thickness.yaml` (nested `runtime.texts:` entries)
 - Standalone example id pattern: `B313-eq-2-intro`
 
 ## 15. Implementation evidence appendix

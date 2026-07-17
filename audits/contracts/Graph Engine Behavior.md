@@ -38,9 +38,9 @@ It shall provide structured traversal and execution state that downstream render
 Related contracts:
 
 ```text
-audits/contracts/global-rendering-contract.md
-audits/contracts/workflow-rendered-text.md
-audits/contracts/equation-rendering.md
+audits/contracts/Global Rendering Contract.md
+audits/contracts/Workflow Rendered Text and Block Output.md
+audits/contracts/Equation Rendering.md
 ```
 
 The graph engine is responsible for deciding:
@@ -66,10 +66,10 @@ The rendering pipeline is responsible for converting structured graph/execution 
 Workflow definitions live under:
 
 ```text
-workflow/
+workflows/{machine-key}.yaml
 ```
 
-The graph engine audit shall not require edits to files under `workflow/` unless the audit proves that the current workflow source data is missing required metadata.
+The graph engine audit shall not require edits to files under `workflows/` unless the audit proves that the current workflow source data is missing required metadata.
 
 Generic graph engine behavior shall not be fixed by hardcoding workflow-specific logic.
 
@@ -90,7 +90,7 @@ If a workflow slug or ID is unknown, the engine shall not silently return all wo
 Raw workflow IDs may be used internally, but user-facing workflow title and description shall come from the workflow node, as defined in:
 
 ```text
-audits/contracts/workflow-rendered-text.md
+audits/contracts/Workflow Rendered Text and Block Output.md
 ```
 
 ---
@@ -229,11 +229,14 @@ missing_parameter
 PARAM-*
 ```
 
-The bottom input prompt and temporary center-panel waiting block are rendering concerns governed by:
+The bottom input prompt (composer `current_ask` / `active_prompt`) is a rendering concern governed by:
 
 ```text
-audits/contracts/workflow-rendered-text.md
+docs/desktopApp/center_panel_output_contract.md
+audits/contracts/Workflow Rendered Text and Block Output.md
 ```
+
+Graph queue reasons such as `waiting_for_user_input` are **engine state** — not center-panel scroll block types. Raw internal states shall not leak into user-facing output.
 
 ---
 
@@ -264,7 +267,7 @@ Required behavior:
 Equation rendering details are governed by:
 
 ```text
-audits/contracts/equation-rendering.md
+audits/contracts/Equation Rendering.md
 ```
 
 ---
@@ -383,13 +386,14 @@ It shall not generate final user-facing prose except where explicitly part of a 
 The graph engine output shall support downstream rendering of:
 
 ```text
-workflow title/description
+workflow_intro
 paragraph blocks
 equation blocks
-temporary waiting-user-input blocks
 summary blocks
 references
 ```
+
+Downstream rendering owns composer `current_ask` for active parameter asks — not center-panel scroll waiting blocks (see `docs/desktopApp/center_panel_output_contract.md`).
 
 The graph engine shall not cause duplicate rendering by emitting the same logical output through multiple competing paths.
 
@@ -481,7 +485,7 @@ traversal trace
 planner refresh
 task state serialization
 developer inspector projections
-workflow/
+workflows/
 ```
 
 Audit questions:
@@ -494,7 +498,7 @@ Audit questions:
     
 4. What happens when a workflow slug/ID is unknown?
     
-5. How are workflow files under `workflow/` loaded?
+5. How are workflow files under `workflows/{machine-key}.yaml` loaded?
     
 6. How are outgoing edges selected during node expansion?
     
@@ -593,7 +597,7 @@ Required coverage:
 ```text
 Known workflow slug -> correct workflow root selected
 Unknown workflow slug -> does not return all workflows
-Workflow files are loaded from workflow/
+Workflow files are loaded from workflows/
 Node expansion -> only applicable branch selected
 Inapplicable branch -> marked excluded, not visited
 Missing parameter -> node queued with waiting_for_user_input reason
@@ -691,7 +695,7 @@ Expected traversal behavior to verify:
 
 ```text
 1. Pipe wall thickness workflow is selected as the root.
-2. Workflow source is loaded from workflow/.
+2. Workflow source is loaded from workflows/pipe-wall-thickness.yaml.
 3. Initial relevant ASME paragraph/workflow nodes are expanded in deterministic order.
 4. Pressure loading type is requested before pressure-specific branch expansion.
 5. Internal pressure input selects the internal pressure branch.

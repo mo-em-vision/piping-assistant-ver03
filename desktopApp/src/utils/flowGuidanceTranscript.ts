@@ -148,6 +148,139 @@ function mapNextWorkflowsBlock(block: FlowGuidancePresentationBlock): NextWorkfl
   }
 }
 
+function slugFromPrefixedId(blockId: string, prefix: string): string | null {
+  if (!blockId.startsWith(prefix)) {
+    return null
+  }
+  const slug = blockId.slice(prefix.length).trim()
+  return slug || null
+}
+
+function combineWorkflowIntroText(title: string, description: string): string {
+  const titleText = title.trim()
+  const descriptionText = description.trim()
+  if (titleText && descriptionText) {
+    return `${titleText}\n\n${descriptionText}`
+  }
+  return titleText || descriptionText
+}
+
+function syntheticWorkflowIntroBlock(
+  workflowSlug: string,
+  titleText: string,
+  descriptionText: string,
+): FlowGuidancePresentationBlock {
+  const payload: FlowGuidancePresentationBlock['payload'] = {
+    display_role: 'workflow_intro',
+  }
+  if (titleText.trim()) {
+    payload.title = titleText.trim()
+  }
+  return {
+    block_id: `workflow-intro-${workflowSlug}`,
+    kind: 'text',
+    source: 'workflow_node',
+    text: combineWorkflowIntroText(titleText, descriptionText),
+    payload,
+  }
+}
+
+/** Project stored transcript blocks for display without mutating stored history. */
+export function projectTranscriptBlocksForDisplay(
+  transcriptBlocks: unknown[],
+): FlowGuidancePresentationBlock[] {
+  if (!Array.isArray(transcriptBlocks)) {
+    return []
+  }
+
+  const rawBlocks = transcriptBlocks.filter(
+    (raw): raw is FlowGuidancePresentationBlock => Boolean(raw && typeof raw === 'object'),
+  )
+
+  const titleBySlug = new Map<string, FlowGuidancePresentationBlock>()
+  const descriptionBySlug = new Map<string, FlowGuidancePresentationBlock>()
+  const nativeIntroSlugs = new Set<string>()
+
+  for (const block of rawBlocks) {
+    const blockId = String(block.block_id ?? '').trim()
+    if (!blockId) {
+      continue
+    }
+    const introSlug = slugFromPrefixedId(blockId, 'workflow-intro-')
+    if (introSlug) {
+      nativeIntroSlugs.add(introSlug)
+      continue
+    }
+    const titleSlug = slugFromPrefixedId(blockId, 'workflow-title-')
+    if (titleSlug) {
+      titleBySlug.set(titleSlug, block)
+      continue
+    }
+    const descriptionSlug = slugFromPrefixedId(blockId, 'workflow-description-')
+    if (descriptionSlug) {
+      descriptionBySlug.set(descriptionSlug, block)
+    }
+  }
+
+  const consumedIds = new Set<string>()
+  const syntheticBySlug = new Map<string, FlowGuidancePresentationBlock>()
+
+  for (const slug of nativeIntroSlugs) {
+    const titleBlock = titleBySlug.get(slug)
+    const descriptionBlock = descriptionBySlug.get(slug)
+    if (titleBlock?.block_id) {
+      consumedIds.add(titleBlock.block_id)
+    }
+    if (descriptionBlock?.block_id) {
+      consumedIds.add(descriptionBlock.block_id)
+    }
+  }
+
+  const legacySlugs = new Set([...titleBySlug.keys(), ...descriptionBySlug.keys()])
+  for (const slug of [...legacySlugs].sort()) {
+    if (nativeIntroSlugs.has(slug)) {
+      continue
+    }
+    const titleBlock = titleBySlug.get(slug)
+    const descriptionBlock = descriptionBySlug.get(slug)
+    const titleText = String(titleBlock?.text ?? '')
+    const descriptionText = String(descriptionBlock?.text ?? '')
+    if (!titleText.trim() && !descriptionText.trim()) {
+      continue
+    }
+    syntheticBySlug.set(
+      slug,
+      syntheticWorkflowIntroBlock(slug, titleText, descriptionText),
+    )
+    if (titleBlock?.block_id) {
+      consumedIds.add(titleBlock.block_id)
+    }
+    if (descriptionBlock?.block_id) {
+      consumedIds.add(descriptionBlock.block_id)
+    }
+  }
+
+  const projected: FlowGuidancePresentationBlock[] = []
+  const insertedSynthetic = new Set<string>()
+
+  for (const block of rawBlocks) {
+    const blockId = String(block.block_id ?? '').trim()
+    if (blockId && consumedIds.has(blockId)) {
+      const slug =
+        slugFromPrefixedId(blockId, 'workflow-title-') ??
+        slugFromPrefixedId(blockId, 'workflow-description-')
+      if (slug && syntheticBySlug.has(slug) && !insertedSynthetic.has(slug)) {
+        projected.push(syntheticBySlug.get(slug)!)
+        insertedSynthetic.add(slug)
+      }
+      continue
+    }
+    projected.push(block)
+  }
+
+  return projected
+}
+
 /** Convert backend flow_guidance.transcript_blocks to scroll display blocks. */
 export function guidanceTranscriptToDisplayBlocks(
   transcriptBlocks: unknown[],
@@ -156,12 +289,9 @@ export function guidanceTranscriptToDisplayBlocks(
     return []
   }
 
+  const projected = projectTranscriptBlocksForDisplay(transcriptBlocks)
   const results: DisplayOutputBlock[] = []
-  for (const raw of transcriptBlocks) {
-    if (!raw || typeof raw !== 'object') {
-      continue
-    }
-    const block = raw as FlowGuidancePresentationBlock
+  for (const block of projected) {
     if (!isDurableTranscriptBlock(block)) {
       continue
     }
@@ -183,6 +313,9 @@ export function guidanceTranscriptToDisplayBlocks(
       continue
     }
     const displayRole = inferTranscriptDisplayRole(block)
+    if (displayRole === 'title' || displayRole === 'workflow_description') {
+      continue
+    }
     const title =
       typeof block.payload?.title === 'string' ? block.payload.title.trim() : undefined
     const blockType = mapDisplayRoleToBlockType(displayRole)

@@ -66,7 +66,14 @@ def test_create_task_current_ask_aligns_with_submittable_parameters(
     current_ask = state.get("current_ask")
     assert current_ask is not None
     assert current_ask["kind"] == "input"
-    assert current_ask["parameter_id"] == submittable[0]
+    assert current_ask["parameter_id"] in submittable
+    engineering_plan = state.get("engineering_plan") or {}
+    input_strategy = engineering_plan.get("input_strategy") or {}
+    next_fields = input_strategy.get("next_fields") or []
+    if next_fields:
+        assert current_ask["parameter_id"] == next_fields[0]
+    else:
+        assert current_ask["parameter_id"] == submittable[0]
 
 
 def test_fresh_pipe_wall_task_prompts_for_straight_pipe_first(
@@ -360,10 +367,36 @@ def test_timeline_shows_nps_and_od_before_material_at_internal_design_gage_press
     assert timeline.get("material_grade") == "pending"
 
 
-def test_timeline_input_order_matches_parameter_ask_order(
+def _timeline_input_ids(state: dict) -> list[str]:
+    return [
+        step["id"]
+        for step in state["progress"]["timeline"]
+        if step["id"] not in {"thickness", "report"}
+    ]
+
+
+def _assert_timeline_follows_collection_field_order(
+    *,
+    timeline_ids: list[str],
+    collection_field_order: list[str],
+) -> None:
+    """Nav-listed fields keep presentation order; extras may append after."""
+    nav_positions = {
+        field: index for index, field in enumerate(collection_field_order)
+    }
+    nav_timeline = [step_id for step_id in timeline_ids if step_id in nav_positions]
+    expected_nav = sorted(nav_timeline, key=lambda step_id: nav_positions[step_id])
+    assert nav_timeline == expected_nav
+
+
+def test_timeline_order_follows_collection_field_order_not_planner_ask_order(
     tmp_path: Path,
     project_root: Path,
 ) -> None:
+    """Timeline row order follows collection_field_order; active row follows current_ask."""
+    from engine.navigation import collection_step_order
+    from engine.state.goal_projection import planning_projection
+
     config = CLIConfig(
         report_format="html",
         language="english",
@@ -378,13 +411,39 @@ def test_timeline_input_order_matches_parameter_ask_order(
     session_id = api_session_id(service)
     state = _advance_pipe_wall_to_nominal_pipe_size(service, session_id)
 
-    input_ids = [
-        step["id"]
-        for step in state["progress"]["timeline"]
-        if step["id"] not in {"thickness", "report"}
+    current_ask = state.get("current_ask") or {}
+    assert current_ask.get("kind") == "input"
+    assert current_ask.get("parameter_id") == "nominal_pipe_size"
+
+    timeline = state["progress"]["timeline"]
+    active_steps = [
+        step
+        for step in timeline
+        if step.get("status") == "active" and step["id"] not in {"thickness", "report"}
     ]
-    assert input_ids.index("internal_design_gage_pressure") < input_ids.index("nominal_pipe_size")
-    assert input_ids.index("nominal_pipe_size") < input_ids.index("design_temperature")
+    assert active_steps
+    assert active_steps[0]["id"] == "nominal_pipe_size"
+    assert state["progress"]["current_step_id"] == "nominal_pipe_size"
+
+    input_ids = _timeline_input_ids(state)
+    store = service._store_for(session_id)
+    manager = store.load_state_manager()
+    task = manager.get_task(state["task_id"])
+    reader = service._reader()
+    planning = planning_projection(task)
+    collection_field_order = list(
+        task.outputs.get("collection_field_order")
+        or collection_step_order(task, planning, reader=reader)
+    )
+    _assert_timeline_follows_collection_field_order(
+        timeline_ids=input_ids,
+        collection_field_order=collection_field_order,
+    )
+
+    assert "design_temperature" in input_ids
+    assert "nominal_pipe_size" in input_ids
+    assert input_ids.index("design_temperature") < input_ids.index("nominal_pipe_size")
+    assert input_ids.index("outside_diameter") < input_ids.index("design_temperature")
 
 
 _GENERIC_FALLBACK = "Complete the fields below to continue."

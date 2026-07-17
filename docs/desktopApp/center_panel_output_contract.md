@@ -18,6 +18,26 @@ User-facing engineering workspace scroll area for active tasks. Defines block ro
 - **Current snapshot (ephemeral):** `task_state.flow_guidance.presentation_blocks` — matched guidance for this turn only; not the durable history.
 - **Frontend cache:** UX smoothing only; API transcript wins on reload.
 
+### Projection terminology
+
+`task_state.flow_guidance` and `task_state.display_outputs` are **serialized API projections** for display. They are authoritative for **what to render** on reload, not for engineering navigation or calculations.
+
+| Concern | Authority |
+| --- | --- |
+| Navigation ordering / missing fields | `engineering_plan`, planner outputs |
+| Parameter prompt copy | `current_ask`, `engine/messaging/`, PARAM nodes |
+| Equation engineering truth | Execution trace, `equation_display_trace` (`docs/rules.md` §24) |
+| Durable display history | `flow_guidance.transcript_blocks`, durable `display_outputs` equation blocks (§25) |
+
+`flow_guidance.presentation_blocks` is an ephemeral projection snapshot — not workflow engineering state.
+
+### Implementation drift (code alignment deferred to Phase 2B)
+
+| Topic | Target (this contract) | Drift (do not document as permanent) |
+| --- | --- | --- |
+| Active user ask | Composer (`current_ask` / `active_prompt`) only; scroll must not own composer questions | `api/output_blocks._input_waiting_blocks()` may emit volatile `input_waiting` in `display_outputs` — migration decision in Phase 2B |
+| Workflow introduction | Single durable `workflow_intro` (`workflow-intro-{workflow_id}`) | Some API/tests still reference separate `title` display role — migration decision in Phase 2B |
+
 ## Report vs transcript (Phase 6)
 
 The center-panel scroll and report preview may consume the same **presentation package**:
@@ -210,7 +230,7 @@ Legacy ids removed from builders: `minimum-thickness-equation`, `pipe-schedule-r
 ## Completion next workflows (Phase 5)
 
 - `next_workflows` blocks append to `flow_guidance_transcript` **once** when a task reaches `COMPLETED`.
-- Source: `workflows/*/runtime.yaml` `suggested_workflows`, resolved through `workflow_catalog` metadata only.
+- Source: workflow nested `runtime.suggested_workflows` on primary workflow YAML, resolved through `workflow_catalog` metadata only.
 - Not used by planner, graph, execution, validation, or parameter resolution — scroll display history only.
 - `block_id`: `next-workflows-{task_id}-{workflow_id}` (normalized slugs).
 - API `flow_guidance.transcript_blocks` flattens `suggestions` to top level; stored form uses `PresentationBlock.payload`.
@@ -220,6 +240,6 @@ Legacy ids removed from builders: `minimum-thickness-equation`, `pipe-schedule-r
 - Raw planner JSON, `engineering_plan`, `legacy_goal_map`, internal node ids as primary visible text.
 - `waiting_user_input` as a displayed value in completed calculation tables.
 
-## Phase 1A scope
+## Phase 1A scope (historical)
 
-Render existing flow guidance into `flow_guidance.transcript_blocks` (backend-persisted) and center panel scroll. No `center_panel_transcript` field. No initiation/result runtime texts, composer shortening, references, archives, or completion workflows.
+Phase 1A originally scoped transcript-only guidance. Current contract also includes archives, completion suggestions, reference chips, and `display_outputs` merge (Phases 3–6) as documented above.

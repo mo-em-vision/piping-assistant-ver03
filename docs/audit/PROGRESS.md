@@ -1,6 +1,6 @@
 # Architecture Audit Progress
 
-Tracks folder-by-folder audit status per [Architecture Audit Mode](../todo/Architecture%20Audit%20Mode.md).
+Tracks folder-by-folder audit status per [Architecture Audit Mode](../process/architecture_audit_mode.md).
 
 | Phase | Folder | Status | README |
 |-------|--------|--------|--------|

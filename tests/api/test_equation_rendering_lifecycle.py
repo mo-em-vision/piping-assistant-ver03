@@ -53,7 +53,7 @@ def test_suppress_input_waiting_when_equation_table_shows_awaiting() -> None:
     assert _equation_blocks_show_awaiting_input(blocks) is True
 
 
-def test_emit_input_waiting_when_no_equation_awaiting_rows(
+def test_emit_no_input_waiting_when_awaiting_input(
     standards_reader,
 ) -> None:
     manager = TaskStateManager()
@@ -68,11 +68,7 @@ def test_emit_input_waiting_when_no_equation_awaiting_rows(
     blocks = build_display_outputs(task, reader=standards_reader)
     waiting_ids = {block.get("id") for block in blocks if block.get("display_role") == DisplayRole.input_waiting.value}
 
-    assert "input-waiting" in waiting_ids or not any(
-        block.get("type") == "equation"
-        and _equation_blocks_show_awaiting_input([block])
-        for block in blocks
-    )
+    assert "input-waiting" not in waiting_ids
 
 
 def test_stable_equation_block_id_across_preview_and_evaluated(standards_reader) -> None:

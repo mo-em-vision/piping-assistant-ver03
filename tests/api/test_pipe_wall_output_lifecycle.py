@@ -143,8 +143,8 @@ def test_eq2_trace_coexists_with_eq3a_evaluated_state(standards_reader) -> None:
 
 def test_gate_phase_single_eq3a_preview_before_thickness_eval(
     tmp_path, project_root,
-) -> None:
-    """After expansion/path gates only: eq-3a preview plus durable eq-2 preview, no traces."""
+    ) -> None:
+    """After expansion/path gates only: eq-3a preview only until upstream thickness exists."""
     from api.desktop_service import DesktopApiService
     from config.loader import CLIConfig
     from tests.api.conftest import api_session_id
@@ -187,9 +187,7 @@ def test_gate_phase_single_eq3a_preview_before_thickness_eval(
     eq2_blocks = [
         block for block in blocks if str(block.get("equation_node_id")) == EQ_2_ID
     ]
-    assert len(eq2_blocks) == 1
-    assert eq2_blocks[0].get("id") == EQ_2_BLOCK_ID
-    assert eq2_blocks[0].get("display_state") == DisplayState.preview.value
+    assert len(eq2_blocks) == 0
     assert not any(str(block.get("id", "")).startswith("equation-trace-") for block in blocks)
     assert not any(str(block.get("id", "")).startswith("path-preview-equation-") for block in blocks)
     assert not any(str(block.get("id", "")).startswith("node-activation-equation-") for block in blocks)

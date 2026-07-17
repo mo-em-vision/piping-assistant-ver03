@@ -6,8 +6,8 @@ _Filtered projection aligned with `audits/contracts/nodes/concept.md`._
 
 ## Summary
 
-- Concept files inspected: 11
-- Passing: 11
+- Concept files inspected: 12
+- Passing: 12
 - Warnings: 0
 - Failing: 0
 
@@ -29,6 +29,7 @@ _Filtered projection aligned with `audits/contracts/nodes/concept.md`._
 | `knowledge/global/concepts/nodes/CONCEPT-material.yaml` | `CONCEPT-material` | `validate_concept_node` | **PASS** | — |
 | `knowledge/global/concepts/nodes/CONCEPT-pipe-construction.yaml` | `CONCEPT-pipe-construction` | `validate_concept_node` | **PASS** | — |
 | `knowledge/global/concepts/nodes/CONCEPT-pipe-diameter.yaml` | `CONCEPT-pipe-diameter` | `validate_concept_node` | **PASS** | — |
+| `knowledge/global/concepts/nodes/CONCEPT-pipe-geometry.yaml` | `CONCEPT-pipe-geometry` | `validate_concept_node` | **PASS** | — |
 | `knowledge/global/concepts/nodes/CONCEPT-pressure.yaml` | `CONCEPT-pressure` | `validate_concept_node` | **PASS** | — |
 | `knowledge/global/concepts/nodes/CONCEPT-stress.yaml` | `CONCEPT-stress` | `validate_concept_node` | **PASS** | — |
 | `knowledge/global/concepts/nodes/CONCEPT-temperature-coefficient.yaml` | `CONCEPT-temperature-coefficient` | `validate_concept_node` | **PASS** | — |

@@ -135,26 +135,31 @@ Nomenclature paragraphs (`metadata.kind: nomenclature` or only `introduces_param
 
 ## 11. Fields consumed by runtime components
 
-Graph expansion reads sidecar `applicability`, `assumptions`, and `interactions` merged from execution sidecars. Flow guidance uses `text.original` and `presentation` for paragraph blocks. Parameter introduction traces use `introduces_parameter` edges and nomenclature sidecars. Hierarchy metadata drives section navigation in standards browsers.
+**Canonical authoring:** Graph expansion, assumption checking, and interaction resolution read `execution.applicability`, `execution.assumptions`, and `execution.interactions` from the nested `execution` block in the primary paragraph YAML.
+
+**Legacy runtime compatibility (read-only):** `engine/reference/paragraph_sidecar.py` may still merge metadata from old `{id}.execution.yaml` files when present during pack load. This loader path is migration compatibility only — do not author, create, or maintain execution sidecars. Consolidate any remaining legacy files into the primary YAML `execution:` block.
+
+Flow guidance uses `text.original` and `presentation` for paragraph blocks. Parameter introduction traces use `introduces_parameter` edges on the primary YAML. Do not create separate nomenclature sidecar files (`{id}.nomenclature.yaml`; §9). Optional inline `nomenclature` on the primary file when used (§8). Hierarchy metadata drives section navigation in standards browsers.
 
 ## 12. Validation procedure
 
 1. Parse YAML frontmatter.
 2. Run `validate_paragraph_node(meta)` from `engine/validation/paragraph_node_validator.py`.
-3. Run `check_paragraph_frontmatter_placement(meta)` from `engine/reference/paragraph_authoring_policy.py` for WARN-level SIDECAR_ONLY migration debt.
+3. Run `check_paragraph_frontmatter_placement(meta)` from `engine/reference/paragraph_authoring_policy.py` for WARN-level placement debt when execution keys appear outside the nested `execution` block.
 4. Confirm `authority` is a known `AUTH-*` value.
 5. For nomenclature paragraphs, confirm edge types are restricted.
-6. If sidecars exist, validate against sidecar contracts and check for duplicate/split authoring surfaces.
+6. If legacy `{id}.execution.yaml` files remain on disk, treat them as migration debt: consolidate into the primary YAML `execution:` block and confirm no duplicate or split authoring surfaces.
 7. Rebuild pack graph: `python scripts/build_graph_db.py`.
 8. Run paragraph audit: `python scripts/audit_current_node_yaml.py --filter paragraph`.
 
-**Enforcement policy (phase 1):** `assumptions` and `parameter_defaults` in frontmatter emit WARN (migration required), not validator FAIL. `applicability` in frontmatter remains FAIL. Phase 2 promotes SIDECAR_ONLY frontmatter keys to FAIL when `SIDECAR_ONLY_ENFORCEMENT = "fail"` in the policy module and all known violations are migrated.
+**Enforcement policy (phase 1):** `assumptions` and `parameter_defaults` in frontmatter emit WARN (migration required), not validator FAIL. `applicability` in frontmatter remains FAIL. Phase 2 promotes misplaced execution-block keys to FAIL when `EXECUTION_BLOCK_ENFORCEMENT = "fail"` in the policy module and all known violations are migrated.
 
 ## 13. Common authoring mistakes
 
 - Using `304.1.2(a)` in `paragraph_number` instead of `304.1.2-a`.
 - Inventing `304.3.1-a` when the standard has no subsection (a).
-- Putting `applicability` or `interactions` in frontmatter instead of `.execution.yaml`.
+- Creating or retaining a separate `{id}.execution.yaml` file instead of nesting `applicability`, `interactions`, and related keys under `execution:` in the primary YAML.
+- Putting `applicability` or `interactions` at top level instead of under nested `execution:`.
 - Using `related_to` for parent/child structure.
 - Setting `text.source_language` on the node instead of `pack.yaml`.
 - Adding `references_*` edges on nomenclature paragraphs.
@@ -164,12 +169,11 @@ Graph expansion reads sidecar `applicability`, `assumptions`, and `interactions`
 - `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.2-a.yaml`
 - `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.1-b.yaml`
 - `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.yaml`
-- `knowledge/standards/asme/asme_b31.3/nodes/paragraph/304.1.2-a.execution.yaml`
 
 ## 15. Implementation evidence appendix
 
 - Policy: `engine/reference/paragraph_authoring_policy.py` — placement categories, `check_paragraph_frontmatter_placement`, `classify_edge_target`, `EXTERNAL_UNMODELED_REF_REGISTRY`
 - Validator: `engine/validation/paragraph_node_validator.py` — `validate_paragraph_node`, `validator_fail_messages_for_frontmatter`
-- Sidecar merge: `engine/reference/paragraph_sidecar.py` — `merge_paragraph_sidecar_metadata`, `EXECUTION_SIDECAR_KEYS` from policy
+- Legacy sidecar merge (read-only at load): `engine/reference/paragraph_sidecar.py` — `merge_paragraph_sidecar_metadata` may read old `{id}.execution.yaml` files; not an authoring surface
 - Structural edges: `engine/validation/structural_edges.py` — `validate_no_structural_edges`
 - Revision: `engine/validation/node_revision_metadata.py` — `validate_revision_metadata`

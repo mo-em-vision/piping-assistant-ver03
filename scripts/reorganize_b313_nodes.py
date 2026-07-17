@@ -358,12 +358,6 @@ def reorganize(*, dry_run: bool) -> dict[str, Any]:
                 shutil.rmtree(path)
             report["deleted"].append(path.name)
 
-    map_path = _ROOT / "docs" / "standards" / "b313_reorganize_map.md"
-    map_body = "# B31.3 reorganize map\n\n```json\n" + json.dumps(report, indent=2) + "\n```\n"
-    if not dry_run:
-        map_path.parent.mkdir(parents=True, exist_ok=True)
-        map_path.write_text(map_body, encoding="utf-8")
-
     return report
 
 

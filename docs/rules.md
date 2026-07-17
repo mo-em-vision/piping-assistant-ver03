@@ -6,6 +6,61 @@ Source of truth for Cursor agents and contributors. `.cursor/rules/agent-rules.m
 
 ---
 
+## Documentation authority
+
+When documentation and implementation disagree, agents must separate **what is required** from **what exists today**. Current code does not automatically override intended policy or contracts.
+
+### Categories
+
+| Category | Meaning |
+| --- | --- |
+| **INTENDED_AUTHORITY** | Explicitly defines required behavior or structure. |
+| **CURRENT_IMPLEMENTATION** | Describes what the application currently does. It does not establish requirements by itself. |
+| **ENFORCEMENT** | Validators, schemas, tests, CI checks, and policy flags that show what is currently enforced. Enforcement may be correct, outdated, or incomplete and does not automatically override intended authority. |
+| **EXPLANATORY_DOCUMENTATION** | Explains design or current behavior without defining requirements. |
+| **HISTORICAL_OR_TEMPORARY** | Contains superseded, migration, planning, or temporary material and has no present authority unless explicitly reactivated. |
+
+Protection status, file location, detail level, or current code usage does not establish authority by itself. Generated reports are evidence or snapshots and do not establish requirements.
+
+Classification applies to individual documents, not automatically to every file within a folder.
+
+### Conflict classification
+
+When intended authority, current implementation, documentation, and enforcement disagree, classify the conflict as:
+
+| Class | Meaning |
+| --- | --- |
+| **documentation_drift** | Intended authority is clear, but explanatory documentation is stale or incorrect. |
+| **implementation_debt** | Intended authority is clear, but code, tests, or enforcement diverge from it. |
+| **unresolved_design_decision** | Intended authority is missing, ambiguous, or contradictory. |
+
+### Agent obligations
+
+1. Do not silently resolve conflicts in favor of current implementation, documentation, or enforcement.
+2. Report the intended requirement, current behavior, enforcement status, conflict classification, and affected paths.
+3. Do not rewrite authoritative policy or contracts to match current code unless the approved task explicitly authorizes it.
+4. Do not derive new requirements from explanatory, historical, temporary, or generated material.
+5. When intended authority is unclear, stop implementation that would entrench one interpretation and request an owner decision.
+
+Feature plans must surface relevant documentation conflicts through the Architecture Consistency Review (§23).
+
+### Precedence (when sources disagree)
+
+Higher rows define **INTENDED_AUTHORITY** for conflicting requirements. Lower rows explain or enforce but do not override higher tiers without an approved policy change.
+
+| Priority | Source | Role |
+| --- | --- | --- |
+| 1 | `docs/rules.md` | Agent policy, layer boundaries, cross-cutting rules |
+| 2 | `audits/contracts/**` | Node and runtime authoring contracts |
+| 3 | `spec/**` | Detailed schemas (e.g. `spec/lookup_rules.md`) referenced by contracts |
+| 4 | `engine/validation/**`, contract JSON, CI tests | **ENFORCEMENT** — what is checked today |
+| 5 | `docs/core/**`, `docs/desktopApp/**` | **EXPLANATORY_DOCUMENTATION** — narrative; must not contradict tiers 1–3 |
+| 6 | `audits/reports/**`, generated audits | Evidence snapshots only |
+
+Node authoring starts at `audits/contracts/nodes/00-START-HERE.md`.
+
+---
+
 ## 1. Read before you write
 
 Inspect target files, related tests, and existing patterns before editing. For product behavior, read the matching doc under `docs/desktopApp/` or `docs/core/` first.
@@ -96,7 +151,7 @@ Stop if you drift into kitchen-sink refactors, wrong abstractions, or duplicatin
 
 ### Where prompt text lives
 
-- **Workflow interaction specs** — `interactions` on workflow sidecars / `runtime.yaml`. Gate phases (yes/no, branch decisions) delegate numbered formatting to `engine/messaging/step_prompt.py`.
+- **Workflow interaction specs** — `runtime.interactions` on the primary workflow YAML. Gate phases (yes/no, branch decisions) delegate numbered formatting to `engine/messaging/step_prompt.py`.
 - **PARAM-* node metadata** — `question`, `description`, `metadata.short_question`, `metadata.input_examples`, and `metadata.composer_options` labels on parameter nodes, read via `engine/messaging/parameter_prompt_context.py` (messaging-owned; Graph Engine does not own user-facing wording).
 - **Equation / lookup context** — `engine/messaging/formula_parameter_prompt.py` (graph-driven; no workflow-specific branches).
 - **Final messaging fallback** — structured minimal prompt from PARAM `name` / `canonical_symbol` when no higher-priority source applies.
@@ -110,7 +165,7 @@ All desktop/API parameter asks must resolve through:
 
 Order inside that function (do not bypass or reorder without updating docs and tests):
 
-1. Workflow interaction spec / `runtime.yaml` / sidecar interaction question (gate phases use numbered formatting from `step_prompt` helpers; PARAM `question` preferred for numbered decision copy)
+1. Workflow nested `runtime.interactions` interaction question (gate phases use numbered formatting from `step_prompt` helpers; PARAM `question` preferred for numbered decision copy)
 2. PARAM-* node `question`, then useful `description` if no question (`parameter_prompt_context.py`)
 3. Equation or lookup context (`formula_parameter_prompt.guidance_for_parameter_input`)
 4. Legacy `phase_questions` on planning (backward compatibility only)
@@ -147,7 +202,7 @@ The active execution subgraph is resolved from authored knowledge nodes: `assump
 
 1. **Node metadata** — `assumptions`, execution-sidecar `applicability`, `interactions`, `provisional_assumptions`, parameter `resolution`.
 2. **Typed edges** — `depends_on`, `requires_parameter`, `introduces_parameter`, etc., including `when` metadata on the edge.
-3. **Workflow runtime sidecar** — `workflows/<id>/runtime.yaml`: `interactions`, `assumption_gate_fields`, and **phase labels/order only** (not a static list of all parameters for every branch).
+3. **Workflow nested `runtime` block** — on the primary workflow YAML (`workflows/*.yaml`): `runtime.interactions`, `runtime.navigation.assumption_gate_fields`, and **phase labels/order only** (not a static list of all parameters for every branch).
 4. **Engine expansion policy** — `engine/graph/expansion_policy.py`, `lazy_expander.py`, `assumption_checker.py`, `micro_graph_engine.required_user_inputs()`.
 
 ### Engine and API must
@@ -160,7 +215,7 @@ The active execution subgraph is resolved from authored knowledge nodes: `assump
 ### Do not
 
 - Hardcode paragraph ids, branch ids, or task field names in planner, serializers, `workflow_timeline.py`, or `workflow_bootstrap.py` to select execution paths.
-- List all branch parameters unconditionally in `runtime.yaml` `navigation.phases.parameter_gathering`.
+- List all branch parameters unconditionally in workflow `runtime.navigation.phases.parameter_gathering`.
 - Merge static navigation phase lists over graph-derived `required_user_inputs` (gate phases only).
 - Encode workflow branching in TypeScript or `if workflow == "pipe_wall_…"` blocks in the backend.
 
@@ -171,8 +226,8 @@ The active execution subgraph is resolved from authored knowledge nodes: `assump
 | Block expansion until user confirms | Node `assumptions` with `required_for_expansion` |
 | Internal vs external (or similar) branch | Edge `when` on `depends_on`, or `applicability.applies_when` on branch paragraph/equation |
 | Branch-only parameter | `introduces_parameter` on the branch paragraph + parameter node; optional `applies_when` |
-| Workflow-level decision before expansion | Workflow `interactions` / `assumption_gate_fields` in `runtime.yaml` |
-| Ask order within a phase | `navigation.phases` order in `runtime.yaml` (fields must still be graph-active) |
+| Workflow-level decision before expansion | Workflow nested `runtime.interactions` / `runtime.navigation.assumption_gate_fields` |
+| Ask order within a phase | `runtime.navigation.phases` order on the primary workflow YAML (fields must still be graph-active) |
 
 After graph YAML changes: `python scripts/build_graph_db.py` when using SQLite cache; extend `tests/graph/test_expansion_policy.py` (assert via metadata behavior, not engine id literals).
 
@@ -194,7 +249,7 @@ Full rule file: `.cursor/rules/graph-expansion.mdc`. Design detail: `docs/core/1
 | --- | --- |
 | `PARAM-*` node | `key: material_grade` (machine-safe, stable) |
 | Lookup table YAML | `inputs[].id: material_grade` when bound to `PARAM-material-grade` |
-| Workflow `runtime.yaml` | Same key when the parameter legitimately appears in gate or ordering metadata (`assumption_gate_fields`, `navigation.phases` gate fields) — not as a substitute for graph expansion (§13) |
+| Workflow nested `runtime` | Same key when the parameter legitimately appears in gate or ordering metadata (`runtime.navigation.assumption_gate_fields`, `runtime.navigation.phases` gate fields) — not as a substitute for graph expansion (§13) |
 | Facts / API submit | Store under canonical `key` (`material_grade`) |
 | Material catalog | `material_id` is a catalog token (e.g. `astm_a106_gr_b`), not the parameter key |
 
@@ -254,11 +309,11 @@ Correct: `Resolved from `**`ASME B31.3 Table A-1`** (only the citation is clicka
 
 | Layer | Rule |
 | --- | --- |
-| Lookup node | `returns_parameter` edge to the global `PARAM-*` node; `lookup.keys` / `inputs[].id` name the prerequisite parameters |
+| Lookup node | `returns_parameter` edge to the global `PARAM-*` node; `lookup.bindings` maps logical rule inputs to prerequisite `PARAM-*` nodes; `lookup.rule` names the resolution rule (see [`spec/lookup_rules.md`](../spec/lookup_rules.md)) |
 | Parameter node | Describes the symbol only — no `default`, `metadata.default_value`, or confirmation prompts for table-derived values |
 | `required_user_inputs()` | Excludes lookup outputs; includes only unresolved **lookup keys** (via `lookup_resolution_for_parameter`) |
 | Coefficient / lookup execution | `apply_coefficient_lookups` / lookup engine writes table-sourced facts after keys are confirmed |
-| Workflow `runtime.yaml` | Phase lists name lookup **dependencies** (e.g. `pipe_construction_type`), not derived coefficients (`weld_joint_efficiency`) |
+| Workflow nested `runtime` | Phase lists name lookup **dependencies** (e.g. `pipe_construction_type`), not derived coefficients (`weld_joint_efficiency`) |
 | Messaging | Prompt copy asks for lookup keys only — never "confirm E = 1.0" or similar for table-derived outputs |
 
 ### Do not
@@ -271,9 +326,11 @@ Correct: `Resolved from `**`ASME B31.3 Table A-1`** (only the citation is clicka
 ### Design references
 
 - [`audits/contracts/nodes/lookup.md`](../audits/contracts/nodes/lookup.md) — lookup node contract
+- [`spec/lookup_rules.md`](../spec/lookup_rules.md) — v2 `lookup.bindings`, `lookup.rule`, and `lookup_rules` schema
 - `engine/graph/lookup_parameter_resolution.py` — infers `table_lookup` resolution from graph
 - `engine/executor/coefficient_lookup.py` — ASME B31.3 coefficient table resolution
-- §14 — parameter key consistency for lookup `inputs[].id`
+- `engine/validation/lookup_rule_validator.py` — enforces v2 lookup config (`lookup.bindings`, `lookup.rule`; rejects `lookup.keys`)
+- §14 — parameter key consistency for bound `PARAM-*` nodes
 - §15 — derived parameter value display (table link before value exists)
 
 ---
@@ -525,12 +582,12 @@ Output must be **UI-neutral** structured blocks (dict/JSON-serializable). Deskto
 
 |           | `presentation_blocks`                                                                 | `transcript_blocks`                                            |
 | --------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| Lifecycle | Rebuilt each turn from current state                                                  | Append-only; never overwrite prior entries                     |
+| Lifecycle | Rebuilt each turn from current state                                                  | **Append-only identity:** new durable blocks receive new `block_id`s; an existing durable block with the same `block_id` **updates in place**. Prior durable blocks are never removed or duplicated on reload. See §25. |
 | Ownership | `PresentationResponse` — not workflow state, not a presentation store on the task   | Session/conversation history                                   |
-| Content   | Current phase snapshot (parameters, equations, warnings)                              | Historical guidance, equations, explanations shown to the user |
+| Content   | Current phase snapshot (guidance, warnings)                                           | Historical guidance, explanations, archives; engineering equations in `display_outputs` per §25 |
 | Tests     | Use field name `presentation_blocks`                                                  | Use field name `transcript_blocks` — never conflate            |
 
-Changing `presentation_blocks` after a phase advance must **not** erase `transcript_blocks`. Do **not** attach presentation state directly to workflow state.
+Changing `presentation_blocks` after a phase advance must **not** erase `transcript_blocks`. Presentation fields on `task_state.flow_guidance` are **API projections** of `PresentationResponse` — not workflow engineering state. Navigation authority remains `engineering_plan` / planner outputs; calculation authority remains execution trace and `equation_display_trace` (§24).
 
 Block identity, in-place updates, equation atomic units, and scroll ordering: **§25**.
 

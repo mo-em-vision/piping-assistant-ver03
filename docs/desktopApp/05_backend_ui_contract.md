@@ -178,11 +178,11 @@ Workflow **paths**, **branches**, and **which parameters to ask** are resolved b
 | Path decision (e.g. internal vs external pressure) | `engine/graph/path_decision.resolve_path_decision()` from expanded nodes + task facts |
 | Timeline / composer order | `task.outputs.graph_input_order`, `collection_field_order` (set during planning refresh) |
 | Step labels | `task.outputs.graph_step_titles` from parameter node metadata |
-| Phase ordering only | `workflows/<id>/runtime.yaml` `navigation.phases` (does not inject branch-specific fields) |
+| Phase ordering only | workflow nested `runtime.navigation.phases` on primary workflow YAML (does not inject branch-specific fields) |
 
 After each confirmed user input, the backend replans (`refresh_task_planning`) so ruled-out branches and their parameters drop from `phase_missing`, goals, and timeline.
 
-**Do not** add workflow-specific parameter lists to `api/workflow_timeline.py`, `engine/planner/`, or the desktop client. Author gates and branches on knowledge nodes and workflow runtime sidecars instead.
+**Do not** add workflow-specific parameter lists to `api/workflow_timeline.py`, `engine/planner/`, or the desktop client. Author branch conditions on knowledge graph nodes and edges (`depends_on` `when`, `applicability.applies_when`, `introduces_parameter`). Use workflow nested `runtime:` metadata only for workflow-level gates (`interactions`, `assumption_gate_fields`), interaction copy, texts, documentation, and permitted phase-ordering fields (`navigation.phases`). Runtime metadata does not determine active paths and does not replace graph expansion or `required_user_inputs()`.
 
 Project rule: `docs/rules.md` §13 and `.cursor/rules/graph-expansion.mdc`.
 
@@ -490,6 +490,25 @@ The frontend architecture should allow future:
 - mobile application
 
 The desktop application should avoid unnecessary platform-specific logic.
+
+---
+
+# 24. Center panel and Flow Guidance projection
+
+Workflow screen output is split across backend modules and desktop contracts. The desktop app renders structured blocks only; it does not author engineering or prompt copy.
+
+| Concern | Authority | Doc |
+| --- | --- | --- |
+| Durable transcript history | `task_state.flow_guidance.transcript_blocks` (persisted via `api/flow_guidance_sync.py` → `task.outputs["flow_guidance_transcript"]`) | [`center_panel_output_contract.md`](center_panel_output_contract.md) |
+| Current-turn presentation snapshot | `task_state.flow_guidance.presentation_blocks` (ephemeral; rebuilt each response) | [`center_panel_output_contract.md`](center_panel_output_contract.md) |
+| Engineering equation/table blocks | `task_state.display_outputs` | [`center_panel_output_contract.md`](center_panel_output_contract.md) |
+| Active user ask | Composer `current_ask` / `flow_guidance.active_prompt` — not scroll-owned | [`center_panel_output_contract.md`](center_panel_output_contract.md) |
+| Navigation authority | `task.outputs["engineering_plan"]` | [`docs/core/16. task_outputs_authority.md`](../core/16.%20task_outputs_authority.md) |
+| Flow Guidance assembly | `api/flow_guidance.py` + `engine/presentation/` | `docs/rules.md` §21 |
+
+**Module split:** `api/flow_guidance.py` builds the Flow Guidance payload on `task_state` for API/desktop reads. `api/flow_guidance_sync.py` appends durable `transcript_blocks` to task storage. Do not merge their responsibilities in the frontend.
+
+This document (`05_backend_ui_contract.md`) covers the desktop↔backend boundary. Block-type lifecycle, scroll ordering, and transcript rules are authoritative in [`center_panel_output_contract.md`](center_panel_output_contract.md).
 
 ---
 

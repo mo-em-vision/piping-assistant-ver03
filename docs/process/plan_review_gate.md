@@ -185,7 +185,7 @@ Reviewers (human or Cursor) should verify the plan against existing docs — **d
 | Are prompts split between Planner (what) and Messaging (how)? | [`docs/rules.md`](../rules.md) §12 |
 | Is traversal narration in the Flow Guidance Layer? | [`docs/rules.md`](../rules.md) §21 |
 | Is the frontend thin (display + input only)? | [`docs/desktopApp/06_component_architecture.md`](../desktopApp/06_component_architecture.md) |
-| Are transcript blocks append-only? | [`docs/rules.md`](../rules.md) §21 |
+| Are transcript blocks append-only per §25 identity rules (in-place update by `block_id`, no duplicates on reload)? | [`docs/rules.md`](../rules.md) §21, §25 |
 
 ### Layer boundaries (summary)
 

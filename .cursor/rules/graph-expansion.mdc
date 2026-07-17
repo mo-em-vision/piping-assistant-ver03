@@ -23,7 +23,7 @@ Workflow **paths**, **branches**, and **parameter asks** are resolved by node ex
 | Expand or block a node | `assumptions`, `applicability.applies_when`, `interactions` |
 | Conditional branch | Edge `when`, `depends_on` with `when` |
 | Branch-only parameters | `introduces_parameter`, parameter node + `applies_when` |
-| Pre-expansion gates | Workflow `runtime.yaml` `interactions`, `assumption_gate_fields` |
+| Pre-expansion gates | Workflow nested `runtime.interactions`, `runtime.navigation.assumption_gate_fields` |
 | User-input vs lookup | Parameter `resolution.method` |
 
 ## Engine flow
@@ -42,7 +42,7 @@ Workflow **paths**, **branches**, and **parameter asks** are resolved by node ex
 
 ## Navigation config role
 
-`workflows/*/runtime.yaml` `navigation` is for **phase order** and **gate fields** only. Fields in `parameter_gathering` must also appear on the expanded graph path; graph expansion is authoritative for *whether* to ask.
+Workflow nested `runtime.navigation` on primary workflow YAML is for **phase order** and **gate fields** only. Fields in `parameter_gathering` must also appear on the expanded graph path; graph expansion is authoritative for *whether* to ask.
 
 ## Tests
 

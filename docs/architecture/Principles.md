@@ -1,3 +1,4 @@
+> **EXPLANATORY / teaching — not normative.** [`Constitution.md`](Constitution.md) is the authoritative source for architectural laws. Index: [`docs/core/README.md`](../core/README.md).
 
 ## Lecture 1 — Knowledge vs Documents
 
@@ -98,7 +99,7 @@
 6. Workflows do not define Goals; they constrain how Goals may be achieved.
 7. A Goal is complete when its required outputs exist as valid Facts.
 8. Multiple Goals may share the same Facts, avoiding duplicate work.
-9. The planner is goal-driven rather than graph-driven.
+9. The planner is goal-driven for navigation order; graph expansion determines which requirements, branches, and parameter asks are active on the current path (see [`Constitution.md`](Constitution.md) Law 5).
 10. The LLM identifies Goals; the deterministic engine satisfies them.
 # Lecture 11   
 
@@ -107,11 +108,11 @@
 3. The graph defines knowledge; the kernel enforces execution.
 4. Multiple independent Goal Trees can run concurrently.
 5. Goal Trees share Facts across Execution Context.
-6. The kernel schedules Goal execution but does not determine engineering logic.
-7. Facts are globally deduplicated within an Execution Context where provenance matches.
-8. Conflicting Facts are preserved, not overwritten.
-9. Conflict resolution is handled by authority/workflow rules, not the kernel.
-10. The kernel ensures deterministic execution order given the same inputs.
+6. Facts are globally deduplicated within an Execution Context where provenance matches (via `FactStore`).
+7. Conflicting Facts are preserved, not overwritten; supersession replaces active values append-only.
+8. Conflict resolution is handled by authority/workflow rules, not the kernel alone.
+9. **State Manager** persists task state, invalidation, and execution history; the kernel schedules execution.
+10. The kernel ensures deterministic execution order given the same resolved plan and Facts.
 
 # Lecture 12   
 
@@ -119,8 +120,8 @@
 2. Planner operates in logical space (what should happen).
 3. Kernel operates in physical space (what does happen).
 4. Graph defines knowledge; it must not execute or schedule.
-5. Planner expands Goals and defines dependencies.
-6. Kernel schedules execution and manages runtime state.
+5. Graph expansion determines active dependencies, branches, and parameter asks from authored node relationships; the Planner orders and selects the next unresolved graph-derived work. The Planner does not invent dependencies, branches, required parameters, or execution paths (see [`Constitution.md`](Constitution.md) Law 5, [`docs/rules.md`](../rules.md) §13).
+6. Kernel schedules execution of resolved plans; State Manager persists task state and history.
 7. Planner cannot modify Facts directly.
 8. Kernel cannot interpret engineering meaning or standards.
 9. Communication occurs only via Execution Requests.

@@ -16,6 +16,7 @@ A lookup node defines how authoritative table data is resolved into one or more 
 - You need pass/fail validation (use `validation_rule`).
 - You only need to store static table rows without resolution logic (author table data; bind via lookup).
 - You need to store the resolved numeric result (runtime Fact).
+- You need descriptive table footnote prose as separate inspectable nodes (use `table_note` per [table-note.md](table-note.md); link from this lookup via `notes:` and `has_table_note` edges).
 
 ## 4. File location
 
@@ -44,20 +45,27 @@ description: Resolves allowable stress from material grade and design temperatur
 table_number: A-1
 lookup:
   table: asme-b313-table-A-1
-  keys:
-    - PARAM-material-grade
-    - PARAM-design-temperature
+  rule: by_material_temperature
+  bindings:
+    material_grade: PARAM-material-grade
+    design_temperature: PARAM-design-temperature
 returns:
   - parameter: PARAM-allowable-stress
     symbol: S
 edges:
   - type: returns_parameter
     target: PARAM-allowable-stress
+  - type: requires_parameter
+    target: PARAM-material-grade
+  - type: requires_parameter
+    target: PARAM-design-temperature
 metadata:
   last_revision: 2026-07-04
   edited_by: admin
 ---
 ```
+
+Rule definitions (`lookup_rules`) for the named `lookup.rule` may be co-located on the lookup node or on the bound table data YAML. Full schema: [`spec/lookup_rules.md`](../../../spec/lookup_rules.md).
 
 ## 7. Required fields
 
@@ -69,6 +77,9 @@ metadata:
 | `description` or `title` | Definition |
 | `table_number` | Or nested in `source.table_number`, or `table_reference` metadata |
 | Table binding | `table_id`, `lookup.table`, or `reads_table` edge |
+| `lookup.table` | Graph table id (required in `lookup` block) |
+| `lookup.rule` | Named rule under `lookup_rules` (required) |
+| `lookup.bindings` | Maps logical rule input keys → `PARAM-*` ids (required) |
 | Output binding | `output_param`, `returns`, or `returns_parameter` edge |
 | `metadata.last_revision`, `metadata.edited_by` | Revision metadata |
 
@@ -76,16 +87,30 @@ metadata:
 
 | Field | Purpose |
 | --- | --- |
-| `authority.authorized_by` | Governing paragraphs (compiled to edges) |
+| `authority.authorized_by` | Governing paragraph ids — compiled to graph edges at load; do not author `authorized_by` in `edges` (per [01-shared-node-contract.md](01-shared-node-contract.md) §10) |
 | `authority.authority_context_required` | Requires active authority context |
 | `requires` | Input parameter bindings with symbols |
-| `lookup.keys` | Key parameter list |
-| `lookup.lookup_rule` | Temperature selection, interpolation rules |
-| `lookup.interpolation` | Boolean |
+| `lookup_rules` | Rule specs keyed by `lookup.rule` (may be co-located or on table data YAML) |
 | `source` | Pack, yaml path, tables_db reference |
-| `inputs` | Legacy input descriptor list |
+| `inputs` | Legacy input descriptor list (prefer `lookup.bindings`) |
 | `edges` | `requires_parameter`, `reads_table`, `returns_parameter` |
 | `metadata.status` | Lifecycle |
+
+### `lookup` block (v2)
+
+| Field | Required | Purpose |
+| --- | --- | --- |
+| `lookup.table` | yes | Graph table id |
+| `lookup.rule` | yes | Named rule under `lookup_rules` |
+| `lookup.bindings` | yes | Logical input keys → `PARAM-*` ids |
+
+**Forbidden in `lookup` block:** `lookup.keys` (removed in v2). Do not author `lookup.lookup_rule` — use `lookup.rule`.
+
+### Table footnotes (`table_note` nodes)
+
+When a lookup-backed table has numbered or lettered footnotes, author separate **`table_note`** nodes for the prose. Link them from this lookup via `notes:` aggregation and `has_table_note` edges per [table-note.md](table-note.md). Footnote nodes use `note_for_table` back to this lookup. Do not put footnote prose or alternative resolution config on the lookup node — executable resolution remains `lookup.bindings` + `lookup.rule` here.
+
+Full binding and rule schema: [`spec/lookup_rules.md`](../../../spec/lookup_rules.md).
 
 ## 9. Forbidden fields
 
@@ -96,7 +121,9 @@ calculation_result, selected_for_execution, active_in_context
 
 Also forbidden:
 
+- `authorized_by` in `edges` (use top-level `authority.authorized_by`)
 - `calculates_parameter` edges (use `returns_parameter`)
+- `lookup.keys` in the `lookup` block (deprecated; use `lookup.bindings`)
 - Top-level `links` block
 
 ## 10. Permitted outgoing relationships
@@ -106,21 +133,22 @@ Also forbidden:
 | `reads_table` | table / self id | Table data source |
 | `requires_parameter` | `PARAM-*` | Lookup keys |
 | `returns_parameter` | `PARAM-*` | Resolved output |
-| `authorized_by` | paragraph id | Prefer `authority.authorized_by` block |
-| Other taxonomy edges | per validator | |
+| `has_table_note` | `table_note` id | Footnote linkage — see [table-note.md](table-note.md) |
+| Other taxonomy edges | per validator | Excluding `authorized_by` in `edges` |
 
 ## 11. Fields consumed by runtime components
 
-Lookup executor reads `lookup.table`, `lookup.keys`, and `requires` to query table storage. Graph expansion activates lookups on the expanded path. Execution writes derived Facts for `returns` parameters. Presentation may render future table/lookup blocks from lookup metadata.
+Lookup executor reads `lookup.table`, `lookup.rule`, and `lookup.bindings` to resolve rule inputs from task Facts and load the matching `lookup_rules` entry. Graph expansion activates lookups on the expanded path and treats bound `PARAM-*` nodes as lookup keys. Execution writes derived Facts for `returns` / `returns_parameter` outputs. Presentation may render future table/lookup blocks from lookup metadata.
 
 ## 12. Validation procedure
 
 1. Parse YAML frontmatter.
-2. Run `validate_lookup_node(meta)` from `engine/validation/lookup_node_validator.py`.
+2. Run `validate_lookup_node(meta)` from `engine/validation/lookup_node_validator.py` (includes `validate_lookup_config` from `engine/validation/lookup_rule_validator.py`).
 3. Confirm table binding via `table_id`, `lookup.table`, or `reads_table` edge.
-4. Confirm output via `returns`, `output_param`, or `returns_parameter` edge.
-5. Validate edges; reject `calculates_parameter`.
-6. Rebuild standards DBs when table data changes.
+4. Confirm `lookup.rule` and `lookup.bindings` are present and binding keys cover the selected rule's strategy inputs.
+5. Confirm output via `returns`, `output_param`, or `returns_parameter` edge.
+6. Validate edges; reject `calculates_parameter`.
+7. Rebuild standards DBs when table data changes.
 
 ## 13. Common authoring mistakes
 
@@ -128,7 +156,9 @@ Lookup executor reads `lookup.table`, `lookup.keys`, and `requires` to query tab
 - Omitting `table_number` when no `reads_table` edge or `lookup.table` is present.
 - Modeling validation checks as lookups.
 - Storing resolved table cell values on the node.
-- Missing key parameters in `lookup.keys` vs `requires`.
+- Authoring `lookup.keys` instead of `lookup.bindings` and `lookup.rule`.
+- Binding keys in `lookup.bindings` that do not match the selected rule's strategy inputs.
+- Putting `authorized_by` in `edges` instead of `authority.authorized_by`.
 
 ## 14. Current repository examples
 
@@ -140,5 +170,7 @@ Lookup executor reads `lookup.table`, `lookup.keys`, and `requires` to query tab
 ## 15. Implementation evidence appendix
 
 - Validator: `engine/validation/lookup_node_validator.py` — `validate_lookup_node`, `_has_edge`
+- Lookup rule config: `engine/validation/lookup_rule_validator.py` — `validate_lookup_config`, `validate_lookup_bindings` (`lookup.keys` → deprecated error)
+- Spec: [`spec/lookup_rules.md`](../../../spec/lookup_rules.md) — v2 `lookup_rules` schema and binding rules
 - Table reference: `engine/reference/table_metadata.py` — `table_reference`
 - Edge validation: `engine/reference/graph_compile.py` — `validate_edge_item`

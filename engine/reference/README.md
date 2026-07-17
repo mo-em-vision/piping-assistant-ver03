@@ -79,9 +79,9 @@ scripts/build_standards_tables_db.py → standards_tables.StandardsTablesDatabas
 | `material_ids.py` | Canonical material ID format | `make_material_id`, `ASTM_*` constants | tables scripts, lookups |
 | `material_resolver.py` | Token → table key | `canonical_material_id` | engineering_validator, tests |
 | `nomenclature_resolver.py` | Symbol definitions from definition nodes | `load_nomenclature`, `resolve_input_spec` | graph, node_interaction, messaging |
-| `paragraph_sidecar.py` | Merge paragraph sidecars (`nomenclature.yaml`, `execution.yaml`) | `merge_paragraph_sidecar_metadata` | `standards_reader`, `graph_builder`, `node_interaction`, `assumption_checker` |
-| `equation_sidecar.py` | Merge equation / validation_rule execution sidecars | `merge_equation_sidecar_metadata` | `standards_reader`, `graph_builder`, `formula_loader` |
-| `workflow_sidecar.py` | Merge workflow runtime sidecars (`workflows/{id}/runtime.yaml`) | `merge_workflow_sidecar_metadata` | `standards_reader`, `graph_builder`, `node_interaction`, `assumption_checker` |
+| `paragraph_sidecar.py` | Legacy read-only merge of old `{id}.execution.yaml` / `{id}.nomenclature.yaml` at load | `merge_paragraph_sidecar_metadata` | `standards_reader`, `graph_builder`, `node_interaction`, `assumption_checker` |
+| `equation_sidecar.py` | Legacy read-only merge of old execution sidecar files at load | `merge_equation_sidecar_metadata` | `standards_reader`, `graph_builder`, `formula_loader` |
+| `workflow_sidecar.py` | Promote nested `runtime` from primary workflow YAML; legacy file sidecar path disabled | `merge_workflow_sidecar_metadata` | `standards_reader`, `graph_builder`, `node_interaction`, `assumption_checker` |
 | `node_types.py` | Type/kind predicates | `is_lookup_node`, `is_validation_rule_node`, `canonical_type`, … | widespread |
 | `pack_graph_db.py` | Path resolver | `resolve_pack_graph_db` | graph_store, graph_cache |
 | `pack_nodes_db.py` | Path resolver | `resolve_pack_nodes_db` | standards_reader, scripts |

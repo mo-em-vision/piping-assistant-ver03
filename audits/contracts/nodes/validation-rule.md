@@ -20,6 +20,8 @@ A validation rule node defines a deterministic pass/fail check, applicability ga
 
 `knowledge/standards/<pack>/nodes/validation_rule/{id}.yaml`
 
+One primary YAML file per validation rule. Node-owned execution metadata lives in the nested `execution` block in that file (not in separate sidecar files).
+
 Ids typically follow `asme-b313-{section}-valrule-{suffix}.yaml`.
 
 ## 5. ID convention
@@ -88,7 +90,7 @@ metadata:
 | `result` | `parameter` (required), `symbol` (optional) — sole runtime fact sink |
 | `on_fail` | `severity`, `blocks_goal`, `message`, `creates_warning` |
 | `edges` | `requires_parameter`, `validates_parameter`, `constrains_equation` |
-| Sidecar execution keys | Same loader as equations (`expression`, `steps`, etc.) |
+| `execution` | Nested block for execution metadata (same keys as equation): `variables`, `steps`, `display`, `applies_when`, `expression`, `executor`, etc. |
 
 ## 9. Forbidden fields
 
@@ -104,6 +106,7 @@ Also forbidden:
 - `rule_class` other than `validation`
 - Top-level `links` block
 - Structural edges
+- Node-owned sidecar files (`{id}.execution.yaml`, `{id}/execution.yaml`)
 
 ## 10. Permitted outgoing relationships
 
@@ -133,12 +136,13 @@ Report: `audits/reports/nodes/validation-rule-node-audit.md`.
 
 Checks:
 
-1. Parse YAML frontmatter (merge equation sidecar when shared execution file is present).
+1. Parse YAML frontmatter from the primary validation-rule file.
 2. Run `validate_validation_rule_node(meta)`.
 3. Run `validate_authority_authorization(meta, node_type="validation_rule")`.
 4. Confirm `validates` or `validates_parameter` edge exists.
 5. Validate edges; reject `calculates_parameter` and structural edges.
-6. Run `tests/reference/test_validation_rule_ontology.py` and `tests/reference/test_validation_rule_audit_process.py`.
+6. If legacy `{id}.execution.yaml` or `{id}/execution.yaml` files remain on disk, treat them as migration debt: consolidate into the primary YAML `execution:` block.
+7. Run `tests/reference/test_validation_rule_ontology.py` and `tests/reference/test_validation_rule_audit_process.py`.
 
 ## 13. Common authoring mistakes
 
@@ -161,5 +165,5 @@ Checks:
 - Validator: `engine/validation/validation_rule_node_validator.py` — `validate_validation_rule_node`; audit `--filter validation_rule` → `audits/reports/nodes/validation-rule-node-audit.md`
 - Tests: `tests/reference/test_validation_rule_ontology.py`, `tests/reference/test_validation_rule_audit_process.py`
 - Authority: `engine/validation/authority_authorization.py` — `validate_authority_authorization`
-- Sidecar merge (shared with equation): `engine/reference/equation_sidecar.py` — `merge_equation_sidecar_metadata`
+- Sidecar merge (legacy read-only at load, shared with equation): `engine/reference/equation_sidecar.py` — `merge_equation_sidecar_metadata` may read old execution sidecars; not an authoring surface
 - Structural edges: `engine/validation/structural_edges.py`

@@ -23,7 +23,8 @@ An equation node defines a deterministic calculation that consumes input paramet
 | --- | --- |
 | Standards pack equations | `knowledge/standards/<pack>/nodes/equation/asme-b313-*.yaml` |
 | Unit transformation | `knowledge/global/units/nodes/EQ-unit-*.yaml` or adjacent equation folder |
-| Optional execution sidecar | `{id}.execution.yaml` or `{id}/execution.yaml` |
+
+One primary YAML file per equation. Node-owned execution metadata lives in the nested `execution` block in that file (not in separate sidecar files).
 
 ## 5. ID convention
 
@@ -103,10 +104,10 @@ For `calculation_kind: function`, either `executor` or `expression.formula` is r
 | `display.latex`, `display.text` | Rendered equation form |
 | `expression.language`, `expression.formula` | Sympy or other executor input |
 | `executor`, `execution_function`, `calculation_module` | Function-based execution |
-| `applicability.applies_when` | Branch gating conditions |
+| `applicability.applies_when` | Branch gating conditions (may also nest as `execution.applies_when`) |
 | `validation` | Dimensional / authority checks |
 | `edges` | `requires_parameter`, `calculates_parameter`, `depends_on_equation` |
-| Sidecar execution keys | `variables`, `steps`, `outputs`, `nomenclature_ref`, etc. |
+| `execution` | Nested block for execution metadata: `variables`, `steps`, `outputs`, `display`, `applies_when`, `nomenclature_ref`, `executor`, `execution_function`, `calculation_module`, `equation_id`, `paragraph` |
 
 ## 9. Forbidden fields
 
@@ -121,6 +122,7 @@ Also forbidden:
 - `equation_class: lookup` or `validation`
 - Top-level `links` block
 - Structural edges (`parent`, `child`, `next`, `previous`)
+- Node-owned sidecar files (`{id}.execution.yaml`, `{id}/execution.yaml`)
 
 ## 10. Permitted outgoing relationships
 
@@ -133,16 +135,20 @@ Also forbidden:
 
 ## 11. Fields consumed by runtime components
 
-Execution kernel reads `requires`, `calculates`, `expression`, `executor`, and sidecar `steps` to evaluate formulas. Graph expansion reads `applicability.applies_when` to include or exclude equations. Presentation reads `display` for equation blocks. Validation engine may read `validation` metadata before execution. Nomenclature resolver uses `nomenclature_ref` for symbol tables.
+**Canonical authoring:** The execution kernel reads `requires`, `calculates`, `expression`, and nested `execution` fields (`variables`, `steps`, `executor`, `display`, `applies_when`, etc.) from the primary equation YAML. Graph expansion reads branch gating from `applicability.applies_when` and/or `execution.applies_when`. Presentation reads `display` for equation blocks. Validation engine may read `validation` metadata before execution. Nomenclature resolver uses `nomenclature_ref` for symbol tables.
+
+**Legacy runtime compatibility (read-only):** `engine/reference/equation_sidecar.py` may still merge metadata from old `{id}.execution.yaml` or `{id}/execution.yaml` files when present during pack load. This loader path is migration compatibility only — do not author, create, or maintain execution sidecars. Consolidate any remaining legacy files into the primary YAML `execution:` block.
 
 ## 12. Validation procedure
 
-1. Parse YAML frontmatter (and merge execution sidecar if present).
+1. Parse YAML frontmatter from the primary equation file.
 2. Run `validate_equation_node(meta)` from `engine/validation/equation_node_validator.py`.
-3. Branch on id prefix: `asme-b313-*` vs `EQ-unit-*`.
-4. Run `validate_authority_authorization` for standards equations.
-5. Validate edges with `validate_edge_item(..., source_node_type="equation")`.
-6. Rebuild graph DB and run equation-related pytest modules.
+3. Run `check_equation_frontmatter_placement(meta)` from `engine/reference/equation_authoring_policy.py` when validating execution-block placement.
+4. Branch on id prefix: `asme-b313-*` vs `EQ-unit-*`.
+5. Run `validate_authority_authorization` for standards equations.
+6. Validate edges with `validate_edge_item(..., source_node_type="equation")`.
+7. If legacy `{id}.execution.yaml` or `{id}/execution.yaml` files remain on disk, treat them as migration debt: consolidate into the primary YAML `execution:` block and confirm no duplicate or split authoring surfaces.
+8. Rebuild graph DB and run equation-related pytest modules.
 
 ## 13. Common authoring mistakes
 
@@ -151,7 +157,8 @@ Execution kernel reads `requires`, `calculates`, `expression`, `executor`, and s
 - Putting `authorized_by` in `edges` instead of `authority` block.
 - Missing `equation_number` when id contains `-eq-`.
 - Embedding lookup or validation logic as equation class.
-- Duplicating execution fields in frontmatter and sidecar inconsistently.
+- Creating or retaining a separate `{id}.execution.yaml` or `{id}/execution.yaml` file instead of nesting execution metadata under `execution:` in the primary YAML.
+- Duplicating execution fields across top level, nested `execution:`, and legacy sidecar files inconsistently.
 
 ## 14. Current repository examples
 
@@ -165,5 +172,5 @@ Execution kernel reads `requires`, `calculates`, `expression`, `executor`, and s
 - Validator: `engine/validation/equation_node_validator.py` — `validate_equation_node`, `_validate_standards_equation`, `_validate_unit_transformation_equation`
 - Authority: `engine/validation/authority_authorization.py` — `validate_authority_authorization`
 - Citation: `engine/reference/equation_metadata.py` — `equation_reference`
-- Sidecar: `engine/reference/equation_sidecar.py` — `merge_equation_sidecar_metadata`, `_EXECUTION_KEYS`
+- Sidecar merge (legacy read-only at load): `engine/reference/equation_sidecar.py` — `merge_equation_sidecar_metadata` may read old execution sidecars; not an authoring surface
 - Structural edges: `engine/validation/structural_edges.py`
