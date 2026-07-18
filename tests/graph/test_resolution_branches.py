@@ -97,7 +97,7 @@ def test_mawp_required_inputs_start_with_outside_diameter_anchor() -> None:
             "straight_pipe_section": __import__(
                 "tests.acceptance.helpers", fromlist=["straight_section_assumption"]
             ).straight_section_assumption(),
-            "pressure_loading": __import__(
+            "pressure_design_case": __import__(
                 "tests.acceptance.helpers", fromlist=["internal_pressure_assumption"]
             ).internal_pressure_assumption(),
             "wall_thickness_basis": legacy_input(

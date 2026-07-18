@@ -3,7 +3,7 @@ description: Invalid pressure value blocks thickness calculation
 
 given:
   inputs:
-    pressure_loading: { value: internal_pressure, unit: dimensionless }
+    pressure_design_case: { value: internal_pressure, unit: dimensionless }
     straight_pipe_section: { value: true, unit: dimensionless }
     joint_category: { value: seamless, unit: dimensionless }
     corrosion_allowance: { value: 0.5, unit: mm }

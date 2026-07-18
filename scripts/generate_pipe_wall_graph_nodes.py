@@ -444,7 +444,12 @@ defined_in:
     for node_id, symbol, input_id, title, unit, _priority, desc, question, resolution in PARAMS:
         if node_id == "B313-param-S":
             continue
-        q_line = f'question: >\n  {question}\n' if question else ""
+        q_line = (
+            "user_prompt:\n"
+            f"  prompt: >\n    {question}\n"
+            if question
+            else ""
+        )
         res_yaml = f'resolution:\n  method: {resolution["method"]}\n'
         if "table_id" in resolution:
             res_yaml += f'  table_id: {resolution["table_id"]}\n'

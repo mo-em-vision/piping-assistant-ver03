@@ -12,4 +12,4 @@ def test_collect_path_interactions_merges_all_nodes(project_root: Path) -> None:
     reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
     specs = collect_path_interactions(reader, ("WF-PIPE-WALL-THICKNESS", "304.1.1-a"))
     variables = {spec.variable for spec in specs}
-    assert "pressure_loading" in variables or len(variables) >= 0
+    assert "pressure_design_case" in variables or len(variables) >= 0

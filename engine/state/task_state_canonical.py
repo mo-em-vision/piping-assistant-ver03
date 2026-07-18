@@ -503,7 +503,7 @@ def _build_graph_state(
     branch_decisions: dict[str, Any] = {}
     path_decision = planning.get("path_decision") or task.outputs.get("path_decision")
     if isinstance(path_decision, dict):
-        field = str(path_decision.get("field") or path_decision.get("parameter") or "pressure_loading")
+        field = str(path_decision.get("field") or path_decision.get("parameter") or "")
         branch_decisions[field] = {
             "field": field,
             "value": str(path_decision.get("value") or path_decision.get("choice") or ""),

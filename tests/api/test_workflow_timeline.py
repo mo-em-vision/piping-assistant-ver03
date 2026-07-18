@@ -47,7 +47,7 @@ _NEVER_USER_SUBMITTABLE: frozenset[str] = frozenset(
 
 _PIPE_WALL_INTERNAL_PRESSURE_SUBMISSIONS: dict[str, tuple[object, str | None]] = {
     "straight_pipe_section": (True, None),
-    "pressure_loading": ("internal_pressure", None),
+    "pressure_design_case": ("internal_pressure", None),
     "internal_design_gage_pressure": (8.0, "bar"),
     "nominal_pipe_size": ("6", None),
     "material_grade": ("SA-106B", None),
@@ -191,7 +191,7 @@ def test_coefficient_phase_current_ask_matches_phase_missing_only(
         task_id,
         [
             "straight_pipe_section",
-            "pressure_loading",
+            "pressure_design_case",
             "internal_design_gage_pressure",
             "nominal_pipe_size",
             "material_grade",
@@ -249,7 +249,7 @@ def test_live_submit_submittable_parameters_remain_phase_scoped(
 
     phase_after_submit: dict[str, str] = {
         "straight_pipe_section": "path_decisions",
-        "pressure_loading": "parameter_gathering",
+        "pressure_design_case": "parameter_gathering",
         "pipe_construction_type": "coefficient_resolution",
     }
 
@@ -402,7 +402,7 @@ def test_timeline_input_order_appends_newly_revealed_parameters() -> None:
         unit="dimensionless",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
-    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
+    set_fact_from_input(task, legacy_input(input_id="pressure_design_case",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
@@ -417,14 +417,14 @@ def test_timeline_input_order_appends_newly_revealed_parameters() -> None:
         "phase_missing": {"parameter_gathering": ["nominal_pipe_size"]},
         "graph_input_order": [
             "straight_pipe_section",
-            "pressure_loading",
+            "pressure_design_case",
             "internal_design_gage_pressure",
             "nominal_pipe_size",
             "material_grade",
         ],
         "collection_field_order": [
             "straight_pipe_section",
-            "pressure_loading",
+            "pressure_design_case",
             "internal_design_gage_pressure",
             "nominal_pipe_size",
             "outside_diameter",
@@ -464,7 +464,7 @@ def test_timeline_input_order_appends_newly_revealed_parameters() -> None:
     revealed = revealed_pipe_wall_input_ids(task, planning_projection(task))
     assert revealed[:4] == [
         "straight_pipe_section",
-        "pressure_loading",
+        "pressure_design_case",
         "internal_design_gage_pressure",
         "nominal_pipe_size",
     ]
@@ -509,7 +509,7 @@ def test_submittable_includes_corrosion_after_calc_via_planner_queue(project_roo
     task = manager.create_task("post-calc-corrosion-planner", status=TaskStatus.AWAITING_INPUT)
     inputs = [
         ("straight_pipe_section", True, None),
-        ("pressure_loading", "internal_pressure", None),
+        ("pressure_design_case", "internal_pressure", None),
         ("internal_design_gage_pressure", 8.0, "bar"),
         ("nominal_pipe_size", 6, None),
         ("outside_diameter", 168.28, "mm"),

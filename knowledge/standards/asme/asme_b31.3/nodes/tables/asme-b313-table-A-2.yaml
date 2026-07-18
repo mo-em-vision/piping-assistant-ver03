@@ -14,16 +14,12 @@ paragraph: Appendix A, Table A-2
 section: Appendix A
 topic: quality_factor
 revision_year: 2024
-inputs:
-- id: material_grade
-  name: material_grade
-  description: Casting material specification (PARAM-material-grade)
-  required: true
-  source: user_input
-  unit: dimensionless
+requires:
+  - parameter: PARAM-material-grade
+    description: Casting material specification
 returns:
-- parameter: PARAM-basic-casting-quality-factor
-  symbol: E_c
+  - parameter: PARAM-basic-casting-quality-factor
+    symbol: E_c
 lookup:
   table: asme-b313-table-A-2
   rule: by_material
@@ -44,13 +40,13 @@ lookup_rules:
     on_multiple_matches:
       action: error
 edges:
-- type: depends_on
-  target: 302.3.3-b
-- type: returns_parameter
-  target: PARAM-basic-casting-quality-factor
-- type: requires_parameter
-  target: PARAM-material-grade
+  - type: depends_on
+    target: 302.3.3-b
+  - type: returns_parameter
+    target: PARAM-basic-casting-quality-factor
+  - type: requires_parameter
+    target: PARAM-material-grade
 metadata:
-  last_revision: 2026-07-15
+  last_revision: 2026-07-17
   edited_by: admin
 ---

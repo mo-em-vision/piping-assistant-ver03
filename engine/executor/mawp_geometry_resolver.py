@@ -35,17 +35,6 @@ def _geometry_branch(task: Task) -> str | None:
     return None
 
 
-def apply_mawp_pressure_loading_default(task: Task) -> None:
-    """Seed internal pressure for MAWP workflow expansion gates."""
-    if task.fact_store.active_fact("pressure_loading") is not None:
-        return
-    store_system_categorical_fact(
-        task,
-        key="pressure_loading",
-        label="internal_pressure",
-    )
-
-
 def apply_wall_thickness_basis_from_geometry(task: Task) -> None:
     """Infer wall thickness basis when geometry branch implies a known source."""
     if task.fact_store.active_fact("wall_thickness_basis") is not None:

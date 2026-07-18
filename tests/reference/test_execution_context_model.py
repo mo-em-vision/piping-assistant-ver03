@@ -59,7 +59,7 @@ def test_json_round_trip() -> None:
     ctx.decisions.append(
         Decision(
             id=new_decision_id(),
-            parameter="PARAM-pressure-loading",
+            parameter="PARAM-pressure-design-case",
             selected_value="internal_pressure",
             source="user_input",
             timestamp="2026-07-02T10:20:00Z",

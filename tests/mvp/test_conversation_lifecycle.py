@@ -105,5 +105,5 @@ class TestConversationLifecycle:
         assert task.fact_store.active_fact("design_pressure") is None
 
         missing = second.data.get("missing_inputs") or []
-        assert "pressure_loading" not in missing
+        assert "pressure_design_case" not in missing
         assert "inch is a length unit" in (second.message or "").lower()

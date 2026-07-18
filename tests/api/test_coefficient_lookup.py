@@ -42,7 +42,7 @@ _INTERNAL_PRESSURE_RESOLVED_COEFFICIENTS: tuple[tuple[str, str], ...] = (
 
 _INTERNAL_PRESSURE_SUBMISSIONS: dict[str, tuple[object, str | None]] = {
     "straight_pipe_section": (True, None),
-    "pressure_loading": ("internal_pressure", None),
+    "pressure_design_case": ("internal_pressure", None),
     "internal_design_gage_pressure": (8.0, "bar"),
     "nominal_pipe_size": ("6", None),
     "material_grade": ("SA-106B", None),

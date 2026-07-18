@@ -53,7 +53,7 @@ def test_fresh_plan_phases_and_input_strategy() -> None:
     assert strategy.current_phase == "expansion_assumptions"
     assert strategy.next_fields == ["straight_pipe_section"]
     assert strategy.resolved_fields == []
-    assert "pressure_loading" in strategy.blocked_fields
+    assert "pressure_design_case" in strategy.blocked_fields
     assert "internal_design_gage_pressure" in strategy.blocked_fields
     assert "diameter_input_mode" in strategy.blocked_fields
     assert "allowable_stress" in strategy.blocked_fields

@@ -10,7 +10,6 @@ from engine.graph.graph_engine import resolve_workflow_node_id
 from engine.graph.workflow_adapters import (
     DEFINITION_PHASE_INPUTS,
     LEGACY_ROOT_ALIASES,
-    PATH_DECISION_FIELDS,
 )
 
 
@@ -20,8 +19,12 @@ def test_legacy_aliases_resolved_via_adapter() -> None:
     )
 
 
-def test_path_decision_fields_live_in_adapter() -> None:
-    assert PATH_DECISION_FIELDS == path_decision._PATH_DECISION_FIELDS
+def test_path_decision_module_has_no_hardcoded_fields() -> None:
+    import inspect
+
+    source = inspect.getsource(path_decision.resolve_path_decision)
+    assert "pressure_design_case" not in source
+    assert "PATH_DECISION_FIELDS" not in source
 
 
 def test_definition_phase_inputs_live_in_adapter() -> None:

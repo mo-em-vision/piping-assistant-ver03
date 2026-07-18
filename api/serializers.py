@@ -239,26 +239,37 @@ def _thickness_step_display_value(task: Task, thickness: float) -> str:
     return format_thickness_result_display(float(thickness), unit)
 
 
+def _categorical_selection_display(input_id: str, value: Any) -> str | None:
+    from engine.reference.parameter_keys import load_parameter_node_metadata, param_node_id_for_input
+
+    metadata = load_parameter_node_metadata(param_node_id_for_input(input_id))
+    if metadata is None:
+        return None
+    nested = metadata.get("metadata") or {}
+    if not isinstance(nested, dict):
+        return None
+    for option in nested.get("composer_options") or []:
+        if not isinstance(option, dict):
+            continue
+        if str(option.get("value")) == str(value):
+            label = str(option.get("label") or "").strip()
+            if label:
+                return label
+    return None
+
+
 def _input_display(
     task: Task,
     input_id: str,
     *,
     standards_root: Path | None = None,
 ) -> str | None:
-    if input_id == "pressure_loading":
-        fact = task.fact_store.active_fact(input_id)
-        if fact is None:
-            return None
-        return _pressure_loading_report_value(fact_scalar_value(fact))
+    fact = task.fact_store.active_fact(input_id)
+    if fact is not None:
+        display = _categorical_selection_display(input_id, fact_scalar_value(fact))
+        if display:
+            return display
     return _input_display_value(task, input_id, standards_root=standards_root)
-
-
-def _pressure_loading_report_value(value: Any) -> str:
-    if value == "internal_pressure":
-        return "The pipe is internally pressurized."
-    if value == "external_pressure":
-        return "The pipe is externally pressurized."
-    return str(value).replace("_", " ").capitalize()
 
 
 def _preferred_timeline_active_input_id(
@@ -617,7 +628,7 @@ def _step_hint(
                     index = fields.index(step_id)
                     if index < len(questions):
                         return str(questions[index])
-    if step_id == "pressure_loading":
+    if step_id == "pressure_design_case":
         return "Specify whether the pipe is internally or externally pressurized."
     if step_id == MATERIAL_GRADE_KEY:
         return "Waiting for material selection"

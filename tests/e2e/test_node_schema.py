@@ -80,7 +80,7 @@ def test_graph_trace_structure_after_execution(standards_reader, state_manager) 
     task_id = "schema-trace"
     state_manager.create_task(task_id)
     inputs = {
-        "pressure_loading": internal_pressure_assumption(),
+        "pressure_design_case": internal_pressure_assumption(),
         **confirmed_default_inputs(),
         "d_input_mode": EngineeringInput(
             "d_input_mode", "direct_od", "dimensionless", InputSource.USER, status=InputStatus.CONFIRMED

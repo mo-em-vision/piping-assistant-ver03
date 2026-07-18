@@ -1,0 +1,24 @@
+---
+id: PARAM-supplementary-examination
+type: parameter
+key: supplementary_examination
+name: Supplementary Examination
+parameter_class: selection
+description: >
+  Supplementary examination combination from Table 302.3.3-1 used to resolve
+  increased casting quality factor E_c per ASME B31.3 §302.3.3(c).
+canonical_symbol: supplementary_examination
+aliases:
+  - supplementary examination
+  - examination combination
+introduced_by:
+  - asme-b313-302-3-3-c
+edges:
+  - type: used_by
+    target: asme-b313-table-302-3-3-1
+metadata:
+  status: active
+  version: 1
+  last_revision: 2026-07-17
+  edited_by: admin
+---

@@ -78,7 +78,7 @@ def test_gatherable_param_nodes_have_useful_descriptions() -> None:
     reader = _reader()
     gatherable = [
         "straight_pipe_section",
-        "pressure_loading",
+        "pressure_design_case",
         "internal_design_gage_pressure",
         "nominal_pipe_size",
         "outside_diameter",

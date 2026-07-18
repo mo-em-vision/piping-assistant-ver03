@@ -225,6 +225,6 @@ def test_current_ask_still_from_planner_after_archive(tmp_path: Path, project_ro
 
     current_ask = state.get("current_ask") or {}
     assert current_ask.get("kind") == "input"
-    assert current_ask.get("parameter_id") == "pressure_loading"
+    assert current_ask.get("parameter_id") == "pressure_design_case"
     assert current_ask.get("prompt")
     assert current_ask.get("short_prompt")

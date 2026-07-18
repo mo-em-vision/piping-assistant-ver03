@@ -260,6 +260,14 @@ def parameter_resolution_for_parameter(
     task_inputs = inputs or {}
     param_key = str(node.metadata.get("key") or "").strip()
 
+    from engine.reference.parameter_metadata import is_path_decision_parameter
+
+    if is_path_decision_parameter(node.metadata):
+        from engine.graph.assumption_checker import field_value as _field_value
+
+        if _field_value(param_key, task_inputs) is None:
+            return {"method": "branch_choice", "anchor": param_key, "role": "path_decision"}
+
     if has_resolution_branches(node.metadata):
         branch_id = active_resolution_branch_id(param_key, task_inputs)
         if not branch_id:

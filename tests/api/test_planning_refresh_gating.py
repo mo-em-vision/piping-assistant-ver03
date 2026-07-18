@@ -66,7 +66,7 @@ def _prepare_awaiting_corrosion(manager: TaskStateManager, reader: StandardsRead
     return manager.get_task(task_id)
 
 
-def test_pressure_loading_triggers_goal_tree_refresh(monkeypatch) -> None:
+def test_pressure_design_case_triggers_goal_tree_refresh(monkeypatch) -> None:
     goal_tree_calls: list[int] = []
     import engine.planner.goal_builder as goal_builder
 
@@ -89,7 +89,7 @@ def test_pressure_loading_triggers_goal_tree_refresh(monkeypatch) -> None:
     goal_tree_calls.clear()
     service.submit_input(
         state["task_id"],
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )

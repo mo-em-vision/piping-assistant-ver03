@@ -33,7 +33,7 @@ def _paragraph_fixture() -> dict:
             "applicability": {
                 "applies_when": [
                     {
-                        "parameter": "PARAM-pressure-loading",
+                        "parameter": "PARAM-pressure-design-case",
                         "operator": "equals",
                         "value": "internal_pressure",
                     }
@@ -97,7 +97,7 @@ def test_workflow_nested_runtime_passes() -> None:
             },
             "interactions": [
                 {
-                    "variable": "pressure_loading",
+                    "variable": "pressure_design_case",
                     "mode": "decision",
                     "required": True,
                     "options": ["internal_pressure"],

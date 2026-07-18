@@ -32,7 +32,7 @@ def gate_open_inputs(*, task_id: str = "graph-test") -> dict[str, Fact]:
     return facts_from_inputs(
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
         },
         task_id=task_id,
     )
@@ -46,7 +46,7 @@ def mawp_gate_open_inputs(*, task_id: str = "mawp-graph-test") -> dict[str, Fact
     return facts_from_inputs(
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
             "outside_diameter__resolution_branch": legacy_input(
                 "outside_diameter__resolution_branch",
                 "nps_lookup",

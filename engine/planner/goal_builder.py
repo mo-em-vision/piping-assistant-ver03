@@ -110,6 +110,9 @@ def _build_with_engineering_plan(
     )
     if plan is None:
         return None
+    if phased is not None:
+        plan.debug = dict(plan.debug or {})
+        plan.debug["phased_preview"] = dict(getattr(phased, "phase_missing", {}) or {})
     store_engineering_plan_on_task(task, plan)
     sync_plan_projections(task)
     return task.goal_store

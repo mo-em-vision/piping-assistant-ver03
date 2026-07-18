@@ -8,7 +8,7 @@ A workflow node defines a reusable engineering objective — what kind of task i
 
 - You are defining an end-to-end engineering task (pipe wall thickness design, MAWP).
 - You need goal templates, entry paragraphs, and expected parameter sets.
-- Navigation phase order and gate fields belong in the nested `runtime` block on the primary workflow YAML.
+- Navigation phase labels are engine-owned; workflows declare completion anchors only.
 
 ## 3. Do not use this node when
 
@@ -20,7 +20,7 @@ A workflow node defines a reusable engineering objective — what kind of task i
 
 `workflows/{machine-key}.yaml` (e.g. `pipe-wall-thickness.yaml`)
 
-One primary YAML file per workflow. Deterministic runtime metadata (`navigation`, `interactions`, `texts`, etc.) lives in the nested `runtime` block in that file.
+One primary YAML file per workflow. Presentation metadata (`texts`, `documentation`) lives in the nested `runtime` block. Branch gates and path decisions belong on graph nodes — not workflow YAML.
 
 ## 5. ID convention
 
@@ -42,10 +42,18 @@ name: Example Workflow
 workflow_class: design_calculation
 description: >
   Example engineering workflow objective defined for graph expansion.
+entry_points:
+  - parameter: PARAM-example-output
+    role: definition_anchor
+goal_expansion:
+  root_goal:
+    goal_class: calculation_goal
+    target_parameter: PARAM-example-output
+    completion:
+      when: target_parameter_satisfied
+      status: finished
 runtime:
-  navigation:
-    assumption_gate_fields: []
-    phases: {}
+  texts: []
 metadata:
   status: draft
   last_revision: 2026-07-04
@@ -77,47 +85,25 @@ metadata:
 | `goal_expansion` | Root and child goal templates, including `root_goal.completion` |
 | `applicability.applies_to` | `CONCEPT-*` filters |
 | `report` | Report section requirements |
-| `runtime.navigation` | **Canonical** phase order and gate fields — see [Navigation phases](#navigation-phases-canonical-authoring) |
+| `runtime.texts` | Flow guidance / initiation copy |
+| `runtime.documentation` | Completion summaries and report prose |
 | `edges` | `may_use_equation`, `may_use_lookup`, `next`, etc. — **not** `starts_from_*` on workflows |
 
-### Navigation phases (canonical authoring)
+### Forbidden workflow conditionals
 
-Phase order is authored **only** inside the nested `runtime.navigation` block on the primary workflow YAML:
+Do **not** author branch gates, path decisions, or parameter ask lists on workflow YAML:
 
-```yaml
-runtime:
-  navigation:
-    assumption_gate_fields:
-      - straight_pipe_section
-    phases:
-      expansion_assumptions: []
-      path_decisions: []
-      parameter_gathering: []
-      coefficient_resolution: []
-      execution_assumptions: []
-      definition_equation_completion: []
-```
-
-| Rule | Detail |
+| Forbidden | Use instead |
 | --- | --- |
-| **Canonical location** | `runtime.navigation.phases` — a map from phase key to ordered **task-input field keys** (snake_case). |
-| **Runtime consumer** | `extract_nested_blocks` promotes `runtime` → flattened `navigation`; `load_workflow_navigation()` reads `navigation.phases` (`engine/graph/workflow_navigation.py`). |
-| **Single surface** | Author phases on this surface only. Do **not** duplicate phase lists at frontmatter top level or in separate navigation sidecars when `runtime.navigation` is present. |
-| **Legacy synthesis** | Top-level `phases: [{key, required_parameters}]` is converted to `navigation` **only when** `runtime.navigation` is absent (`merge_workflow_sidecar_metadata` / `_phases_to_navigation`). Do not author both. |
-| **Ordering only** | Phases order planner navigation among fields graph expansion has already made active. They do **not** add parameters to the expanded graph or override `required_user_inputs()`. |
-| **Resolvable references** | Every listed field key must correspond to an existing canonical `PARAM-*` node (or an explicitly authored assumption/decision field permitted by graph expansion). |
-| **Lookup inputs vs outputs** | List **lookup binding keys** users supply (e.g. `material_grade`, `pipe_construction_type`, `nominal_pipe_size`). Do **not** list lookup **outputs** (e.g. `allowable_stress`, `basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes`, `weld_strength_reduction_factor_w`, `temperature_coefficient_y`, `actual_wall_thickness` when resolved by lookup). |
-| **Equation outputs** | Do **not** list equation-calculated or goal-target parameters in interactive phases. |
+| `runtime.interactions` (decision / expansion gates) | Paragraph `execution.assumptions`; `PARAM-*` `metadata.role: path_decision` |
+| `runtime.assumptions` for branch/path defaults | Graph node `execution.assumptions` with `default` |
+| `runtime.navigation.assumption_gate_fields` | Paragraph `execution.assumptions` on anchor path |
+| Non-empty `runtime.navigation.phases` field lists | Graph expansion order + PARAM priority |
+| `runtime.provisional_assumptions` for branching | Graph node assumptions |
 
-**Legacy top-level `phases` (do not author with `runtime.navigation`):**
+Navigation phases (`expansion_assumptions`, `path_decisions`, `parameter_gathering`, etc.) are **engine enums**. The engine assigns fields to phases from graph metadata — workflows do not list phase fields.
 
-```yaml
-# synthesized only when runtime.navigation is absent — not canonical
-phases:
-  - key: parameter_gathering
-    required_parameters:
-      - PARAM-material-grade
-```
+Legacy workflows may still carry empty `runtime.navigation` blocks until migrated; `engine/validation/workflow_node_validator.py` rejects new conditional authoring.
 
 
 ### Allowed `workflow_class` values
@@ -196,7 +182,7 @@ Do **not** place `starts_from_paragraph` or `starts_from_parameter` on paragraph
 
 ## 11. Fields consumed by runtime components
 
-Planner reads nested `runtime.navigation` for phase order and gate fields only (does not determine active paths). Graph expansion reads graph node `assumptions`, `applicability`, workflow `runtime.interactions`, and workflow edges with `when` conditions to determine active paths and parameter asks. Goal bootstrap uses `goal_expansion` and `expected_parameters` (planning hints only — graph expansion is authoritative for which parameters are actually asked). Flow guidance reads nested `runtime.texts` and `runtime.documentation`. API task creation selects workflow by `id` / `key`.
+Planner reads workflow `goal_expansion` and `entry_points` for completion anchors. Graph expansion reads paragraph/equation `assumptions`, `applicability`, parameter `resolution`, and typed edges to determine active paths and parameter asks. Flow guidance reads nested `runtime.texts` and `runtime.documentation`. API task creation selects workflow by `id` / `key`.
 
 ## 12. Validation procedure
 
@@ -220,7 +206,8 @@ Checks:
 
 ## 13. Common authoring mistakes
 
-- Putting `navigation` or `interactions` at frontmatter top level instead of under nested `runtime:`.
+- Putting `navigation`, `interactions`, or `assumptions` at frontmatter top level instead of under nested `runtime:` (when used for presentation only).
+- Using workflow YAML for branch gates, path decisions, or parameter field lists — author on graph nodes instead.
 - Using ids without `WF-` prefix.
 - Hardcoding parameter gather lists in Python instead of graph expansion.
 - Omitting `metadata.status`.
@@ -228,8 +215,7 @@ Checks:
 - Authoring `starts_from_parameter` or `starts_from_paragraph` on paragraph or equation nodes (workflow is the only permitted source type in the taxonomy).
 - Authoring `starts_from_parameter` or `starts_from_paragraph` on workflow nodes instead of aligning `entry_points` with `goal_expansion.root_goal.target_parameter`.
 - Omitting `goal_expansion.root_goal.completion` or mismatching `entry_points.definition_anchor.parameter` with `target_parameter`.
-- Duplicating phase declarations at frontmatter top level (`phases:`) and under `runtime.navigation.phases`.
-- Listing lookup-derived outputs or equation outputs in `runtime.navigation.phases` (users supply lookup **keys** only).
+- Duplicating phase declarations at frontmatter top level (`phases:`) or under `runtime.navigation.phases` with field lists.
 
 ## 14. Current repository examples
 

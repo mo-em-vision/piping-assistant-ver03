@@ -35,8 +35,8 @@ def test_design_temperature_spec_includes_temperature_units(reader: StandardsRea
     assert spec.get("validation", {}).get("min") == -273
 
 
-def test_pressure_loading_spec_from_param_node(reader: StandardsReader) -> None:
-    spec = build_composer_parameter_spec("pressure_loading", reader=reader)
+def test_pressure_design_case_spec_from_param_node(reader: StandardsReader) -> None:
+    spec = build_composer_parameter_spec("pressure_design_case", reader=reader)
     assert spec["type"] == "dropdown"
     assert {item["value"] for item in spec.get("options") or []} == {
         "internal_pressure",

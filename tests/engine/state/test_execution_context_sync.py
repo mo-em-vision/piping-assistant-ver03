@@ -33,6 +33,6 @@ def test_refresh_builds_facts_index_and_state() -> None:
 
 def test_decision_recorded_on_selection_fact() -> None:
     task = new_task("TASK-decision", status=TaskStatus.AWAITING_INPUT)
-    store_user_fact(task, "pressure_loading", "internal_pressure")
+    store_user_fact(task, "pressure_design_case", "internal_pressure")
     refresh_execution_context_for_task(task)
     assert len(task.execution_context.decisions) >= 1

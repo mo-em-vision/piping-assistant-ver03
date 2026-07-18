@@ -165,7 +165,7 @@ const inspectionPayloadFixture: InspectionPayloadDto = {
       },
       {
         kind: 'path_decision',
-        field: 'pressure_loading',
+        field: 'pressure_design_case',
         value: 'internal_pressure',
         source: 'user_input',
         selected_node: '304.1.2-a',

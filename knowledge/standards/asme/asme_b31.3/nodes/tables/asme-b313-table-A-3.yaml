@@ -15,22 +15,14 @@ paragraph: Appendix A, Table A-3
 section: Appendix A
 topic: quality_factor
 revision_year: 2024
-inputs:
-- id: material_grade
-  name: material_grade
-  description: Pipe material grade (PARAM-material-grade)
-  required: true
-  source: user_input
-  unit: dimensionless
-- id: pipe_construction_type
-  name: pipe_construction_type
-  description: Pipe construction type (PARAM-pipe-construction-type)
-  required: true
-  source: user_input
-  unit: dimensionless
+requires:
+  - parameter: PARAM-material-grade
+    description: Pipe material grade
+  - parameter: PARAM-pipe-construction-type
+    description: Pipe construction type
 returns:
-- parameter: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
-  symbol: E_j
+  - parameter: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
+    symbol: E_j
 lookup:
   table: asme-b313-table-A-3
   rule: by_material_joint_category
@@ -55,14 +47,14 @@ lookup_rules:
     on_multiple_matches:
       action: error
 edges:
-- type: returns_parameter
-  target: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
-- type: requires_parameter
-  target: PARAM-material-grade
-- type: requires_parameter
-  target: PARAM-pipe-construction-type
+  - type: returns_parameter
+    target: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
+  - type: requires_parameter
+    target: PARAM-material-grade
+  - type: requires_parameter
+    target: PARAM-pipe-construction-type
 metadata:
-  last_revision: 2026-07-15
+  last_revision: 2026-07-17
   edited_by: admin
 option_queries:
   joint_categories_for_material:

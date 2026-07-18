@@ -5,6 +5,7 @@ from __future__ import annotations
 from engine.graph.graph_store import GraphStore
 from engine.graph.param_priority import parameter_collection_priority
 from engine.reference.node_types import is_ui_parameter, parameter_input_id
+from engine.reference.parameter_metadata import parameter_prompt_text
 from engine.reference.standards_reader import StandardsReader
 from models.execution import ExecutionPlan
 
@@ -72,7 +73,7 @@ def graph_question_for_field(
             continue
         field = parameter_input_id(node.metadata)
         if field == field_name:
-            question = node.metadata.get("question")
-            if isinstance(question, str) and question.strip():
-                return question.strip()
+            prompt = parameter_prompt_text(node.metadata)
+            if prompt:
+                return prompt
     return None

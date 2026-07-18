@@ -8,19 +8,16 @@ source:
   table_id: table-2-1
 type: lookup
 title: Outside diameter from NPS (ASME B36.10M Table 2-1)
+table_number: 2-1
 description: >
   Resolve outside diameter from nominal pipe size per ASME B36.10M Table 2-1.
   Outside diameter is identical for all schedules at a given NPS.
-inputs:
-- id: nominal_pipe_size
-  name: nominal_pipe_size
-  task_input_id: nominal_pipe_size
-  required: true
-  source: user_input
-  unit: dimensionless
+requires:
+  - parameter: PARAM-nominal-pipe-size
+    description: Nominal pipe size
 returns:
-- parameter: PARAM-outside-diameter
-  symbol: D
+  - parameter: PARAM-outside-diameter
+    symbol: D
 lookup:
   table: B3610-table-2-1
   rule: by_nps
@@ -28,17 +25,17 @@ lookup:
     nominal_pipe_size: PARAM-nominal-pipe-size
 applicability:
   applies_when:
-  - parameter: outside_diameter__resolution_branch
-    operator: equals
-    value: nps_lookup
+    - parameter: outside_diameter__resolution_branch
+      operator: equals
+      value: nps_lookup
 edges:
-- type: returns_parameter
-  target: PARAM-outside-diameter
-- type: requires_parameter
-  target: PARAM-nominal-pipe-size
+  - type: returns_parameter
+    target: PARAM-outside-diameter
+  - type: requires_parameter
+    target: PARAM-nominal-pipe-size
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-15
+  last_revision: 2026-07-17
   edited_by: admin
 ---

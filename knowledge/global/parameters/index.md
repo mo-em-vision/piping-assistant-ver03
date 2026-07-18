@@ -31,7 +31,7 @@ Parameter nodes define **contextual engineering roles** — not values, units, r
 | `PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes` | factor | `DIM-dimensionless` | [`CONCEPT-weld-joint-efficiency`](../concepts/nodes/CONCEPT-weld-joint-efficiency.yaml) |
 | `PARAM-temperature-coefficient-y` | coefficient | `DIM-dimensionless` | [`CONCEPT-temperature-coefficient`](../concepts/nodes/CONCEPT-temperature-coefficient.yaml) |
 | `PARAM-nominal-pipe-size` | selection | — | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
-| `PARAM-pressure-loading` | selection | — | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
+| `PARAM-pressure-design-case` | selection | — | [`CONCEPT-pressure`](../concepts/nodes/CONCEPT-pressure.yaml) |
 | `PARAM-straight-pipe-section` | selection | — | — |
 | `PARAM-pipe-schedule` | selection | — | [`CONCEPT-pipe-diameter`](../concepts/nodes/CONCEPT-pipe-diameter.yaml) |
 | `PARAM-actual-wall-thickness` | geometric_quantity | `DIM-length` | [`CONCEPT-wall-thickness`](../concepts/nodes/CONCEPT-wall-thickness.yaml) |

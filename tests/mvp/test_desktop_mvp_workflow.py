@@ -19,7 +19,7 @@ from tests.acceptance.helpers import run_completed_workflow
 def _submit_initial_pipe_inputs(service: DesktopApiService, task_id: str, session_id: str) -> dict:
     submissions = [
         ("straight_pipe_section", True, None),
-        ("pressure_loading", "internal_pressure", None),
+        ("pressure_design_case", "internal_pressure", None),
         ("weld_joint_efficiency", 1.0, None),
         ("weld_joint_strength_reduction_factor_W", 1.0, None),
         ("temperature_coefficient_Y", 0.4, None),

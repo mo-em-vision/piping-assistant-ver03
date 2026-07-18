@@ -48,7 +48,7 @@ def _eq2_trace_block(blocks: list[dict]) -> dict:
 def _task_with_eq2_trace_key(task, *, include_t: bool = True) -> None:
     planning = {
         "path_decision": {
-            "pressure_loading": "internal_pressure",
+            "pressure_design_case": "internal_pressure",
             "selected_node": "304.1.2-a",
         },
         "current_phase": "formula_parameters",
@@ -159,7 +159,7 @@ def test_lookup_symbols_not_in_current_ask_when_keys_missing(standards_reader) -
     )
     state = service.submit_input(
         state["task_id"],
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )
@@ -185,7 +185,7 @@ def test_mawp_formula_row_provenance_is_generic(standards_reader) -> None:
     task = manager.create_task("prov-mawp", status=TaskStatus.AWAITING_INPUT)
     planning = {
         "path_decision": {
-            "pressure_loading": "internal_pressure",
+            "pressure_design_case": "internal_pressure",
             "selected_node": "304.1.2-a",
         },
         "current_phase": "formula_parameters",

@@ -28,7 +28,7 @@ from engine.graph.lookup_parameter_resolution import (
 from engine.graph.param_priority import parameter_collection_priority, parameter_concept_id, parameter_defined_in
 from engine.graph.prefetch import prefetch_async
 from engine.reference.node_types import is_ui_parameter, parameter_input_id
-from engine.reference.parameter_metadata import prepare_parameter_metadata
+from engine.reference.parameter_metadata import parameter_prompt_or_description, prepare_parameter_metadata
 from engine.units.unit_ids import symbol_from_unit_id
 from engine.graph.traversal import bfs_neighbors, topological_order
 from engine.reference.graph_edge_schema import workflow_anchor_target
@@ -130,7 +130,7 @@ def _collect_pending_assumptions(
                     {
                         "field": field_name,
                         "node_id": node_id,
-                        "question": node.metadata.get("question", ""),
+                        "question": parameter_prompt_or_description(node.metadata) or "",
                     }
                 )
     return pending
@@ -451,6 +451,19 @@ class MicroGraphEngine:
                             existing_inputs=inputs,
                         ),
                     )
+        if plan is not None:
+            for node_id in plan.execution_order:
+                node = self._store.get_node(node_id)
+                if node is None or node.node_type != "paragraph":
+                    continue
+                evaluation = _merge_evaluations(
+                    evaluation,
+                    evaluate_metadata_expansion_assumptions(
+                        node.metadata,
+                        node_id=node_id,
+                        existing_inputs=inputs,
+                    ),
+                )
         return evaluation
 
     def expansion_gate_ready(
@@ -596,7 +609,7 @@ class MicroGraphEngine:
                 continue
             field = parameter_input_id(node.metadata)
             if field == field_name:
-                return str(node.metadata.get("question") or node.metadata.get("description") or "")
+                return parameter_prompt_or_description(node.metadata) or ""
         return None
 
     def collect_active_edges(

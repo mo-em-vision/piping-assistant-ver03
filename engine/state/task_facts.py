@@ -28,7 +28,24 @@ from engine.reference.parameter_keys import active_material_grade_fact
 
 
 def active_facts(task: Task) -> dict[str, Fact]:
-    return task.fact_store.active_facts()
+    raw = task.fact_store.active_facts()
+    workflow_id = str(task.outputs.get("workflow") or task.outputs.get("selected_root") or "").strip()
+    if not workflow_id:
+        return raw
+    from engine.reference.parameter_keys import canonical_parameter_key, load_parameter_node_metadata
+    from engine.reference.parameter_metadata import is_workflow_scoped_parameter
+
+    scoped: dict[str, Fact] = {}
+    for key, fact in raw.items():
+        canonical = canonical_parameter_key(key)
+        node_id = f"PARAM-{canonical.replace('_', '-')}"
+        metadata = load_parameter_node_metadata(node_id)
+        if is_workflow_scoped_parameter(metadata):
+            fact_workflow = str(fact.provenance.workflow_id or "").strip()
+            if fact_workflow and fact_workflow != workflow_id:
+                continue
+        scoped[key] = fact
+    return scoped
 
 
 def active_fact(task: Task, key: str) -> Fact | None:

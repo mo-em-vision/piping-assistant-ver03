@@ -15,7 +15,7 @@ function pipeWallState(): TaskStateDto {
     progress: {
       timeline: [
         {
-          id: 'pressure_loading',
+          id: 'pressure_design_case',
           title: 'Pressure loading',
           status: 'active',
           value: null,
@@ -32,10 +32,10 @@ function pipeWallState(): TaskStateDto {
       steps: [],
       completed_count: 0,
       total_count: 2,
-      current_step_id: 'pressure_loading',
+      current_step_id: 'pressure_design_case',
       missing_inputs: [],
       missing_assumptions: [],
-      submittable_parameters: ['pressure_loading'],
+      submittable_parameters: ['pressure_design_case'],
       step_progress: [],
     },
     inputs: {},
@@ -43,7 +43,7 @@ function pipeWallState(): TaskStateDto {
     warnings: [],
     parameters: [
       {
-        name: 'pressure_loading',
+        name: 'pressure_design_case',
         label: 'Pressure Loading',
         type: 'dropdown',
         required: true,
@@ -218,11 +218,11 @@ describe('applyOptimisticParameterSubmit', () => {
   it('marks the submitted parameter confirmed and advances to the next phased step', () => {
     const next = applyOptimisticParameterSubmit(
       pipeWallState(),
-      'pressure_loading',
+      'pressure_design_case',
       'internal_pressure',
     )
 
-    expect(next.parameters.find((item) => item.name === 'pressure_loading')?.status).toBe('confirmed')
+    expect(next.parameters.find((item) => item.name === 'pressure_design_case')?.status).toBe('confirmed')
     expect(next.parameters.find((item) => item.name === 'internal_design_gage_pressure')?.status).toBe('pending')
     expect(next.progress.current_step_id).toBe('internal_design_gage_pressure')
     expect(next.progress.submittable_parameters).toEqual(['internal_design_gage_pressure'])
@@ -273,7 +273,7 @@ describe('applyOptimisticParameterSubmit', () => {
         ...pipeWallState(),
         display_outputs: [equationBlock],
       },
-      'pressure_loading',
+      'pressure_design_case',
       'internal_pressure',
     )
 

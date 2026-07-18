@@ -24,7 +24,7 @@ def _pipe_wall_post_calc_task(manager: TaskStateManager, task_id: str, *, projec
     task = manager.create_task(task_id, status=TaskStatus.AWAITING_INPUT)
     inputs = [
         ("straight_pipe_section", True, None),
-        ("pressure_loading", "internal_pressure", None),
+        ("pressure_design_case", "internal_pressure", None),
         ("internal_design_gage_pressure", 8.0, "bar"),
         ("nominal_pipe_size", 6, None),
         ("outside_diameter", 168.28, "mm"),
@@ -57,7 +57,7 @@ def _pipe_wall_post_calc_task(manager: TaskStateManager, task_id: str, *, projec
         "selected_nodes": ["304.1.1-a", "304.1.2-a", "PARAM-corrosion-allowance"],
         "graph_input_order": ["internal_design_gage_pressure", "corrosion_allowance"],
         "path_decision": {
-            "field": "pressure_loading",
+            "field": "pressure_design_case",
             "value": "internal_pressure",
             "selected_node": "304.1.2-a",
         },

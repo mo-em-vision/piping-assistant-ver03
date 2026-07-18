@@ -11,20 +11,16 @@ title: Weld Joint Strength Reduction Factor, W
 table_number: 302.3.5-1
 status: draft
 revision_year: 2024
-inputs:
-- id: material_grade
-  required: true
-  description: Material grade (PARAM-material-grade)
-- id: temperature
-  task_input_id: design_temperature
-  required: true
-  description: Design temperature (PARAM-design-temperature)
-- id: pipe_construction_type
-  required: true
-  description: Pipe construction type (PARAM-pipe-construction-type)
+requires:
+  - parameter: PARAM-material-grade
+    description: Material grade
+  - parameter: PARAM-design-temperature
+    description: Design temperature
+  - parameter: PARAM-pipe-construction-type
+    description: Pipe construction type
 returns:
-- parameter: PARAM-weld-strength-reduction-factor-w
-  symbol: W
+  - parameter: PARAM-weld-strength-reduction-factor-w
+    symbol: W
 lookup:
   table: asme-b313-table-302-3-5-1
   rule: by_material_construction_temperature
@@ -59,17 +55,17 @@ lookup_rules:
     on_multiple_matches:
       action: error
 edges:
-- type: depends_on
-  target: 302.3.5-e
-- type: returns_parameter
-  target: PARAM-weld-strength-reduction-factor-w
-- type: requires_parameter
-  target: PARAM-material-grade
-- type: requires_parameter
-  target: PARAM-design-temperature
-- type: requires_parameter
-  target: PARAM-pipe-construction-type
+  - type: depends_on
+    target: 302.3.5-e
+  - type: returns_parameter
+    target: PARAM-weld-strength-reduction-factor-w
+  - type: requires_parameter
+    target: PARAM-material-grade
+  - type: requires_parameter
+    target: PARAM-design-temperature
+  - type: requires_parameter
+    target: PARAM-pipe-construction-type
 metadata:
-  last_revision: 2026-07-15
+  last_revision: 2026-07-17
   edited_by: admin
 ---

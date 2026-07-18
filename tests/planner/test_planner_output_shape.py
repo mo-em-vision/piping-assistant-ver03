@@ -71,7 +71,7 @@ def test_fresh_plan_has_nested_structure_not_flat_goal_keys() -> None:
 
     assert plan.root_goal.id.startswith("GOAL-")
     assert "REQ-straight_pipe_section" in plan.requirements
-    assert "REQ-pressure_loading" in plan.requirements
+    assert "REQ-pressure_design_case" in plan.requirements
     assert plan.requirements["REQ-straight_pipe_section"].key == "input-straight_pipe_section"
     assert plan.requirements["REQ-straight_pipe_section"].title
     assert len(plan.dependencies) > 0

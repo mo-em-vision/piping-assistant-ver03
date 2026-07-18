@@ -18,7 +18,7 @@ expected:
     selected_root: pipe_wall_thickness_design
     missing_assumptions_contains:
       - straight_pipe_section
-      - pressure_loading
+      - pressure_design_case
     missing_inputs: []
 
   execution:

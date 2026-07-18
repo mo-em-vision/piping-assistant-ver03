@@ -316,12 +316,12 @@ def test_no_plan_task_preserves_legacy_current_ask() -> None:
     manager = TaskStateManager()
     task = manager.create_task("legacy-no-plan", status=TaskStatus.AWAITING_INPUT)
     planning = {
-        "missing_assumptions": ["pressure_loading"],
+        "missing_assumptions": ["pressure_design_case"],
         "current_phase": "path_decisions",
-        "phase_missing": {"path_decisions": ["pressure_loading"]},
+        "phase_missing": {"path_decisions": ["pressure_design_case"]},
         "phase_questions": {
             "path_decisions": {
-                "pressure_loading": "Is the pipe subjected to internal or external pressure?",
+                "pressure_design_case": "Is the pipe subjected to internal or external pressure?",
             }
         },
     }
@@ -332,7 +332,7 @@ def test_no_plan_task_preserves_legacy_current_ask() -> None:
     current_ask = state.get("current_ask")
     assert current_ask is not None
     assert current_ask["kind"] == "input"
-    assert current_ask["parameter_id"] == "pressure_loading"
+    assert current_ask["parameter_id"] == "pressure_design_case"
 
 
 def test_completed_task_has_no_parameter_current_ask(project_root: Path) -> None:

@@ -38,7 +38,7 @@ def test_micro_graph_build_plan_internal_pressure() -> None:
         inputs=facts_from_inputs(
             {
                 "straight_pipe_section": straight_section_assumption(),
-                "pressure_loading": internal_pressure_assumption(),
+                "pressure_design_case": internal_pressure_assumption(),
             },
             task_id="graph-micro-test",
         ),
@@ -138,7 +138,7 @@ def test_micro_graph_plan_resolves_quantity_linked_parameters() -> None:
         inputs=facts_from_inputs(
             {
                 "straight_pipe_section": straight_section_assumption(),
-                "pressure_loading": internal_pressure_assumption(),
+                "pressure_design_case": internal_pressure_assumption(),
                 "design_pressure": EngineeringInput(
                     input_id="design_pressure",
                     value=1_000_000,

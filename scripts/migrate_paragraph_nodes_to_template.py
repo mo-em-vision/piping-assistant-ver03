@@ -35,7 +35,7 @@ INPUT_TO_PARAM: dict[str, str] = {
     "temperature_coefficient_Y": "PARAM-temperature-coefficient-Y",
     "corrosion_allowance": "PARAM-corrosion-allowance",
     "straight_pipe_section": "PARAM-straight-pipe-section",
-    "pressure_loading": "PARAM-pressure-loading",
+    "pressure_design_case": "PARAM-pressure-design-case",
     "thin_wall": "PARAM-thin-wall-applicability",
     "casting_quality_factor": "PARAM-casting-quality-factor",
 }
@@ -92,13 +92,13 @@ APPLICABILITY: dict[str, dict[str, Any]] = {
     },
     "304.1.2": {
         "applies_when": [
-            {"parameter": "PARAM-pressure-loading", "operator": "equals", "value": "internal_pressure"},
+            {"parameter": "PARAM-pressure-design-case", "operator": "equals", "value": "internal_pressure"},
             {"parameter": "PARAM-straight-pipe-section", "operator": "equals", "value": True},
         ],
     },
     "304.1.3": {
         "applies_when": [
-            {"parameter": "PARAM-pressure-loading", "operator": "equals", "value": "external_pressure"},
+            {"parameter": "PARAM-pressure-design-case", "operator": "equals", "value": "external_pressure"},
             {"parameter": "PARAM-straight-pipe-section", "operator": "equals", "value": True},
         ],
     },

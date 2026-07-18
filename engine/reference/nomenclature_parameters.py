@@ -69,7 +69,7 @@ def nomenclature_entry_to_parameter(
 
     question = entry.get("question")
     if question:
-        meta["question"] = str(question)
+        meta["user_prompt"] = {"prompt": str(question).strip()}
 
     return prepare_parameter_metadata(meta)
 

@@ -36,11 +36,11 @@ def format_archive_answer_text(
     unit = fact_unit(fact)
     resolved_unit = None if unit in _HIDDEN_UNITS else unit
 
-    if parameter_id == "pressure_loading":
-        if value == "internal_pressure":
-            return "Internal pressure", resolved_unit
-        if value == "external_pressure":
-            return "External pressure", resolved_unit
+    from api.serializers import _categorical_selection_display
+
+    display = _categorical_selection_display(parameter_id, value)
+    if display:
+        return display, resolved_unit
 
     if parameter_id == "straight_pipe_section" and isinstance(value, bool):
         return ("Yes" if value else "No"), resolved_unit

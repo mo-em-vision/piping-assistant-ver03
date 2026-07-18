@@ -494,7 +494,7 @@ def main() -> int:
         if parent == "304.1.2" and new_id == "asme_b313_304_1_2_wall_thickness":
             applicability = {
                 "applies_when": [
-                    {"parameter": "PARAM-pressure-loading", "operator": "equals", "value": "internal_pressure"},
+                    {"parameter": "PARAM-pressure-design-case", "operator": "equals", "value": "internal_pressure"},
                     {"parameter": "PARAM-straight-pipe-section", "operator": "equals", "value": True},
                 ]
             }

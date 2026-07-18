@@ -1,0 +1,45 @@
+.prompt-help-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.prompt-help-icon__button {
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid var(--border-subtle, #c8c8c8);
+  border-radius: 50%;
+  background: var(--surface-muted, #f4f4f4);
+  color: var(--text-secondary, #555);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: help;
+}
+
+.prompt-help-icon__button:focus-visible {
+  outline: 2px solid var(--focus-ring, #2563eb);
+  outline-offset: 2px;
+}
+
+.prompt-help-icon__tooltip {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 0.4rem);
+  z-index: 20;
+  width: max-content;
+  max-width: 18rem;
+  padding: 0.45rem 0.55rem;
+  border: 1px solid var(--border-subtle, #c8c8c8);
+  border-radius: 0.35rem;
+  background: var(--surface-elevated, #fff);
+  color: var(--text-primary, #222);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 12%);
+  transform: translateX(-50%);
+  white-space: pre-wrap;
+}

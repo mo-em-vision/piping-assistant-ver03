@@ -42,7 +42,7 @@ def test_design_pressure_submit_maps_to_canonical_pressure_fact(
     )
     service.submit_input(
         task_id,
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         unit=None,
         session_id=session_id,

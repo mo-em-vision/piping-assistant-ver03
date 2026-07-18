@@ -19,7 +19,7 @@ edges:
   - type: has_parameter
     target: PARAM-internal-design-gage-pressure
   - type: has_parameter
-    target: PARAM-pressure-loading
+    target: PARAM-pressure-design-case
 metadata:
   status: active
   version: 1

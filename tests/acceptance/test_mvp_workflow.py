@@ -45,7 +45,7 @@ class TestMvpDefinition:
         plan = GraphEngine().build_plan(
             task_id="acceptance-mvp-nodes",
             root_id=PIPE_WALL_THICKNESS_ROOT,
-            inputs={"pressure_loading": internal_pressure_assumption()},
+            inputs={"pressure_design_case": internal_pressure_assumption()},
             reader=standards_reader,
         )
         assert MATERIAL_STRESS_NODE in plan.nodes
@@ -127,7 +127,7 @@ def test_mvp_acceptance_checklist(
             root_id=PIPE_WALL_THICKNESS_ROOT,
             inputs={
                 "straight_pipe_section": straight_section_assumption(),
-                "pressure_loading": internal_pressure_assumption(),
+                "pressure_design_case": internal_pressure_assumption(),
             },
             reader=standards_reader,
         )

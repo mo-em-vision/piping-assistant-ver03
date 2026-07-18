@@ -1,4 +1,4 @@
-"""Tests for expansion gate fields sourced from workflow navigation metadata."""
+"""Tests for expansion gate fields sourced from graph node metadata."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from models.task import TaskStatus
 from engine.state.task_facts import active_facts, store_proposed_default
 
 
-def test_expansion_gate_requires_pressure_loading_on_fresh_task(project_root: Path) -> None:
+def test_expansion_gate_requires_straight_pipe_on_fresh_task(project_root: Path) -> None:
     reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
     engine = GraphEngine()
     micro = engine._micro_engine(reader)
@@ -26,7 +26,7 @@ def test_expansion_gate_requires_pressure_loading_on_fresh_task(project_root: Pa
 
     gate_fields = _collect_expansion_assumptions(micro.store, resolved)
     assert "straight_pipe_section" in gate_fields
-    assert "pressure_loading" in gate_fields
+    assert "pressure_design_case" not in gate_fields
     assert expansion_gate_ready(micro.store, resolved, inputs) is False
 
 
@@ -57,4 +57,4 @@ def test_expansion_gate_requires_straight_pipe_before_anchor_expands(project_roo
     lazy_with_straight = expand_workflow(micro.store, resolved, inputs, lazy=True)
     assert "304.1.1-a" in lazy_with_straight.active_nodes
     assert "straight_pipe_section" not in lazy_with_straight.pending_fields
-    assert "pressure_loading" in lazy_with_straight.pending_fields
+    assert expansion_gate_ready(micro.store, resolved, inputs) is True

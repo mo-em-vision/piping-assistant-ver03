@@ -52,7 +52,7 @@ def _build_plan(*inputs):
 def _assert_internal_pressure_branch_condition(req) -> None:
     condition = req.activation_condition
     assert condition is not None
-    assert condition.field == "pressure_loading"
+    assert condition.field == "pressure_design_case"
     assert condition.operator == "equals"
     assert condition.value == "internal_pressure"
 

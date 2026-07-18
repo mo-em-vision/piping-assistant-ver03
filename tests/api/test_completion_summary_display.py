@@ -43,7 +43,7 @@ def test_collect_completion_assumptions_from_graph_metadata(standards_reader) ->
     )
     task.active_nodes = ["304.1.1-a", "304.1.2-a"]
     _store_confirmed_fact(task, "straight_pipe_section", True)
-    _store_confirmed_fact(task, "pressure_loading", "internal_pressure")
+    _store_confirmed_fact(task, "pressure_design_case", "internal_pressure")
 
     assumptions = collect_completion_assumptions(task, standards_reader)
     phrases = [item.phrase for item in assumptions]
@@ -64,7 +64,7 @@ def test_result_summary_uses_documentation_summary_and_assumptions(standards_rea
     )
     task.active_nodes = ["304.1.1-a", "304.1.2-a"]
     _store_confirmed_fact(task, "straight_pipe_section", True)
-    _store_confirmed_fact(task, "pressure_loading", "internal_pressure")
+    _store_confirmed_fact(task, "pressure_design_case", "internal_pressure")
 
     block = build_result_summary_display_block(task, standards_reader)
     assert block is not None

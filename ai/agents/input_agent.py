@@ -38,7 +38,7 @@ class InputAgent(BaseAgent):
             "Required before expanding the §304.1.1 wall thickness path. "
             "This workflow currently supports straight pipe sections only."
         ),
-        "pressure_loading": (
+        "pressure_design_case": (
             "Required before expanding the §304.1.1 wall thickness path. "
             "The equation t = PD/2(SEW+PY) applies only to internally "
             "pressurized pipe."
@@ -71,7 +71,7 @@ class InputAgent(BaseAgent):
 
     _SYMBOLS: dict[str, str] = {
         "straight_pipe_section": "straight_pipe_section",
-        "pressure_loading": "pressure_loading",
+        "pressure_design_case": "pressure_design_case",
         "design_pressure": "P",
         "outside_diameter": "D",
         "material": "material",
@@ -84,7 +84,7 @@ class InputAgent(BaseAgent):
 
     _NODE_IDS: dict[str, str] = {
         "straight_pipe_section": PIPE_WALL_THICKNESS_NODE,
-        "pressure_loading": PIPE_WALL_THICKNESS_NODE,
+        "pressure_design_case": PIPE_WALL_THICKNESS_NODE,
         "design_pressure": PIPE_WALL_THICKNESS_NODE,
         "outside_diameter": PIPE_WALL_THICKNESS_NODE,
         "external_design_pressure": "B313-304.1.3",

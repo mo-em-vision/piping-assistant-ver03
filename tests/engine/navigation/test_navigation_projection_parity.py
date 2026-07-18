@@ -36,7 +36,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _COLLECT_ALL_MISSING_FIXTURE = {
     "missing_inputs": ["internal_design_gage_pressure"],
-    "missing_assumptions": ["pressure_loading"],
+    "missing_assumptions": ["pressure_design_case"],
     "missing_execution_assumptions": ["corrosion_allowance"],
     "phase_missing": {
         "parameter_gathering": ["material_grade", "internal_design_gage_pressure"],
@@ -48,7 +48,7 @@ _COLLECT_ALL_MISSING_EXPECTED = sorted(
         "corrosion_allowance",
         "internal_design_gage_pressure",
         "material_grade",
-        "pressure_loading",
+        "pressure_design_case",
     ]
 )
 
@@ -116,8 +116,8 @@ def test_collect_all_missing_deduplicates_phase_overlap() -> None:
 
 def test_composer_mapping_identity_and_aliases(project_root: Path) -> None:
     manager, task, _reader = _pipe_wall_task(project_root, task_id="composer-pwt")
-    assert composer_parameter_id(task, "pressure_loading") == "pressure_loading"
-    assert composer_parameter_ids(task, ["pressure_loading", "pressure_loading"]) == ["pressure_loading"]
+    assert composer_parameter_id(task, "pressure_design_case") == "pressure_design_case"
+    assert composer_parameter_ids(task, ["pressure_design_case", "pressure_design_case"]) == ["pressure_design_case"]
     assert timeline_step_id_for_parameter(task, "outside_diameter") == "outside_diameter"
 
     task.outputs["workflow"] = MAWP_DESIGN

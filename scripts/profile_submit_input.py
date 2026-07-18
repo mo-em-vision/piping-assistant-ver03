@@ -70,7 +70,7 @@ def _next_parameter(state: dict[str, Any]) -> str | None:
 def _value_for(param: str) -> tuple[object, str | None]:
     if param == "straight_pipe_section":
         return True, "dimensionless"
-    if param == "pressure_loading":
+    if param == "pressure_design_case":
         return "internal_pressure", None
     if param == "material_grade":
         return "SA-106B", None
@@ -272,7 +272,7 @@ def main() -> None:
     print(f"workflow=pipe_wall_thickness_design")
 
     recorded_trace_ids: list[str] = []
-    pressure_loading_trace: dict[str, Any] | None = None
+    pressure_design_case_trace: dict[str, Any] | None = None
     corrosion_trace: dict[str, Any] | None = None
 
     for step in range(max(1, args.steps)):
@@ -297,8 +297,8 @@ def main() -> None:
         if trace:
             recorded_trace_ids.append(str(trace["trace_id"]))
             _print_trace_report(trace, top_n=args.top)
-            if param == "pressure_loading":
-                pressure_loading_trace = trace
+            if param == "pressure_design_case":
+                pressure_design_case_trace = trace
             if param == "corrosion_allowance":
                 corrosion_trace = trace
         print(f"\n--- step {step + 1}: submit {param!r} — wall {wall_ms:.0f} ms ---")
@@ -320,8 +320,8 @@ def main() -> None:
     traces = list(snapshot.get("traces") or [])
     if recorded_trace_ids:
         traces = [trace for trace in traces if trace.get("trace_id") in recorded_trace_ids] or traces
-    if pressure_loading_trace is not None:
-        _print_key_metrics(pressure_loading_trace, label="pressure_loading submit")
+    if pressure_design_case_trace is not None:
+        _print_key_metrics(pressure_design_case_trace, label="pressure_design_case submit")
     if corrosion_trace is not None:
         _print_key_metrics(corrosion_trace, label="corrosion_allowance submit")
     _print_summary(traces[: max(len(recorded_trace_ids), args.steps + (1 if args.inspection_poll else 0))])

@@ -55,9 +55,9 @@ def test_build_parameter_definitions_from_missing_inputs(standards_root: Path) -
     task = manager.create_task("pipe-wall-thickness-desi-test03", status=TaskStatus.AWAITING_INPUT)
     planning = {
         "missing_inputs": ["internal_design_gage_pressure", "material"],
-        "missing_assumptions": ["pressure_loading"],
+        "missing_assumptions": ["pressure_design_case"],
         "current_phase": "path_decisions",
-        "phase_missing": {"path_decisions": ["pressure_loading"]},
+        "phase_missing": {"path_decisions": ["pressure_design_case"]},
     }
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
@@ -65,9 +65,9 @@ def test_build_parameter_definitions_from_missing_inputs(standards_root: Path) -
 
     parameters = build_parameter_definitions(manager.get_task(task.task_id), reader=reader)
     names = [item["name"] for item in parameters]
-    assert "pressure_loading" in names
+    assert "pressure_design_case" in names
 
-    pressure = next(item for item in parameters if item["name"] == "pressure_loading")
+    pressure = next(item for item in parameters if item["name"] == "pressure_design_case")
     assert pressure["type"] == "dropdown"
     assert pressure["status"] == "pending"
     assert pressure["submittable"] is True
@@ -77,12 +77,12 @@ def test_build_parameter_definitions_includes_expansion_phase_guidance() -> None
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-guidance", status=TaskStatus.AWAITING_INPUT)
     planning = {
-        "missing_assumptions": ["pressure_loading"],
+        "missing_assumptions": ["pressure_design_case"],
         "current_phase": "path_decisions",
-        "phase_missing": {"path_decisions": ["pressure_loading"]},
+        "phase_missing": {"path_decisions": ["pressure_design_case"]},
         "phase_questions": {
             "path_decisions": {
-                "pressure_loading": "Is the pipe subject to internal or external pressure?",
+                "pressure_design_case": "Is the pipe subject to internal or external pressure?",
             }
         },
     }
@@ -91,7 +91,7 @@ def test_build_parameter_definitions_includes_expansion_phase_guidance() -> None
     manager.replace_task(task.task_id, task)
 
     parameters = build_parameter_definitions(manager.get_task(task.task_id))
-    pressure = next(item for item in parameters if item["name"] == "pressure_loading")
+    pressure = next(item for item in parameters if item["name"] == "pressure_design_case")
     assert pressure["guidance"] == "Is the pipe subject to internal or external pressure?"
 
 
@@ -175,7 +175,7 @@ def test_submit_task_input_rejects_unknown_parameter() -> None:
 def test_build_parameter_definitions_includes_corrosion_after_calc_with_graph_root_workflow() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test11", status=TaskStatus.AWAITING_INPUT)
-    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
+    set_fact_from_input(task, legacy_input(input_id="pressure_design_case",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
@@ -463,3 +463,31 @@ def test_build_parameter_definitions_includes_pipe_construction_lookup_options(
     construction = parameters["pipe_construction_type"]
     assert construction["type"] == "dropdown"
     assert construction["options"] == [{"value": "Seamless pipe", "label": "Seamless pipe"}]
+
+
+def test_build_parameter_definitions_exposes_structured_user_prompt(standards_root: Path) -> None:
+    from engine.reference.standards_reader import StandardsReader
+
+    reader = StandardsReader(standards_root, standard="asme_b31.3")
+    manager = TaskStateManager()
+    task = manager.create_task("param-user-prompt-serialization", status=TaskStatus.AWAITING_INPUT)
+    planning = {
+        "missing_inputs": ["internal_design_gage_pressure"],
+        "missing_assumptions": [],
+        "current_phase": "parameter_gathering",
+        "phase_missing": {"parameter_gathering": ["internal_design_gage_pressure"]},
+    }
+    task.outputs = {"workflow": "pipe_wall_thickness_design"}
+    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    manager.replace_task(task.task_id, task)
+
+    parameters = build_parameter_definitions(manager.get_task(task.task_id), reader=reader)
+    pressure = next(item for item in parameters if item["name"] == "internal_design_gage_pressure")
+    assert pressure["prompt"] == "Enter internal design gage pressure P."
+    assert pressure["help_text"] is not None
+    assert "500 psi" not in pressure["help_text"]
+    assert "pressure design thickness" in pressure["help_text"].lower()
+    assert pressure["units"]
+    assert pressure["guidance"] is not None
+    assert "question" not in pressure
+    assert "short_question" not in pressure

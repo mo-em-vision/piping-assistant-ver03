@@ -25,6 +25,7 @@ export type WorkflowAskKind = 'input' | 'clarify' | 'waiting' | 'none'
 export interface WorkflowAsk {
   kind: WorkflowAskKind
   prompt: string | null
+  help_text?: string | null
   parameter: ParameterDefinitionDto | null
 }
 
@@ -202,11 +203,39 @@ function resolveInputAskParameter(
   return editable
 }
 
+function structuredPromptForParameter(parameter: ParameterDefinitionDto): string | null {
+  const prompt = parameter.prompt?.trim()
+  if (prompt) {
+    return prompt
+  }
+  return null
+}
+
+function structuredHelpTextForParameter(
+  parameter: ParameterDefinitionDto,
+  backendAsk?: TaskStateDto['current_ask'],
+): string | null {
+  const backendHelp = backendAsk?.help_text?.trim()
+  if (backendHelp) {
+    return backendHelp
+  }
+  const helpText = parameter.help_text?.trim()
+  if (helpText) {
+    return helpText
+  }
+  return null
+}
+
 function promptForParameter(
   parameter: ParameterDefinitionDto,
   timeline: TimelineStepViewModel[],
   state: TaskStateDto,
 ): string {
+  const structuredPrompt = structuredPromptForParameter(parameter)
+  if (structuredPrompt) {
+    return structuredPrompt
+  }
+
   const guidance = parameter.guidance?.trim()
   if (guidance) {
     return guidance
@@ -268,6 +297,12 @@ function composerPromptFromCurrentAsk(
   if (shortPrompt) {
     return shortPrompt
   }
+  if (parameter) {
+    const structuredPrompt = structuredPromptForParameter(parameter)
+    if (structuredPrompt) {
+      return structuredPrompt
+    }
+  }
   const promptMatchesParameter =
     backendAsk.parameter_id != null &&
     parameter != null &&
@@ -294,8 +329,8 @@ export function getWorkflowAsk(
         kind: 'input',
         prompt:
           composerPromptFromCurrentAsk(backendAsk, parameter) ||
-          parameter.guidance?.trim() ||
           promptForParameter(parameter, timeline, state),
+        help_text: structuredHelpTextForParameter(parameter, backendAsk),
         parameter,
       }
     }
@@ -320,6 +355,7 @@ export function getWorkflowAsk(
       return {
         kind: 'input',
         prompt: promptForParameter(activeParameter, timeline, state),
+        help_text: structuredHelpTextForParameter(activeParameter, backendAsk),
         parameter: activeParameter,
       }
     }
@@ -339,6 +375,7 @@ export function getWorkflowAsk(
     return {
       kind: 'input',
       prompt: promptForParameter(parameter, timeline, state),
+      help_text: structuredHelpTextForParameter(parameter, state.current_ask),
       parameter,
     }
   }
@@ -358,6 +395,7 @@ export function getWorkflowAsk(
     return {
       kind: 'input',
       prompt: promptForParameter(activeParameter, timeline, state),
+      help_text: structuredHelpTextForParameter(activeParameter, state.current_ask),
       parameter: activeParameter,
     }
   }

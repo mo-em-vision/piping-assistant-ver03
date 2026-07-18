@@ -14,7 +14,7 @@ WORKFLOW_DIR = ROOT / "knowledge" / "standards" / "asme" / "asme_b31.3" / "nodes
 
 INPUT_TO_PARAM: dict[str, str] = {
     "straight_pipe_section": "PARAM-straight-pipe-section",
-    "pressure_loading": "PARAM-pressure-loading",
+    "pressure_design_case": "PARAM-pressure-design-case",
     "design_pressure": "PARAM-design-pressure",
     "nominal_pipe_size": "PARAM-nominal-pipe-size",
     "outside_diameter": "PARAM-outside-diameter",
@@ -84,7 +84,7 @@ PIPE_WALL_TEMPLATE: dict[str, Any] = {
     ],
     "expected_parameters": [
         "PARAM-straight-pipe-section",
-        "PARAM-pressure-loading",
+        "PARAM-pressure-design-case",
         "PARAM-design-pressure",
         "PARAM-nominal-pipe-size",
         "PARAM-outside-diameter",
@@ -113,7 +113,7 @@ PIPE_WALL_TEMPLATE: dict[str, Any] = {
         {
             "key": "path_decisions",
             "purpose": "Select applicable pressure loading branch.",
-            "required_parameters": ["PARAM-pressure-loading"],
+            "required_parameters": ["PARAM-pressure-design-case"],
         },
         {
             "key": "parameter_gathering",
@@ -152,7 +152,7 @@ PIPE_WALL_TEMPLATE: dict[str, Any] = {
         {
             "key": "internal_pressure",
             "selected_when": {
-                "parameter": "PARAM-pressure-loading",
+                "parameter": "PARAM-pressure-design-case",
                 "value": "internal_pressure",
             },
             "entry_point": "304.1.2",
@@ -160,7 +160,7 @@ PIPE_WALL_TEMPLATE: dict[str, Any] = {
         {
             "key": "external_pressure",
             "selected_when": {
-                "parameter": "PARAM-pressure-loading",
+                "parameter": "PARAM-pressure-design-case",
                 "value": "external_pressure",
             },
             "entry_point": "304.1.3",

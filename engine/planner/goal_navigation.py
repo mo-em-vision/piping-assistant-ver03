@@ -8,6 +8,7 @@ from engine.messaging.parameter_input_prompt import (
     build_parameter_input_prompt,
     build_short_parameter_input_prompt,
 )
+from engine.messaging.parameter_prompt_context import parameter_metadata_context
 from engine.reference.standards_reader import StandardsReader
 from models.fact import fact_is_expansion_ready
 from models.goal import Goal, GoalClass, SatisfactionStatus, goal_parameter_key
@@ -172,6 +173,9 @@ def _attach_short_prompt(
     if kind == "input":
         param = ask.get("parameter_id")
         if isinstance(param, str) and param.strip() and reader is not None:
+            metadata_ctx = parameter_metadata_context(reader, param.strip())
+            if metadata_ctx is not None and metadata_ctx.help_text:
+                ask["help_text"] = metadata_ctx.help_text
             short = build_short_parameter_input_prompt(
                 reader,
                 task,

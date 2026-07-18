@@ -9,10 +9,11 @@ description: >
   Corrosion allowance c — the sum of mechanical allowances added to the
   calculated pressure design thickness to determine minimum required thickness,
   per ASME B31.3 §304.1.1 and eq. (2).
-question: >
-  Enter the corrosion allowance c, including units.
-  This will be added to the calculated pressure design thickness to determine the minimum required thickness.
-  Example: 1.5 mm or 0.0625 in.
+user_prompt:
+  prompt: Enter the corrosion allowance c.
+  help_text: >
+    This value is added to the calculated pressure design thickness to
+    determine the minimum required thickness.
 canonical_symbol: c
 aliases:
   - corrosion allowance
@@ -36,7 +37,7 @@ metadata:
   allowed_units:
     - UNIT-mm
     - UNIT-in
-  short_question: Enter corrosion allowance c.
+
   input_examples:
     - 1.5 mm
     - 0.0625 in

@@ -39,41 +39,10 @@ goal_expansion:
       when: target_parameter_satisfied
       status: finished
 runtime:
-  navigation:
-    assumption_gate_fields:
-    - straight_pipe_section
-    - wall_thickness_basis
-    phases:
-      expansion_assumptions:
-      - straight_pipe_section
-      path_decisions:
-      - wall_thickness_basis
-      parameter_gathering:
-      - nominal_pipe_size
-      - pipe_schedule
-      - outside_diameter
-      - material_grade
-      - design_temperature
-      coefficient_resolution:
-      - pipe_construction_type
-      execution_assumptions: []
-      definition_equation_completion:
-      - corrosion_allowance
-  assumptions:
-  - id: pressure_loading
-    field: pressure_loading
-    description: MAWP applies to straight pipe under internal pressure per §304.1.2.
-    required_for_expansion: true
-    allowed_values:
-    - internal_pressure
-    default: internal_pressure
   provisional_assumptions:
   - field: thin_wall
     default: true
     description: Assume t < D/6 until thickness is verified.
-  - field: pressure_loading
-    default: internal_pressure
-    description: MAWP applies to internal pressure loading per §304.1.2.
   inputs:
   - id: pressure_design_thickness
     name: t

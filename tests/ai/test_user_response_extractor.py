@@ -12,9 +12,9 @@ from engine.graph.node_interaction import InteractionMode, NodeInteractionSpec
 from models.input import InputStatus, proposed_default_input
 
 
-def _pressure_loading_spec() -> NodeInteractionSpec:
+def _pressure_design_case_spec() -> NodeInteractionSpec:
     return NodeInteractionSpec(
-        variable="pressure_loading",
+        variable="pressure_design_case",
         mode=InteractionMode.DECISION,
         node_id="pipe_wall_thickness_design",
         required=True,
@@ -30,19 +30,19 @@ def _pressure_loading_spec() -> NodeInteractionSpec:
 
 
 def test_extract_interaction_responses_internal_pressure() -> None:
-    extracted = extract_interaction_responses("internal pressure", [_pressure_loading_spec()])
+    extracted = extract_interaction_responses("internal pressure", [_pressure_design_case_spec()])
 
-    assert extracted["pressure_loading"].value == "internal_pressure"
-    assert extracted["pressure_loading"].status == InputStatus.CONFIRMED
+    assert extracted["pressure_design_case"].value == "internal_pressure"
+    assert extracted["pressure_design_case"].status == InputStatus.CONFIRMED
 
 
 def test_extract_interaction_responses_ignores_design_pressure_phrase() -> None:
     extracted = extract_interaction_responses(
         "design pressure 500 psi",
-        [_pressure_loading_spec()],
+        [_pressure_design_case_spec()],
     )
 
-    assert "pressure_loading" not in extracted
+    assert "pressure_design_case" not in extracted
 
 
 def test_extract_value_override_by_symbol() -> None:

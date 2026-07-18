@@ -220,7 +220,7 @@ def test_workflow_sidecar_loads_execution_metadata() -> None:
     assert record.metadata.get("navigation")
     specs = load_node_interactions(record, reader)
     variables = {spec.variable for spec in specs}
-    assert "pressure_loading" in variables
+    assert "pressure_design_case" in variables
 
 
 def test_b31_3_pack_compiles_paragraph_nodes() -> None:

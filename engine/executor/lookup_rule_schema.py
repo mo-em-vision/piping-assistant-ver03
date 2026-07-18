@@ -20,6 +20,8 @@ STRATEGY_MATERIAL_GROUP_TEMPERATURE = "material_group_temperature"
 STRATEGY_MATERIAL_CATEGORY = "material_category"
 STRATEGY_MATERIAL_CATEGORY_TEMPERATURE = "material_category_temperature"
 STRATEGY_MATERIAL_ONLY = "material_only"
+STRATEGY_EXAMINATION_COMBINATION = "examination_combination"
+STRATEGY_MATERIAL_CATALOG = "material_catalog"
 
 KNOWN_STRATEGIES = frozenset(
     {
@@ -30,6 +32,8 @@ KNOWN_STRATEGIES = frozenset(
         STRATEGY_MATERIAL_CATEGORY,
         STRATEGY_MATERIAL_CATEGORY_TEMPERATURE,
         STRATEGY_MATERIAL_ONLY,
+        STRATEGY_EXAMINATION_COMBINATION,
+        STRATEGY_MATERIAL_CATALOG,
     }
 )
 
@@ -43,6 +47,8 @@ STRATEGY_INPUTS: dict[str, frozenset[str]] = {
         {"material_grade", "pipe_construction_type", "design_temperature"}
     ),
     STRATEGY_MATERIAL_ONLY: frozenset({"material_grade"}),
+    STRATEGY_EXAMINATION_COMBINATION: frozenset({"supplementary_examination"}),
+    STRATEGY_MATERIAL_CATALOG: frozenset({"material_grade"}),
 }
 
 INPUT_RESOLVERS: dict[str, frozenset[str]] = {
@@ -52,6 +58,7 @@ INPUT_RESOLVERS: dict[str, frozenset[str]] = {
     "metallurgical_group": frozenset({"metallurgical_group_key"}),
     "pipe_construction_type": frozenset({"joint_category_normalize"}),
     "design_temperature": frozenset({"identity"}),
+    "supplementary_examination": frozenset({"identity"}),
 }
 
 RULE_NAME_ALIASES = {
@@ -71,6 +78,9 @@ RULE_STRATEGY_BY_NAME = {
     "by_material_joint_category": STRATEGY_MATERIAL_CATEGORY,
     "by_material_construction_temperature": STRATEGY_MATERIAL_CATEGORY_TEMPERATURE,
     "by_material": STRATEGY_MATERIAL_ONLY,
+    "examination_combination": STRATEGY_EXAMINATION_COMBINATION,
+    "by_grade": STRATEGY_MATERIAL_CATALOG,
+    "grade": STRATEGY_MATERIAL_CATALOG,
 }
 
 

@@ -71,7 +71,7 @@ def test_required_user_inputs_do_not_include_lookup_derived_coefficients() -> No
     inputs = facts_from_inputs(
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
         },
         task_id="lookup-inputs-test",
     )
@@ -211,7 +211,7 @@ def test_required_user_inputs_do_not_include_metallurgical_group() -> None:
     inputs = facts_from_inputs(
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
         },
         task_id="lookup-inputs-test",
     )

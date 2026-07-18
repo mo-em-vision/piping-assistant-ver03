@@ -80,12 +80,12 @@ def test_policy_single_source_audit_script() -> None:
 
 def test_validator_audit_ontology_share_forbidden_sets() -> None:
     assert validator_fail_messages_for_frontmatter(
-        {"applicability": {"applies_when": [{"parameter": "PARAM-pressure-loading"}]}}
+        {"applicability": {"applies_when": [{"parameter": "PARAM-pressure-design-case"}]}}
     ) == [
         "forbidden field: applicability (belongs in execution block in primary YAML)"
     ]
     placement = check_paragraph_frontmatter_placement(
-        {"applicability": {"applies_when": [{"parameter": "PARAM-pressure-loading"}]}},
+        {"applicability": {"applies_when": [{"parameter": "PARAM-pressure-design-case"}]}},
         node_id="304.1.3",
     )
     assert any(level == "FAIL" for level, _ in placement)

@@ -12,7 +12,7 @@ alwaysApply: true
 
 # Graph-driven workflow paths
 
-Workflow **paths**, **branches**, and **parameter asks** are resolved by node expansion and authored graph structure. Every connection that controls eligibility belongs on nodes or edges in `knowledge/` / `workflows/` — not in Python/TypeScript conditionals.
+Workflow **paths**, **branches**, and **parameter asks** are resolved by node expansion and authored graph structure. Every connection that controls eligibility belongs on nodes or edges in `knowledge/` — not in workflow YAML conditionals or Python/TypeScript hardcoding.
 
 **Source of truth:** `docs/rules.md` §13.
 
@@ -23,26 +23,33 @@ Workflow **paths**, **branches**, and **parameter asks** are resolved by node ex
 | Expand or block a node | `assumptions`, `applicability.applies_when`, `interactions` |
 | Conditional branch | Edge `when`, `depends_on` with `when` |
 | Branch-only parameters | `introduces_parameter`, parameter node + `applies_when` |
-| Pre-expansion gates | Workflow nested `runtime.interactions`, `runtime.navigation.assumption_gate_fields` |
+| Pre-expansion gates | Paragraph/equation `execution.assumptions` with `required_for_expansion` |
+| Path decisions | `PARAM-*` with `metadata.role: path_decision` + paragraph `applies_when` |
 | User-input vs lookup | Parameter `resolution.method` |
+| Workflow completion | `goal_expansion.root_goal.target_parameter` + `entry_points.definition_anchor` |
+
+## What workflows own (no conditionals)
+
+| Concern | Author on workflow YAML |
+| --- | --- |
+| Calculation goal | `goal_expansion`, `entry_points` |
+| Report / presentation | `report`, `runtime.texts`, `runtime.documentation` |
+
+**Do not** author on workflows: `runtime.interactions`, `runtime.assumptions` for branching, `runtime.navigation.assumption_gate_fields`, or non-empty `runtime.navigation.phases` field lists.
 
 ## Engine flow
 
 1. `expand_workflow()` / `expansion_policy` → active subgraph from edges + gates.
 2. `required_user_inputs()` → missing fields from **active** parameter nodes only.
-3. Planner / `workflow_bootstrap` → goal tree and `phase_missing` from graph eval + phase **ordering** (not static field injection).
+3. Planner / `workflow_bootstrap` → goal tree and `phase_missing` from graph eval + metadata-driven phase assignment.
 4. **Replan after each confirmed input** — ruled-out branches drop from goals and timeline.
 
 ## Do not
 
 - Hardcode paragraph ids, branch ids, or field names in planner, `workflow_timeline`, `workflow_bootstrap`, or serializers to pick paths.
-- Put all branch parameters in `navigation.phases.parameter_gathering` unconditionally.
-- Merge full navigation phase lists over graph `required_user_inputs` (gate phases only).
+- Put branch parameters or gate fields in workflow YAML.
+- Merge workflow navigation field lists over graph `required_user_inputs()`.
 - Branch in frontend or `if workflow == "…"` in backend.
-
-## Navigation config role
-
-Workflow nested `runtime.navigation` on primary workflow YAML is for **phase order** and **gate fields** only. Fields in `parameter_gathering` must also appear on the expanded graph path; graph expansion is authoritative for *whether* to ask.
 
 ## Tests
 

@@ -28,6 +28,9 @@ EQUATION_EXECUTION_KEYS: frozenset[str] = frozenset(
         "display",
         "applies_when",
         "paragraph",
+        "assumptions",
+        "interactions",
+        "provisional_assumptions",
     }
 )
 

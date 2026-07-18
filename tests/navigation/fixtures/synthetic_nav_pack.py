@@ -65,7 +65,8 @@ key: {key}
 name: {name}
 parameter_class: physical_quantity
 description: Synthetic navigation contract parameter {key}.
-question: Provide {name}.
+user_prompt:
+  prompt: Provide {name}.
 canonical_symbol: {key[:1].upper()}
 edges: []
 {applies_block}

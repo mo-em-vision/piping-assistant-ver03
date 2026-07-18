@@ -77,8 +77,8 @@ def test_fresh_pipe_wall_no_facts_input_strategy_and_phase_contract() -> None:
     assert strategy.mode == "single_next_question"
     assert strategy.current_phase == "expansion_assumptions"
     assert strategy.next_fields == ["straight_pipe_section"]
-    assert "pressure_loading" not in strategy.next_fields
-    assert "pressure_loading" in strategy.blocked_fields
+    assert "pressure_design_case" not in strategy.next_fields
+    assert "pressure_design_case" in strategy.blocked_fields
 
     active_phases = _active_phases(plan)
     assert len(active_phases) == 1
@@ -153,7 +153,7 @@ def test_fresh_pipe_wall_internal_pressure_requirements_are_conditional() -> Non
     assert "REQ-allowable_stress_lookup" not in plan.requirements
 
     assert "REQ-straight_pipe_section" in plan.root_goal.blocked_by
-    assert "REQ-pressure_loading" in plan.root_goal.blocked_by
+    assert "REQ-pressure_design_case" in plan.root_goal.blocked_by
     assert "REQ-internal_design_gage_pressure" not in plan.root_goal.provisional_blocked_by
     assert plan.input_strategy is not None
     assert "internal_design_gage_pressure" not in plan.input_strategy.next_fields
@@ -185,7 +185,7 @@ def test_external_pressure_branch_marks_internal_requirements_not_applicable() -
         task.task_id,
         fact_from_engineering_input(
             EngineeringInput(
-                "pressure_loading",
+                "pressure_design_case",
                 "external_pressure",
                 "dimensionless",
                 InputSource.USER,
@@ -260,7 +260,7 @@ def test_fresh_pipe_wall_planner_inspector_summary_single_next_input() -> None:
     outstanding = summary["outstanding_required_inputs"]
     outstanding_fields = [item["field"] for item in outstanding]
     assert outstanding_fields[0] == "straight_pipe_section"
-    assert "pressure_loading" in outstanding_fields
+    assert "pressure_design_case" in outstanding_fields
     assert "internal_design_gage_pressure" not in outstanding_fields
     assert "material_grade" not in outstanding_fields
 
@@ -313,8 +313,8 @@ def test_fresh_pipe_wall_input_strategy_asks_expansion_assumption_first() -> Non
     assert plan.input_strategy.mode == "single_next_question"
     assert plan.input_strategy.current_phase == "expansion_assumptions"
     assert plan.input_strategy.next_fields == ["straight_pipe_section"]
-    assert "pressure_loading" not in plan.input_strategy.next_fields
-    assert "pressure_loading" in plan.input_strategy.blocked_fields
+    assert "pressure_design_case" not in plan.input_strategy.next_fields
+    assert "pressure_design_case" in plan.input_strategy.blocked_fields
 
 
 def test_straight_pipe_resolved_advances_to_path_decisions() -> None:
@@ -334,7 +334,7 @@ def test_straight_pipe_resolved_advances_to_path_decisions() -> None:
     assert validation.valid, validation.errors
     assert plan.input_strategy is not None
     assert plan.input_strategy.current_phase == "path_decisions"
-    assert plan.input_strategy.next_fields == ["pressure_loading"]
+    assert plan.input_strategy.next_fields == ["pressure_design_case"]
 
 
 def test_pipe_wall_diameter_resolution_dependency_edges() -> None:
@@ -435,7 +435,7 @@ def test_goal_store_root_blocked_by_respects_conditional_activation() -> None:
     root = task.goal_store.roots()[0]
     assert root.state.blocked_by == [
         "input-straight_pipe_section",
-        "select-pressure_loading",
+        "select-pressure_design_case",
     ]
     assert "input-internal_design_gage_pressure" not in root.state.blocked_by
     provisional = root.metadata.get("provisional_blocked_by") or []

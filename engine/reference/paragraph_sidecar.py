@@ -79,23 +79,7 @@ def parse_applicability_as_interactions(
             continue
         operator = str(item.get("operator") or "equals")
         value = item.get("value")
-        if field == "pressure_loading" and operator == "equals":
-            interactions.append(
-                {
-                    "variable": "pressure_loading",
-                    "mode": "decision",
-                    "required": True,
-                    "required_for_expansion": True,
-                    "options": ["internal_pressure", "external_pressure"],
-                    "aliases": {
-                        "internal": "internal_pressure",
-                        "internal_pressure": "internal_pressure",
-                        "external": "external_pressure",
-                        "external_pressure": "external_pressure",
-                    },
-                }
-            )
-        elif field == "straight_pipe_section" and operator == "equals" and value is True:
+        if field == "straight_pipe_section" and operator == "equals" and value is True:
             continue
     return interactions
 
@@ -139,7 +123,7 @@ def parse_applicability_as_assumptions(
 def _param_to_field(param_id: str) -> str:
     slug = param_id.replace("PARAM-", "").replace("-", "_")
     mapping = {
-        "pressure_loading": "pressure_loading",
+        "pressure_design_case": "pressure_design_case",
         "straight_pipe_section": "straight_pipe_section",
     "internal_design_gage_pressure": "internal_design_gage_pressure",
         "outside_diameter": "outside_diameter",

@@ -94,7 +94,7 @@ def test_create_task_returns_node_activation_outputs(
     assert state.get("active_node_context", {}).get("node_id") in {"304.1.1-a", "B313-304.1.1"}
 
 
-def test_submit_input_advances_to_pressure_loading(
+def test_submit_input_advances_to_pressure_design_case(
     tmp_path: Path,
     project_root: Path,
 ) -> None:
@@ -122,20 +122,20 @@ def test_submit_input_advances_to_pressure_loading(
     )
     state = service.submit_input(
         task_id,
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         unit=None,
         session_id=session_id,
     )
 
-    pressure_param = next(item for item in state["parameters"] if item["name"] == "pressure_loading")
+    pressure_param = next(item for item in state["parameters"] if item["name"] == "pressure_design_case")
     assert pressure_param["status"] == "confirmed"
     assert any(
         item["name"] == "internal_design_gage_pressure" and item["status"] == "pending"
         for item in state["parameters"]
     )
     pressure_step = next(
-        step for step in state["progress"]["timeline"] if step.get("id") == "pressure_loading"
+        step for step in state["progress"]["timeline"] if step.get("id") == "pressure_design_case"
     )
     assert pressure_step["status"] == "done"
 
@@ -169,7 +169,7 @@ def test_stale_empty_goal_tree_is_not_ready_for_execution(
     )
     store_user_fact(
         task,
-        "pressure_loading",
+        "pressure_design_case",
         "internal_pressure",
         workflow_id="pipe_wall_thickness_design",
     )

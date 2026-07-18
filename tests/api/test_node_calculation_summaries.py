@@ -65,7 +65,7 @@ def test_task_state_includes_node_calculations(
     manager = TaskStateManager()
     task = manager.create_task("node-calc-summary-test02", status=TaskStatus.AWAITING_INPUT)
     populate_task_facts(task, {
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
             "straight_pipe_section": straight_section_assumption(),
             **confirmed_default_inputs(),
             "material_grade": EngineeringInput(

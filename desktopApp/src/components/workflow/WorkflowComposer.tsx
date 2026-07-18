@@ -9,9 +9,11 @@ import { ComposerInlineInput } from './ComposerInlineInput'
 import { MaterialSearchInput } from './MaterialSearchInput'
 import { ResolutionBranchComposer } from './ResolutionBranchComposer'
 import { ScrollSelectPicker } from './ScrollSelectPicker'
+import { PromptHelpIcon } from './PromptHelpIcon'
 
 import './ComposerInlineInput.css'
 import './ComposerInput.css'
+import './PromptHelpIcon.css'
 import './WorkflowPanel.css'
 
 interface WorkflowComposerProps {
@@ -92,6 +94,19 @@ function usesSelectionComposerRow(parameter: ParameterDefinitionDto | null): boo
   return (
     (parameter.type === 'dropdown' || parameter.type === 'multi_select') &&
     (parameter.options?.length ?? 0) > 0
+  )
+}
+
+function renderAskPromptText(prompt: string, helpText: string | null, blocked = false) {
+  return (
+    <span
+      className={`workflow-panel__next-step-text${
+        blocked ? ' workflow-panel__next-step-text--blocked' : ''
+      }`}
+    >
+      {prompt}
+      {helpText ? <PromptHelpIcon helpText={helpText} /> : null}
+    </span>
   )
 }
 
@@ -198,6 +213,7 @@ export function WorkflowComposer({
   const lockedClassName = processing ? ' workflow-panel__next-step-inline--locked' : ''
   const options = useMemo(() => parameter?.options ?? [], [parameter])
   const askPrompt = ask.prompt
+  const askHelpText = ask.help_text?.trim() || null
   const heading = askHeading(ask)
 
   const submitCurrentValue = async (nextValue?: unknown, displayValue?: string) => {
@@ -344,9 +360,7 @@ export function WorkflowComposer({
           ) : null}
           {inlineComposerRow && parameter && ask.kind === 'input' ? (
             <div className={`workflow-panel__next-step-inline${lockedClassName}`}>
-              {askPrompt ? (
-                <span className="workflow-panel__next-step-text">{askPrompt}</span>
-              ) : null}
+              {askPrompt ? renderAskPromptText(askPrompt, askHelpText) : null}
               {renderInlineComposerInput({
                 parameter,
                 textValue,
@@ -361,16 +375,12 @@ export function WorkflowComposer({
             </div>
           ) : selectionComposerRow && parameter && ask.kind === 'input' ? (
             <div className={`workflow-panel__next-step-inline${lockedClassName}`}>
-              {askPrompt ? (
-                <span className="workflow-panel__next-step-text">{askPrompt}</span>
-              ) : null}
+              {askPrompt ? renderAskPromptText(askPrompt, askHelpText) : null}
               {renderSelectionOptions()}
             </div>
           ) : pipeConstructionComposerRow && parameter && ask.kind === 'input' ? (
             <div className={`workflow-panel__next-step-inline${lockedClassName}`}>
-              {askPrompt ? (
-                <span className="workflow-panel__next-step-text">{askPrompt}</span>
-              ) : null}
+              {askPrompt ? renderAskPromptText(askPrompt, askHelpText) : null}
               <ScrollSelectPicker
                 options={parameter.options ?? []}
                 value={value === '' || value == null ? null : String(value)}
@@ -385,9 +395,7 @@ export function WorkflowComposer({
             </div>
           ) : resolutionBranchComposerRow && parameter && ask.kind === 'input' ? (
             <div className={`workflow-panel__next-step-inline${lockedClassName}`}>
-              {askPrompt ? (
-                <span className="workflow-panel__next-step-text">{askPrompt}</span>
-              ) : null}
+              {askPrompt ? renderAskPromptText(askPrompt, askHelpText) : null}
               <ResolutionBranchComposer
                 parameter={parameter}
                 disabled={busy}
@@ -397,13 +405,7 @@ export function WorkflowComposer({
               />
             </div>
           ) : askPrompt ? (
-            <span
-              className={`workflow-panel__next-step-text${
-                ask.kind === 'clarify' ? ' workflow-panel__next-step-text--blocked' : ''
-              }`}
-            >
-              {askPrompt}
-            </span>
+            renderAskPromptText(askPrompt, askHelpText, ask.kind === 'clarify')
           ) : null}
         </div>
       ) : null}

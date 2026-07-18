@@ -25,7 +25,7 @@ _CATEGORICAL_INPUT_IDS = frozenset(
         "joint_category",
         "pipe_construction_type",
         "metallurgical_group",
-        "pressure_loading",
+        "pressure_design_case",
         "straight_pipe_section",
     }
 )

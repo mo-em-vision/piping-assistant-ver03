@@ -499,6 +499,87 @@ describe('getWorkflowAsk', () => {
     expect(ask.prompt).toBe('Confirm corrosion allowance from flow guidance.')
   })
 
+  it('prefers structured parameter.prompt over guidance for composer display', () => {
+    const ask = getWorkflowAsk({
+      ...mockTaskState,
+      current_ask: {
+        kind: 'input',
+        parameter_id: 'internal_design_gage_pressure',
+        prompt:
+          'Enter the internal design gage pressure P, including units. Examples: 500 psi, 8 bar.',
+        short_prompt: 'Enter internal design gage pressure P.',
+        help_text: 'This value is used in the pressure design thickness equation.',
+      },
+      parameters: [
+        {
+          name: 'internal_design_gage_pressure',
+          label: 'Internal design gage pressure',
+          type: 'unit',
+          required: true,
+          units: ['bar', 'psi'],
+          default_unit: 'bar',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          submittable: true,
+          prompt: 'Enter internal design gage pressure P.',
+          help_text: 'This value is used in the pressure design thickness equation.',
+          guidance:
+            'Enter the internal design gage pressure P, including units. Examples: 500 psi, 8 bar.',
+        },
+      ],
+      progress: {
+        ...mockTaskState.progress,
+        submittable_parameters: ['internal_design_gage_pressure'],
+        current_step_id: 'internal_design_gage_pressure',
+      },
+    })
+
+    expect(ask.prompt).toBe('Enter internal design gage pressure P.')
+    expect(ask.help_text).toBe('This value is used in the pressure design thickness equation.')
+    expect(ask.prompt).not.toContain('500 psi')
+  })
+
+  it('omits help_text when canonical help text is absent', () => {
+    const ask = getWorkflowAsk({
+      ...mockTaskState,
+      current_ask: {
+        kind: 'input',
+        parameter_id: 'outside_diameter',
+        short_prompt: 'Enter outside diameter D.',
+      },
+      parameters: [
+        {
+          name: 'outside_diameter',
+          label: 'Outside Diameter',
+          type: 'resolution_branch',
+          required: true,
+          units: ['mm'],
+          default_unit: 'mm',
+          default_value: null,
+          value: null,
+          options: null,
+          validation: null,
+          status: 'pending',
+          requires_confirmation: false,
+          submittable: true,
+          prompt: 'Enter outside diameter D.',
+        },
+      ],
+      progress: {
+        ...mockTaskState.progress,
+        submittable_parameters: ['outside_diameter'],
+        current_step_id: 'outside_diameter',
+      },
+    })
+
+    expect(ask.prompt).toBe('Enter outside diameter D.')
+    expect(ask.help_text).toBeFalsy()
+  })
+
   it('prefers short_prompt over full prompt for composer display', () => {
     const ask = getWorkflowAsk({
       ...mockTaskState,

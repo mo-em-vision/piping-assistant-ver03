@@ -19,21 +19,32 @@ columns:
     title: Supplementary Examination
   - id: quality_factor_E_c
     title: Factor, E_c
-inputs:
-  - id: supplementary_examination
-    name: supplementary_examination
+requires:
+  - parameter: PARAM-supplementary-examination
     description: Supplementary examination combination (Table 302.3.3-1)
-    required: true
-    source: user_input
-    unit: dimensionless
 returns:
   - parameter: PARAM-basic-casting-quality-factor
     symbol: E_c
 lookup:
   table: asme-b313-table-302-3-3-1
-  keys:
-    - supplementary_examination
-  lookup_rule: examination_combination
+  rule: examination_combination
+  bindings:
+    supplementary_examination: PARAM-supplementary-examination
+lookup_rules:
+  examination_combination:
+    strategy: examination_combination
+    inputs:
+      supplementary_examination:
+        resolver: identity
+        column: supplementary_examination
+    outputs:
+      basic_casting_quality_factor:
+        column: quality_factor_E_c
+        parameter: PARAM-basic-casting-quality-factor
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error
 notes:
   - id: note_1
     node_id: asme-b313-table-302-3-3-1-note-1
@@ -60,7 +71,9 @@ edges:
     target: asme-b313-table-302-3-3-1-note-3b
   - type: returns_parameter
     target: PARAM-basic-casting-quality-factor
+  - type: requires_parameter
+    target: PARAM-supplementary-examination
 metadata:
-  last_revision: 2026-07-12
+  last_revision: 2026-07-17
   edited_by: admin
 ---

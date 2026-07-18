@@ -22,8 +22,9 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-07
+  last_revision: 2026-07-18
   edited_by: admin
+  role: path_decision
   composer_input: dropdown
   composer_options:
     - value: measured_actual

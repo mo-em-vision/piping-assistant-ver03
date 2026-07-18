@@ -21,6 +21,8 @@ from engine.executor.lookup_rule_schema import (
     STRATEGY_MATERIAL_CATEGORY,
     STRATEGY_MATERIAL_CATEGORY_TEMPERATURE,
     STRATEGY_MATERIAL_GROUP_TEMPERATURE,
+    STRATEGY_EXAMINATION_COMBINATION,
+    STRATEGY_MATERIAL_CATALOG,
     STRATEGY_MATERIAL_ONLY,
     STRATEGY_MATERIAL_TEMPERATURE,
     STRATEGY_PIPE_NPS,
@@ -406,6 +408,74 @@ def execute_material_only(
     return _apply_outputs(spec, {out_spec.column: float(raw_value)}, returns=returns), meta
 
 
+def execute_material_catalog(
+    *,
+    spec: RuleSpec,
+    inputs: dict[str, Any],
+    table_data: dict[str, Any],
+    standards_root: Path,
+    returns: list[dict[str, Any]] | None = None,
+) -> tuple[dict[str, float], dict[str, Any]]:
+    resolved = _resolved_inputs(spec, inputs, table_data=table_data, standards_root=standards_root)
+    material_key = str(resolved["material_grade"])
+    materials = table_data.get("materials", {}) or {}
+    row = materials.get(material_key)
+    if row is None:
+        try:
+            resolved_key = resolve_material_catalog_key(
+                material_key,
+                table_data=table_data,
+                standards_root=standards_root,
+            )
+            row = materials.get(resolved_key)
+            material_key = resolved_key
+        except ValueError:
+            row = None
+    if row is None:
+        _policy_error(spec.on_no_match, f"Material grade not found in catalog: {resolved['material_grade']!r}")
+
+    out_spec = next(iter(spec.outputs.values()))
+    material_id = str(row.get("material_id", material_key))
+    density = (row.get("physical_properties") or {}).get("density_kg_m3")
+    numeric_value = float(density) if density is not None else 1.0
+    meta = {"material_id": material_id, "matched_row": row}
+    return _apply_outputs(spec, {out_spec.column: numeric_value}, returns=returns), meta
+
+
+def execute_examination_combination(
+    *,
+    spec: RuleSpec,
+    inputs: dict[str, Any],
+    table_data: dict[str, Any],
+    returns: list[dict[str, Any]] | None = None,
+) -> tuple[dict[str, float], dict[str, Any]]:
+    resolved = _resolved_inputs(spec, inputs, table_data=table_data, standards_root=None)
+    logical_key = "supplementary_examination"
+    input_spec = spec.inputs[logical_key]
+    query = str(resolved[logical_key]).strip()
+    column = input_spec.column or logical_key
+    out_spec = next(iter(spec.outputs.values()))
+
+    matches = [
+        row
+        for row in flatten_lookup_table_rows(table_data)
+        if isinstance(row, dict) and str(row.get(column, "")).strip() == query
+    ]
+    if len(matches) > 1 and spec.on_multiple_matches == "error":
+        _policy_error(
+            spec.on_multiple_matches,
+            f"Multiple rows for {logical_key}={query!r}",
+        )
+    if not matches:
+        _policy_error(spec.on_no_match, f"No row for {logical_key}={query!r}")
+    matched = matches[0]
+    raw_value = matched.get(out_spec.column)
+    if raw_value is None:
+        _policy_error(spec.on_no_match, f"Column {out_spec.column!r} missing for matched row")
+    meta = {logical_key: query, "matched_row": matched}
+    return _apply_outputs(spec, {out_spec.column: float(raw_value)}, returns=returns), meta
+
+
 def execute_strategy(
     *,
     spec: RuleSpec,
@@ -468,6 +538,21 @@ def execute_strategy(
         )
     if strategy == STRATEGY_MATERIAL_ONLY:
         return execute_material_only(
+            spec=spec,
+            inputs=inputs,
+            table_data=table_data,
+            standards_root=standards_root,
+            returns=returns,
+        )
+    if strategy == STRATEGY_EXAMINATION_COMBINATION:
+        return execute_examination_combination(
+            spec=spec,
+            inputs=inputs,
+            table_data=table_data,
+            returns=returns,
+        )
+    if strategy == STRATEGY_MATERIAL_CATALOG:
+        return execute_material_catalog(
             spec=spec,
             inputs=inputs,
             table_data=table_data,

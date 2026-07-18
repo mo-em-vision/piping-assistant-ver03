@@ -51,8 +51,8 @@ def test_table_backed_params_reject_composer_options() -> None:
         assert not validate_param_table_options_metadata(meta)
 
 
-def test_pressure_loading_uses_static_composer_options_only() -> None:
-    meta = load_parameter_node_metadata("PARAM-pressure-loading")
+def test_pressure_design_case_uses_static_composer_options_only() -> None:
+    meta = load_parameter_node_metadata("PARAM-pressure-design-case")
     assert meta is not None
     prepared = prepare_parameter_metadata(meta)
     assert prepared.get("composer_options")

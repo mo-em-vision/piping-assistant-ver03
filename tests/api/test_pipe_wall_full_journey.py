@@ -183,11 +183,11 @@ def test_pipe_wall_full_api_journey(tmp_path: Path, project_root: Path) -> None:
 
     state = service.submit_input(
         task_id,
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )
-    pressure = _timeline_step(state, "pressure_loading")
+    pressure = _timeline_step(state, "pressure_design_case")
     assert pressure is not None
     assert pressure["status"] == "done"
     assert pressure.get("display_value")

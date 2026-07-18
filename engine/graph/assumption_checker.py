@@ -314,9 +314,16 @@ def field_value(
     field_id: str,
     existing_inputs: dict[str, Fact | Any],
 ) -> str | None:
-    if field_id not in existing_inputs:
+    from engine.reference.parameter_keys import canonical_parameter_key, read_fact_value
+
+    canonical = canonical_parameter_key(field_id)
+    raw = existing_inputs.get(field_id)
+    if raw is None and canonical != field_id:
+        raw = existing_inputs.get(canonical)
+    if raw is None:
+        raw = read_fact_value(existing_inputs, canonical)
+    if raw is None:
         return None
-    raw = existing_inputs[field_id]
     if isinstance(raw, Fact):
         if raw.requires_confirmation and not fact_is_expansion_ready(raw):
             return None
@@ -519,7 +526,7 @@ def question_for(spec: NodeAssumptionSpec) -> str:
             "Is the pipe wall thickness you would like to calculate for a straight section of pipe? "
             "Non-straight sections (fittings, bends) are not yet supported."
         )
-    if spec.id in {"internal_pressure_only", "pressure_loading_case", "external_pressure_only"}:
+    if spec.id in {"internal_pressure_only", "pressure_design_case_case", "external_pressure_only"}:
         return (
             "Is the pipe subjected to internal or external pressure? "
             "Internal pressure design uses §304.1.2; external pressure design uses §304.1.3. "

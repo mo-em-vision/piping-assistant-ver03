@@ -27,11 +27,15 @@ def test_mawp_required_inputs_include_wall_thickness_basis_in_navigation(
     from engine.graph.navigation_phases import build_workflow_phased_navigation
     from engine.graph.workflow_navigation import load_workflow_navigation
     from engine.graph.assumption_checker import AssumptionEvaluation
+    from engine.reference.parameter_metadata import is_path_decision_parameter
+    from engine.reference.parameter_keys import load_parameter_node_metadata
     from models.planning import NavigationPhase
 
     reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
     config = load_workflow_navigation(reader, MAWP_ROOT)
-    assert "wall_thickness_basis" in config.fields_for_phase(NavigationPhase.PATH_DECISIONS)
+    assert config.fields_for_phase(NavigationPhase.PATH_DECISIONS) == frozenset()
+    wall_basis_meta = load_parameter_node_metadata("PARAM-wall-thickness-basis")
+    assert is_path_decision_parameter(wall_basis_meta)
     phased = build_workflow_phased_navigation(
         config=config,
         assumption_eval=AssumptionEvaluation(),

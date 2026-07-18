@@ -12,10 +12,10 @@ from engine.router import PIPE_WALL_THICKNESS_DESIGN
 from engine.state.task_facts import deactivate_fact
 from models.task import Task, TaskStatus
 
-_PATH_SENSITIVE_INPUTS = frozenset({"pressure_loading"})
+_PATH_SENSITIVE_INPUTS = frozenset({"pressure_design_case"})
 _DESIGN_SENSITIVE_INPUTS = frozenset(
     {
-        "pressure_loading",
+        "pressure_design_case",
         "material_grade",
         "design_temperature",
         "pipe_construction_type",

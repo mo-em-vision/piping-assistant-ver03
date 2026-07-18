@@ -11,7 +11,7 @@ from engine.reference.standards_reader import StandardsReader
 from engine.reference.workflow_sidecar import _param_to_field
 
 
-_DEFAULT_SELECTION_FIELDS = frozenset({"pressure_loading"})
+_DEFAULT_SELECTION_FIELDS = frozenset()
 _DEFAULT_LOOKUP_FIELDS = frozenset(
     {
         "allowable_stress",

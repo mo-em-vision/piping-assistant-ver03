@@ -45,7 +45,7 @@ def test_orchestrator_extracts_partial_inputs_on_follow_up() -> None:
     assert fact_get_value(task, "internal_design_gage_pressure") == 500.0
     assert fact_get_value(task, "material_grade") == "astm_a106_gr_b"
     assert fact_get_value(task, "design_temperature") == 85.0
-    assert "pressure_loading" not in (second.data.get("missing_inputs") or [])
+    assert "pressure_design_case" not in (second.data.get("missing_inputs") or [])
 
 
 def test_orchestrator_advances_after_internal_pressure_reply() -> None:
@@ -60,10 +60,10 @@ def test_orchestrator_advances_after_internal_pressure_reply() -> None:
     second, _ = orchestrator.handle_message("internal pressure")
     assert second.status == "waiting_input"
     assert second.task_id == task_id
-    assert "pressure_loading" not in (second.data.get("missing_inputs") or [])
+    assert "pressure_design_case" not in (second.data.get("missing_inputs") or [])
 
     task = manager.get_task(task_id)
-    assert fact_get_value(task, "pressure_loading") == "internal_pressure"
+    assert fact_get_value(task, "pressure_design_case") == "internal_pressure"
 
 
 def test_orchestrator_confirms_proposed_default() -> None:
@@ -89,7 +89,7 @@ def test_orchestrator_confirms_proposed_default() -> None:
     assert pressure_fact.validation.status == ValidationStatus.CONFIRMED
 
 
-def test_orchestrator_accepts_numbered_pressure_loading_choice() -> None:
+def test_orchestrator_accepts_numbered_pressure_design_case_choice() -> None:
     manager = TaskStateManager()
     orchestrator = ChatOrchestrator(manager, llm_client=FakeLLMClient({}))
 
@@ -101,7 +101,7 @@ def test_orchestrator_accepts_numbered_pressure_loading_choice() -> None:
     task_id = response.task_id
     assert task_id is not None
     task = manager.get_task(task_id)
-    assert fact_get_value(task, "pressure_loading") == "external_pressure"
+    assert fact_get_value(task, "pressure_design_case") == "external_pressure"
 
 
 def test_orchestrator_shows_formula_prompt_after_internal_pressure() -> None:
@@ -129,7 +129,7 @@ def test_orchestrator_shows_numbered_path_decision_before_formula() -> None:
     assert response.status == "waiting_input"
     assert "1." in response.message
     assert "2." in response.message
-    assert "pressure_loading" in (response.data.get("missing_inputs") or [])
+    assert "pressure_design_case" in (response.data.get("missing_inputs") or [])
     assert "Formula:" not in response.message
 
 

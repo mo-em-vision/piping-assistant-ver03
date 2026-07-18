@@ -27,7 +27,7 @@ def _snapshot(**overrides):
             phase_missing={"parameter_gathering": ["corrosion_allowance"]},
             all_missing=["corrosion_allowance"],
         ),
-        path_decision={"field": "pressure_loading", "value": "internal_pressure"},
+        path_decision={"field": "pressure_design_case", "value": "internal_pressure"},
         expansion_eval=AssumptionEvaluation(),
         assumption_eval=AssumptionEvaluation(),
         execution_eval=AssumptionEvaluation(),
@@ -79,8 +79,8 @@ def test_structure_changed_when_execution_order_changes() -> None:
 def test_structure_changed_when_branch_decision_changes() -> None:
     before = _snapshot()
     after = _snapshot(
-        path_decision_state={"field": "pressure_loading", "value": "external_pressure"},
-        active_branch_decisions=["pressure_loading"],
+        path_decision_state={"field": "pressure_design_case", "value": "external_pressure"},
+        active_branch_decisions=["pressure_design_case"],
     )
     assert not structure_unchanged_for_skip(before, after)
 

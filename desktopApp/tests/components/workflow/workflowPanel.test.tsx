@@ -475,7 +475,7 @@ describe('WorkflowComposer', () => {
           kind: 'input',
           prompt: 'Is the pipe subjected to internal or external pressure?',
           parameter: {
-            name: 'pressure_loading',
+            name: 'pressure_design_case',
             label: 'Pressure Loading',
             type: 'dropdown',
             required: true,

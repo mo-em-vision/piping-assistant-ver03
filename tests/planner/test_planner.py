@@ -78,7 +78,7 @@ def test_planner_expands_external_pressure_path() -> None:
         state,
         "pipe-wall-external",
         legacy_input(
-            input_id="pressure_loading",
+            input_id="pressure_design_case",
             value="external_pressure",
             unit="dimensionless",
             source=InputSource.USER,
@@ -102,7 +102,7 @@ def test_planner_expands_external_pressure_path() -> None:
     assert "asme-b313-304-1-2-eq-3a" not in plan.selected_nodes
     assert "external_design_pressure" in (plan.phase_missing.get("parameter_gathering") or [])
     assert plan.path_decision == {
-        "field": "pressure_loading",
+        "field": "pressure_design_case",
         "value": "external_pressure",
         "selected_node": "304.1.3",
     }

@@ -45,7 +45,7 @@ def test_explicit_edge_preserves_metadata_without_routing_fields() -> None:
                     "type": "requires_parameter",
                     "alias": "Pe",
                     "role": "External Pressure",
-                    "when": {"field": "pressure_loading", "in": ["external_pressure"]},
+                    "when": {"field": "pressure_design_case", "in": ["external_pressure"]},
                 }
             ],
         },
@@ -59,7 +59,7 @@ def test_explicit_edge_preserves_metadata_without_routing_fields() -> None:
             {
                 "alias": "Pe",
                 "role": "External Pressure",
-                "when": {"field": "pressure_loading", "in": ["external_pressure"]},
+                "when": {"field": "pressure_design_case", "in": ["external_pressure"]},
             },
         )
     ]

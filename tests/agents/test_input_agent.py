@@ -14,13 +14,13 @@ def test_input_agent_identifies_missing_inputs() -> None:
     result = agent.analyze(task, workflow=PIPE_WALL_THICKNESS_DESIGN)
 
     assert "straight_pipe_section" in result.missing_inputs
-    assert "pressure_loading" in result.missing_inputs
+    assert "pressure_design_case" in result.missing_inputs
     assert "design_pressure" in result.missing_inputs
     assert "outside_diameter" in result.missing_inputs
     assert "material" in result.missing_inputs
     assert "design_temperature" in result.missing_inputs
     assert "allowable_stress" not in result.missing_inputs
-    assert any(request.input_id == "pressure_loading" for request in result.requests)
+    assert any(request.input_id == "pressure_design_case" for request in result.requests)
     assert any(request.input_id == "design_pressure" for request in result.requests)
     assert any("304.1.1" in request.reason for request in result.requests)
 

@@ -24,7 +24,7 @@ def _reader() -> StandardsReader:
     return StandardsReader(root / "knowledge" / "standards", standard="asme_b31.3")
 
 
-def test_wall_thickness_requires_straight_pipe_before_pressure_loading() -> None:
+def test_wall_thickness_requires_straight_pipe_before_pressure_design_case() -> None:
     reader = _reader()
     result = GraphEngine().evaluate_assumptions(
         "pipe_wall_thickness_design",
@@ -36,20 +36,28 @@ def test_wall_thickness_requires_straight_pipe_before_pressure_loading() -> None
     assert "pipe" in result.field_questions["straight_pipe_section"].lower()
 
 
-def test_wall_thickness_requires_pressure_loading_after_straight_pipe() -> None:
+def test_wall_thickness_requires_pressure_design_case_after_straight_pipe() -> None:
     reader = _reader()
     inputs = facts_from_inputs(
         {"straight_pipe_section": straight_section_assumption()},
         task_id="assumption-test",
     )
-    result = GraphEngine().evaluate_assumptions(
+    engine = GraphEngine()
+    plan = engine.build_plan(
+        task_id="assumption-test",
+        root_id="pipe_wall_thickness_design",
+        inputs=inputs,
+        reader=reader,
+    )
+    missing = engine.required_user_inputs(
         "pipe_wall_thickness_design",
         reader,
-        existing_inputs=inputs,
+        existing_inputs=set(inputs.keys()),
+        task_inputs=inputs,
+        plan=plan,
     )
 
-    assert "pressure_loading" in result.missing_fields
-    assert "internal" in result.field_questions["pressure_loading"].lower()
+    assert "pressure_design_case" in missing
 
 
 def test_internal_pressure_satisfies_assumption() -> None:
@@ -57,7 +65,7 @@ def test_internal_pressure_satisfies_assumption() -> None:
     inputs = facts_from_inputs(
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
         },
         task_id="assumption-test",
     )
@@ -69,7 +77,7 @@ def test_internal_pressure_satisfies_assumption() -> None:
     )
     result = evaluate_path_assumptions(plan.execution_order, reader, existing_inputs=inputs)
 
-    assert "pressure_loading" not in result.missing_fields
+    assert "pressure_design_case" not in result.missing_fields
     assert not result.blocked
     assert "304.1.1-a" in plan.nodes
     assert "304.1.2-a" in plan.nodes
@@ -80,8 +88,8 @@ def test_external_pressure_expands_external_node() -> None:
     inputs = facts_from_inputs(
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": legacy_input(
-                "pressure_loading",
+            "pressure_design_case": legacy_input(
+                "pressure_design_case",
                 "external_pressure",
                 source=InputSource.USER,
                 status=InputStatus.CONFIRMED,
@@ -108,7 +116,7 @@ def test_execution_assumptions_do_not_require_lookup_derived_coefficients() -> N
     inputs = facts_from_inputs(
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
             "d_input_mode": legacy_input(
                 "d_input_mode", "direct_od", source=InputSource.USER, status=InputStatus.CONFIRMED
             ),
@@ -140,7 +148,7 @@ def test_execution_assumptions_satisfied_with_confirmed_defaults() -> None:
     inputs = facts_from_inputs(
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
             **confirmed_default_inputs(),
         },
         task_id="assumption-test",

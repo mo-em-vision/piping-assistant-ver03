@@ -37,7 +37,7 @@ def test_guidance_transcript_blocks_include_reference_chips(tmp_path: Path, proj
     )
     state = service.submit_input(
         task_id,
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )

@@ -162,11 +162,11 @@ def _node_active_on_path(
     node_id: str,
     inputs: dict[str, Fact],
 ) -> bool:
-    """Return False when authored applicability rules rule this node out."""
+    """Return False when authored applicability rules rule this node out or are undecided."""
     node = store.get_node(node_id)
     if node is None:
         return True
-    return applicability_expansion_status(node.metadata, inputs) != "failed"
+    return applicability_expansion_status(node.metadata, inputs) == "satisfied"
 
 
 def _expand_output_producers(

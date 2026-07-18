@@ -18,7 +18,7 @@ from tests.helpers.user_visible_contract import (
 
 _INTERNAL_PRESSURE_SUBMISSIONS: dict[str, tuple[object, str | None]] = {
     "straight_pipe_section": (True, None),
-    "pressure_loading": ("internal_pressure", None),
+    "pressure_design_case": ("internal_pressure", None),
     "internal_design_gage_pressure": (8.0, "bar"),
     "nominal_pipe_size": ("6", None),
     "material_grade": ("SA-106B", None),
@@ -100,7 +100,7 @@ def test_interactive_task_state_table_cells_exclude_planner_blobs(
     )
     state = service.submit_input(
         task_id,
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )

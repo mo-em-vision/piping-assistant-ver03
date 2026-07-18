@@ -120,7 +120,7 @@ Records explicit runtime choices that affect engineering outcome:
 ```yaml
 decisions:
   - id: DECISION-pressure-loading-001
-    parameter: PARAM-pressure-loading
+    parameter: PARAM-pressure-design-case
     selected_value: internal_pressure
     source: user_input
     reason: User selected internal pressure design path.

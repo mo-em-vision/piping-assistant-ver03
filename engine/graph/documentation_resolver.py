@@ -6,6 +6,7 @@ from typing import Any
 
 from engine.graph.doc_templates import build_doc_context, render_doc_template
 from engine.graph.graph_store import GraphStore
+from engine.reference.parameter_metadata import parameter_help_text, parameter_prompt_text
 from engine.reference.standards_reader import StandardsReader
 from models.node_documentation import NodeDocumentation
 from models.task import Task
@@ -69,7 +70,12 @@ def _legacy_documentation_fields(metadata: dict[str, Any], body: str) -> dict[st
     if not description and body:
         description = body.strip()
 
-    instructions = str(metadata.get("instructions") or metadata.get("question") or "").strip()
+    instructions = str(
+        metadata.get("instructions")
+        or parameter_help_text(metadata)
+        or parameter_prompt_text(metadata)
+        or ""
+    ).strip()
     before_enter = str(metadata.get("before_enter") or metadata.get("beforeEnter") or "").strip()
     after_exit = str(metadata.get("after_exit") or metadata.get("afterExit") or "").strip()
     report_summary = str(

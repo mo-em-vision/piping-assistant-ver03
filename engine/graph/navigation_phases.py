@@ -11,6 +11,8 @@ from engine.graph.workflow_navigation import (
     _empty_navigation_config,
     load_workflow_navigation,
 )
+from engine.reference.parameter_keys import load_parameter_node_metadata, param_node_id_for_input
+from engine.reference.parameter_metadata import is_path_decision_parameter
 from engine.reference.standards_reader import StandardsReader
 from models.fact import Fact, fact_is_expansion_ready
 from models.planning import NavigationPhase
@@ -103,6 +105,33 @@ def _phase_field_set(config: WorkflowNavigationConfig, phase: NavigationPhase) -
     return config.fields_for_phase(phase)
 
 
+def _is_path_decision_field(field_id: str) -> bool:
+    metadata = load_parameter_node_metadata(param_node_id_for_input(field_id))
+    return is_path_decision_parameter(metadata)
+
+
+def _metadata_driven_phase_fields(
+    combined_assumption_missing: list[str],
+    *,
+    expansion_gate_fields: frozenset[str] | None = None,
+) -> tuple[list[str], list[str]]:
+    """Split expansion/path missing fields using PARAM metadata — not workflow nav lists."""
+    phase1: list[str] = []
+    phase2: list[str] = []
+    for field_id in combined_assumption_missing:
+        if _is_path_decision_field(field_id):
+            if field_id not in phase2:
+                phase2.append(field_id)
+        elif expansion_gate_fields is None or field_id in expansion_gate_fields:
+            if field_id not in phase1:
+                phase1.append(field_id)
+    return phase1, phase2
+
+
+def _nav_has_phase_fields(config: WorkflowNavigationConfig) -> bool:
+    return any(fields for _, fields in config.phase_order)
+
+
 def build_workflow_phased_navigation(
     *,
     config: WorkflowNavigationConfig,
@@ -114,6 +143,7 @@ def build_workflow_phased_navigation(
     existing_inputs: dict[str, Fact] | None = None,
     post_thickness_outputs: dict[str, Any] | None = None,
     has_execution: bool = False,
+    expansion_gate_fields: frozenset[str] | None = None,
 ) -> PhasedNavigation:
     """Partition missing fields into ordered navigation phases from workflow config."""
     result = PhasedNavigation()
@@ -131,27 +161,57 @@ def build_workflow_phased_navigation(
     coefficient_order = config.ordered_fields_for_phase(NavigationPhase.COEFFICIENT_RESOLUTION)
     execution_order = config.ordered_fields_for_phase(NavigationPhase.EXECUTION_ASSUMPTIONS)
 
-    combined_assumption_missing = assumption_eval.missing_fields + expansion_eval.missing_fields
+    combined_assumption_missing = list(
+        dict.fromkeys(assumption_eval.missing_fields + expansion_eval.missing_fields)
+    )
 
-    phase1 = list(
-        dict.fromkeys(field_id for field_id in combined_assumption_missing if field_id in expansion_fields)
-    )
-    phase2 = list(
-        dict.fromkeys(field_id for field_id in combined_assumption_missing if field_id in path_fields)
-    )
-    phase3 = _ordered_missing(user_inputs, parameter_order)
-    phase4_source = [
-        field_id
-        for field_id in list(expansion_eval.missing_fields) + list(execution_eval.missing_fields)
-        if field_id not in expansion_fields and field_id not in path_fields
-    ]
-    phase4 = _ordered_missing(phase4_source, coefficient_order)
+    if _nav_has_phase_fields(config):
+        phase1 = list(
+            dict.fromkeys(
+                field_id for field_id in combined_assumption_missing if field_id in expansion_fields
+            )
+        )
+        phase2 = list(
+            dict.fromkeys(field_id for field_id in combined_assumption_missing if field_id in path_fields)
+        )
+        phase3 = _ordered_missing(user_inputs, parameter_order)
+        phase4_source = [
+            field_id
+            for field_id in list(expansion_eval.missing_fields) + list(execution_eval.missing_fields)
+            if field_id not in expansion_fields and field_id not in path_fields
+        ]
+        phase4 = _ordered_missing(phase4_source, coefficient_order)
+    else:
+        phase1, phase2 = _metadata_driven_phase_fields(
+            combined_assumption_missing,
+            expansion_gate_fields=expansion_gate_fields,
+        )
+        for field_id in user_inputs:
+            if _is_path_decision_field(field_id) and field_id not in phase2:
+                phase2.append(field_id)
+        path_and_expansion = set(phase1) | set(phase2)
+        phase3 = [
+            field_id
+            for field_id in user_inputs
+            if field_id not in path_and_expansion and not _is_path_decision_field(field_id)
+        ]
+        phase4_source = [
+            field_id
+            for field_id in list(expansion_eval.missing_fields) + list(execution_eval.missing_fields)
+            if field_id not in path_and_expansion and field_id not in phase3
+        ]
+        phase4 = list(dict.fromkeys(phase4_source))
+
     phase5 = _ordered_missing(
         [field_id for field_id in execution_eval.missing_fields if field_id in execution_order],
         execution_order,
-    )
+    ) if execution_order else [
+        field_id
+        for field_id in execution_eval.missing_fields
+        if field_id not in set(phase1) | set(phase2) | set(phase3) | set(phase4)
+    ]
 
-    coefficient_set = set(coefficient_order)
+    coefficient_set = set(coefficient_order) if coefficient_order else set(phase4)
     phase5 = [field_id for field_id in phase5 if field_id not in coefficient_set]
 
     definition_order = config.ordered_fields_for_phase(NavigationPhase.DEFINITION_EQUATION_COMPLETION)
@@ -178,6 +238,13 @@ def build_workflow_phased_navigation(
                 if not _field_satisfied(field_id, existing_inputs):
                     phase_definition_source.append(field_id)
     phase_definition = _ordered_missing(phase_definition_source, definition_order)
+    if not definition_order and not phase_definition:
+        phase_definition = [
+            field_id
+            for field_id in execution_eval.missing_fields
+            if field_id
+            not in set(phase1) | set(phase2) | set(phase3) | set(phase4) | set(phase5)
+        ]
 
     result.phase_missing = {
         NavigationPhase.EXPANSION_ASSUMPTIONS.value: phase1,
@@ -188,7 +255,7 @@ def build_workflow_phased_navigation(
         NavigationPhase.DEFINITION_EQUATION_COMPLETION.value: phase_definition,
     }
 
-    if existing_inputs:
+    if existing_inputs and _nav_has_phase_fields(config):
         result.phase_missing = _merge_phase_missing(
             result.phase_missing,
             _gate_phase_missing_from_navigation(config, existing_inputs),

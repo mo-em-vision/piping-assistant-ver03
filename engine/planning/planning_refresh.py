@@ -217,6 +217,14 @@ def refresh_task_planning_state(
                     question_map.setdefault(field_id, graph_q)
 
         nav_config = load_workflow_navigation(reader, root_slug)
+        micro = engine._micro_engine(reader)
+        graph_store = micro.store if micro is not None else None
+        gate_fields: frozenset[str] = frozenset()
+        if graph_store is not None:
+            from engine.graph.expansion_policy import collect_workflow_expansion_fields
+
+            resolved_root = graph_store.resolve_node_id(root_slug) or root_slug
+            gate_fields = frozenset(collect_workflow_expansion_fields(graph_store, resolved_root))
         with perf_span("phased_navigation", "planner"):
             phased = build_workflow_phased_navigation(
                 config=nav_config,
@@ -228,6 +236,7 @@ def refresh_task_planning_state(
                 existing_inputs=existing_inputs,
                 post_thickness_outputs=dict(task.outputs),
                 has_execution=has_execution_trace(task),
+                expansion_gate_fields=gate_fields,
             )
 
         definition_node = resolve_activated_definition_node(
@@ -251,8 +260,6 @@ def refresh_task_planning_state(
                 workflow_collection_field_order(reader, root_slug)
             )
 
-        micro = engine._micro_engine(reader)
-        graph_store = micro.store if micro is not None else None
         task.outputs["path_decision"] = resolve_path_decision(
             graph_store,
             exec_nodes,

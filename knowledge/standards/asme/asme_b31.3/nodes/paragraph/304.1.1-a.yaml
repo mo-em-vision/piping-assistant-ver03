@@ -26,6 +26,8 @@ edges:
     target: asme-b313-304-1-1-eq-2
   - type: introduces_parameter
     target: PARAM-minimum-required-thickness
+  - type: introduces_parameter
+    target: PARAM-pressure-design-case
   - type: references_validation_rule
     target: asme-b313-304-1-1-valrule-a
   - type: references_concept
@@ -34,14 +36,8 @@ edges:
     target: CONCEPT-wall-thickness
   - type: depends_on
     target: 304.1.2-a
-    when:
-      field: pressure_loading
-      in: [internal_pressure]
   - type: depends_on
     target: 304.1.3
-    when:
-      field: pressure_loading
-      in: [external_pressure]
 execution:
   assumptions:
     - id: straight_pipe_section

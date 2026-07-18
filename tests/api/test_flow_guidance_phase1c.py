@@ -52,7 +52,7 @@ def test_current_ask_includes_short_prompt_shorter_than_full_prompt(
     assert "straight section" in short_prompt.lower()
 
 
-def test_pressure_loading_short_prompt_omits_numbered_branch_options(
+def test_pressure_design_case_short_prompt_omits_numbered_branch_options(
     tmp_path: Path,
     project_root: Path,
 ) -> None:
@@ -68,7 +68,7 @@ def test_pressure_loading_short_prompt_omits_numbered_branch_options(
         session_id=session_id,
     )
     current_ask = state.get("current_ask") or {}
-    assert current_ask.get("parameter_id") == "pressure_loading"
+    assert current_ask.get("parameter_id") == "pressure_design_case"
 
     short_prompt = str(current_ask.get("short_prompt") or "")
     full_prompt = str(current_ask.get("prompt") or "")
@@ -104,7 +104,7 @@ def test_guidance_input_context_appears_in_transcript_for_parameter_gathering(
 
     values: dict[str, tuple[object, str | None]] = {
         "straight_pipe_section": (True, None),
-        "pressure_loading": ("internal_pressure", None),
+        "pressure_design_case": ("internal_pressure", None),
         "corrosion_allowance": (0.5, "mm"),
         "design_temperature": (200.0, "C"),
         "internal_design_gage_pressure": (8.0, "bar"),

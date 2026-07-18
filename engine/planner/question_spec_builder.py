@@ -19,13 +19,13 @@ _REASON_CODES: dict[str, str] = {
     "corrosion_allowance": "required_for_minimum_required_thickness",
     "pipe_construction_type": "required_for_weld_joint_efficiency_lookup",
     "straight_pipe_section": "required_for_workflow_expansion",
-    "pressure_loading": "required_for_path_selection",
+    "pressure_design_case": "required_for_path_selection",
     "external_design_pressure": "required_by_asme_b31_3_304_1_3_external_pressure",
 }
 
 _PRIORITY: dict[str, int] = {
     "straight_pipe_section": 0,
-    "pressure_loading": 0,
+    "pressure_design_case": 0,
     "internal_design_gage_pressure": 1,
     "diameter_input_mode": 2,
     "outside_diameter": 2,

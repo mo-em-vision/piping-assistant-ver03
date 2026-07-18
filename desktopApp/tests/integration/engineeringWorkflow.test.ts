@@ -202,11 +202,11 @@ describe('engineering workflow integration', () => {
           currentTask = createTaskState({
             progress: {
               ...currentTask.progress,
-              missing_inputs: ['pressure_loading'],
+              missing_inputs: ['pressure_design_case'],
             },
             current_ask: {
               kind: 'input',
-              parameter_id: 'pressure_loading',
+              parameter_id: 'pressure_design_case',
               prompt: 'How is the pipe pressurized?',
             },
           })
@@ -248,7 +248,7 @@ describe('engineering workflow integration', () => {
     expect(taskState?.engineering_plan).toBeUndefined()
     expect(taskState?.legacy_goal_map).toBeUndefined()
     expect(taskState?.canonical).toBeUndefined()
-    expect(taskState?.current_ask?.parameter_id).toBe('pressure_loading')
+    expect(taskState?.current_ask?.parameter_id).toBe('pressure_design_case')
   })
 
   it('creates task, submits input, and generates report via API mocks', async () => {

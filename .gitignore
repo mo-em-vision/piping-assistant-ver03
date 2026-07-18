@@ -96,6 +96,8 @@ data/
 logs/
 tmp/
 temp/
+tmp_*/
+.cursor_tmp_*/
 .cache/
 
 # --- Desktop app (Electron + React) ---

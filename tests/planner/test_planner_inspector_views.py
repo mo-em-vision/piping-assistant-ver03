@@ -61,7 +61,7 @@ def _task_after_pressure(manager: TaskStateManager, task):
     ("build_task", "expected_badge", "expected_active_field"),
     [
         ("fresh", "waiting_for_input", "straight_pipe_section"),
-        ("after_straight", "waiting_for_input", "pressure_loading"),
+        ("after_straight", "waiting_for_input", "pressure_design_case"),
         ("after_pressure", "waiting_for_input", None),
     ],
 )

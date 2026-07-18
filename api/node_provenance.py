@@ -182,7 +182,7 @@ def parameter_input_provenance(
     """Provenance for a workflow parameter prompt (interaction, param node, or equation)."""
     spec = interaction_for_parameter(reader, task, parameter_id)
     if spec is not None:
-        provenance = provenance_for_node(reader, spec.node_id, source_field="question")
+        provenance = provenance_for_node(reader, spec.node_id, source_field="user_prompt.prompt")
         if provenance:
             return provenance
 
@@ -190,7 +190,7 @@ def parameter_input_provenance(
     param_node_id = param_index.get(parameter_id)
     if param_node_id:
         prompt = build_parameter_input_prompt(reader, task, parameter_id)
-        source_field = "question" if prompt else "title"
+        source_field = "user_prompt.prompt" if prompt else "title"
         provenance = provenance_for_node(reader, param_node_id, source_field=source_field)
         if provenance:
             return provenance

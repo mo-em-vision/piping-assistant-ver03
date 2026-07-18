@@ -37,7 +37,7 @@ REQ_REQUIRED_WALL_THICKNESS, REQ_MINIMUM_REQUIRED_THICKNESS_EQ = pipe_wall_equat
 
 PIPE_WALL_CONTRACT_REQUIREMENT_IDS = (
     requirement_id("straight_pipe_section"),
-    requirement_id("pressure_loading"),
+    requirement_id("pressure_design_case"),
     requirement_id("internal_design_gage_pressure"),
     "REQ-diameter_resolution",
     requirement_id("material_grade"),

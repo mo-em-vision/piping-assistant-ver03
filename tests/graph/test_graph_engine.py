@@ -42,7 +42,7 @@ def test_build_plan_internal_pressure_path() -> None:
         inputs=facts_from_inputs(
             {
                 "straight_pipe_section": straight_section_assumption(),
-                "pressure_loading": internal_pressure_assumption(),
+                "pressure_design_case": internal_pressure_assumption(),
             },
             task_id="pipe-wall-thickness-design-test",
         ),
@@ -62,7 +62,7 @@ def test_build_plan_includes_dependencies() -> None:
         inputs=facts_from_inputs(
             {
                 "straight_pipe_section": straight_section_assumption(),
-                "pressure_loading": internal_pressure_assumption(),
+                "pressure_design_case": internal_pressure_assumption(),
                 "design_pressure": legacy_input("design_pressure", 500, "psi"),
             },
             task_id="task-deps",

@@ -19,7 +19,7 @@ from tests.helpers.parameter_key_contract import (
 
 _INTERNAL_PRESSURE_SUBMISSIONS: dict[str, tuple[object, str | None]] = {
     "straight_pipe_section": (True, None),
-    "pressure_loading": ("internal_pressure", None),
+    "pressure_design_case": ("internal_pressure", None),
     "outside_diameter__resolution_branch": ("nps_lookup", None),
     "internal_design_gage_pressure": (8.0, "bar"),
     "nominal_pipe_size": ("6", None),

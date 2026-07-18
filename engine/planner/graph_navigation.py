@@ -113,6 +113,56 @@ def validate_graph_navigation(nav: dict[str, Any]) -> list[str]:
     return errors
 
 
+_PHASE_PREVIEW_SKIP = frozenset(
+    {
+        "equation_execution",
+        "validation",
+        "reporting",
+        "definition_equation_completion",
+    }
+)
+
+_NAV_DISPLAY_FIELD_ALIASES = {
+    "outside_diameter": "diameter_input_mode",
+}
+
+
+def _merge_provisional_phase_missing(
+    plan: EngineeringPlan,
+    phase_missing: dict[str, list[str]],
+) -> dict[str, list[str]]:
+    """Add graph-derived phased preview fields for phases not yet on the plan requirements."""
+    preview: dict[str, Any] = {}
+    if isinstance(plan.debug, dict):
+        raw = plan.debug.get("phased_preview") or plan.debug.get("navigation_preview")
+        if isinstance(raw, dict):
+            preview = raw
+    if not preview:
+        return phase_missing
+
+    current_phase = (
+        plan.input_strategy.current_phase
+        if plan.input_strategy and plan.input_strategy.current_phase
+        else None
+    )
+    phase_order = list(_PHASE_MISSING_ORDER)
+    start_index = phase_order.index(current_phase) + 1 if current_phase in phase_order else 0
+
+    merged = {phase_id: list(fields or []) for phase_id, fields in phase_missing.items()}
+    for phase_id in phase_order[start_index:]:
+        if phase_id in _PHASE_PREVIEW_SKIP:
+            continue
+        nav_fields = preview.get(phase_id) or []
+        if not nav_fields:
+            continue
+        display_fields = [
+            _NAV_DISPLAY_FIELD_ALIASES.get(str(field), str(field)) for field in nav_fields
+        ]
+        existing = list(merged.get(phase_id) or [])
+        merged[phase_id] = unique_stable(existing + display_fields)
+    return merged
+
+
 def build_graph_navigation_from_plan(plan: EngineeringPlan) -> dict[str, Any]:
     """Derive categorized graph navigation state from a normalized engineering plan."""
     requirements = plan.requirements
@@ -130,6 +180,7 @@ def build_graph_navigation_from_plan(plan: EngineeringPlan) -> dict[str, Any]:
     for phase_id in _PHASE_MISSING_ORDER:
         fields = _missing_fields_for_phase(requirements, phase_id)
         phase_missing[phase_id] = fields
+    phase_missing = _merge_provisional_phase_missing(plan, phase_missing)
 
     missing_expansion_assumptions = list(
         phase_missing.get(NavigationPhase.EXPANSION_ASSUMPTIONS.value) or []

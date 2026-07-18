@@ -1,28 +1,52 @@
 ---
 id: A53
 type: lookup
-title: ASTM A53 — Material Properties
-version: '1.0'
-status: draft
-paragraph: ASTM A53/A53M
-section: Material Properties
-topic: material_properties
-inputs:
-- id: grade
-  name: grade
-  description: ASTM A53 or alias (A53, SA-53)
-  required: true
-  source: user_input
-  unit: dimensionless
-lookups:
-- id: a53_material_catalog
-  source: table
+key: astm-a53-material-properties
+name: ASTM A53 — Material Properties
+description: >
+  Resolves ASTM A53/A53M grade designations to catalog material ids and
+  mechanical property rows for the global material catalog.
+table_number: A53
+standard: astm_a53
+source:
+  pack: astm
+  standard: astm_a53
   table_id: astm_a53_material_properties
-  lookup_rule: grade
+  db_file: astm_a53_tables.db
+  source_node: A53
+requires:
+  - parameter: PARAM-material-grade
+    description: ASTM A53 or alias (A53, SA-53)
+returns:
+  - parameter: PARAM-material-grade
+lookup:
+  table: astm_a53_material_properties
+  rule: by_grade
+  bindings:
+    material_grade: PARAM-material-grade
+lookup_rules:
+  by_grade:
+    strategy: material_catalog
+    inputs:
+      material_grade:
+        resolver: material_catalog
+    outputs:
+      resolved_material_id:
+        column: material_id
+        parameter: PARAM-material-grade
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error
 edges:
-- type: introduces_parameter
-  target: material_properties
+  - type: reads_table
+    target: astm_a53_material_properties
+  - type: requires_parameter
+    target: PARAM-material-grade
+  - type: returns_parameter
+    target: PARAM-material-grade
 metadata:
-  last_revision: 2026-07-04
+  status: draft
+  last_revision: 2026-07-17
   edited_by: admin
 ---

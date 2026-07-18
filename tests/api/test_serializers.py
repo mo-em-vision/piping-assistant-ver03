@@ -52,7 +52,7 @@ def test_task_state_includes_curated_timeline() -> None:
         unit="dimensionless",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
-    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
+    set_fact_from_input(task, legacy_input(input_id="pressure_design_case",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
@@ -96,7 +96,7 @@ def test_task_state_includes_curated_timeline() -> None:
 def test_task_state_timeline_includes_coefficient_parameters() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test06", status=TaskStatus.AWAITING_INPUT)
-    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
+    set_fact_from_input(task, legacy_input(input_id="pressure_design_case",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
@@ -166,7 +166,7 @@ def test_task_state_timeline_includes_coefficient_parameters() -> None:
 def test_task_state_timeline_formats_allowable_stress_in_mpa() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test13", status=TaskStatus.AWAITING_INPUT)
-    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
+    set_fact_from_input(task, legacy_input(input_id="pressure_design_case",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
@@ -249,7 +249,7 @@ def test_task_state_report_step_active_after_thickness_complete() -> None:
 def test_task_state_report_pending_during_definition_equation_completion() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test12", status=TaskStatus.AWAITING_INPUT)
-    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
+    set_fact_from_input(task, legacy_input(input_id="pressure_design_case",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
@@ -301,7 +301,7 @@ def test_thickness_timeline_display_is_rounded_with_units() -> None:
 def test_completed_pipe_wall_timeline_omits_internal_assumption_steps() -> None:
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test09", status=TaskStatus.COMPLETED)
-    set_fact_from_input(task, legacy_input(input_id="pressure_loading",
+    set_fact_from_input(task, legacy_input(input_id="pressure_design_case",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,

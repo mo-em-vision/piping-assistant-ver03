@@ -57,7 +57,7 @@ const PIPE_WALL_LOOKUP_IDS = [
 
 const PIPE_WALL_EQUATION_IDS = ['REQ-required_wall_thickness', 'REQ-minimum_required_thickness_eq'] as const
 
-const FRESH_PIPE_WALL_HARD_BLOCKED = ['REQ-straight_pipe_section', 'REQ-pressure_loading'] as const
+const FRESH_PIPE_WALL_HARD_BLOCKED = ['REQ-straight_pipe_section', 'REQ-pressure_design_case'] as const
 
 function isPipeWallWorkflow(workflowId: string | undefined): boolean {
   if (!workflowId) {
@@ -227,7 +227,7 @@ export function validateEngineeringPlan(
       const expected = [...FRESH_PIPE_WALL_HARD_BLOCKED].sort()
       if (hardBlocked.join('|') !== expected.join('|')) {
         errors.push(
-          'Fresh pipe wall plan must hard-block only REQ-straight_pipe_section and REQ-pressure_loading.',
+          'Fresh pipe wall plan must hard-block only REQ-straight_pipe_section and REQ-pressure_design_case.',
         )
       }
       if (strategy?.next_fields?.join('|') !== 'straight_pipe_section') {
@@ -241,7 +241,7 @@ export function validateEngineeringPlan(
         | undefined
       if (internalPressure?.activation_status !== 'conditional') {
         errors.push(
-          'REQ-internal_design_gage_pressure must be conditional before pressure_loading is resolved.',
+          'REQ-internal_design_gage_pressure must be conditional before pressure_design_case is resolved.',
         )
       }
     }

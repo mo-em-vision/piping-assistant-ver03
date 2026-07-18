@@ -279,7 +279,7 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
         "action": "request_input",
         "active_definition_node": "B313-304.1.1",
         "path_decision": {
-            "pressure_loading": "internal_pressure",
+            "pressure_design_case": "internal_pressure",
             "selected_node": "304.1.2-a",
         },
         "missing_inputs": ["material", "internal_design_gage_pressure"],
@@ -428,7 +428,7 @@ def test_eq2_trace_shows_derived_reference_for_t_before_eq3a_evaluation(standard
     task = manager.create_task("eq2-derived-ref", status=TaskStatus.AWAITING_INPUT)
     planning = {
         "path_decision": {
-            "pressure_loading": "internal_pressure",
+            "pressure_design_case": "internal_pressure",
             "selected_node": "304.1.2-a",
         },
         "current_phase": "formula_parameters",
@@ -455,7 +455,7 @@ def test_eq2_trace_updates_t_value_after_eq3a_evaluation(standards_reader) -> No
     task = manager.create_task("eq-trace-live-t", status=TaskStatus.AWAITING_INPUT)
     planning = {
         "path_decision": {
-            "pressure_loading": "internal_pressure",
+            "pressure_design_case": "internal_pressure",
             "selected_node": "304.1.2-a",
         },
         "current_phase": "formula_parameters",
@@ -520,7 +520,7 @@ def test_equation_trace_not_duplicated_on_repeated_task_state(standards_reader) 
     assert len(first_equation_ids) == len(second_equation_ids)
 
 
-def test_pressure_loading_internal_keeps_eq2_trace_and_adds_eq3a_preview(standards_reader) -> None:
+def test_pressure_design_case_internal_keeps_eq2_trace_and_adds_eq3a_preview(standards_reader) -> None:
     from tests.api.conftest import api_session_id
 
     service = _pipe_wall_service()
@@ -534,7 +534,7 @@ def test_pressure_loading_internal_keeps_eq2_trace_and_adds_eq3a_preview(standar
     )
     state = service.submit_input(
         state["task_id"],
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )

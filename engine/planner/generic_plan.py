@@ -7,7 +7,9 @@ from typing import Any
 from engine.graph.assumption_checker import field_value
 from engine.graph.expansion_traversal_trace import load_expansion_trace
 from engine.graph.graph_engine import GraphEngine, normalize_root_id, resolve_workflow_node_id
-from engine.graph.navigation_phases import PhasedNavigation
+from engine.graph.navigation_phases import PhasedNavigation, build_workflow_phased_navigation
+from engine.graph.workflow_navigation import load_workflow_navigation
+from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
 from engine.planner.activation_conditions import resolve_activation_status
 from engine.planner.graph_requirements import (
     apply_alternative_resolution_statuses,
@@ -38,6 +40,7 @@ from models.engineering_plan import (
     new_plan_id,
 )
 from models.fact import Fact
+from models.planning import NavigationPhase
 from models.task import Task
 
 _GATE_PHASES = frozenset({"expansion_assumptions", "path_decisions"})
@@ -93,6 +96,92 @@ def _collect_planning_fields(
             ordered.append(field)
             seen.add(field)
     return ordered
+
+
+def _workflow_expansion_gate_fields(reader: StandardsReader, workflow_id: str) -> frozenset[str]:
+    engine = GraphEngine()
+    micro = engine._micro_engine(reader)
+    if micro is None:
+        return frozenset()
+    slug = normalize_root_id(workflow_id)
+    resolved = micro.store.resolve_node_id(slug) or slug
+    from engine.graph.expansion_policy import collect_workflow_expansion_fields
+
+    return frozenset(collect_workflow_expansion_fields(micro.store, resolved))
+
+
+def _merge_phased_previews(
+    active: PhasedNavigation,
+    discovery: PhasedNavigation,
+) -> dict[str, list[str]]:
+    """Keep active gate phases; add discovery preview for downstream phases."""
+    merged = {phase: list(fields or []) for phase, fields in active.phase_missing.items()}
+    for phase in (
+        NavigationPhase.PATH_DECISIONS.value,
+        NavigationPhase.PARAMETER_GATHERING.value,
+        NavigationPhase.COEFFICIENT_RESOLUTION.value,
+    ):
+        active_fields = list(merged.get(phase) or [])
+        discovery_fields = list(discovery.phase_missing.get(phase) or [])
+        merged[phase] = list(dict.fromkeys(active_fields + discovery_fields))
+    return merged
+
+
+def _build_phased_navigation(
+    *,
+    reader: StandardsReader,
+    workflow_id: str,
+    task: Task,
+    inputs: dict[str, Fact],
+    preview: Any,
+) -> PhasedNavigation:
+    slug = normalize_root_id(workflow_id)
+    graph = GraphTools(reader)
+    nav_config = load_workflow_navigation(reader, slug)
+    gate_fields = _workflow_expansion_gate_fields(reader, workflow_id)
+    assumption_eval = graph.evaluate_assumptions(slug, existing_inputs=inputs, plan=preview)
+    expansion_eval = graph.evaluate_expansion_interactions(
+        slug, existing_inputs=inputs, plan=preview
+    )
+    missing_inputs = list(
+        graph.required_user_inputs(
+            slug,
+            existing_inputs=set(inputs.keys()),
+            task_inputs=inputs,
+            plan=preview,
+        )
+    )
+    execution_eval = graph.evaluate_execution_assumptions(
+        slug, existing_inputs=inputs, plan=preview
+    )
+    question_map: dict[str, str] = {}
+    field_ids = list(
+        dict.fromkeys(
+            list(assumption_eval.missing_fields)
+            + list(expansion_eval.missing_fields)
+            + list(execution_eval.missing_fields)
+            + list(missing_inputs)
+        )
+    )
+    for field_id in field_ids:
+        prompt = build_parameter_input_prompt(reader, task, field_id)
+        if prompt:
+            question_map[field_id] = prompt
+    for eval_obj in (expansion_eval, assumption_eval, execution_eval):
+        for field_id, question in eval_obj.field_questions.items():
+            question_map.setdefault(field_id, question)
+    return build_workflow_phased_navigation(
+        config=nav_config,
+        assumption_eval=assumption_eval,
+        expansion_eval=expansion_eval,
+        user_inputs=missing_inputs,
+        execution_eval=execution_eval,
+        question_map=question_map,
+        existing_inputs=inputs,
+        post_thickness_outputs=dict(task.outputs),
+        has_execution=False,
+        expansion_gate_fields=gate_fields,
+    )
 
 
 def build_generic_requirements(
@@ -295,8 +384,32 @@ def build_generic_engineering_plan(
             lazy=False,
         )
 
+    if phased is None:
+        phased = _build_phased_navigation(
+            reader=reader,
+            workflow_id=workflow_id,
+            task=task,
+            inputs=inputs,
+            preview=preview,
+        )
+
+    discovery_phased: PhasedNavigation | None = None
+    if discovery_preview is not preview:
+        discovery_phased = _build_phased_navigation(
+            reader=reader,
+            workflow_id=workflow_id,
+            task=task,
+            inputs=discovery_inputs,
+            preview=discovery_preview,
+        )
+
     root_spec = resolve_root_goal_spec(reader, workflow_id)
-    missing_inputs = _resolve_missing_inputs(reader, workflow_id, existing_inputs=inputs, preview=preview)
+    missing_inputs = _resolve_missing_inputs(
+        reader,
+        workflow_id,
+        existing_inputs=inputs,
+        preview=discovery_preview,
+    )
     requirements = build_graph_requirements(
         reader=reader,
         workflow_id=workflow_id,
@@ -358,6 +471,12 @@ def build_generic_engineering_plan(
         expansion_trace=load_expansion_trace(task.outputs),
     )
 
+    debug_payload: dict[str, Any] = {}
+    if phased is not None:
+        if discovery_phased is not None:
+            debug_payload["phased_preview"] = _merge_phased_previews(phased, discovery_phased)
+        else:
+            debug_payload["phased_preview"] = dict(getattr(phased, "phase_missing", {}) or {})
     plan = EngineeringPlan(
         plan_id=plan_id,
         task_id=task.task_id,
@@ -369,6 +488,7 @@ def build_generic_engineering_plan(
         graph=graph,
         phases=phases,
         traversal=traversal,
+        debug=debug_payload,
     )
 
     from engine.planner.legacy_goal_adapter import finalize_engineering_plan
@@ -376,11 +496,14 @@ def build_generic_engineering_plan(
     plan = finalize_engineering_plan(plan)
     validation = validate_engineering_plan(plan)
     if validation.warnings or validation.errors:
-        plan.debug = {
-            "validation_warnings": list(validation.warnings),
-            "validation_errors": list(validation.errors),
-            "source": "plan_validation",
-        }
+        debug_payload.update(
+            {
+                "validation_warnings": list(validation.warnings),
+                "validation_errors": list(validation.errors),
+                "source": "plan_validation",
+            }
+        )
+        plan.debug = debug_payload
 
     return plan
 

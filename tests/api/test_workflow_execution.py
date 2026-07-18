@@ -88,7 +88,7 @@ def test_submit_input_runs_wall_thickness_calculation(
         session_id,
         [
             ("straight_pipe_section", True, None),
-            ("pressure_loading", "internal_pressure", None),
+            ("pressure_design_case", "internal_pressure", None),
             ("material_grade", "SA-106B", None),
             ("internal_design_gage_pressure", 8.0, "bar"),
             ("design_temperature", 38.0, "C"),

@@ -79,7 +79,7 @@ def expected_wall_thickness(task: Task) -> float:
 
 
 _PIPE_WALL_THICKNESS_WORKFLOW = "pipe_wall_thickness_design"
-_PROPOSE_DEFAULTS_ON_FIELDS = frozenset({"straight_pipe_section", "pressure_loading"})
+_PROPOSE_DEFAULTS_ON_FIELDS = frozenset({"straight_pipe_section", "pressure_design_case"})
 
 
 def _minimal_cli_config(reader: StandardsReader) -> CLIConfig:

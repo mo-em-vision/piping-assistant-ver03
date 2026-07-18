@@ -19,7 +19,7 @@ from engine.reference.workflow_authoring_policy import WORKFLOW_RUNTIME_KEYS as 
 
 _PARAM_TO_FIELD: dict[str, str] = {
     "PARAM-straight-pipe-section": "straight_pipe_section",
-    "PARAM-pressure-loading": "pressure_loading",
+    "PARAM-pressure-design-case": "pressure_design_case",
     "PARAM-internal-design-gage-pressure": "internal_design_gage_pressure",
     "PARAM-outside-diameter": "outside_diameter",
     "PARAM-nominal-pipe-size": "nominal_pipe_size",

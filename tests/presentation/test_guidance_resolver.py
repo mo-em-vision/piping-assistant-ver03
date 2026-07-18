@@ -17,21 +17,21 @@ from models.presentation import GuidanceContext
 _GUIDANCE_YAML = Path(__file__).resolve().parents[2] / "presentation" / "guidance" / "workflows" / "pipe_wall_thickness_design.yaml"
 
 
-def _pressure_loading_context() -> GuidanceContext:
+def _pressure_design_case_context() -> GuidanceContext:
     return GuidanceContext(
         workflow_id="pipe_wall_thickness_design",
         current_phase="path_decisions",
         active_node_id="304.1.2-a",
         node_role="paragraph",
         traversal_event="branch_decision_required",
-        edge_reason="pressure_loading",
+        edge_reason="pressure_design_case",
         task_facts={},
     )
 
 
 def test_guidance_resolver_returns_traversal_narration_for_matching_context() -> None:
     resolver = GuidanceResolver()
-    context = _pressure_loading_context()
+    context = _pressure_design_case_context()
 
     blocks = resolver.resolve(context)
 

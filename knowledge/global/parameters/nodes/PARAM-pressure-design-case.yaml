@@ -1,18 +1,19 @@
 ---
-id: PARAM-pressure-loading
+id: PARAM-pressure-design-case
 type: parameter
-key: pressure_loading
-name: Pressure Loading
+key: pressure_design_case
+name: Pressure Design Case
 parameter_class: selection
 description: >
   Whether the pipe is subjected to internal or external pressure, determining
-  which pressure-design path and equations apply.
-question: >
-  Is the pipe subjected to internal or external pressure?
-  Internal pressure design uses §304.1.2; external pressure design uses §304.1.3.
-canonical_symbol: pressure_loading
+  which pressure-design path and equations apply for this workflow execution.
+user_prompt:
+  prompt: Is the pipe subjected to internal or external pressure?
+  help_text: >
+    Internal pressure design uses §304.1.2; external pressure design uses §304.1.3.
+canonical_symbol: pressure_design_case
 aliases:
-  - pressure loading
+  - pressure design case
   - internal or external pressure
 introduced_by:
   - asme-b313-304-1-2-a
@@ -25,13 +26,13 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-06
+  last_revision: 2026-07-18
   edited_by: admin
+  role: path_decision
   composer_input: dropdown
   composer_options:
     - value: internal_pressure
       label: Internal Pressure
     - value: external_pressure
       label: External Pressure
-  short_question: Is the pipe subjected to internal or external pressure?
 ---

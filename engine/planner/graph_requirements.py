@@ -513,6 +513,32 @@ def _emit_report_requirement(
     )
 
 
+def _replace_requirement_preserving_order(
+    requirements: dict[str, PlanRequirement],
+    *,
+    old_id: str,
+    new_req: PlanRequirement,
+) -> None:
+    """Insert *new_req* at the dict position previously held by *old_id*."""
+    keys = list(requirements.keys())
+    if old_id not in keys:
+        requirements[new_req.id] = new_req
+        return
+    index = keys.index(old_id)
+    rebuilt: dict[str, PlanRequirement] = {}
+    inserted = False
+    for i, key in enumerate(keys):
+        if key == old_id:
+            rebuilt[new_req.id] = new_req
+            inserted = True
+            continue
+        rebuilt[key] = requirements[key]
+    if not inserted:
+        rebuilt[new_req.id] = new_req
+    requirements.clear()
+    requirements.update(rebuilt)
+
+
 def _maybe_emit_diameter_resolution(
     requirements: dict[str, PlanRequirement],
     *,
@@ -534,8 +560,8 @@ def _maybe_emit_diameter_resolution(
     if _DIAMETER_RESOLUTION_ID in requirements:
         return
 
-    requirements.pop(requirement_id(od_field), None)
-    requirements[_DIAMETER_RESOLUTION_ID] = PlanRequirement(
+    od_req_id = requirement_id(od_field)
+    diameter_req = PlanRequirement(
         id=_DIAMETER_RESOLUTION_ID,
         field=od_field,
         parameter_node_id=od_param,
@@ -566,6 +592,11 @@ def _maybe_emit_diameter_resolution(
             expected_value_class_override="pipe_size",
             priority_override=2,
         ),
+    )
+    _replace_requirement_preserving_order(
+        requirements,
+        old_id=od_req_id,
+        new_req=diameter_req,
     )
 
     if nps_field in planning_fields:
@@ -641,7 +672,6 @@ def synthesize_planning_facts(
     """Provisional gate/path values for discovering the full active-path requirement graph."""
     from engine.graph.expansion_policy import collect_workflow_expansion_fields, workflow_expansion_gate_ready
     from engine.graph.graph_engine import normalize_root_id
-    from engine.graph.node_interaction import collect_root_interactions
     from engine.planner.planner_traversal import _default_branch_value
 
     slug = normalize_root_id(workflow_id)
@@ -658,23 +688,24 @@ def synthesize_planning_facts(
             if default is not None:
                 augmented[field] = _make_planning_fact(field, default, task_id=task_id)
 
-    for spec in collect_root_interactions(reader, slug):
-        variable = str(spec.variable or "").strip()
-        if not variable or field_value(variable, augmented) is not None:
-            continue
-        if spec.mode == "decision" and spec.options:
-            augmented[variable] = _make_planning_fact(variable, spec.options[0], task_id=task_id)
-            continue
-        default = spec.default
-        if default is not None:
-            augmented[variable] = _make_planning_fact(variable, default, task_id=task_id)
-
     return augmented
 
 
 def _preview_too_shallow(preview: Any | None) -> bool:
     order = list(getattr(preview, "execution_order", ()) or [])
-    return len(order) < 5
+    if len(order) < 5:
+        return True
+    # Branch-specific gatherable parameters are absent while path decisions are unresolved.
+    if not any(
+        node_id in order
+        for node_id in (
+            "PARAM-internal-design-gage-pressure",
+            "PARAM-external-design-pressure",
+            "PARAM-nominal-pipe-size",
+        )
+    ):
+        return True
+    return False
 
 
 def _required_outputs(

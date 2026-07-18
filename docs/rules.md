@@ -152,7 +152,7 @@ Stop if you drift into kitchen-sink refactors, wrong abstractions, or duplicatin
 ### Where prompt text lives
 
 - **Workflow interaction specs** — `runtime.interactions` on the primary workflow YAML. Gate phases (yes/no, branch decisions) delegate numbered formatting to `engine/messaging/step_prompt.py`.
-- **PARAM-* node metadata** — `question`, `description`, `metadata.short_question`, `metadata.input_examples`, and `metadata.composer_options` labels on parameter nodes, read via `engine/messaging/parameter_prompt_context.py` (messaging-owned; Graph Engine does not own user-facing wording).
+- **PARAM-* node metadata** — `user_prompt.prompt`, `user_prompt.help_text`, `description`, `metadata.input_examples`, and `metadata.composer_options` labels on parameter nodes, read via `engine/messaging/parameter_prompt_context.py` (messaging-owned; Graph Engine does not own user-facing wording).
 - **Equation / lookup context** — `engine/messaging/formula_parameter_prompt.py` (graph-driven; no workflow-specific branches).
 - **Final messaging fallback** — structured minimal prompt from PARAM `name` / `canonical_symbol` when no higher-priority source applies.
 - **LLM agent stubs** — `ai/prompts/` (intent/planner agents only; not desktop parameter asks).
@@ -165,15 +165,15 @@ All desktop/API parameter asks must resolve through:
 
 Order inside that function (do not bypass or reorder without updating docs and tests):
 
-1. Workflow nested `runtime.interactions` interaction question (gate phases use numbered formatting from `step_prompt` helpers; PARAM `question` preferred for numbered decision copy)
-2. PARAM-* node `question`, then useful `description` if no question (`parameter_prompt_context.py`)
+1. Workflow nested `runtime.interactions` interaction question (gate phases use numbered formatting from `step_prompt` helpers; PARAM `user_prompt` preferred for numbered decision copy)
+2. PARAM-* node `user_prompt`, then useful `description` if no prompt (`parameter_prompt_context.py`)
 3. Equation or lookup context (`formula_parameter_prompt.guidance_for_parameter_input`)
 4. Legacy `phase_questions` on planning (backward compatibility only)
 5. Final messaging fallback from PARAM metadata (`name`, `symbol`, `input_examples`)
 
 ### Desktop / API prompt paths
 
-- **Desktop workflow composer** — `task_state.current_ask.short_prompt` is the composer question (from `build_short_parameter_input_prompt()` / PARAM `metadata.short_question`). `task_state.current_ask.prompt` is the full messaging prompt from `build_parameter_input_prompt()` (guidance, formula context, numbered gate copy). `parameter.guidance` mirrors the full prompt path.
+- **Desktop workflow composer** — `task_state.current_ask.short_prompt` is the composer question (from `build_short_parameter_input_prompt()` / PARAM `user_prompt.prompt`). `task_state.current_ask.help_text` carries optional PARAM `user_prompt.help_text` and is shown via an accessible help icon, not inline beneath the prompt. `task_state.current_ask.prompt` is the full messaging prompt from `build_parameter_input_prompt()` (guidance, formula context, numbered gate copy). `parameter.prompt`, `parameter.help_text`, and `parameter.guidance` mirror the structured and full prompt paths. The unit selector remains separate for dimensional parameters.
 - **Chat / API presentation** — `task_state.flow_guidance.active_prompt` from `ResponseComposer` supplies the current ask block for multi-block formula or step prompts. The composer merges messaging output; it does not author prompt copy.
 - **Transcript history** — `transcript_blocks` are append-only display history (§21, §25). Prior prompts remain in transcript; they are not re-resolved from `active_prompt`. Composer prompts do not belong inside equation scroll blocks.
 
@@ -200,42 +200,45 @@ The active execution subgraph is resolved from authored knowledge nodes: `assump
 
 ### Source of truth (priority)
 
-1. **Node metadata** — `assumptions`, execution-sidecar `applicability`, `interactions`, `provisional_assumptions`, parameter `resolution`.
+1. **Node metadata** — `assumptions`, execution-sidecar `applicability`, `interactions`, `provisional_assumptions`, parameter `resolution`, `metadata.role` (e.g. `path_decision`).
 2. **Typed edges** — `depends_on`, `requires_parameter`, `introduces_parameter`, etc., including `when` metadata on the edge.
-3. **Workflow nested `runtime` block** — on the primary workflow YAML (`workflows/*.yaml`): `runtime.interactions`, `runtime.navigation.assumption_gate_fields`, and **phase labels/order only** (not a static list of all parameters for every branch).
+3. **Workflow completion anchor** — `goal_expansion.root_goal.target_parameter` and matching `entry_points` (`role: definition_anchor`) declare what parameter ends the workflow; graph expansion walks from that anchor.
 4. **Engine expansion policy** — `engine/graph/expansion_policy.py`, `lazy_expander.py`, `assumption_checker.py`, `micro_graph_engine.required_user_inputs()`.
+
+Workflow YAML must **not** author branch gates, path decisions, or parameter field lists. Allowed workflow `runtime` content: `texts`, `documentation`, `report` references, and presentation metadata only.
 
 ### Engine and API must
 
 - Derive **which nodes are active** from `expand_workflow()` / `GraphEngine.build_plan()` and edge `when` evaluation.
 - Derive **which parameters to ask** from active compiled `PARAM-*` nodes on the expanded path (`required_user_inputs()`), plus execution-assumption evaluation — not from a fixed per-workflow field list.
 - **Replan after each confirmed input** so branch-specific parameters (e.g. external design pressure) disappear when that branch is ruled out.
-- Use navigation config **only** for phase ordering and gate-phase fields, never to inject path-specific parameters that the graph did not expand.
+- Assign navigation phases from graph metadata (`execution.assumptions`, `metadata.role: path_decision`, expansion order) — never from workflow field lists.
 
 ### Do not
 
 - Hardcode paragraph ids, branch ids, or task field names in planner, serializers, `workflow_timeline.py`, or `workflow_bootstrap.py` to select execution paths.
-- List all branch parameters unconditionally in workflow `runtime.navigation.phases.parameter_gathering`.
-- Merge static navigation phase lists over graph-derived `required_user_inputs` (gate phases only).
+- Author `runtime.interactions`, `runtime.assumptions`, `runtime.navigation.assumption_gate_fields`, or non-empty `runtime.navigation.phases` field lists on workflow YAML.
+- Merge static navigation phase lists over graph-derived `required_user_inputs()`.
 - Encode workflow branching in TypeScript or `if workflow == "pipe_wall_…"` blocks in the backend.
 
 ### Where to author a new branch or gate
 
 | Need | Author on |
 | --- | --- |
-| Block expansion until user confirms | Node `assumptions` with `required_for_expansion` |
-| Internal vs external (or similar) branch | Edge `when` on `depends_on`, or `applicability.applies_when` on branch paragraph/equation |
+| Block expansion until user confirms | Paragraph/equation `execution.assumptions` with `required_for_expansion` |
+| Internal vs external (or similar) branch | `applicability.applies_when` on branch paragraph/equation; parent `introduces_parameter` for path-decision `PARAM-*` |
 | Branch-only parameter | `introduces_parameter` on the branch paragraph + parameter node; optional `applies_when` |
-| Workflow-level decision before expansion | Workflow nested `runtime.interactions` / `runtime.navigation.assumption_gate_fields` |
-| Ask order within a phase | `runtime.navigation.phases` order on the primary workflow YAML (fields must still be graph-active) |
+| Path-decision parameter | Global `PARAM-*` with `metadata.role: path_decision`; prompt on `user_prompt` |
+| Workflow completion | `goal_expansion.root_goal.target_parameter` + `entry_points.definition_anchor` |
+| Ask order within a phase | Graph expansion order and PARAM priority — not workflow YAML lists |
 
 After graph YAML changes: `python scripts/build_graph_db.py` when using SQLite cache; extend `tests/graph/test_expansion_policy.py` (assert via metadata behavior, not engine id literals).
 
 ### Allowed non-graph configuration
 
 - **Presentation order** — timeline sort keys and composer row order (filtered to graph-revealed fields via `graph_input_order` / `collection_field_order` on task outputs).
-- **Prompt copy** — `engine/messaging/` and workflow `interactions[].question` (see §12).
-- **Phase enum labels** — `expansion_assumptions`, `path_decisions`, `parameter_gathering`, etc.
+- **Prompt copy** — `engine/messaging/` and PARAM `user_prompt` (see §12).
+- **Phase enum labels** — `expansion_assumptions`, `path_decisions`, `parameter_gathering`, etc. (engine-owned; not workflow field lists).
 
 Full rule file: `.cursor/rules/graph-expansion.mdc`. Design detail: `docs/core/14. graph_engine_design.md`, `docs/desktopApp/05_backend_ui_contract.md` §6.
 
@@ -249,7 +252,7 @@ Full rule file: `.cursor/rules/graph-expansion.mdc`. Design detail: `docs/core/1
 | --- | --- |
 | `PARAM-*` node | `key: material_grade` (machine-safe, stable) |
 | Lookup table YAML | `inputs[].id: material_grade` when bound to `PARAM-material-grade` |
-| Workflow nested `runtime` | Same key when the parameter legitimately appears in gate or ordering metadata (`runtime.navigation.assumption_gate_fields`, `runtime.navigation.phases` gate fields) — not as a substitute for graph expansion (§13) |
+| Workflow nested `runtime` | Presentation only (`texts`, `documentation`) — **not** gate fields, interactions, or phase parameter lists (§13) |
 | Facts / API submit | Store under canonical `key` (`material_grade`) |
 | Material catalog | `material_id` is a catalog token (e.g. `astm_a106_gr_b`), not the parameter key |
 

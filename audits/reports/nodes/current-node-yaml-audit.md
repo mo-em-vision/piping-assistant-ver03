@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Total files inspected: 140
-- Passing: 103
-- Warnings: 22
-- Failing: 15
+- Total files inspected: 141
+- Passing: 112
+- Warnings: 26
+- Failing: 3
 
 ### Section totals
 
-- A. Node YAML: 135 files (FAIL)
+- A. Node YAML: 136 files (FAIL)
 - B. Node sidecar YAML: 0 files (PASS)
 - C. Workflow configuration YAML: 0 files (PASS)
 - D. Pack/catalog YAML: 5 files (WARN)
@@ -25,7 +25,7 @@
 - `lookup`: 12
 - `material_catalog`: 1
 - `paragraph`: 30
-- `parameter`: 29
+- `parameter`: 30
 - `table`: 1
 - `table_note`: 5
 - `unit`: 13
@@ -79,12 +79,13 @@
 | `knowledge/global/parameters/nodes/PARAM-outside-diameter.yaml` | `PARAM-outside-diameter` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-pipe-construction-type.yaml` | `PARAM-pipe-construction-type` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-pipe-schedule.yaml` | `PARAM-pipe-schedule` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: B3610-table-2-1 |
-| `knowledge/global/parameters/nodes/PARAM-pressure-loading.yaml` | `PARAM-pressure-loading` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: asme-b313-304-1-2-a; edge target not in repository index: asme-b313-304-1-3 |
+| `knowledge/global/parameters/nodes/PARAM-pressure-design-case.yaml` | `PARAM-pressure-design-case` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: asme-b313-304-1-2-a; edge target not in repository index: asme-b313-304-1-3 |
 | `knowledge/global/parameters/nodes/PARAM-required-reinforcement-area.yaml` | `PARAM-required-reinforcement-area` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: DIM-area |
 | `knowledge/global/parameters/nodes/PARAM-required-wall-thickness.yaml` | `PARAM-required-wall-thickness` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: asme-b313-304-1-1-a; edge target not in repository index: asme-b313-304-1-2-a; edge target not in repository index: asme-b313-304-1-2-b |
 | `knowledge/global/parameters/nodes/PARAM-run-excess-thickness-area.yaml` | `PARAM-run-excess-thickness-area` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: DIM-area |
 | `knowledge/global/parameters/nodes/PARAM-straight-pipe-section.yaml` | `PARAM-straight-pipe-section` | `parameter` | `validate_parameter_node` | **WARN** | edge target not in repository index: asme-b313-304-1-1-a |
 | `knowledge/global/parameters/nodes/PARAM-stress-range-factor.yaml` | `PARAM-stress-range-factor` | `parameter` | `validate_parameter_node` | **PASS** | — |
+| `knowledge/global/parameters/nodes/PARAM-supplementary-examination.yaml` | `PARAM-supplementary-examination` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-temperature-coefficient-Y.yaml` | `PARAM-temperature-coefficient-y` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-thin-wall-applicability.yaml` | `PARAM-thin-wall-applicability` | `parameter` | `validate_parameter_node` | **PASS** | — |
 | `knowledge/global/parameters/nodes/PARAM-wall-thickness-basis.yaml` | `PARAM-wall-thickness-basis` | `parameter` | `validate_parameter_node` | **PASS** | — |
@@ -119,8 +120,8 @@
 | `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-304-3-3-eq-8.yaml` | `asme-b313-304-3-3-eq-8` | `equation` | `validate_equation_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-mawp-pressure.yaml` | `asme-b313-mawp-pressure` | `equation` | `validate_equation_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/equation/asme-b313-pressure-design-thickness.yaml` | `asme-b313-pressure-design-thickness` | `equation` | `validate_equation_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/lookups/asme-b3610-nps-outside-diameter-lookup.yaml` | `asme-b3610-nps-outside-diameter-lookup` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; requires_parameter edge targets PARAM-nominal-pipe-size but requires block omits it |
-| `knowledge/standards/asme/asme_b31.3/nodes/lookups/asme-b3610-pipe-dimensions-lookup.yaml` | `asme-b3610-pipe-dimensions-lookup` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; requires_parameter edge targets PARAM-nominal-pipe-size but requires block omits it; requires_parameter edge targets PARAM-pipe-schedule but requires block omits it |
+| `knowledge/standards/asme/asme_b31.3/nodes/lookups/asme-b3610-nps-outside-diameter-lookup.yaml` | `asme-b3610-nps-outside-diameter-lookup` | `lookup` | `validate_lookup_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/lookups/asme-b3610-pipe-dimensions-lookup.yaml` | `asme-b3610-pipe-dimensions-lookup` | `lookup` | `validate_lookup_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.3-a.yaml` | `302.3.3-a` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.3-b.yaml` | `302.3.3-b` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/paragraph/302.3.3-c.yaml` | `302.3.3-c` | `paragraph` | `validate_paragraph_node` | **PASS** | — |
@@ -156,21 +157,21 @@
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1-note-2b.yaml` | `asme-b313-table-302-3-3-1-note-2b` | `table_note` | `validate_table_note_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1-note-3a.yaml` | `asme-b313-table-302-3-3-1-note-3a` | `table_note` | `validate_table_note_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1-note-3b.yaml` | `asme-b313-table-302-3-3-1-note-3b` | `table_note` | `validate_table_note_node` | **PASS** | — |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1.yaml` | `asme-b313-table-302-3-3-1` | `lookup` | `validate_lookup_node` | **FAIL** | lookup.keys is deprecated; use lookup.bindings; lookup.bindings is required |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-1.yaml` | `asme-b313-table-302-3-3-1` | `lookup` | `validate_lookup_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-3-2.yaml` | `asme-b313-table-302-3-3-2` | `table` | `revision_only` | **WARN** | no dedicated validator for type table |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-5-1.yaml` | `asme-b313-table-302-3-5-1` | `lookup` | `validate_lookup_node` | **FAIL** | requires_parameter edge targets PARAM-design-temperature but requires block omits it; requires_parameter edge targets PARAM-material-grade but requires block omits it; requires_parameter edge targets PARAM-pipe-construction-type but requires block omits it |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-304-1-1-1.yaml` | `asme-b313-table-304-1-1-1` | `lookup` | `validate_lookup_node` | **FAIL** | requires_parameter edge targets PARAM-design-temperature but requires block omits it; requires_parameter edge targets PARAM-metallurgical-group but requires block omits it |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-1.yaml` | `asme-b313-table-A-1` | `lookup` | `validate_lookup_node` | **FAIL** | requires_parameter edge targets PARAM-design-temperature but requires block omits it; requires_parameter edge targets PARAM-material-grade but requires block omits it |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-2.yaml` | `asme-b313-table-A-2` | `lookup` | `validate_lookup_node` | **FAIL** | requires_parameter edge targets PARAM-material-grade but requires block omits it |
-| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-3.yaml` | `asme-b313-table-A-3` | `lookup` | `validate_lookup_node` | **FAIL** | requires_parameter edge targets PARAM-material-grade but requires block omits it; requires_parameter edge targets PARAM-pipe-construction-type but requires block omits it |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-302-3-5-1.yaml` | `asme-b313-table-302-3-5-1` | `lookup` | `validate_lookup_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-304-1-1-1.yaml` | `asme-b313-table-304-1-1-1` | `lookup` | `validate_lookup_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-1.yaml` | `asme-b313-table-A-1` | `lookup` | `validate_lookup_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-2.yaml` | `asme-b313-table-A-2` | `lookup` | `validate_lookup_node` | **PASS** | — |
+| `knowledge/standards/asme/asme_b31.3/nodes/tables/asme-b313-table-A-3.yaml` | `asme-b313-table-A-3` | `lookup` | `validate_lookup_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-1-valrule-a.yaml` | `asme-b313-304-1-1-valrule-a` | `validation_rule` | `validate_validation_rule_node` | **WARN** | edge target not in repository index: PARAM-wall-thickness-adequacy |
 | `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-2-valrule-a.yaml` | `asme-b313-304-1-2-valrule-a` | `validation_rule` | `validate_validation_rule_node` | **PASS** | — |
 | `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-1-2-valrule-b.yaml` | `asme-b313-304-1-2-valrule-b` | `validation_rule` | `validate_validation_rule_node` | **WARN** | edge target not in repository index: PARAM-thick-wall-special-consideration-required |
 | `knowledge/standards/asme/asme_b31.3/nodes/validation_rule/asme-b313-304-3-3-valrule-6a.yaml` | `asme-b313-304-3-3-valrule-6a` | `validation_rule` | `validate_validation_rule_node` | **WARN** | edge target not in repository index: PARAM-reinforcement-adequate |
-| `knowledge/standards/astm/nodes/A105.yaml` | `A105` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: material_properties |
-| `knowledge/standards/astm/nodes/A106.yaml` | `A106` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: mechanical_properties |
-| `knowledge/standards/astm/nodes/A312.yaml` | `A312` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: mechanical_properties |
-| `knowledge/standards/astm/nodes/A53.yaml` | `A53` | `lookup` | `validate_lookup_node` | **FAIL** | missing table_number; lookup requires table_id, lookup.table, or reads_table edge; lookup requires output_param, returns, or returns_parameter edge; introduces_parameter not allowed from source type 'lookup'; introduces_parameter not allowed from source type 'lookup'; broken resolved reference: material_properties |
+| `knowledge/standards/astm/nodes/A105.yaml` | `A105` | `lookup` | `validate_lookup_node` | **WARN** | edge target not in repository index: astm_a105_material_properties |
+| `knowledge/standards/astm/nodes/A106.yaml` | `A106` | `lookup` | `validate_lookup_node` | **WARN** | edge target not in repository index: astm_a106_material_properties |
+| `knowledge/standards/astm/nodes/A312.yaml` | `A312` | `lookup` | `validate_lookup_node` | **WARN** | edge target not in repository index: astm_a312_material_properties |
+| `knowledge/standards/astm/nodes/A53.yaml` | `A53` | `lookup` | `validate_lookup_node` | **WARN** | edge target not in repository index: astm_a53_material_properties |
 | `workflows/mawp.yaml` | `WF-MAWP` | `workflow` | `validate_workflow_node` | **WARN** | filename stem 'mawp' differs from id 'WF-MAWP' |
 | `workflows/pipe-wall-thickness.yaml` | `WF-PIPE-WALL-THICKNESS` | `workflow` | `validate_workflow_node` | **WARN** | filename stem 'pipe-wall-thickness' differs from id 'WF-PIPE-WALL-THICKNESS' |
 

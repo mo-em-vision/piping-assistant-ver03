@@ -39,35 +39,6 @@ report:
   - warnings
   - conclusion
 runtime:
-  navigation:
-    assumption_gate_fields:
-    - straight_pipe_section
-    - pressure_loading
-    phases:
-      expansion_assumptions:
-      - straight_pipe_section
-      path_decisions:
-      - pressure_loading
-      parameter_gathering:
-      - internal_design_gage_pressure
-      - outside_diameter
-      - material_grade
-      - design_temperature
-      coefficient_resolution:
-      - pipe_construction_type
-      execution_assumptions: []
-      definition_equation_completion:
-      - corrosion_allowance
-  interactions:
-  - variable: pressure_loading
-    mode: decision
-    required: true
-    required_for_expansion: true
-    options:
-    - internal_pressure
-    - external_pressure
-    question: >
-      Is the pipe subjected to internal or external pressure?
   texts:
   - id: pipe-wall-init-text
     type: text
@@ -93,6 +64,6 @@ runtime:
 metadata:
   status: draft
   version: 1
-  last_revision: 2026-07-05
+  last_revision: 2026-07-18
   edited_by: admin
 ---

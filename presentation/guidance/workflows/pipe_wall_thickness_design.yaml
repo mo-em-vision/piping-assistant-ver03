@@ -9,7 +9,7 @@ entries:
     match:
       current_phase: path_decisions
       traversal_event: branch_decision_required
-      edge_reason: pressure_loading
+      edge_reason: pressure_design_case
     text: >-
       The workflow is selecting the internal versus external pressure branch.
       Internal pressure design uses paragraph 304.1.2; external pressure design

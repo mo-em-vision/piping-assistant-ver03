@@ -69,12 +69,21 @@ display:
   text: MAWP = 2 S E_j W t / (D - 2 Y t)
 applicability:
   applies_when:
-  - parameter: PARAM-pressure-loading
+  - parameter: PARAM-pressure-design-case
     operator: equals
     value: internal_pressure
   - parameter: PARAM-straight-pipe-section
     operator: equals
     value: true
+execution:
+  assumptions:
+  - id: pressure_design_case
+    field: pressure_design_case
+    description: MAWP applies to straight pipe under internal pressure per §304.1.2.
+    required_for_expansion: true
+    allowed_values:
+    - internal_pressure
+    default: internal_pressure
 paragraph_number: 304.1.2-a
 variables:
   S:

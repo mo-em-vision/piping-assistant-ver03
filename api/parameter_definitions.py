@@ -132,6 +132,7 @@ def build_parameter_definitions(
         if options and spec.get("type") not in {"material", "checkbox"}:
             spec["type"] = "dropdown"
         existing = active_fact_for_key(task, parameter_id)
+        metadata_ctx = parameter_metadata_context(reader, parameter_id) if reader is not None else None
         payload: dict[str, Any] = {
             "name": parameter_id,
             "label": spec["label"],
@@ -149,6 +150,11 @@ def build_parameter_definitions(
             "editing": editing == parameter_id,
             "submittable": canonical_parameter_key(parameter_id) in canonical_submittable_ids,
         }
+        if metadata_ctx is not None:
+            if metadata_ctx.prompt:
+                payload["prompt"] = metadata_ctx.prompt
+            if metadata_ctx.help_text:
+                payload["help_text"] = metadata_ctx.help_text
         if spec.get("resolution_ui"):
             payload["resolution_ui"] = spec["resolution_ui"]
         if reader is not None:
@@ -157,7 +163,7 @@ def build_parameter_definitions(
                 param_node_id = param_index.get(parameter_id)
                 if param_node_id:
                     guidance = payload.get("guidance")
-                    source_field = "question" if guidance else "title"
+                    source_field = "user_prompt.prompt" if guidance else "title"
                     provenance = provenance_for_node(reader, param_node_id, source_field=source_field)
             if provenance:
                 payload["provenance"] = provenance

@@ -14,16 +14,16 @@ from models.task import TaskStatus
 from tests.helpers.goals import task_with_planning
 
 
-def _pipe_wall_task_with_pressure_loading_goal() -> tuple:
+def _pipe_wall_task_with_pressure_design_case_goal() -> tuple:
     manager = TaskStateManager()
     task = manager.create_task("goal-nav-test01", status=TaskStatus.AWAITING_INPUT)
     planning = {
-        "missing_assumptions": ["pressure_loading"],
+        "missing_assumptions": ["pressure_design_case"],
         "current_phase": "path_decisions",
-        "phase_missing": {"path_decisions": ["pressure_loading"]},
+        "phase_missing": {"path_decisions": ["pressure_design_case"]},
         "phase_questions": {
             "path_decisions": {
-                "pressure_loading": "Is the pipe subjected to internal or external pressure?",
+                "pressure_design_case": "Is the pipe subjected to internal or external pressure?",
             }
         },
     }
@@ -33,21 +33,21 @@ def _pipe_wall_task_with_pressure_loading_goal() -> tuple:
     return manager, manager.get_task(task.task_id)
 
 
-def test_next_actionable_goal_returns_pressure_loading_first() -> None:
-    _, task = _pipe_wall_task_with_pressure_loading_goal()
+def test_next_actionable_goal_returns_pressure_design_case_first() -> None:
+    _, task = _pipe_wall_task_with_pressure_design_case_goal()
     goal = next_actionable_goal(task)
     assert goal is not None
-    assert goal_parameter_key(goal) == "pressure_loading"
-    assert goal_guided_parameter_ids(task) == ["pressure_loading"]
+    assert goal_parameter_key(goal) == "pressure_design_case"
+    assert goal_guided_parameter_ids(task) == ["pressure_design_case"]
 
 
 def test_build_current_ask_for_expansion_gate() -> None:
-    _, task = _pipe_wall_task_with_pressure_loading_goal()
+    _, task = _pipe_wall_task_with_pressure_design_case_goal()
     planning = planning_projection(task)
     ask = build_current_ask(task, planning)
     assert ask is not None
     assert ask["kind"] == "input"
-    assert ask["parameter_id"] == "pressure_loading"
+    assert ask["parameter_id"] == "pressure_design_case"
     assert "internal or external pressure" in str(ask["prompt"])
 
 
@@ -56,16 +56,16 @@ def test_build_current_ask_falls_back_to_submittable_parameter() -> None:
     task = manager.create_task("goal-nav-fallback", status=TaskStatus.AWAITING_INPUT)
     planning = {
         "current_phase": "path_decisions",
-        "phase_missing": {"path_decisions": ["pressure_loading"]},
+        "phase_missing": {"path_decisions": ["pressure_design_case"]},
         "phase_questions": {
             "path_decisions": {
-                "pressure_loading": "Is the pipe subjected to internal or external pressure?",
+                "pressure_design_case": "Is the pipe subjected to internal or external pressure?",
             }
         },
     }
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
-        "phase_allowed_fields": {"path_decisions": ["pressure_loading"]},
+        "phase_allowed_fields": {"path_decisions": ["pressure_design_case"]},
     }
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
@@ -77,10 +77,10 @@ def test_build_current_ask_falls_back_to_submittable_parameter() -> None:
     ask = build_current_ask(task, planning)
     assert ask is not None
     assert ask["kind"] == "input"
-    assert ask["parameter_id"] == "pressure_loading"
+    assert ask["parameter_id"] == "pressure_design_case"
 
 
-def test_next_actionable_goal_advances_after_pressure_loading() -> None:
+def test_next_actionable_goal_advances_after_pressure_design_case() -> None:
     manager = TaskStateManager()
     task = manager.create_task("goal-nav-test02", status=TaskStatus.AWAITING_INPUT)
     planning = {

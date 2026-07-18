@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from engine.reference.param_resolver import resolve_parameter_id
+from engine.reference.parameter_keys import canonical_parameter_key, load_parameter_node_metadata, param_node_id_for_input
+from engine.reference.parameter_metadata import is_path_decision_parameter
 from engine.messaging.parameter_input_prompt import resolve_parameter_prompt_text
 from models.goal import (
     Goal,
@@ -117,9 +118,9 @@ def _goal_for_field(
     parent_goal: str,
     order: int,
 ) -> Goal:
-    if phase == NavigationPhase.PATH_DECISIONS.value and field_id in {
-        "pressure_loading",
-    }:
+    if phase == NavigationPhase.PATH_DECISIONS.value and is_path_decision_parameter(
+        load_parameter_node_metadata(param_node_id_for_input(canonical_parameter_key(field_id)))
+    ):
         return selection_goal(
             key=f"select-{field_id}",
             name=prompt,

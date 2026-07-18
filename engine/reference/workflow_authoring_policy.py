@@ -60,5 +60,64 @@ def check_workflow_frontmatter_placement(meta: dict[str, Any]) -> list[tuple[Sev
     return findings
 
 
+_NAV_PHASE_KEYS = (
+    "expansion_assumptions",
+    "path_decisions",
+    "parameter_gathering",
+    "coefficient_resolution",
+    "execution_assumptions",
+    "definition_equation_completion",
+)
+
+
+def check_workflow_conditionals(meta: dict[str, Any]) -> list[tuple[Severity, str]]:
+    """Reject branch gates and parameter lists authored on workflow YAML."""
+    findings: list[tuple[Severity, str]] = []
+    runtime = _runtime_block(meta)
+    navigation = runtime.get("navigation")
+    if isinstance(navigation, dict):
+        gate_fields = navigation.get("assumption_gate_fields") or []
+        if gate_fields:
+            findings.append(
+                (
+                    "FAIL",
+                    "runtime.navigation.assumption_gate_fields must be empty; "
+                    "author expansion gates on paragraph/equation graph nodes",
+                )
+            )
+        phases = navigation.get("phases") or {}
+        if isinstance(phases, dict):
+            for phase_key, fields in phases.items():
+                if fields:
+                    findings.append(
+                        (
+                            "FAIL",
+                            f"runtime.navigation.phases.{phase_key} must be empty; "
+                            "graph expansion owns active parameter lists",
+                        )
+                    )
+    interactions = runtime.get("interactions") or []
+    if interactions:
+        findings.append(
+            (
+                "FAIL",
+                "runtime.interactions must not be authored; "
+                "use graph node assumptions and PARAM metadata",
+            )
+        )
+    assumptions = runtime.get("assumptions") or []
+    if assumptions:
+        findings.append(
+            (
+                "FAIL",
+                "runtime.assumptions must not be authored; "
+                "use graph node execution.assumptions",
+            )
+        )
+    return findings
+
+
 def validator_fail_messages_for_workflow(meta: dict[str, Any]) -> list[str]:
-    return [msg for level, msg in check_workflow_frontmatter_placement(meta) if level == "FAIL"]
+    findings = check_workflow_frontmatter_placement(meta)
+    findings.extend(check_workflow_conditionals(meta))
+    return [msg for level, msg in findings if level == "FAIL"]

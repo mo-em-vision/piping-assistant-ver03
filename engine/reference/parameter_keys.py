@@ -20,6 +20,7 @@ LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_PARAM = (
 
 # Legacy keys still accepted when reading stored facts or submitted payloads.
 LEGACY_PARAMETER_KEY_ALIASES: dict[str, str] = {
+    "pressure_loading": "pressure_design_case",
     "material": MATERIAL_GRADE_KEY,
     "material_specification": MATERIAL_GRADE_KEY,
     "pipe_material": MATERIAL_GRADE_KEY,

@@ -28,7 +28,7 @@ def _sample_task(manager: TaskStateManager) -> str:
             "phase_missing": {},
             "collection_field_order": [
                 "straight_pipe_section",
-                "pressure_loading",
+                "pressure_design_case",
                 "internal_design_gage_pressure",
                 "nominal_pipe_size",
                 "material_grade",
@@ -38,7 +38,7 @@ def _sample_task(manager: TaskStateManager) -> str:
         workflow_id="pipe_wall_thickness_design",
     )
     for input_id, value in (
-        ("pressure_loading", "internal_pressure"),
+        ("pressure_design_case", "internal_pressure"),
         ("material_grade", "SA-106B"),
         ("internal_design_gage_pressure", 8.0),
         ("design_temperature", 38.0),
@@ -50,7 +50,7 @@ def _sample_task(manager: TaskStateManager) -> str:
                 input_id=input_id,
                 value=value,
                 unit="dimensionless"
-                if input_id in {"material_grade", "nominal_pipe_size", "pressure_loading"}
+                if input_id in {"material_grade", "nominal_pipe_size", "pressure_design_case"}
                 else ("bar" if input_id == "internal_design_gage_pressure" else "C"),
                 source=InputSource.USER,
                 status=InputStatus.CONFIRMED,
@@ -60,12 +60,12 @@ def _sample_task(manager: TaskStateManager) -> str:
     return task.task_id
 
 
-def test_assess_parameter_edit_flags_pressure_loading_path_change() -> None:
+def test_assess_parameter_edit_flags_pressure_design_case_path_change() -> None:
     manager = TaskStateManager()
     task_id = _sample_task(manager)
     task = manager.get_task(task_id)
 
-    impact = assess_parameter_edit(task, "pressure_loading")
+    impact = assess_parameter_edit(task, "pressure_design_case")
 
     assert impact["affects_path"] is True
     assert impact["affects_design"] is True

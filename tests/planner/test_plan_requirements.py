@@ -66,13 +66,13 @@ def test_initial_internal_pressure_requirement_is_missing_not_ready() -> None:
     assert internal.activation_status == "active"
 
 
-def test_pressure_loading_is_branch_decision_with_select_key() -> None:
+def test_pressure_design_case_is_branch_decision_with_select_key() -> None:
     _, task = _gates_satisfied_task()
     plan = build_engineering_plan(task, _reader())
-    pressure = plan.requirements["REQ-pressure_loading"]
+    pressure = plan.requirements["REQ-pressure_design_case"]
     assert pressure.requirement_class == "branch_decision"
-    assert pressure.key == requirement_key_for_class("branch_decision", "pressure_loading")
-    assert pressure.key == "select-pressure_loading"
+    assert pressure.key == requirement_key_for_class("branch_decision", "pressure_design_case")
+    assert pressure.key == "select-pressure_design_case"
 
 
 def test_diameter_resolution_has_top_level_alternatives_and_question_spec() -> None:

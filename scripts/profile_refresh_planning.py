@@ -75,7 +75,7 @@ def main() -> None:
 
     submissions = [
         ("straight_pipe_section", True, "dimensionless"),
-        ("pressure_loading", "internal_pressure", None),
+        ("pressure_design_case", "internal_pressure", None),
     ]
 
     reader = StandardsReader(ROOT / "knowledge" / "standards", standard="asme_b31.3")

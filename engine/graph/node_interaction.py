@@ -14,6 +14,7 @@ from typing import Any, Mapping, Sequence
 
 from engine.graph.assumption_checker import normalize_assumption_value
 from engine.reference.parameter_keys import parameter_display_label
+from engine.reference.parameter_metadata import parameter_prompt_or_description
 from engine.reference.paragraph_sidecar import (
     merge_paragraph_sidecar_metadata,
     parse_applicability_as_assumptions,
@@ -32,8 +33,11 @@ from engine.reference.standards_reader import NodeRecord, StandardsReader
 from models.fact import (
     Fact,
     FactClass,
+    FactProvenance,
+    FactSource,
     SourceType,
     ValidationStatus,
+    build_categorical_fact,
     fact_from_user_submission,
     fact_is_expansion_ready,
     fact_scalar_value,
@@ -346,8 +350,11 @@ def propose_decision_defaults(
     existing_inputs: Mapping[str, Fact | Any],
     *,
     task_id: str,
+    workflow_id: str | None = None,
 ) -> dict[str, Fact]:
     """Auto-apply decision defaults that do not require confirmation."""
+    from engine.reference.param_resolver import resolve_parameter_id
+
     proposed: dict[str, Fact] = {}
     for spec in specs:
         if spec.mode != InteractionMode.DECISION:
@@ -366,12 +373,27 @@ def propose_decision_defaults(
                 default_condition=spec.default_condition,
             )
             continue
-        proposed[spec.variable] = fact_from_user_submission(
+        description = (spec.question or "").strip() or None
+        proposed[spec.variable] = build_categorical_fact(
             key=spec.variable,
-            value=spec.default,
-            unit=spec.unit,
-            task_id=task_id,
+            parameter=resolve_parameter_id(spec.variable),
+            label=str(spec.default),
+            normalized_key=None,
+            fact_class=FactClass.ASSUMED,
+            source=FactSource(
+                source_type=SourceType.SYSTEM,
+                source_id=spec.node_id,
+                description=description,
+            ),
+            provenance=FactProvenance(
+                task_id=task_id,
+                workflow_id=workflow_id,
+                created_by="workflow_assumption",
+                collected_at_node=spec.node_id,
+            ),
+            validation_status=ValidationStatus.CONFIRMED,
             symbol=spec.symbol,
+            description=description,
         )
     return proposed
 
@@ -408,7 +430,7 @@ def interaction_from_micro_assumption(
         required=bool(metadata.get("required_for_expansion", True)),
         options=allowed,
         confirmation_required=bool(metadata.get("requires_confirmation", False)),
-        question=str(metadata.get("question") or metadata.get("description") or "") or None,
+        question=parameter_prompt_or_description(metadata) or None,
     )
 
 
@@ -429,7 +451,7 @@ def interaction_from_parameter(
             required=True,
             sources=("lookup", "user"),
             confirmation_required=True,
-            question=str(metadata.get("question") or metadata.get("description") or "") or None,
+            question=parameter_prompt_or_description(metadata) or None,
             lookup_source="lookup",
             unit=str(metadata.get("unit", "dimensionless")),
             symbol=str(metadata.get("symbol") or "") or None,
@@ -445,7 +467,7 @@ def interaction_from_parameter(
                 sources=("default", "user"),
                 default=default.get("value"),
                 confirmation_required=True,
-                question=str(metadata.get("question") or "") or None,
+                question=parameter_prompt_or_description(metadata) or None,
                 unit=str(default.get("unit") or metadata.get("unit", "dimensionless")),
                 symbol=str(metadata.get("symbol") or "") or None,
             )

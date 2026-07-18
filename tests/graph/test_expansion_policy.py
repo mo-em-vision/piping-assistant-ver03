@@ -60,11 +60,6 @@ def test_collect_expansion_fields_from_authored_metadata(project_root: Path) -> 
 
     assert "straight_pipe_section" in fields
 
-    assert "pressure_loading" in fields
-
-
-
-
 
 def test_node_assumptions_block_child_traversal(project_root: Path) -> None:
 
@@ -136,7 +131,7 @@ def test_workflow_gate_follows_authored_fields(project_root: Path) -> None:
 
     )
 
-    assert workflow_expansion_gate_ready(store, root_id, inputs) is False
+    assert workflow_expansion_gate_ready(store, root_id, inputs) is True
 
 
 
@@ -162,7 +157,7 @@ def test_internal_pressure_branch_excludes_external_pressure_nodes(project_root:
 
             "straight_pipe_section": straight_section_assumption(),
 
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
 
         },
 
@@ -200,9 +195,9 @@ def test_external_pressure_branch_includes_external_design_pressure(project_root
 
             "straight_pipe_section": straight_section_assumption(),
 
-            "pressure_loading": legacy_input(
+            "pressure_design_case": legacy_input(
 
-                "pressure_loading",
+                "pressure_design_case",
 
                 "external_pressure",
 
@@ -246,7 +241,7 @@ def test_outside_diameter_path_selects_eq_3a_only(project_root: Path) -> None:
 
             "straight_pipe_section": straight_section_assumption(),
 
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
 
         },
 
@@ -280,7 +275,7 @@ def test_outside_diameter_path_does_not_require_inside_diameter(project_root: Pa
     inputs = facts_from_inputs(
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
             "design_pressure": legacy_input(
                 "design_pressure",
                 8.0,
@@ -316,7 +311,7 @@ def test_inside_diameter_value_selects_eq_3b_only(project_root: Path) -> None:
 
             "straight_pipe_section": straight_section_assumption(),
 
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
 
             "inside_diameter": legacy_input(
 

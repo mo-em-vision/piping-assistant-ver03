@@ -20,7 +20,12 @@ description: >
 
   or minimum thickness after mill tolerance depending on wall_thickness_basis.
 
-question: Enter the actual or ordered wall thickness of the pipe.
+user_prompt:
+  prompt: Enter the actual wall thickness.
+  help_text: >
+    May be measured or ordered actual thickness, nominal schedule thickness from
+    NPS/schedule lookup, or minimum thickness after mill tolerance depending on
+    wall_thickness_basis.
 
 canonical_symbol: t_actual
 
@@ -72,7 +77,4 @@ metadata:
 
   canonical_unit: UNIT-mm
 
-  short_question: Enter actual or ordered wall thickness.
-
 ---
-

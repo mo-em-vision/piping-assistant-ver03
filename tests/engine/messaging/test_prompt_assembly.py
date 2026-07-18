@@ -22,7 +22,7 @@ def test_render_parameter_prompt_includes_examples_and_usage() -> None:
 
 def test_render_parameter_prompt_preserves_prebuilt_body() -> None:
     ctx = PromptAssemblyContext(
-        parameter_id="pressure_loading",
+        parameter_id="pressure_design_case",
         label="Pressure Loading",
         body="Input required — custom body.",
         options=("Internal pressure — use §304.1.2", "External pressure — use §304.1.3"),

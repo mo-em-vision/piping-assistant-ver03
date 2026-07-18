@@ -25,7 +25,7 @@ Respond with **JSON only**:
       "node_id": "B313-304.1.1"
     }
   ],
-  "missing_inputs": ["straight_pipe_section", "pressure_loading"],
+  "missing_inputs": ["straight_pipe_section", "pressure_design_case"],
   "action": "request_input"
 }
 ```

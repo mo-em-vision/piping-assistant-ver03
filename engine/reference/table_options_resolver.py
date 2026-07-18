@@ -49,6 +49,18 @@ def _table_yaml_candidates(table_ref: str, standards_root: Path) -> list[Path]:
             stem = f"asme-b313-table-{ref}"
         candidates.append(b313_tables / f"{stem}.yaml")
         candidates.append(b313_tables / f"{ref}.yaml")
+    astm_nodes = standards_root / "astm" / "nodes"
+    astm_table_node_ids = {
+        "astm_a106_material_properties": "A106",
+        "astm_a105_material_properties": "A105",
+        "astm_a53_material_properties": "A53",
+        "astm_a312_material_properties": "A312",
+    }
+    node_stem = astm_table_node_ids.get(ref)
+    if node_stem:
+        candidates.append(astm_nodes / f"{node_stem}.yaml")
+    elif ref in {"A106", "A105", "A53", "A312"}:
+        candidates.append(astm_nodes / f"{ref}.yaml")
     return [path for path in candidates if path.is_file()]
 
 

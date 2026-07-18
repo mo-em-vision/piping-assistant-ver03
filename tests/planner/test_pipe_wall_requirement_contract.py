@@ -51,7 +51,7 @@ _EXPECTED_REQUIREMENT_CLASSES = {
             "REQ-pipe_construction_type",
         }
         else "branch_decision"
-        if req_id == "REQ-pressure_loading"
+        if req_id == "REQ-pressure_design_case"
         else "table_lookup"
         if req_id in PIPE_WALL_LOOKUP_IDS
         else "equation_result"

@@ -8,10 +8,11 @@ dimension: DIM-temperature
 description: >
   Metal or fluid temperature used as the basis for material property lookups
   and design calculations.
-question: >
-  Enter the design temperature, including units.
-  This is used with the selected material to resolve allowable stress from the applicable material table.
-  Examples: 400 F, 200 C.
+user_prompt:
+  prompt: Enter design temperature.
+  help_text: >
+    Used with the selected material to resolve allowable stress from the
+    applicable material table.
 canonical_symbol: T
 aliases:
   - metal temperature
@@ -37,7 +38,6 @@ metadata:
   allowed_units:
     - UNIT-degC
     - UNIT-degF
-  short_question: Enter design temperature.
   input_examples:
     - 400 F
     - 200 C

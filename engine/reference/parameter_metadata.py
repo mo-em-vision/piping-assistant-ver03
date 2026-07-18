@@ -20,10 +20,133 @@ _NESTED_PARAMETER_META_KEYS = frozenset(
         "lookup_conditionals",
         "resolution",
         "resolution_branches",
-        "short_question",
+        "user_prompt",
         "prompt_use_description",
     }
 )
+
+_LEGACY_PROMPT_FIELDS = frozenset({"question", "short_question"})
+
+
+def _strip_legacy_prompt_fields(meta: dict[str, Any]) -> None:
+    for field in _LEGACY_PROMPT_FIELDS:
+        meta.pop(field, None)
+    nested = meta.get("metadata")
+    if isinstance(nested, dict):
+        nested.pop("short_question", None)
+
+
+def _first_sentence(text: str) -> str:
+    stripped = text.strip()
+    if not stripped:
+        return stripped
+    for separator in (". ", ".\n"):
+        index = stripped.find(separator)
+        if index > 0:
+            return stripped[: index + 1].strip()
+    return stripped
+
+
+def normalize_user_prompt(metadata: dict[str, Any]) -> dict[str, Any]:
+    """Normalize PARAM user-facing prompt metadata to canonical ``user_prompt``."""
+    meta = dict(metadata)
+    nested = meta.get("metadata")
+    nested_short: str | None = None
+    if isinstance(nested, dict):
+        raw_nested_short = nested.get("short_question")
+        if isinstance(raw_nested_short, str) and raw_nested_short.strip():
+            nested_short = raw_nested_short.strip()
+
+    raw_user_prompt = meta.get("user_prompt")
+    if isinstance(raw_user_prompt, dict):
+        prompt = str(raw_user_prompt.get("prompt") or "").strip()
+        help_text = raw_user_prompt.get("help_text")
+        normalized_help = (
+            str(help_text).strip()
+            if isinstance(help_text, str) and str(help_text).strip()
+            else None
+        )
+        if prompt:
+            meta["user_prompt"] = {"prompt": prompt}
+            if normalized_help:
+                meta["user_prompt"]["help_text"] = normalized_help
+        else:
+            meta.pop("user_prompt", None)
+        _strip_legacy_prompt_fields(meta)
+        return meta
+
+    legacy_question = meta.get("question")
+    legacy_short = meta.get("short_question")
+    question_text = (
+        str(legacy_question).strip()
+        if isinstance(legacy_question, str) and str(legacy_question).strip()
+        else None
+    )
+    short_text = (
+        str(legacy_short).strip()
+        if isinstance(legacy_short, str) and str(legacy_short).strip()
+        else nested_short
+    )
+
+    if not question_text and not short_text:
+        _strip_legacy_prompt_fields(meta)
+        return meta
+
+    prompt = short_text or (question_text and _first_sentence(question_text)) or ""
+    help_text = question_text if question_text and question_text != prompt else None
+    if help_text and short_text and help_text.strip() == short_text.strip():
+        help_text = None
+
+    if prompt:
+        user_prompt: dict[str, str] = {"prompt": prompt}
+        if help_text:
+            user_prompt["help_text"] = help_text
+        meta["user_prompt"] = user_prompt
+
+    _strip_legacy_prompt_fields(meta)
+    return meta
+
+
+def parameter_user_prompt(metadata: dict[str, Any]) -> dict[str, str] | None:
+    """Return normalized ``user_prompt`` mapping when present."""
+    user_prompt = metadata.get("user_prompt")
+    if not isinstance(user_prompt, dict):
+        return None
+    prompt = str(user_prompt.get("prompt") or "").strip()
+    if not prompt:
+        return None
+    result = {"prompt": prompt}
+    help_text = user_prompt.get("help_text")
+    if isinstance(help_text, str) and help_text.strip():
+        result["help_text"] = help_text.strip()
+    return result
+
+
+def parameter_prompt_text(metadata: dict[str, Any]) -> str | None:
+    """Return the brief PARAM prompt headline from prepared metadata."""
+    user_prompt = parameter_user_prompt(metadata)
+    if user_prompt is None:
+        return None
+    return user_prompt["prompt"]
+
+
+def parameter_help_text(metadata: dict[str, Any]) -> str | None:
+    """Return optional PARAM help text from prepared metadata."""
+    user_prompt = parameter_user_prompt(metadata)
+    if user_prompt is None:
+        return None
+    return user_prompt.get("help_text")
+
+
+def parameter_prompt_or_description(metadata: dict[str, Any]) -> str | None:
+    """Return PARAM prompt, else description fallback for graph hints."""
+    prompt = parameter_prompt_text(metadata)
+    if prompt:
+        return prompt
+    description = metadata.get("description")
+    if isinstance(description, str) and description.strip():
+        return description.strip()
+    return None
 
 
 def _merge_nested_parameter_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
@@ -172,4 +295,27 @@ def prepare_parameter_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     if defined:
         meta["defined_in"] = list(defined)
         meta.setdefault("located_in", list(defined))
-    return meta
+    return normalize_user_prompt(meta)
+
+
+ALLOWED_PARAMETER_ROLES = frozenset({"path_decision"})
+
+
+def parameter_role(metadata: dict[str, Any] | None) -> str | None:
+    """Return authored ``metadata.role`` when present."""
+    if not isinstance(metadata, dict):
+        return None
+    nested = metadata.get("metadata")
+    if not isinstance(nested, dict):
+        return None
+    role = str(nested.get("role") or "").strip()
+    return role or None
+
+
+def is_path_decision_parameter(metadata: dict[str, Any] | None) -> bool:
+    return parameter_role(metadata) == "path_decision"
+
+
+def is_workflow_scoped_parameter(metadata: dict[str, Any] | None) -> bool:
+    """Path-decision parameters are scoped to one workflow execution."""
+    return is_path_decision_parameter(metadata)

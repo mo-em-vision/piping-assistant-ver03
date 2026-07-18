@@ -6,7 +6,7 @@ given:
   inputs:
     straight_pipe_section:
       value: true
-    pressure_loading:
+    pressure_design_case:
       value: internal_pressure
     internal_design_gage_pressure:
       value: 500

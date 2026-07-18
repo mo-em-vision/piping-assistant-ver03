@@ -7,9 +7,9 @@ parameter_class: physical_quantity
 dimension: DIM-pressure
 description: >
   External design gage pressure used for wall thickness design per §304.1.3.
-question: >
-  Please provide the external design pressure for external pressure
-  wall thickness design per ASME B31.3 §304.1.3.
+user_prompt:
+  prompt: Enter external design pressure.
+  help_text: Used for external pressure wall thickness design per ASME B31.3 §304.1.3.
 canonical_symbol: P_ext
 aliases:
   - external design pressure
@@ -25,5 +25,4 @@ metadata:
   version: 1
   last_revision: 2026-07-06
   edited_by: admin
-  short_question: Enter external design pressure.
 ---

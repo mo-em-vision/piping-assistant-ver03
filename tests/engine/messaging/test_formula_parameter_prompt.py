@@ -65,7 +65,7 @@ def test_prompt_shows_formula_and_missing_parameters() -> None:
         task,
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
             "internal_design_gage_pressure": legacy_input(
                 "internal_design_gage_pressure",
                 8.0,

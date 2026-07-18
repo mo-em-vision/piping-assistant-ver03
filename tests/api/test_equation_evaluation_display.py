@@ -64,7 +64,7 @@ def test_build_equation_evaluation_block_derived_t_shows_value_reference(standar
     task = manager.create_task("eq-eval-304-1-1", status=TaskStatus.AWAITING_INPUT)
     planning = {
         "path_decision": {
-            "pressure_loading": "internal_pressure",
+            "pressure_design_case": "internal_pressure",
             "selected_node": "304.1.1-a",
         },
         "current_phase": "formula_parameters",
@@ -96,7 +96,7 @@ def test_eq2_trace_updates_t_value_when_output_available(standards_reader) -> No
     task = manager.create_task("eq-eval-trace-t", status=TaskStatus.AWAITING_INPUT)
     planning = {
         "path_decision": {
-            "pressure_loading": "internal_pressure",
+            "pressure_design_case": "internal_pressure",
             "selected_node": "304.1.2-a",
         },
         "current_phase": "formula_parameters",

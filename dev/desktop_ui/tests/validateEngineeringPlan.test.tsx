@@ -17,7 +17,7 @@ const minimalValidPlan = {
     target_parameter: 'PARAM-minimum-required-thickness',
     target_field: 'minimum_required_thickness',
     status: 'blocked',
-    blocked_by: ['REQ-straight_pipe_section', 'REQ-pressure_loading'],
+    blocked_by: ['REQ-straight_pipe_section', 'REQ-pressure_design_case'],
     required_outputs: [],
   },
   requirements: {
@@ -33,12 +33,12 @@ const minimalValidPlan = {
       required_by: [],
       depends_on: [],
     },
-    'REQ-pressure_loading': {
-      id: 'REQ-pressure_loading',
-      key: 'input-pressure_loading',
-      field: 'pressure_loading',
+    'REQ-pressure_design_case': {
+      id: 'REQ-pressure_design_case',
+      key: 'input-pressure_design_case',
+      field: 'pressure_design_case',
       title: 'Pressure Loading',
-      parameter_node_id: 'PARAM-pressure-loading',
+      parameter_node_id: 'PARAM-pressure-design-case',
       requirement_class: 'branch_decision',
       status: 'missing',
       phase: 'path_decisions',
@@ -171,7 +171,7 @@ const minimalValidPlan = {
       depends_on: [],
     },
   },
-  dependencies: [{ from: 'REQ-straight_pipe_section', to: 'REQ-pressure_loading', type: 'requires' }],
+  dependencies: [{ from: 'REQ-straight_pipe_section', to: 'REQ-pressure_design_case', type: 'requires' }],
   input_strategy: {
     mode: 'single_next_question',
     current_phase: 'expansion_assumptions',
@@ -197,7 +197,7 @@ const minimalValidPlan = {
     },
     pending_expansion_nodes: [
       {
-        node_id: 'PARAM-pressure-loading',
+        node_id: 'PARAM-pressure-design-case',
         node_type: 'parameter',
         title: 'Pressure Loading',
         phase: 'path_decisions',
@@ -211,13 +211,13 @@ const minimalValidPlan = {
         node_type: 'workflow',
         title: 'Pipe Wall Thickness Workflow',
         expanded_at_order: 1,
-        produced_requirements: ['REQ-straight_pipe_section', 'REQ-pressure_loading'],
+        produced_requirements: ['REQ-straight_pipe_section', 'REQ-pressure_design_case'],
         produced_edges: [],
       },
     ],
     branch_decisions: [
       {
-        field: 'pressure_loading',
+        field: 'pressure_design_case',
         value: null,
         selected_node: null,
         candidate_nodes: ['304.1.2-a', '304.1.3'],

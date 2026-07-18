@@ -372,7 +372,7 @@ Built in `engine/planner/planner_traversal.py` when `build_pipe_wall_engineering
 | `current_active_node_id` | Next planner traversal node (matches `input_strategy.next_fields[0]` mapped to `PARAM-*`) |
 | `pending_expansion_nodes` | Known nodes blocked by unresolved gates or branch decisions (`waiting_on`, `reason`) |
 | `expanded_nodes` | Nodes already expanded (e.g. workflow root) with produced requirements |
-| `branch_decisions` | Unresolved/resolved path decisions with `candidate_nodes` (e.g. `pressure_loading` → `304.1.2-a`, `304.1.3`) |
+| `branch_decisions` | Unresolved/resolved path decisions with `candidate_nodes` (e.g. `pressure_design_case` → `304.1.2-a`, `304.1.3`) |
 | `traversal_events` | Ordered log: `node_expanded`, `node_selected`, `branch_decision_required`, `node_deferred`, … |
 
 Open the **Planner / Workflow Debug** dev tab after starting a workflow. Traversal timeline appears whenever `engineering_plan.traversal` is present (any workflow).

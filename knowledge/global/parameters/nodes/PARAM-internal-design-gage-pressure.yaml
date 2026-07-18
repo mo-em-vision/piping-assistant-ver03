@@ -7,10 +7,9 @@ parameter_class: physical_quantity
 dimension: DIM-pressure
 description: >
   Internal design gage pressure
-question: >
-  Enter the internal design gage pressure P.
-  This value is used in the pressure design thickness equation.
-  Examples: 500 psi, 8 bar, 3.5 MPa.
+user_prompt:
+  prompt: Enter internal design gage pressure P.
+  help_text: This value is used in the pressure design thickness equation.
 canonical_symbol: P
 aliases:
   - design pressure
@@ -28,7 +27,6 @@ metadata:
   version: 1
   last_revision: 2026-07-04
   edited_by: admin
-  short_question: Enter internal design gage pressure P.
   input_examples:
     - 500 psi
     - 8 bar

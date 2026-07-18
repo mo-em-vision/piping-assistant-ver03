@@ -69,7 +69,7 @@ display:
   text: t = PD / 2(S E_j W + PY)
 applicability:
   applies_when:
-  - parameter: PARAM-pressure-loading
+  - parameter: PARAM-pressure-design-case
     operator: equals
     value: internal_pressure
   - parameter: PARAM-straight-pipe-section

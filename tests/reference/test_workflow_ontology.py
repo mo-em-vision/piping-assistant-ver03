@@ -68,18 +68,19 @@ def test_workflow_sidecars_expose_runtime_metadata() -> None:
     reader = StandardsReader(_project_root() / "knowledge" / "standards", standard="asme_b31.3")
     for workflow_id in _EXPECTED_WORKFLOW_IDS:
         record = reader.load(workflow_id)
-        assert record.metadata.get("navigation"), workflow_id
         assert record.metadata.get("slug") or record.metadata.get("key")
         assert record.metadata.get("engineering_intent") or record.metadata.get("key")
 
     pipe = reader.load("WF-PIPE-WALL-THICKNESS")
-    assert pipe.metadata.get("interactions")
+    assert pipe.metadata.get("texts")
 
     mawp = reader.load("WF-MAWP")
     assert mawp.metadata.get("equations")
     assert mawp.metadata.get("inputs")
     assert mawp.metadata.get("nomenclature")
-    assert mawp.metadata.get("assumptions")
+    assert mawp.metadata.get("provisional_assumptions")
+    assert mawp.metadata.get("navigation") is None
+    assert pipe.metadata.get("interactions") is None
 
 
 def test_workflow_slug_resolution() -> None:

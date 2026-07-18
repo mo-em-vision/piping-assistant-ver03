@@ -63,16 +63,21 @@ def test_mawp_task_detection() -> None:
     assert is_mawp_task(task) is True
 
 
-def test_mawp_bootstrap_seeds_pressure_loading_and_nps_resolution_branch(
+def test_mawp_bootstrap_seeds_pressure_design_case_and_nps_resolution_branch(
     temp_service: DesktopApiService,
 ) -> None:
-    from models.fact import fact_scalar_value
+    from models.fact import FactClass, fact_scalar_value
 
     project = temp_service.create_project("MAWP Defaults")
     state = temp_service.create_task(MAWP_DESIGN, project["id"])
     manager = temp_service._store_for(project["id"]).load_state_manager()
     task = manager.get_task(state["task_id"])
-    assert task.fact_store.active_fact("pressure_loading") is not None
+    fact = task.fact_store.active_fact("pressure_design_case")
+    assert fact is not None
+    assert fact_scalar_value(fact) == "internal_pressure"
+    assert fact.fact_class == FactClass.ASSUMED
+    assert fact.provenance.workflow_id == MAWP_DESIGN
+    assert fact.provenance.created_by == "workflow_assumption"
     branch = task.fact_store.active_fact("outside_diameter__resolution_branch")
     assert branch is not None
     assert fact_scalar_value(branch) == "nps_lookup"

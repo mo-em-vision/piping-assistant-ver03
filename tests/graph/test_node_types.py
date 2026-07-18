@@ -22,7 +22,7 @@ def test_assumption_normalizes_to_parameter() -> None:
 
 
 def test_interaction_normalizes_to_parameter() -> None:
-    meta = {"field": "pressure_loading", "mode": "decision"}
+    meta = {"field": "pressure_design_case", "mode": "decision"}
     node_type, normalized = normalize_node_metadata(meta, "interaction")
     assert node_type == "parameter"
     assert normalized["kind"] == "interaction"

@@ -18,14 +18,14 @@ On a new task with no confirmed inputs:
 | `input_strategy.mode` | `single_next_question` |
 | `input_strategy.current_phase` | `expansion_assumptions` |
 | `input_strategy.next_fields` | `["straight_pipe_section"]` only |
-| `input_strategy.blocked_fields` | includes `pressure_loading`; does **not** include it in `next_fields` |
+| `input_strategy.blocked_fields` | includes `pressure_design_case`; does **not** include it in `next_fields` |
 | Active phases | exactly one: `expansion_assumptions` |
-| Root `blocked_by` | `REQ-straight_pipe_section`, `REQ-pressure_loading` (gate requirements only) |
+| Root `blocked_by` | `REQ-straight_pipe_section`, `REQ-pressure_design_case` (gate requirements only) |
 | `traversal.current_active_node_id` | gatherable PARAM for `straight_pipe_section` |
 | `traversal.pending_expansion_nodes` ∩ `traversal.expanded_nodes` | empty |
 | Internal pressure requirement | `REQ-internal_design_gage_pressure` has `activation_status: conditional` |
 
-After `straight_pipe_section` is confirmed, expect hard-block only on `REQ-pressure_loading`, `next_fields == ["pressure_loading"]`, and phase `path_decisions`.
+After `straight_pipe_section` is confirmed, expect hard-block only on `REQ-pressure_design_case`, `next_fields == ["pressure_design_case"]`, and phase `path_decisions`.
 
 ---
 

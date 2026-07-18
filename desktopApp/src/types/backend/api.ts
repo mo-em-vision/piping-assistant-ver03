@@ -188,6 +188,7 @@ export interface CurrentAskDto {
   parameter_id?: string | null
   prompt?: string | null
   short_prompt?: string | null
+  help_text?: string | null
 }
 
 export interface WorkflowDisplayDto {

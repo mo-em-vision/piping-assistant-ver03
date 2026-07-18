@@ -127,7 +127,7 @@ def _run_profile(*, steps: int) -> tuple[dict[str, float] | None, dict[str, floa
             )
 
         state, trace = _run_traced("submit_input", task_id, _submit)
-        if trace and param == "pressure_loading":
+        if trace and param == "pressure_design_case":
             pressure_trace = trace
         if trace and param == "corrosion_allowance":
             corrosion_trace = trace
@@ -171,13 +171,13 @@ def _print_comparison(title: str, before: dict[str, float], after: dict[str, flo
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run profile and compare to baseline file.")
     parser.add_argument("--baseline", type=Path, default=ROOT / "profile_before.txt")
-    parser.add_argument("--steps", type=int, default=2, help="Submit steps (default: 2 = through pressure_loading)")
+    parser.add_argument("--steps", type=int, default=2, help="Submit steps (default: 2 = through pressure_design_case)")
     parser.add_argument("--corrosion", action="store_true", help="Also profile post-calc corrosion_allowance submit")
     parser.add_argument("--output", type=Path, help="Write report to file (stdout still printed)")
     args = parser.parse_args()
 
     baseline_text = args.baseline.read_text(encoding="utf-8", errors="replace")
-    before_pressure = _parse_key_metrics(baseline_text, "pressure_loading submit")
+    before_pressure = _parse_key_metrics(baseline_text, "pressure_design_case submit")
     if not before_pressure:
         before_pressure = {
             "submit_input_total": 4255.6,
@@ -189,7 +189,7 @@ def main() -> None:
 
     pressure_after, corrosion_after = _run_profile(steps=args.steps)
     if pressure_after is None:
-        print("No pressure_loading submit captured.")
+        print("No pressure_design_case submit captured.")
         sys.exit(1)
     if args.corrosion and corrosion_after is None:
         service = _build_service()
@@ -204,7 +204,7 @@ def main() -> None:
         lines.append(line)
 
     emit()
-    emit("=== pressure_loading submit (before vs after) ===")
+    emit("=== pressure_design_case submit (before vs after) ===")
     emit(f"{'metric':28} {'before':>10} {'after':>10} {'delta':>10}")
     keys = sorted(set(before_pressure) | set(pressure_after))
     for key in keys:

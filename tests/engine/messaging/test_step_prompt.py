@@ -47,7 +47,7 @@ def test_straight_pipe_prompt_is_deterministic() -> None:
     assert plan.current_phase == NavigationPhase.EXPANSION_ASSUMPTIONS
 
 
-def test_pressure_loading_prompt_lists_numbered_options() -> None:
+def test_pressure_design_case_prompt_lists_numbered_options() -> None:
     reader = _reader()
     state = TaskStateManager()
     task = state.create_task("step-decision", status=TaskStatus.AWAITING_INPUT)
@@ -65,7 +65,7 @@ def test_pressure_loading_prompt_lists_numbered_options() -> None:
         reader=reader,
         task=state.get_task(task.task_id),
         navigation_plan=plan,
-        missing_input_ids=["pressure_loading"],
+        missing_input_ids=["pressure_design_case"],
     )
 
     assert prompt is not None

@@ -76,14 +76,15 @@ metadata:
 | `dimension` | `DIM-*` reference |
 | `canonical_symbol` | Symbol in equations (e.g. `S`) |
 | `aliases` | Search synonyms |
-| `question` | Primary user-facing prompt |
-| `metadata.short_question` | One-line composer ask |
+| `user_prompt.prompt` | Brief composer heading |
+| `user_prompt.help_text` | Optional engineering guidance (not unit-entry instructions) |
 | `metadata.composer_input` | UI control type |
 | `metadata.composer_options` | Static dropdown choices |
 | `metadata.canonical_unit` | Default unit symbol or `UNIT-*` |
 | `metadata.default_value` | Proposed default |
 | `metadata.input_examples` | Prompt examples |
 | `metadata.prompt_use_description` | Skip description in prompts when `false` |
+| `metadata.role` | Parameter runtime role (`path_decision` for branch-driving categorical fields) |
 | `metadata.status` | Lifecycle |
 | `edges` | `has_dimension`, `used_by`, etc. |
 
@@ -107,6 +108,7 @@ Also forbidden:
 - `introduced_by` as an edge type (must be top-level list)
 - Top-level `links` block
 - Legacy paragraph refs (`B313-*`, `asme_b313_*` without `asme-b313-` qualification)
+- Legacy prompt fields `question`, `short_question`, `metadata.question`, and `metadata.short_question` (use top-level `user_prompt`)
 
 ## 10. Permitted outgoing relationships
 
@@ -121,7 +123,7 @@ Do **not** author `introduced_by` in `edges` — compiler emits those from the t
 
 ## 11. Fields consumed by runtime components
 
-Graph expansion activates parameters on the expanded path and reads `applicability` on related nodes. Planner selects the next missing parameter from active graph nodes. Messaging reads `question`, `metadata.short_question`, and composer metadata for prompts. Execution binds `requires`/`returns` entries to `PARAM-*` ids via Facts. Desktop composer reads `metadata.composer_input` and `metadata.composer_options`.
+Graph expansion activates parameters on the expanded path and reads `applicability` on related nodes. Planner selects the next missing parameter from active graph nodes. Messaging reads `user_prompt`, `description`, and composer metadata for prompts. Execution binds `requires`/`returns` entries to `PARAM-*` ids via Facts. Desktop composer reads structured `prompt` / `help_text` from API payloads plus `metadata.composer_input` and `metadata.composer_options`.
 
 ## 12. Validation procedure
 
@@ -136,14 +138,14 @@ Graph expansion activates parameters on the expanded path and reads `applicabili
 - Putting `introduced_by` in `edges` instead of top-level list.
 - Using bare paragraph numbers (`304.1.1-b`) without pack prefix in `introduced_by`.
 - Storing runtime `value` or `resolution` on the node.
-- Omitting `question` for gatherable parameters (falls back to thin descriptions).
+- Omitting `user_prompt.prompt` for gatherable parameters (falls back to thin descriptions).
 - Using `categorical` / `selection` on concept nodes instead of parameters.
 
 ## 14. Current repository examples
 
 - `knowledge/global/parameters/nodes/PARAM-allowable-stress.yaml`
 - `knowledge/global/parameters/nodes/PARAM-internal-design-gage-pressure.yaml`
-- `knowledge/global/parameters/nodes/PARAM-pressure-loading.yaml`
+- `knowledge/global/parameters/nodes/PARAM-pressure-design-case.yaml`
 - `knowledge/global/parameters/nodes/PARAM-basic-casting-quality-factor.yaml`
 - `knowledge/global/parameters/nodes/PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes.yaml`
 

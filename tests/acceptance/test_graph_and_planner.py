@@ -84,8 +84,8 @@ class TestPlannerAcceptance:
             or "straight_pipe_section" in (plan.phase_missing.get("expansion_assumptions") or [])
         )
         assert (
-            "pressure_loading" in plan.missing_assumptions
-            or "pressure_loading" in (plan.phase_missing.get("path_decisions") or [])
+            "pressure_design_case" in plan.missing_assumptions
+            or "pressure_design_case" in (plan.phase_missing.get("path_decisions") or [])
         )
         assert plan.missing_inputs == []
         assert plan.questions

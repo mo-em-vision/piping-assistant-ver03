@@ -396,9 +396,11 @@ def _append_equation_gathering_pending(
     requirements: dict[str, PlanRequirement],
     active_node_id: str | None,
     seen: set[str],
+    expanded_node_ids: set[str] | None = None,
 ) -> None:
     if not _gate_phases_clear(requirements):
         return
+    expanded = expanded_node_ids or set()
     for req in requirements.values():
         if req.requirement_class != "equation_result":
             continue
@@ -409,6 +411,8 @@ def _append_equation_gathering_pending(
         resolution = req.resolution if isinstance(req.resolution, dict) else {}
         equation_id = str(resolution.get("source_node_id") or "").strip()
         if not equation_id or equation_id in seen or equation_id == active_node_id:
+            continue
+        if equation_id in expanded:
             continue
         if not _equation_dep_unresolved(req, requirements) and req.status != "missing":
             continue
@@ -434,6 +438,7 @@ def _build_pending_nodes(
     active_node_id: str | None,
     branch_decisions: list[TraversalBranchDecision],
     existing_inputs: dict[str, Any],
+    expanded_node_ids: set[str] | None = None,
 ) -> list[TraversalPendingNode]:
     pending: list[TraversalPendingNode] = []
     seen: set[str] = set()
@@ -479,6 +484,7 @@ def _build_pending_nodes(
         requirements=requirements,
         active_node_id=active_node_id,
         seen=seen,
+        expanded_node_ids=expanded_node_ids,
     )
 
     for decision in branch_decisions:
@@ -810,6 +816,7 @@ def build_planner_traversal_state(
         active_node_id=active_node_id,
         branch_decisions=branch_decisions,
         existing_inputs=inputs,
+        expanded_node_ids=set(graph.expanded_node_ids or []),
     )
     expanded_nodes = _build_expanded_nodes(
         reader=reader,

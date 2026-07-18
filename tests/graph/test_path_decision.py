@@ -26,7 +26,7 @@ def test_resolve_path_decision_internal_pressure(project_root: Path) -> None:
     inputs = facts_from_inputs(
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": internal_pressure_assumption(),
+            "pressure_design_case": internal_pressure_assumption(),
         },
         task_id="path-test",
     )
@@ -38,7 +38,7 @@ def test_resolve_path_decision_internal_pressure(project_root: Path) -> None:
     )
     decision = resolve_path_decision(store, list(plan.execution_order), inputs)
     assert decision is not None
-    assert decision["field"] == "pressure_loading"
+    assert decision["field"] == "pressure_design_case"
     assert decision["value"] == "internal_pressure"
     assert decision["selected_node"] == "304.1.2-a"
 
@@ -48,8 +48,8 @@ def test_resolve_path_decision_external_pressure(project_root: Path) -> None:
     inputs = facts_from_inputs(
         {
             "straight_pipe_section": straight_section_assumption(),
-            "pressure_loading": legacy_input(
-                "pressure_loading",
+            "pressure_design_case": legacy_input(
+                "pressure_design_case",
                 "external_pressure",
                 source=InputSource.USER,
                 status=InputStatus.CONFIRMED,

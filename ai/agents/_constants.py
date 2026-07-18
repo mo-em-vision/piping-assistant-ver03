@@ -13,7 +13,7 @@ PIPE_WALL_THICKNESS_NODE = "304.1.2-a"
 
 REQUIRED_ASSUMPTION_FIELDS: tuple[str, ...] = (
     "straight_pipe_section",
-    "pressure_loading",
+    "pressure_design_case",
 )
 
 REQUIRED_USER_INPUTS: tuple[str, ...] = (
@@ -56,7 +56,7 @@ MISSING_CONTEXT_PATTERNS: dict[str, re.Pattern[str]] = {
 }
 
 REQUIRED_PIPE_INPUTS: tuple[str, ...] = (
-    "pressure_loading",
+    "pressure_design_case",
     "design_pressure",
     "outside_diameter",
     "material",

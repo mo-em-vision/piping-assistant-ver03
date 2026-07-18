@@ -8,24 +8,17 @@ source:
   table_id: table-2-1
 type: lookup
 title: Wall thickness from NPS and schedule (ASME B36.10M Table 2-1)
+table_number: 2-1
 description: >
   Resolve wall thickness from nominal pipe size and schedule per ASME B36.10M Table 2-1.
-inputs:
-- id: nominal_pipe_size
-  name: nominal_pipe_size
-  task_input_id: nominal_pipe_size
-  required: true
-  source: user_input
-  unit: dimensionless
-- id: pipe_schedule
-  name: pipe_schedule
-  task_input_id: pipe_schedule
-  required: true
-  source: user_input
-  unit: dimensionless
+requires:
+  - parameter: PARAM-nominal-pipe-size
+    description: Nominal pipe size
+  - parameter: PARAM-pipe-schedule
+    description: Pipe schedule
 returns:
-- parameter: PARAM-actual-wall-thickness
-  symbol: t_actual
+  - parameter: PARAM-actual-wall-thickness
+    symbol: t_actual
 lookup:
   table: B3610-table-2-1
   rule: by_nps_schedule
@@ -34,25 +27,25 @@ lookup:
     pipe_schedule: PARAM-pipe-schedule
 applicability:
   applies_when:
-  - parameter: outside_diameter__resolution_branch
-    operator: equals
-    value: nps_lookup
-  - parameter: wall_thickness_basis
-    operator: equals
-    value: nominal_schedule
+    - parameter: outside_diameter__resolution_branch
+      operator: equals
+      value: nps_lookup
+    - parameter: wall_thickness_basis
+      operator: equals
+      value: nominal_schedule
 edges:
-- type: returns_parameter
-  target: PARAM-actual-wall-thickness
-- type: requires_parameter
-  target: PARAM-nominal-pipe-size
-- type: requires_parameter
-  target: PARAM-pipe-schedule
-  when:
-    field: nominal_pipe_size
-    present: true
+  - type: returns_parameter
+    target: PARAM-actual-wall-thickness
+  - type: requires_parameter
+    target: PARAM-nominal-pipe-size
+  - type: requires_parameter
+    target: PARAM-pipe-schedule
+    when:
+      field: nominal_pipe_size
+      present: true
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-15
+  last_revision: 2026-07-17
   edited_by: admin
 ---

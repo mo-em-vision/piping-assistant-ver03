@@ -86,7 +86,7 @@ execution:
 
     applies_when:
 
-    - parameter: PARAM-pressure-loading
+    - parameter: PARAM-pressure-design-case
 
       operator: equals
 

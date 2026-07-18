@@ -63,6 +63,8 @@ export interface ParameterDefinitionDto {
   validation: ParameterValidationDto | null
   status: ParameterStatus
   requires_confirmation: boolean
+  prompt?: string | null
+  help_text?: string | null
   guidance?: string | null
   editing?: boolean
   submittable?: boolean

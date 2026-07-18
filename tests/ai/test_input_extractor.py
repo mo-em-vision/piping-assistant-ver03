@@ -66,24 +66,24 @@ def test_rejects_pressure_without_recognized_unit() -> None:
     assert any(r.input_id == "design_pressure" for r in result.rejected)
 
 
-def test_extracts_internal_pressure_loading() -> None:
+def test_extracts_internal_pressure_design_case() -> None:
     result = extract_pipe_wall_thickness_inputs("internal pressure")
 
-    assert result.extracted["pressure_loading"].value == "internal_pressure"
-    assert result.extracted["pressure_loading"].status == InputStatus.CONFIRMED
+    assert result.extracted["pressure_design_case"].value == "internal_pressure"
+    assert result.extracted["pressure_design_case"].status == InputStatus.CONFIRMED
 
 
-def test_extracts_external_pressure_loading() -> None:
+def test_extracts_external_pressure_design_case() -> None:
     result = extract_pipe_wall_thickness_inputs("external pressure")
 
-    assert result.extracted["pressure_loading"].value == "external_pressure"
-    assert result.extracted["pressure_loading"].status == InputStatus.CONFIRMED
+    assert result.extracted["pressure_design_case"].value == "external_pressure"
+    assert result.extracted["pressure_design_case"].status == InputStatus.CONFIRMED
 
 
 def test_extracts_short_internal_reply() -> None:
     result = extract_pipe_wall_thickness_inputs("internal")
 
-    assert result.extracted["pressure_loading"].value == "internal_pressure"
+    assert result.extracted["pressure_design_case"].value == "internal_pressure"
 
 
 def test_extracts_numbered_straight_pipe_yes() -> None:
@@ -95,22 +95,22 @@ def test_extracts_numbered_straight_pipe_yes() -> None:
     assert result.extracted["straight_pipe_section"].value is True
 
 
-def test_extracts_numbered_pressure_loading_choice() -> None:
+def test_extracts_numbered_pressure_design_case_choice() -> None:
     result = extract_pipe_wall_thickness_inputs("1")
 
-    assert result.extracted["pressure_loading"].value == "internal_pressure"
+    assert result.extracted["pressure_design_case"].value == "internal_pressure"
 
 
 def test_extracts_option_two_for_external_pressure() -> None:
     result = extract_pipe_wall_thickness_inputs("option 2")
 
-    assert result.extracted["pressure_loading"].value == "external_pressure"
+    assert result.extracted["pressure_design_case"].value == "external_pressure"
 
 
-def test_design_pressure_does_not_set_pressure_loading() -> None:
+def test_design_pressure_does_not_set_pressure_design_case() -> None:
     result = extract_pipe_wall_thickness_inputs("design pressure 500 psi")
 
-    assert "pressure_loading" not in result.extracted
+    assert "pressure_design_case" not in result.extracted
     assert result.extracted["design_pressure"].value == 500.0
 
 

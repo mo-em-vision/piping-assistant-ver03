@@ -59,7 +59,7 @@ def test_queue_and_exclusion_reason_normalization() -> None:
 def test_expansion_trace_appends_across_refreshes() -> None:
     outputs: dict = {}
     inputs_a = {"straight_pipe_section": True}
-    inputs_b = {**inputs_a, "pressure_loading": "internal_pressure"}
+    inputs_b = {**inputs_a, "pressure_design_case": "internal_pressure"}
 
     record_planning_refresh_trace(
         outputs,
@@ -68,7 +68,7 @@ def test_expansion_trace_appends_across_refreshes() -> None:
         path_decision=None,
         existing_inputs=inputs_a,
         lazy=True,
-        pending_fields=["pressure_loading"],
+        pending_fields=["pressure_design_case"],
     )
     first_len = len(load_expansion_trace(outputs))
 
@@ -76,7 +76,7 @@ def test_expansion_trace_appends_across_refreshes() -> None:
         outputs,
         root_id="pipe_wall_thickness_design",
         preview=_preview(["WF-ROOT", "304.1.1-a", "304.1.2-a"]),
-        path_decision={"field": "pressure_loading", "value": "internal_pressure", "selected_node": "304.1.2-a"},
+        path_decision={"field": "pressure_design_case", "value": "internal_pressure", "selected_node": "304.1.2-a"},
         existing_inputs=inputs_b,
         lazy=False,
         pending_fields=[],
@@ -118,7 +118,7 @@ def test_trace_replay_matches_active_nodes() -> None:
         root_id="pipe_wall_thickness_design",
         preview=_preview(active),
         path_decision=None,
-        existing_inputs={"straight_pipe_section": True, "pressure_loading": "internal_pressure"},
+        existing_inputs={"straight_pipe_section": True, "pressure_design_case": "internal_pressure"},
         lazy=False,
     )
     trace = load_expansion_trace(outputs)
@@ -127,7 +127,7 @@ def test_trace_replay_matches_active_nodes() -> None:
 
 def test_trace_steps_convert_to_traversal_events() -> None:
     trace = [
-        append_parameter_resolved_step([], field_name="pressure_loading")[0],
+        append_parameter_resolved_step([], field_name="pressure_design_case")[0],
         append_expansion_step(
             [],
             operation_type="expansion",

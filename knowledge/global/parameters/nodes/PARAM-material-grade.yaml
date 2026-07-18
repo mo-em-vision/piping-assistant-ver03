@@ -8,10 +8,11 @@ dimension: DIM-material-designation
 description: >
   Material specification or grade designation used to resolve allowable stress,
   material properties, and applicable standard limits from authority catalogs.
-question: >
-  Enter the material specification and grade.
-  This is used with design temperature to resolve allowable stress from the applicable material table.
-  Example: ASTM A106 Grade B.
+user_prompt:
+  prompt: Enter material specification and grade.
+  help_text: >
+    Used with design temperature to resolve allowable stress from the applicable
+    material table.
 canonical_symbol: material
 aliases:
   - material grade
@@ -31,7 +32,6 @@ metadata:
   version: 1
   last_revision: 2026-07-04
   edited_by: admin
-  short_question: Enter material specification and grade.
   composer_input: material
   table_options:
     table: MAT-catalog

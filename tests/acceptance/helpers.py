@@ -43,7 +43,7 @@ def straight_section_assumption() -> EngineeringInput:
 
 def internal_pressure_assumption() -> EngineeringInput:
     return EngineeringInput(
-        input_id="pressure_loading",
+        input_id="pressure_design_case",
         value="internal_pressure",
         unit="dimensionless",
         source=InputSource.USER,
@@ -53,7 +53,7 @@ def internal_pressure_assumption() -> EngineeringInput:
 
 def external_pressure_assumption() -> EngineeringInput:
     return EngineeringInput(
-        input_id="pressure_loading",
+        input_id="pressure_design_case",
         value="external_pressure",
         unit="dimensionless",
         source=InputSource.USER,
@@ -96,7 +96,7 @@ def sample_inputs(
 ) -> dict[str, EngineeringInput]:
     inputs = {
         "straight_pipe_section": straight_section_assumption(),
-        "pressure_loading": internal_pressure_assumption(),
+        "pressure_design_case": internal_pressure_assumption(),
         "outside_diameter__resolution_branch": EngineeringInput(
             input_id="outside_diameter__resolution_branch",
             value="direct_od",
@@ -223,7 +223,7 @@ def mawp_sample_inputs() -> dict[str, EngineeringInput]:
     """Confirmed inputs sufficient to execute the MAWP workflow end-to-end."""
     inputs = {
         "straight_pipe_section": straight_section_assumption(),
-        "pressure_loading": internal_pressure_assumption(),
+        "pressure_design_case": internal_pressure_assumption(),
         "outside_diameter__resolution_branch": EngineeringInput(
             input_id="outside_diameter__resolution_branch",
             value="direct_od",

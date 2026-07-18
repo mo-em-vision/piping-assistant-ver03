@@ -5,14 +5,21 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
+from engine.reference.parameter_keys import canonical_parameter_key, load_parameter_node_metadata
+from engine.reference.parameter_metadata import is_path_decision_parameter
 from engine.reference.param_resolver import resolve_parameter_id
 from models.execution_context import Decision, ExecutionContext, new_decision_id
 from models.task import Task
 
 
-_SELECTION_PARAMETERS = frozenset(
-    {"pressure_loading"}
-)
+_SELECTION_PARAMETERS = frozenset()  # compat: use _is_selection_parameter()
+
+
+def _is_selection_parameter(parameter: str) -> bool:
+    canonical = canonical_parameter_key(parameter)
+    node_id = f"PARAM-{canonical.replace('_', '-')}"
+    metadata = load_parameter_node_metadata(node_id)
+    return is_path_decision_parameter(metadata)
 
 
 def _utc_now_iso() -> str:
@@ -65,7 +72,7 @@ def record_decision_for_task(
 
 
 def record_decision_from_fact(task: Task, key: str, value: Any) -> Decision | None:
-    if key not in _SELECTION_PARAMETERS:
+    if not _is_selection_parameter(key):
         return None
     return record_decision_for_task(
         task,
@@ -79,7 +86,7 @@ def migrate_path_decision_to_context(task: Task) -> None:
     path = task.outputs.get("path_decision")
     if not isinstance(path, dict):
         return
-    field = path.get("field") or path.get("pressure_loading")
+    field = path.get("field") or path.get("parameter")
     value = path.get("value") or path.get("selected_node") or field
     if field:
         record_decision_for_task(

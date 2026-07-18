@@ -21,9 +21,9 @@ from engine.reference.standards_reader import StandardsReader
 from models.input import EngineeringInput, InputSource, InputStatus
 
 
-def _pressure_loading_spec() -> NodeInteractionSpec:
+def _pressure_design_case_spec() -> NodeInteractionSpec:
     return NodeInteractionSpec(
-        variable="pressure_loading",
+        variable="pressure_design_case",
         mode=InteractionMode.DECISION,
         node_id="pipe_wall_thickness_design",
         required=True,
@@ -62,7 +62,7 @@ def test_parse_interactions_from_metadata() -> None:
 
 
 def test_match_decision_internal_pressure() -> None:
-    spec = _pressure_loading_spec()
+    spec = _pressure_design_case_spec()
 
     assert match_decision_in_message("internal pressure", spec) == "internal_pressure"
     assert match_decision_in_message("internal", spec) == "internal_pressure"
@@ -70,37 +70,37 @@ def test_match_decision_internal_pressure() -> None:
 
 
 def test_ambiguous_decision_returns_none() -> None:
-    spec = _pressure_loading_spec()
+    spec = _pressure_design_case_spec()
 
     assert match_decision_in_message("internal and external pressure", spec) is None
 
 
-def test_design_pressure_phrase_does_not_match_pressure_loading() -> None:
-    spec = _pressure_loading_spec()
+def test_design_pressure_phrase_does_not_match_pressure_design_case() -> None:
+    spec = _pressure_design_case_spec()
 
     assert match_decision_in_message("design pressure 500 psi", spec) is None
 
 
 def test_resolve_interaction_value_validates_options() -> None:
-    spec = _pressure_loading_spec()
+    spec = _pressure_design_case_spec()
 
     assert resolve_interaction_value(spec, "internal") == "internal_pressure"
     assert resolve_interaction_value(spec, "invalid_case") is None
 
 
 def test_evaluate_pending_interactions_missing_decision() -> None:
-    spec = _pressure_loading_spec()
+    spec = _pressure_design_case_spec()
     result = evaluate_pending_interactions([spec], {}, phase="expansion")
 
-    assert result.missing_fields == ["pressure_loading"]
-    assert "internal or external" in result.field_questions["pressure_loading"].lower()
+    assert result.missing_fields == ["pressure_design_case"]
+    assert "internal or external" in result.field_questions["pressure_design_case"].lower()
 
 
 def test_evaluate_pending_interactions_satisfied_when_confirmed() -> None:
-    spec = _pressure_loading_spec()
+    spec = _pressure_design_case_spec()
     inputs = {
-        "pressure_loading": EngineeringInput(
-            input_id="pressure_loading",
+        "pressure_design_case": EngineeringInput(
+            input_id="pressure_design_case",
             value="internal_pressure",
             unit="dimensionless",
             source=InputSource.USER,
@@ -113,30 +113,34 @@ def test_evaluate_pending_interactions_satisfied_when_confirmed() -> None:
 
 
 def test_interaction_input_from_response_is_confirmed() -> None:
-    spec = _pressure_loading_spec()
+    spec = _pressure_design_case_spec()
     inp = interaction_input_from_response(spec, "internal_pressure", task_id="test-task")
 
     assert inp.status == InputStatus.CONFIRMED
     assert inp.value == "internal_pressure"
 
 
-def test_workflow_declares_pressure_loading_interaction() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
-    record = reader.load("WF-PIPE-WALL-THICKNESS")
-    specs = load_node_interactions(record, reader)
+def test_param_declares_pressure_design_case_path_decision() -> None:
+    from engine.reference.parameter_keys import load_parameter_node_metadata
+    from engine.reference.parameter_metadata import is_path_decision_parameter
 
-    pressure = next(spec for spec in specs if spec.variable == "pressure_loading")
-    assert pressure.mode == InteractionMode.DECISION
-    assert "internal_pressure" in pressure.options
-    assert "external_pressure" in pressure.options
+    metadata = load_parameter_node_metadata("PARAM-pressure-design-case")
+    assert is_path_decision_parameter(metadata)
+    nested = metadata.get("metadata") if isinstance(metadata.get("metadata"), dict) else metadata
+    options = [
+        str(item.get("value"))
+        for item in (nested.get("composer_options") or [])
+        if isinstance(item, dict)
+    ]
+    assert "internal_pressure" in options
+    assert "external_pressure" in options
 
 
 def test_extract_decision_responses_from_message() -> None:
-    spec = _pressure_loading_spec()
+    spec = _pressure_design_case_spec()
     responses = extract_decision_responses("internal pressure", [spec])
 
-    assert responses["pressure_loading"] == "internal_pressure"
+    assert responses["pressure_design_case"] == "internal_pressure"
 
 
 def test_load_node_interactions_bridges_confirmation_inputs() -> None:

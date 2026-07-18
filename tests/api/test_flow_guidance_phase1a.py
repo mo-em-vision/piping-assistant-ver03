@@ -98,7 +98,7 @@ def test_guidance_block_renders_once_in_transcript(tmp_path: Path, project_root:
     )
     state = service.submit_input(
         task_id,
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )
@@ -151,7 +151,7 @@ def test_repeated_get_task_display_outputs_stable(
     )
     service.submit_input(
         task_id,
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )
@@ -248,7 +248,7 @@ def test_reload_shows_one_guidance_block_not_zero_or_duplicate(
     )
     service.submit_input(
         task_id,
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )

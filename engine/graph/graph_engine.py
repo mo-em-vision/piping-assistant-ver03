@@ -17,8 +17,8 @@ from engine.graph.assumption_checker import (
     NodeAssumptionSpec,
 )
 from engine.graph.node_interaction import (
+    NodeInteractionSpec,
     collect_path_interactions,
-    collect_root_interactions,
     evaluate_pending_interactions,
     find_interaction,
     node_expansion_ready,
@@ -34,6 +34,23 @@ from models.graph import EdgeType, GraphEdge, GraphVersion
 from models.fact import Fact, fact_from_user_submission, proposed_default_fact
 from models.input import ParameterDescriptor
 from models.planning import WorkflowCandidate
+
+
+def _question_for_field(field_name: str) -> str:
+    from engine.reference.parameter_keys import load_parameter_node_metadata, param_node_id_for_input
+    from engine.reference.parameter_metadata import parameter_prompt_or_description
+
+    metadata = load_parameter_node_metadata(param_node_id_for_input(field_name))
+    prompt = parameter_prompt_or_description(metadata or {})
+    if prompt:
+        return prompt
+    return question_for(
+        NodeAssumptionSpec(
+            id=f"{field_name}_gate",
+            description=f"Confirm {field_name.replace('_', ' ')}",
+            field=field_name,
+        )
+    )
 
 
 # Future workflow stubs surfaced when keywords match (not yet implemented).
@@ -463,7 +480,6 @@ class GraphEngine:
                 inputs=inputs,
                 plan=plan,
             )
-            root_interactions = collect_root_interactions(reader, slug)
             path_interactions = collect_path_interactions(reader, resolved_plan.execution_order)
             for skipped in resolved_plan.skipped_nodes:
                 if not skipped.get("pending"):
@@ -474,18 +490,10 @@ class GraphEngine:
                 evaluation.missing_fields.append(field_name)
                 evaluation.field_nodes[field_name] = str(skipped.get("node_id", ""))
                 interaction = find_interaction(path_interactions, field_name)
-                if interaction is None:
-                    interaction = find_interaction(root_interactions, field_name)
                 if interaction is not None:
                     evaluation.field_questions[field_name] = question_for_interaction(interaction)
                 else:
-                    evaluation.field_questions[field_name] = question_for(
-                        NodeAssumptionSpec(
-                            id="pressure_loading_case",
-                            description="Confirm pressure loading case",
-                            field=field_name,
-                        )
-                    )
+                    evaluation.field_questions[field_name] = _question_for_field(field_name)
             return evaluation
         inputs = existing_inputs or {}
         resolved_plan = self._resolve_plan(
@@ -499,7 +507,6 @@ class GraphEngine:
             reader,
             existing_inputs=inputs,
         )
-        root_interactions = collect_root_interactions(reader, slug)
         path_interactions = collect_path_interactions(reader, resolved_plan.execution_order)
         for skipped in resolved_plan.skipped_nodes:
             if not skipped.get("pending"):
@@ -510,18 +517,10 @@ class GraphEngine:
             evaluation.missing_fields.append(field_name)
             evaluation.field_nodes[field_name] = str(skipped.get("node_id", ""))
             interaction = find_interaction(path_interactions, field_name)
-            if interaction is None:
-                interaction = find_interaction(root_interactions, field_name)
             if interaction is not None:
                 evaluation.field_questions[field_name] = question_for_interaction(interaction)
             else:
-                evaluation.field_questions[field_name] = question_for(
-                    NodeAssumptionSpec(
-                        id="pressure_loading_case",
-                        description="Confirm pressure loading case",
-                        field=field_name,
-                    )
-                )
+                evaluation.field_questions[field_name] = _question_for_field(field_name)
         return evaluation
 
     def resolve_and_propose_path_inputs(
@@ -544,8 +543,27 @@ class GraphEngine:
         specs = collect_path_interactions(reader, resolved_plan.execution_order)
         proposed = propose_default_values(specs, existing_inputs or {}, task_id=task_id)
         proposed.update(
-            propose_decision_defaults(specs, existing_inputs or {}, task_id=task_id)
+            propose_decision_defaults(
+                specs,
+                existing_inputs or {},
+                task_id=task_id,
+                workflow_id=slug,
+            )
         )
+        micro = self._micro_engine(reader)
+        if micro is not None:
+            resolved_root = micro.store.resolve_node_id(slug) or slug
+            from engine.graph.expansion_policy import propose_workflow_expansion_defaults
+
+            proposed.update(
+                propose_workflow_expansion_defaults(
+                    micro.store,
+                    resolved_root,
+                    existing_inputs or {},
+                    task_id=task_id,
+                    workflow_id=slug,
+                )
+            )
         from engine.reference.coefficient_resolver import propose_coefficient_defaults
 
         coeff_defaults = propose_coefficient_defaults(
@@ -622,17 +640,8 @@ class GraphEngine:
             plan=plan,
         )
         specs = collect_path_interactions(reader, resolved_plan.execution_order)
-        root_slug = resolve_workflow_node_id(slug)
-        root_specs = collect_root_interactions(reader, root_slug)
-        merged_specs: list[Any] = []
-        seen_vars: set[str] = set()
-        for spec in (*root_specs, *specs):
-            if spec.variable in seen_vars:
-                continue
-            seen_vars.add(spec.variable)
-            merged_specs.append(spec)
         interaction_eval: InteractionEvaluation = evaluate_pending_interactions(
-            merged_specs,
+            specs,
             existing_inputs or {},
             phase="expansion",
         )

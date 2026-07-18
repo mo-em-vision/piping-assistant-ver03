@@ -20,7 +20,7 @@ export const mockTaskState: TaskStateDto = {
         display_value: 'Yes',
       },
       {
-        id: 'pressure_loading',
+        id: 'pressure_design_case',
         title: 'Pressure loading',
         status: 'done',
         value: 'internal_pressure',

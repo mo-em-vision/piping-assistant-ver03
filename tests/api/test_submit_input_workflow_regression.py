@@ -42,7 +42,7 @@ def _assert_compact_task_state(state: dict) -> None:
     assert isinstance(state.get("progress"), dict)
 
 
-def test_pipe_wall_pressure_loading_advances_with_compact_task_state() -> None:
+def test_pipe_wall_pressure_design_case_advances_with_compact_task_state() -> None:
     service, session_id = _service()
     state = service.create_task("pipe_wall_thickness_design", session_id=session_id)
     task_id = state["task_id"]
@@ -57,7 +57,7 @@ def test_pipe_wall_pressure_loading_advances_with_compact_task_state() -> None:
 
     state = service.submit_input(
         task_id,
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )
@@ -65,7 +65,7 @@ def test_pipe_wall_pressure_loading_advances_with_compact_task_state() -> None:
 
     timeline = state["progress"]["timeline"]
     straight = next(step for step in timeline if step["id"] == "straight_pipe_section")
-    pressure = next(step for step in timeline if step["id"] == "pressure_loading")
+    pressure = next(step for step in timeline if step["id"] == "pressure_design_case")
     assert straight["status"] == "done"
     assert pressure["status"] == "done"
     assert pressure.get("display_value")

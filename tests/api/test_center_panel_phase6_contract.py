@@ -171,7 +171,7 @@ def test_completed_task_cross_phase_contract(
     )
     state = service.submit_input(
         task_id,
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )

@@ -166,7 +166,7 @@ def test_gate_phase_single_eq3a_preview_before_thickness_eval(
 
     for param, value in [
         ("straight_pipe_section", True),
-        ("pressure_loading", "internal_pressure"),
+        ("pressure_design_case", "internal_pressure"),
     ]:
         service.submit_input(task_id, parameter=param, value=value, unit=None, session_id=session_id)
 

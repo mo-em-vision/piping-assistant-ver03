@@ -10,6 +10,7 @@ from engine.reference.asme_b313_node_ids import (
     qualify_cross_pack_ref,
 )
 from engine.reference.parameter_keys import validate_parameter_identity_fields
+from engine.reference.parameter_metadata import ALLOWED_PARAMETER_ROLES
 from engine.validation.node_revision_metadata import validate_revision_metadata
 
 ALLOWED_PARAMETER_CLASSES = frozenset(
@@ -74,6 +75,38 @@ def validate_parameter_node(meta: dict[str, Any]) -> list[str]:
     for field in _FORBIDDEN_FIELDS:
         if field in meta:
             issues.append(f"forbidden field: {field}")
+    if "question" in meta:
+        issues.append("legacy field forbidden: question (use user_prompt)")
+    if "short_question" in meta:
+        issues.append("legacy field forbidden: short_question (use user_prompt)")
+    nested = meta.get("metadata")
+    if isinstance(nested, dict) and "short_question" in nested:
+        issues.append("legacy field forbidden: metadata.short_question (use user_prompt)")
+    if isinstance(nested, dict) and "question" in nested:
+        issues.append("legacy field forbidden: metadata.question (use user_prompt)")
+    role = None
+    if isinstance(nested, dict):
+        role = nested.get("role")
+    if role is not None:
+        role_text = str(role).strip()
+        if not role_text:
+            issues.append("metadata.role must be non-empty when present")
+        elif role_text not in ALLOWED_PARAMETER_ROLES:
+            issues.append(f"unknown metadata.role: {role_text}")
+    user_prompt = meta.get("user_prompt")
+    if user_prompt is not None:
+        if not isinstance(user_prompt, dict):
+            issues.append("user_prompt must be a mapping")
+        else:
+            prompt = user_prompt.get("prompt")
+            if not isinstance(prompt, str) or not prompt.strip():
+                issues.append("user_prompt.prompt must be a non-empty string")
+            help_text = user_prompt.get("help_text")
+            if help_text is not None:
+                if not isinstance(help_text, str):
+                    issues.append("user_prompt.help_text must be a string when present")
+                elif not help_text.strip():
+                    issues.append("user_prompt.help_text must be non-empty when present")
     for item in meta.get("edges") or []:
         if isinstance(item, dict):
             edge_type = str(item.get("type") or "").strip()

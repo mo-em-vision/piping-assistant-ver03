@@ -24,11 +24,11 @@ class ParameterMetadataContext:
     parameter_id: str
     node_id: str
     name: str | None = None
-    question: str | None = None
+    prompt: str | None = None
+    help_text: str | None = None
     description: str | None = None
     canonical_symbol: str | None = None
     default_value: Any | None = None
-    short_question: str | None = None
     input_examples: tuple[str, ...] = ()
     allowed_units: tuple[str, ...] = ()
     composer_options: tuple[dict[str, Any], ...] = field(default_factory=tuple)
@@ -37,6 +37,21 @@ class ParameterMetadataContext:
 
 def _merge_param_metadata(raw: dict[str, Any]) -> dict[str, Any]:
     return prepare_parameter_metadata(raw)
+
+
+def _user_prompt_fields(metadata: dict[str, Any]) -> tuple[str | None, str | None]:
+    user_prompt = metadata.get("user_prompt")
+    if not isinstance(user_prompt, dict):
+        return None, None
+    prompt = user_prompt.get("prompt")
+    help_text = user_prompt.get("help_text")
+    prompt_text = str(prompt).strip() if isinstance(prompt, str) and prompt.strip() else None
+    help_text_text = (
+        str(help_text).strip()
+        if isinstance(help_text, str) and help_text.strip()
+        else None
+    )
+    return prompt_text, help_text_text
 
 
 def _load_normalized_metadata(
@@ -66,7 +81,7 @@ def parameter_metadata_context(
     if metadata is None:
         return None
 
-    question = metadata.get("question")
+    prompt, help_text = _user_prompt_fields(metadata)
     description = metadata.get("description")
     name = metadata.get("name") or metadata.get("title")
     symbol = metadata.get("canonical_symbol") or metadata.get("symbol")
@@ -75,7 +90,6 @@ def parameter_metadata_context(
     if default_value is None:
         default_value = metadata.get("default")
 
-    short_question = metadata.get("short_question")
     prompt_use_description = metadata.get("prompt_use_description")
     use_description = True
     if prompt_use_description is False:
@@ -98,15 +112,11 @@ def parameter_metadata_context(
         parameter_id=canonical,
         node_id=node_id,
         name=str(name).strip() if isinstance(name, str) and name.strip() else None,
-        question=str(question).strip() if isinstance(question, str) and question.strip() else None,
+        prompt=prompt,
+        help_text=help_text,
         description=_normalize_description(description),
         canonical_symbol=str(symbol).strip() if isinstance(symbol, str) and symbol.strip() else None,
         default_value=default_value,
-        short_question=(
-            str(short_question).strip()
-            if isinstance(short_question, str) and short_question.strip()
-            else None
-        ),
         input_examples=tuple(input_examples),
         allowed_units=allowed_units,
         composer_options=tuple(composer_options),
@@ -114,23 +124,32 @@ def parameter_metadata_context(
     )
 
 
-def parameter_prompt_from_metadata(ctx: ParameterMetadataContext | None) -> str | None:
-    """Return PARAM question, else trimmed description when useful."""
+def parameter_prompt_body_from_metadata(ctx: ParameterMetadataContext | None) -> str | None:
+    """Return combined PARAM prompt and help text for full guidance paths."""
     if ctx is None:
         return None
-    if ctx.question:
-        return ctx.question
+    if ctx.prompt and ctx.help_text:
+        return f"{ctx.prompt.rstrip()}\n{ctx.help_text.strip()}"
+    if ctx.prompt:
+        return ctx.prompt
+    if ctx.help_text:
+        return ctx.help_text
     if ctx.description and ctx.prompt_use_description and _is_useful_metadata_description(ctx.description):
         return ctx.description
     return None
 
 
+def parameter_prompt_from_metadata(ctx: ParameterMetadataContext | None) -> str | None:
+    """Return PARAM user_prompt body, else trimmed description when useful."""
+    return parameter_prompt_body_from_metadata(ctx)
+
+
 def short_prompt_from_metadata(ctx: ParameterMetadataContext | None) -> str | None:
-    """Return PARAM short_question or a derived one-line headline."""
+    """Return PARAM user_prompt.prompt or a derived one-line headline."""
     if ctx is None:
         return None
-    if ctx.short_question:
-        return ctx.short_question
+    if ctx.prompt:
+        return ctx.prompt
     if not ctx.name:
         return None
     headline = f"Enter {ctx.name}"
@@ -156,7 +175,7 @@ def report_metadata_gaps(
     parameter_id: str,
     ctx: ParameterMetadataContext | None,
     *,
-    required_fields: tuple[str, ...] = ("question", "description"),
+    required_fields: tuple[str, ...] = ("prompt", "description"),
 ) -> list[str]:
     """Report which PARAM fields are missing for prompt assembly."""
     if ctx is None:
@@ -164,8 +183,8 @@ def report_metadata_gaps(
 
     gaps: list[str] = []
     for field_name in required_fields:
-        if field_name == "question" and not ctx.question:
-            gaps.append(f"{ctx.node_id}: missing question")
+        if field_name == "prompt" and not ctx.prompt:
+            gaps.append(f"{ctx.node_id}: missing user_prompt.prompt")
         elif field_name == "description":
             if not ctx.description:
                 gaps.append(f"{ctx.node_id}: missing description")

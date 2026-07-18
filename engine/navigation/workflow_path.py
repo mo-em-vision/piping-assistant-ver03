@@ -28,7 +28,7 @@ def is_pipe_wall_thickness_task(task: Task) -> bool:
         return True
     if "pipe_wall_thickness" in workflow.lower():
         return True
-    loading = task.fact_store.active_fact("pressure_loading")
+    loading = task.fact_store.active_fact("pressure_design_case")
     loading_value = fact_scalar_value(loading) if loading is not None else None
     return loading_value in {"internal_pressure", "external_pressure"}
 

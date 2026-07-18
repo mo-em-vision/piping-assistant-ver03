@@ -1,37 +1,52 @@
 ---
 id: A312
 type: lookup
-title: ASTM A312 — Material Properties
-version: '1.0'
-status: draft
-paragraph: ASTM A312/A312M
-section: Material Properties
-topic: material_properties
-inputs:
-- id: grade
-  name: grade
-  description: ASTM A312 TP grade or alias (e.g. TP316L, 316L)
-  required: true
-  source: user_input
-  unit: dimensionless
-- id: test_temperature
-  name: test_temperature
-  description: Optional mechanical test temperature
-  required: false
-  source: user_input
-  unit: F
-  allowed_units:
-  - F
-  - C
-lookups:
-- id: a312_material_catalog
-  source: table
+key: astm-a312-material-properties
+name: ASTM A312 — Material Properties
+description: >
+  Resolves ASTM A312/A312M TP grade designations to catalog material ids and
+  mechanical property rows for the global material catalog.
+table_number: A312
+standard: astm_a312
+source:
+  pack: astm
+  standard: astm_a312
   table_id: astm_a312_material_properties
-  lookup_rule: grade
+  db_file: astm_a312.db
+  source_node: A312
+requires:
+  - parameter: PARAM-material-grade
+    description: ASTM A312 TP grade or alias (e.g. TP316L, 316L)
+returns:
+  - parameter: PARAM-material-grade
+lookup:
+  table: astm_a312_material_properties
+  rule: by_grade
+  bindings:
+    material_grade: PARAM-material-grade
+lookup_rules:
+  by_grade:
+    strategy: material_catalog
+    inputs:
+      material_grade:
+        resolver: material_catalog
+    outputs:
+      resolved_material_id:
+        column: material_id
+        parameter: PARAM-material-grade
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error
 edges:
-- type: introduces_parameter
-  target: mechanical_properties
+  - type: reads_table
+    target: astm_a312_material_properties
+  - type: requires_parameter
+    target: PARAM-material-grade
+  - type: returns_parameter
+    target: PARAM-material-grade
 metadata:
-  last_revision: 2026-07-04
+  status: draft
+  last_revision: 2026-07-17
   edited_by: admin
 ---

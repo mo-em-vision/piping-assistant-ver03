@@ -21,8 +21,8 @@ Format questions, numbered choices, and formula+parameter blocks for CLI chat, A
 
 All desktop/API parameter asks resolve through `build_parameter_input_prompt()` in this order:
 
-1. Workflow nested `runtime.interactions` spec (gate phases use numbered formatting from `step_prompt.py`; PARAM `question` preferred for decision copy)
-2. PARAM-* node `question`, then `description` (via `parameter_prompt_context.py`)
+1. Workflow nested `runtime.interactions` spec (gate phases use numbered formatting from `step_prompt.py`; PARAM `user_prompt` preferred for decision copy)
+2. PARAM-* node `user_prompt`, then `description` (via `parameter_prompt_context.py`)
 3. Equation or lookup context (`formula_parameter_prompt.py`)
 4. Legacy `phase_questions` (backward compatibility)
 5. Final messaging fallback from PARAM `name` / `symbol` / `input_examples`

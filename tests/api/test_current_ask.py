@@ -19,12 +19,12 @@ def test_task_state_current_ask_from_goal_tree() -> None:
     manager = TaskStateManager()
     task = manager.create_task("current-ask-api-test01", status=TaskStatus.AWAITING_INPUT)
     planning = {
-        "missing_assumptions": ["pressure_loading"],
+        "missing_assumptions": ["pressure_design_case"],
         "current_phase": "path_decisions",
-        "phase_missing": {"path_decisions": ["pressure_loading"]},
+        "phase_missing": {"path_decisions": ["pressure_design_case"]},
         "phase_questions": {
             "path_decisions": {
-                "pressure_loading": "Is the pipe subjected to internal or external pressure?",
+                "pressure_design_case": "Is the pipe subjected to internal or external pressure?",
             }
         },
     }
@@ -36,7 +36,7 @@ def test_task_state_current_ask_from_goal_tree() -> None:
     current_ask = payload.get("current_ask")
     assert current_ask is not None
     assert current_ask["kind"] == "input"
-    assert current_ask["parameter_id"] == "pressure_loading"
+    assert current_ask["parameter_id"] == "pressure_design_case"
     assert "pressure" in str(current_ask["prompt"]).lower()
     assert "304.1.2" in str(current_ask["prompt"])
 
@@ -129,7 +129,7 @@ def _advance_pipe_wall_to_nominal_pipe_size(
     task_id = state["task_id"]
     values: dict[str, tuple[object, str | None]] = {
         "straight_pipe_section": (True, None),
-        "pressure_loading": ("internal_pressure", None),
+        "pressure_design_case": ("internal_pressure", None),
         "corrosion_allowance": (0.5, "mm"),
         "design_temperature": (200.0, "C"),
         "internal_design_gage_pressure": (8.0, "bar"),
@@ -165,7 +165,7 @@ def _advance_to_parameter(
 ) -> dict:
     defaults: dict[str, tuple[object, str | None]] = {
         "straight_pipe_section": (True, None),
-        "pressure_loading": ("internal_pressure", None),
+        "pressure_design_case": ("internal_pressure", None),
         "corrosion_allowance": (0.5, "mm"),
         "design_temperature": (200.0, "C"),
         "nominal_pipe_size": (2, None),
@@ -290,7 +290,7 @@ def test_timeline_active_step_follows_current_ask_when_submittable_order_differs
         },
         "collection_field_order": [
             "straight_pipe_section",
-            "pressure_loading",
+            "pressure_design_case",
             "internal_design_gage_pressure",
             "nominal_pipe_size",
             "material_grade",
@@ -484,7 +484,7 @@ def test_fresh_pipe_wall_prompt_is_contextual_not_generic(
     assert "1." in prompt
 
 
-def test_pressure_loading_prompt_after_straight_pipe_is_numbered(
+def test_pressure_design_case_prompt_after_straight_pipe_is_numbered(
     tmp_path: Path,
     project_root: Path,
 ) -> None:
@@ -511,7 +511,7 @@ def test_pressure_loading_prompt_after_straight_pipe_is_numbered(
     )
 
     _assert_active_input_prompt(state)
-    assert state["current_ask"]["parameter_id"] == "pressure_loading"
+    assert state["current_ask"]["parameter_id"] == "pressure_design_case"
     prompt = str(state["current_ask"]["prompt"])
     assert "304.1.2" in prompt
     assert "304.1.3" in prompt

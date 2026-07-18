@@ -233,7 +233,7 @@ def test_bootstrap_equation_preview_is_not_durable_display(
     )
     service.submit_input(
         task_id,
-        parameter="pressure_loading",
+        parameter="pressure_design_case",
         value="internal_pressure",
         session_id=session_id,
     )

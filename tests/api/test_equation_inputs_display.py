@@ -402,7 +402,7 @@ def test_path_preview_embeds_inputs_table_on_equation(standards_reader) -> None:
     task = manager.create_task("eq-inputs-test03", status=TaskStatus.AWAITING_INPUT)
     planning = {
         "path_decision": {
-            "pressure_loading": "internal_pressure",
+            "pressure_design_case": "internal_pressure",
             "selected_node": "304.1.2-a",
         },
         "missing_inputs": ["design_temperature"],
@@ -455,7 +455,7 @@ def test_allowable_stress_not_emitted_as_standalone_result_block(standards_reade
         "action": "request_input",
         "active_definition_node": "B313-304.1.1",
         "path_decision": {
-            "pressure_loading": "internal_pressure",
+            "pressure_design_case": "internal_pressure",
             "selected_node": "304.1.2-a",
         },
         "missing_inputs": ["internal_design_gage_pressure"],
