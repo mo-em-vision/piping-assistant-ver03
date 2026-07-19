@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from engine.navigation.active_input_projection import (
+    composer_parameter_ids_for_task,
+    planner_active_input_ids,
+    planner_outstanding_gatherable_field_ids,
+    timeline_revealed_input_ids,
+    uses_planner_input_projection,
+)
 from engine.navigation.composer_mapping import (
     composer_parameter_id,
     composer_parameter_ids,
@@ -26,8 +33,13 @@ __all__ = [
     "HIDDEN_TIMELINE_INPUTS",
     "collect_all_missing",
     "collection_step_order",
+    "composer_parameter_ids_for_task",
     "composer_parameter_id",
     "composer_parameter_ids",
+    "planner_active_input_ids",
+    "planner_outstanding_gatherable_field_ids",
+    "timeline_revealed_input_ids",
+    "uses_planner_input_projection",
     "hidden_timeline_inputs",
     "is_mawp_task",
     "is_pipe_wall_thickness_task",

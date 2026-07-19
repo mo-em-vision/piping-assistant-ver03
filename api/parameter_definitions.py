@@ -39,6 +39,10 @@ from api.workflow_timeline import (
 )
 from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
 from engine.messaging.parameter_prompt_context import parameter_metadata_context, parameter_prompt_from_metadata
+from engine.navigation.active_input_projection import (
+    composer_parameter_ids_for_task,
+    uses_planner_input_projection,
+)
 from engine.reference.parameter_composer_spec import build_composer_parameter_spec
 from engine.reference.table_options_resolver import resolve_table_dropdown_options
 from engine.reference.parameter_keys import (
@@ -86,7 +90,7 @@ def build_parameter_definitions(
     planning = planning_projection(task)
 
     requested_ids = _requested_parameter_ids(task, planning, reader=reader)
-    if _DIAMETER_INPUT_PARAMETERS & set(requested_ids):
+    if not uses_planner_input_projection(task) and _DIAMETER_INPUT_PARAMETERS & set(requested_ids):
         from api.workflow_timeline import _pipe_wall_uses_inside_diameter, is_pipe_wall_thickness_task
 
         for diameter_id in _DIAMETER_INPUT_PARAMETERS:
@@ -178,6 +182,14 @@ def _requested_parameter_ids(
     *,
     reader: StandardsReader | None = None,
 ) -> list[str]:
+    if uses_planner_input_projection(task):
+        return composer_parameter_ids_for_task(
+            task,
+            planning,
+            reader=reader,
+            editing_parameter=active_edit_parameter(task),
+        )
+
     if is_pipe_wall_thickness_task(task) or is_mawp_task(task):
         requested = revealed_input_ids(task, planning, reader=reader)
         editing = active_edit_parameter(task)
@@ -403,6 +415,13 @@ def _submit_task_input_impl(
     }
     definition = _definition_for_parameter(definitions, parameter)
     if definition is None:
+        if parameter in submittable or canonical_parameter_key(parameter) in {
+            canonical_parameter_key(item) for item in submittable
+        }:
+            raise AssertionError(
+                f"navigation projection inconsistent: {parameter!r} is submittable "
+                f"but missing from parameter definitions"
+            )
         raise ValueError(f"Parameter is not currently requested: {parameter}")
     coerced = _coerce_value(definition, value)
     if parameter == "pipe_construction_type" and definition.get("options"):

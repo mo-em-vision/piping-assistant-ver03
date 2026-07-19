@@ -1,0 +1,25 @@
+# Planner-owned active input projection (timeline and parameters)
+
+For workflows with a stored `engineering_plan`, the **Planner** is the only authority for which parameter is currently gatherable.
+
+`task_state.current_ask`, `progress.submittable_parameters`, `task_state.parameters`, and the timeline **active** row must all be derived from the same planner projection: `engineering_plan.input_strategy.next_fields` and `submittable_fields`.
+
+The timeline and `task_state.parameters` are **presentation-only**. They must not independently decide which inputs are gatherable or editable from `phase_missing`, legacy goal maps, graph phase buckets, or frontend state.
+
+## Presentation rules
+
+- Completed user inputs may appear on the timeline as non-editable **done** rows.
+- Only the planner's current submittable field may be **active** and exposed in the composer for input.
+- Upcoming steps may appear as **pending** timeline rows for progress context, but must not be submittable until the planner activates them.
+
+The desktop app must treat backend `current_ask` and `submittable_parameters` as authoritative. It must not infer the next required parameter from timeline order, optimistic transitions, or local parameter list ordering.
+
+## Implementation
+
+- Read helper: `engine/navigation/active_input_projection.py`
+- API: `api/parameter_definitions.py`, `api/workflow_timeline.py`, `api/serializers.py`
+- Desktop optimistic UI: `desktopApp/src/components/workflow/optimisticWorkflowTransition.ts`
+
+Authority registry: [`docs/core/16. task_outputs_authority.md`](../../docs/core/16.%20task_outputs_authority.md).
+
+Full rule: [`docs/rules.md`](../../docs/rules.md) §12a.

@@ -264,7 +264,9 @@ def _input_display(
     *,
     standards_root: Path | None = None,
 ) -> str | None:
-    fact = task.fact_store.active_fact(input_id)
+    from engine.reference.parameter_keys import active_fact_for_key
+
+    fact = active_fact_for_key(task, input_id)
     if fact is not None:
         display = _categorical_selection_display(input_id, fact_scalar_value(fact))
         if display:

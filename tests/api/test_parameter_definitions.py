@@ -22,29 +22,38 @@ def standards_root() -> Path:
     return Path(__file__).resolve().parents[2] / "knowledge" / "standards"
 
 
-def test_build_parameter_definitions_includes_revealed_pipe_wall_inputs() -> None:
+def test_build_parameter_definitions_includes_revealed_pipe_wall_inputs(project_root: Path) -> None:
+    from api.workflow_bootstrap import refresh_task_planning
+    from engine.planner.plan_selection import planner_next_field_from_task
+    from engine.reference.standards_reader import StandardsReader
+    from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
+    from tests.graph.conftest import PIPE_WALL_ROOT
+
+    reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test07", status=TaskStatus.AWAITING_INPUT)
+    task.outputs["workflow"] = PIPE_WALL_ROOT
+    task.outputs["selected_root"] = PIPE_WALL_ROOT
     set_fact_from_input(task, legacy_input(input_id="material",
         value="SA-106B",
         unit="dimensionless",
         source=InputSource.USER,
         status=InputStatus.CONFIRMED,))
-    planning = {
-        "missing_inputs": ["internal_design_gage_pressure"],
-        "missing_assumptions": [],
-        "current_phase": "parameter_gathering",
-        "phase_missing": {"parameter_gathering": ["internal_design_gage_pressure"]},
-    }
-    task.outputs = {"workflow": "pipe_wall_thickness_design"}
-    task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
+    for inp in (straight_section_assumption(), internal_pressure_assumption()):
+        set_fact_from_input(task, inp)
     manager.replace_task(task.task_id, task)
+    task = manager.get_task(task.task_id)
+    refresh_task_planning(task, reader, propose_defaults=False)
+    manager.replace_task(task.task_id, task)
+    task = manager.get_task(task.task_id)
 
-    parameters = build_parameter_definitions(manager.get_task(task.task_id))
+    planner_next = planner_next_field_from_task(task)
+    assert planner_next is not None
+
+    parameters = build_parameter_definitions(task, reader=reader)
     names = [item["name"] for item in parameters]
-    assert names == ["internal_design_gage_pressure", "material_grade"]
+    assert names == [planner_next]
     assert parameters[0]["status"] == "pending"
-    assert parameters[1]["status"] == "confirmed"
 
 
 def test_build_parameter_definitions_from_missing_inputs(standards_root: Path) -> None:

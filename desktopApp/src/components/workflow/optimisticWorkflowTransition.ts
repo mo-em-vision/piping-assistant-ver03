@@ -69,6 +69,39 @@ function canOptimisticallyActivateStep(state: TaskStateDto, stepId: string): boo
   )
 }
 
+function resolveOptimisticNextStepId(
+  state: TaskStateDto,
+  submittedParameter: string,
+): string | null {
+  const submittable = (state.progress.submittable_parameters ?? []).filter(
+    (id) => id !== submittedParameter,
+  )
+  if (submittable.length === 1) {
+    return submittable[0] ?? null
+  }
+  if (submittable.length > 1) {
+    const preferred = submittable.find((id) => canOptimisticallyActivateStep(state, id))
+    if (preferred) {
+      return preferred
+    }
+  }
+
+  const askId =
+    state.current_ask?.kind === 'input' && state.current_ask.parameter_id !== submittedParameter
+      ? state.current_ask.parameter_id
+      : null
+  if (askId && canOptimisticallyActivateStep(state, askId)) {
+    return askId
+  }
+
+  const missing = (state.progress.missing_inputs ?? []).find((id) => id !== submittedParameter)
+  if (missing && canOptimisticallyActivateStep(state, missing)) {
+    return missing
+  }
+
+  return findNextTimelineStepId(state.progress.timeline, submittedParameter)
+}
+
 export function applyOptimisticParameterSubmit(
   state: TaskStateDto,
   parameter: string,
@@ -77,7 +110,7 @@ export function applyOptimisticParameterSubmit(
   displayValueOverride?: string,
 ): TaskStateDto {
   const displayValue = displayValueOverride ?? formatDisplayValue(value, unit)
-  const candidateNextStepId = findNextTimelineStepId(state.progress.timeline, parameter)
+  const candidateNextStepId = resolveOptimisticNextStepId(state, parameter)
   const nextStepId =
     candidateNextStepId != null && canOptimisticallyActivateStep(state, candidateNextStepId)
       ? candidateNextStepId

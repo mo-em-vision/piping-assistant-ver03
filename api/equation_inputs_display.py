@@ -157,7 +157,9 @@ def _standard_display_label(standard_slug: object) -> str | None:
 
 
 def _input_display_value_from_input(task: Task, input_id: str) -> str | None:
-    fact = active_fact_for_key(task, input_id)
+    from engine.reference.parameter_keys import active_fact_for_key, canonical_parameter_key
+
+    fact = active_fact_for_key(task, canonical_parameter_key(input_id))
     if fact is not None and _fact_has_displayable_value(fact):
         value = fact_scalar_value(fact)
         unit = fact_unit(fact)

@@ -223,6 +223,19 @@ def test_timeline_active_step_follows_current_ask_after_internal_design_gage_pre
     assert timeline["nominal_pipe_size"] == "active"
     assert timeline.get("design_temperature") in {"done", "pending"}
 
+    parameter_names = [item["name"] for item in state.get("parameters") or []]
+    assert "nominal_pipe_size" in parameter_names
+
+    task_id = state["task_id"]
+    state = service.submit_input(
+        task_id,
+        parameter="nominal_pipe_size",
+        value=6,
+        unit=None,
+        session_id=session_id,
+    )
+    assert state["facts"].get("nominal_pipe_size") is not None
+
 
 def test_timeline_active_step_follows_material_grade_ask(
     tmp_path: Path,
@@ -443,7 +456,7 @@ def test_timeline_order_follows_collection_field_order_not_planner_ask_order(
     assert "design_temperature" in input_ids
     assert "nominal_pipe_size" in input_ids
     assert input_ids.index("design_temperature") < input_ids.index("nominal_pipe_size")
-    assert input_ids.index("outside_diameter") < input_ids.index("design_temperature")
+    assert input_ids.index("nominal_pipe_size") < input_ids.index("outside_diameter")
 
 
 _GENERIC_FALLBACK = "Complete the fields below to continue."

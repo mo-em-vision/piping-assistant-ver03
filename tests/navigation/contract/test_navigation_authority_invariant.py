@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from api.parameter_definitions import build_parameter_definitions
 from api.serializers import task_state
 from api.workflow_bootstrap import refresh_task_planning, task_ready_for_execution
 from engine.navigation.submittable_projection import submittable_parameter_ids
@@ -22,6 +23,28 @@ from tests.acceptance.helpers import internal_pressure_assumption, straight_sect
 from tests.graph.conftest import PIPE_WALL_ROOT
 from tests.helpers.facts import set_fact_from_input
 from tests.navigation.contract.test_current_ask_ownership import _pipe_wall_task
+
+
+def test_submittable_fields_have_parameter_definitions(project_root: Path) -> None:
+    """Every planner submittable field must appear in composer parameter definitions."""
+    manager, task, reader, _, _, planning = _pipe_wall_task(
+        project_root,
+        task_id="submittable-definitions",
+    )
+
+    submittable = list(submittable_parameter_ids(task, planning))
+    assert submittable
+
+    definitions = build_parameter_definitions(task, reader=reader)
+    defined_ids = {str(item["name"]) for item in definitions}
+    for field_id in submittable:
+        assert field_id in defined_ids, f"{field_id!r} missing from parameter definitions"
+
+    state = task_state(task, manager, reader=reader)
+    api_submittable = list(state.get("progress", {}).get("submittable_parameters") or [])
+    api_defined = {str(item["name"]) for item in state.get("parameters") or []}
+    for field_id in api_submittable:
+        assert field_id in api_defined, f"{field_id!r} missing from task_state.parameters"
 
 
 def test_no_navigation_authority_outside_engineering_plan(project_root: Path) -> None:

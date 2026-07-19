@@ -38,7 +38,11 @@ from engine.navigation import (
 
     submittable_parameter_ids,
 
+    timeline_revealed_input_ids,
+
     timeline_step_id_for_parameter,
+
+    uses_planner_input_projection,
 
 )
 
@@ -489,6 +493,10 @@ def revealed_pipe_wall_input_ids(
 ) -> list[str]:
 
     """Input ids that should appear in timeline and parameter state for the active path."""
+
+    if uses_planner_input_projection(task):
+
+        return timeline_revealed_input_ids(task, planning, reader=reader)
 
     phase_missing = planning.get("phase_missing") or {}
 

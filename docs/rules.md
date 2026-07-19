@@ -146,7 +146,7 @@ Stop if you drift into kitchen-sink refactors, wrong abstractions, or duplicatin
 
 | Layer | Owns | Does not own |
 | --- | --- | --- |
-| **Planner** (`engine/planner/`) | Navigation phases, missing-field order, submittable parameter ids, goal tree structure | User-facing question strings, autocomplete labels, material search hints |
+| **Planner** (`engine/planner/`) | Navigation phases, missing-field order, submittable parameter ids, goal tree structure, gatherable field selection (timeline/parameters are projections) | User-facing question strings, autocomplete labels, material search hints |
 | **Messaging** (`engine/messaging/`) | Deterministic prompt text and resolution order (assembly only) | Which parameter is active, phase gating, graph execution |
 
 ### Where prompt text lives
@@ -189,6 +189,26 @@ Order inside that function (do not bypass or reorder without updating docs and t
 - `docs/core/11. planner_layer_design.md` — planner boundaries
 - `docs/core/5. workflow_design.md` — phased input collection and deterministic prompts
 - `engine/messaging/README.md` — messaging module inventory
+
+### §12a. Planner-owned active input projection (timeline and parameters)
+
+For workflows with a stored `engineering_plan`, the **Planner** is the only authority for which parameter is currently gatherable.
+
+`task_state.current_ask`, `progress.submittable_parameters`, `task_state.parameters`, and the timeline **active** row must all be derived from the same planner projection: `engineering_plan.input_strategy.next_fields` and `submittable_fields`.
+
+The timeline and `task_state.parameters` are **presentation-only**. They must not independently decide which inputs are gatherable or editable from `phase_missing`, legacy goal maps, graph phase buckets, or frontend state.
+
+Presentation rules:
+
+- Completed user inputs may appear on the timeline as non-editable **done** rows.
+- Only the planner's current submittable field may be **active** and exposed in the composer for input.
+- Upcoming steps may appear as **pending** timeline rows for progress context, but must not be submittable until the planner activates them.
+
+The desktop app must treat backend `current_ask` and `submittable_parameters` as authoritative. It must not infer the next required parameter from timeline order, optimistic transitions, or local parameter list ordering.
+
+Authority registry: [`docs/core/16. task_outputs_authority.md`](docs/core/16.%20task_outputs_authority.md).
+
+Full rule file: `.cursor/rules/planner-active-input-projection.mdc`.
 
 ---
 
@@ -382,40 +402,43 @@ See also §18-style table option rules: `.cursor/rules/table-options-queries.mdc
 
 ---
 
-## 18. Lookup conditionals (table boundary rules)
+## 18. Lookup row resolution (table boundary and interpolation rules)
 
-**When a table lookup needs out-of-range behavior (clamp to endpoint, use boundary value, etc.), author `lookup_conditionals` on the output `PARAM-*` node — not in Python resolvers or lookup nodes.**
+**Row-resolution behavior (exact match, interpolation, endpoint clamp, reject-outside-range) is authored on the table definition via `lookup_rules.<rule>.row_resolution` — not on lookup nodes, not in Python resolvers, and not via legacy `interpolation` flags.**
 
 | Layer | Rule |
 | --- | --- |
-| Output `PARAM-*` node | `lookup_conditionals.<lookup_key>` with `unit`, `min`, `max`, `below_min`, `above_max` |
-| Lookup node | Tabulated data and `interpolation` only; no temperature clamp metadata |
-| Table DB / YAML | Store breakpoints only; no extrapolation policy |
-| Engine | Generic interpreter in `engine/graph/lookup_conditionals.py` applies authored rules at lookup time |
+| Lookup node | `lookup.table`, `lookup.rule`, `lookup.bindings`, and output binding only |
+| Table definition YAML | `lookup_rules` + `row_resolution` (breakpoint axis + `interpolate_columns` or `output_columns`); tabulated row data |
+| Table DB | Row payloads and structural metadata only (no `interpolation` policy flag) |
+| Engine | `engine/executor/table_resolver.py` — `resolve_table_rows` finds bracketing rows once, applies shared fraction to all declared interpolated columns |
 
-Example (`PARAM-temperature-coefficient-Y`):
+Example (`asme_b31.3/tables/asme-b313-table-304-1-1-1.yaml`):
 
 ```yaml
-lookup_conditionals:
+row_resolution:
   design_temperature:
-    unit: UNIT-degF
+    breakpoint_column: design_temperature
+    unit: degF
+    method: linear_interpolation
+    outside_range: clamp_to_boundary
     min: 900
     max: 1250
-    below_min: use_min
-    above_max: use_max
+    interpolate_columns:
+      - coefficient_Y
 ```
 
 ### Do not
 
+- Author `lookup_rules`, `row_resolution`, `match`, or `interpolation` on lookup nodes.
 - Hardcode table-specific temperature limits in `coefficient_resolver.py`, `lookup_engine.py`, or API code.
-- Duplicate boundary rules on lookup nodes when they govern the derived parameter value.
-- Add per-table clamp functions under `engine/reference/`.
+- Add per-table clamp or interpolation functions under `engine/reference/`.
 
 ### Design references
 
-- `engine/graph/lookup_conditionals.py` — generic conditional interpreter
-- `engine/graph/lookup_parameter_resolution.py` — exposes `lookup_conditionals` on resolution
-- [`audits/contracts/nodes/parameter.md`](../audits/contracts/nodes/parameter.md) — `lookup_conditionals` on lookup outputs
+- `engine/executor/table_resolver.py` — generic row resolution and linear interpolation
+- `engine/validation/table_definition_validator.py` — table definition validation
+- [`spec/lookup_rules.md`](../spec/lookup_rules.md) — `row_resolution` schema
 - `.cursor/rules/lookup-conditionals.mdc`
 
 ---
