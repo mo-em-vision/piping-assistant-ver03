@@ -1,0 +1,15 @@
+table_id: asme-b313-table-A-2
+lookup_rules:
+  by_material:
+    strategy: material_only
+    inputs:
+      material_grade:
+        resolver: material_catalog
+    outputs:
+      basic_casting_quality_factor:
+        column: quality_factor_E_c
+        parameter: PARAM-basic-casting-quality-factor
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error

@@ -9,10 +9,34 @@ from engine.executor.lookup_rule_schema import (
     INPUT_RESOLVERS,
     KNOWN_STRATEGIES,
     STRATEGY_INPUTS,
+    STRATEGY_MATERIAL_CATEGORY_TEMPERATURE,
+    STRATEGY_MATERIAL_GROUP_TEMPERATURE,
+    STRATEGY_MATERIAL_TEMPERATURE,
     load_table_lookup_rules,
     parse_rule_spec,
 )
-from engine.reference.standards_paths import resolve_standard_pack
+
+TEMPERATURE_STRATEGIES = frozenset(
+    {
+        STRATEGY_MATERIAL_TEMPERATURE,
+        STRATEGY_MATERIAL_GROUP_TEMPERATURE,
+        STRATEGY_MATERIAL_CATEGORY_TEMPERATURE,
+    }
+)
+
+ALLOWED_AXIS_METHODS = frozenset(
+    {"exact", "linear_interpolation", "lower_bound", "upper_bound"}
+)
+ALLOWED_OUTSIDE_RANGE = frozenset(
+    {"error", "clamp_to_boundary", "lower_bound", "upper_bound"}
+)
+ALLOWED_COLUMN_METHODS = frozenset(
+    {"exact", "linear_interpolation", "lower_bound", "upper_bound"}
+)
+
+
+def _output_columns_from_spec(spec: Any) -> set[str]:
+    return {out.column for out in spec.outputs.values()}
 
 
 def validate_lookup_rule_spec(rule_name: str, raw: dict[str, Any]) -> list[str]:
@@ -34,6 +58,7 @@ def validate_lookup_rule_spec(rule_name: str, raw: dict[str, Any]) -> list[str]:
     if extra:
         issues.append(f"strategy {spec.strategy!r} forbids extra inputs: {sorted(extra)}")
 
+    inputs_raw = raw.get("inputs") if isinstance(raw.get("inputs"), dict) else {}
     for logical_key, input_spec in spec.inputs.items():
         allowed = INPUT_RESOLVERS.get(logical_key, KNOWN_RESOLVERS)
         if input_spec.resolver not in allowed:
@@ -41,8 +66,19 @@ def validate_lookup_rule_spec(rule_name: str, raw: dict[str, Any]) -> list[str]:
                 f"input {logical_key!r} resolver {input_spec.resolver!r} "
                 f"not allowed (expected one of {sorted(allowed)})"
             )
-        if logical_key == "design_temperature" and input_spec.match is None:
-            issues.append(f"input {logical_key!r} requires match block")
+        item = inputs_raw.get(logical_key)
+        if isinstance(item, dict) and item.get("match"):
+            issues.append(
+                f"input {logical_key!r} must not contain match block; "
+                "use row_resolution on the table rule"
+            )
+
+    if spec.strategy in TEMPERATURE_STRATEGIES:
+        axis_policy = spec.row_resolution.get("design_temperature")
+        if axis_policy is None:
+            issues.append("row_resolution.design_temperature is required for temperature strategies")
+        else:
+            issues.extend(_validate_axis_policy(axis_policy, _output_columns_from_spec(spec)))
 
     if not spec.outputs:
         issues.append("outputs block is required")
@@ -55,6 +91,50 @@ def validate_lookup_rule_spec(rule_name: str, raw: dict[str, Any]) -> list[str]:
         issues.append(f"on_no_match action must be error (got {spec.on_no_match!r})")
     if spec.on_multiple_matches != "error":
         issues.append(f"on_multiple_matches action must be error (got {spec.on_multiple_matches!r})")
+
+    return issues
+
+
+def _validate_axis_policy(axis_policy: Any, output_columns: set[str]) -> list[str]:
+    issues: list[str] = []
+    if axis_policy.method not in ALLOWED_AXIS_METHODS:
+        issues.append(f"unsupported row_resolution method: {axis_policy.method!r}")
+    if axis_policy.outside_range not in ALLOWED_OUTSIDE_RANGE:
+        issues.append(f"unsupported outside_range: {axis_policy.outside_range!r}")
+
+    has_interpolate_list = bool(axis_policy.interpolate_columns)
+    has_output_columns = bool(axis_policy.output_columns)
+    if has_interpolate_list and has_output_columns:
+        issues.append("row_resolution must use interpolate_columns or output_columns, not both")
+
+    if axis_policy.method == "linear_interpolation":
+        if not has_interpolate_list and not has_output_columns:
+            issues.append(
+                "linear_interpolation requires interpolate_columns or output_columns"
+            )
+        elif has_interpolate_list:
+            for col in axis_policy.interpolate_columns:
+                if col not in output_columns:
+                    issues.append(
+                        f"interpolate_columns entry {col!r} not found in rule outputs"
+                    )
+        elif has_output_columns:
+            interpolated = [
+                c for c, p in axis_policy.output_columns.items() if p.method == "linear_interpolation"
+            ]
+            if not interpolated:
+                issues.append(
+                    "linear_interpolation requires at least one output_columns entry "
+                    "with method linear_interpolation"
+                )
+            for col in axis_policy.output_columns:
+                if col not in output_columns:
+                    issues.append(f"output_columns key {col!r} not found in rule outputs")
+                if axis_policy.output_columns[col].method not in ALLOWED_COLUMN_METHODS:
+                    issues.append(
+                        f"unsupported output_columns method for {col!r}: "
+                        f"{axis_policy.output_columns[col].method!r}"
+                    )
 
     return issues
 
@@ -108,11 +188,10 @@ def validate_lookup_config(meta: dict[str, Any], *, standards_root: Any | None =
 
     from pathlib import Path
 
-    root = Path(standards_root).resolve()
-    rules = load_table_lookup_rules(table_ref, standards_root=root)
-    canonical = rule
     from engine.executor.lookup_rule_schema import normalize_rule_name
 
+    root = Path(standards_root).resolve()
+    rules = load_table_lookup_rules(table_ref, standards_root=root)
     canonical = normalize_rule_name(rule)
     if canonical not in rules:
         issues.append(f"lookup.rule {rule!r} not found in lookup_rules for table {table_ref!r}")

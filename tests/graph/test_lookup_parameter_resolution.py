@@ -28,9 +28,7 @@ def test_temperature_coefficient_y_infers_table_lookup_from_graph() -> None:
     assert resolution["method"] == "table_lookup"
     assert "design_temperature" in resolution["keys"]
     assert "metallurgical_group" in resolution["keys"]
-    conditionals = resolution.get("lookup_conditionals", {}).get("design_temperature", {})
-    assert conditionals.get("min") == 900
-    assert conditionals.get("max") == 1250
+    assert resolution.get("lookup_conditionals", {}) == {}
 
 
 def test_weld_joint_efficiency_infers_table_lookup_from_graph() -> None:

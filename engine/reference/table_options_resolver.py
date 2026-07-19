@@ -43,13 +43,16 @@ def _table_yaml_candidates(table_ref: str, standards_root: Path) -> list[Path]:
     if ref in {"B3610-table-2-1", "table-2-1"}:
         candidates.append(b3610 / "B3610-table-2-1.yaml")
     b313_tables = standards_root / "asme" / "asme_b31.3" / "nodes" / "tables"
+    b313_pack_tables = standards_root / "asme" / "asme_b31.3" / "tables"
     if ref.startswith("asme-b313-table-") or ref.startswith("asme_b31.3_"):
         stem = ref.replace("asme_b31.3_", "asme-b313-table-").replace("_", "-")
         if not stem.startswith("asme-b313-table-"):
             stem = f"asme-b313-table-{ref}"
+        candidates.append(b313_pack_tables / f"{stem}.yaml")
         candidates.append(b313_tables / f"{stem}.yaml")
         candidates.append(b313_tables / f"{ref}.yaml")
     astm_nodes = standards_root / "astm" / "nodes"
+    astm_pack_tables = standards_root / "astm" / "tables"
     astm_table_node_ids = {
         "astm_a106_material_properties": "A106",
         "astm_a105_material_properties": "A105",
@@ -58,8 +61,10 @@ def _table_yaml_candidates(table_ref: str, standards_root: Path) -> list[Path]:
     }
     node_stem = astm_table_node_ids.get(ref)
     if node_stem:
+        candidates.append(astm_pack_tables / f"astm-{node_stem.lower()}-material-properties.yaml")
         candidates.append(astm_nodes / f"{node_stem}.yaml")
     elif ref in {"A106", "A105", "A53", "A312"}:
+        candidates.append(astm_pack_tables / f"astm-{ref.lower()}-material-properties.yaml")
         candidates.append(astm_nodes / f"{ref}.yaml")
     return [path for path in candidates if path.is_file()]
 

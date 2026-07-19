@@ -59,6 +59,13 @@ from api.completion_next_workflows_transcript import (
 )
 from api.flow_guidance_sync import sync_flow_guidance_transcript
 from api.input_archive_transcript import InputArchiveEvent, append_input_archive_transcript
+from api.engineering_decision_transcript import (
+    EngineeringDecisionEvent,
+    append_engineering_decision_transcript,
+    latest_decision_for_key,
+)
+from engine.messaging.decision_interaction_resolver import is_node_owned_decision_key
+from engine.state.decision_recorder import record_decision_from_fact
 from api.task_continuation_service import get_continuation_suggestions
 from engine.planner.goal_navigation import build_current_ask
 from engine.reference.parameter_keys import canonical_parameter_key
@@ -522,6 +529,24 @@ class DesktopApiService:
                 manager.replace_task(task_id, task)
             task = manager.get_task(task_id)
             submitted_fact = task.fact_store.active_fact(canonical_parameter)
+            decision_key = canonical_parameter
+            if canonical_parameter == "outside_diameter" and str(parameter).endswith("__resolution_branch"):
+                decision_key = canonical_parameter_key(parameter)
+            elif canonical_parameter_key(parameter).endswith("__resolution_branch"):
+                decision_key = canonical_parameter_key(parameter)
+            if submitted_fact is not None and is_node_owned_decision_key(decision_key):
+                from models.fact import fact_scalar_value
+
+                record_decision_from_fact(
+                    task,
+                    decision_key,
+                    fact_scalar_value(submitted_fact),
+                    reader=reader,
+                    submission_id=str(submitted_fact.id),
+                    source_type="resolution_branch" if decision_key.endswith("__resolution_branch") else "user_input",
+                )
+                manager.replace_task(task_id, task)
+                task = manager.get_task(task_id)
             if submitted_fact is not None:
                 task, archive_changed = append_input_archive_transcript(
                     task,
@@ -536,6 +561,21 @@ class DesktopApiService:
                 if archive_changed:
                     manager.replace_task(task_id, task)
                     task = manager.get_task(task_id)
+
+            if submitted_fact is not None and is_node_owned_decision_key(decision_key):
+                decision = latest_decision_for_key(task, decision_key)
+                if decision is not None:
+                    task, decision_changed = append_engineering_decision_transcript(
+                        task,
+                        reader,
+                        EngineeringDecisionEvent(
+                            decision_key=decision_key,
+                            decision=decision,
+                        ),
+                    )
+                    if decision_changed:
+                        manager.replace_task(task_id, task)
+                        task = manager.get_task(task_id)
 
             if task.status == TaskStatus.COMPLETED and not was_completed:
                 task, next_workflows_changed = append_completion_next_workflows_transcript(

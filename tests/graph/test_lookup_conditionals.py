@@ -10,13 +10,9 @@ from engine.graph.lookup_conditionals import (
 )
 
 
-def test_y_parameter_lookup_conditionals_from_yaml() -> None:
+def test_y_parameter_has_no_lookup_conditionals_after_table_migration() -> None:
     conditionals = lookup_conditionals_for_parameter("PARAM-temperature-coefficient-y")
-    design_temp = conditionals["design_temperature"]
-    assert design_temp["min"] == 900
-    assert design_temp["max"] == 1250
-    assert design_temp["below_min"] == "use_min"
-    assert design_temp["above_max"] == "use_max"
+    assert conditionals == {}
 
 
 def test_apply_lookup_conditional_bounds() -> None:
@@ -26,14 +22,14 @@ def test_apply_lookup_conditional_bounds() -> None:
     assert apply_lookup_conditional_bounds(1500.0, rules) == 1250.0
 
 
-def test_bounded_lookup_input_value_converts_and_clamps() -> None:
+def test_bounded_lookup_input_value_without_conditionals_passes_through() -> None:
     conditionals = lookup_conditionals_for_parameter("PARAM-temperature-coefficient-y")
     assert bounded_lookup_input_value(
         100.0,
         input_key="design_temperature",
         input_unit="F",
         conditionals=conditionals,
-    ) == 900.0
+    ) == 100.0
 
 
 def test_resolve_lookup_input_value_without_conditionals_converts_to_table_unit() -> None:
@@ -47,11 +43,11 @@ def test_resolve_lookup_input_value_without_conditionals_converts_to_table_unit(
     assert resolved == 200.0
 
 
-def test_resolve_lookup_input_value_applies_y_conditionals() -> None:
+def test_resolve_lookup_input_value_without_y_conditionals() -> None:
     assert resolve_lookup_input_value(
         100.0,
         input_key="design_temperature",
         input_unit="F",
         output_param_node_id="PARAM-temperature-coefficient-y",
         table_unit="F",
-    ) == 900.0
+    ) == 100.0

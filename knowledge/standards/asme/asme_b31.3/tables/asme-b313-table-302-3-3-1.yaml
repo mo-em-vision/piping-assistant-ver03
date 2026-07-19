@@ -1,0 +1,16 @@
+table_id: asme-b313-table-302-3-3-1
+lookup_rules:
+  examination_combination:
+    strategy: examination_combination
+    inputs:
+      supplementary_examination:
+        resolver: identity
+        column: supplementary_examination
+    outputs:
+      basic_casting_quality_factor:
+        column: quality_factor_E_c
+        parameter: PARAM-basic-casting-quality-factor
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error

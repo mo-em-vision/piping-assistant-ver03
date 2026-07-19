@@ -12,6 +12,10 @@ from engine.graph.node_interaction import (
     find_interaction,
     question_for_interaction,
 )
+from engine.messaging.decision_interaction_resolver import (
+    is_node_owned_decision_key,
+    resolve_decision_interaction,
+)
 from engine.messaging.parameter_prompt_context import (
     composer_option_label,
     parameter_metadata_context,
@@ -79,7 +83,7 @@ def build_interaction_step_prompt(
         spec = find_interaction(specs, parameter_id)
 
     if spec is not None and spec.mode == InteractionMode.DECISION and spec.options:
-        return _format_decision_prompt(reader, parameter_id, spec, planning)
+        return _format_decision_prompt(reader, parameter_id, spec, planning, task=task)
     if spec is not None and spec.confirmation_required and spec.default is not None:
         return _format_confirm_default_prompt(parameter_id, spec, task)
     if spec is not None:
@@ -166,10 +170,22 @@ def _format_decision_prompt(
     field_id: str,
     spec: NodeInteractionSpec | None,
     planning: dict[str, Any] | None,
+    *,
+    task: Task | None = None,
 ) -> str:
     metadata_ctx = parameter_metadata_context(reader, field_id)
     navigation_plan = _navigation_plan_from_planning(planning)
-    question = parameter_prompt_from_metadata(metadata_ctx)
+    question = None
+    labels: tuple[str, ...] = ()
+
+    if task is not None and is_node_owned_decision_key(field_id):
+        view = resolve_decision_interaction(reader, task, field_id)
+        if view is not None:
+            question = view.question
+            labels = tuple(option.label for option in view.options)
+
+    if not question:
+        question = parameter_prompt_from_metadata(metadata_ctx)
     if not question:
         question = (
             spec.question.strip()
@@ -181,8 +197,12 @@ def _format_decision_prompt(
             )
         )
 
-    options = tuple(spec.options) if spec and spec.options else ()
-    labels = tuple(composer_option_label(metadata_ctx, value) for value in options)
+    if not labels:
+        if spec and spec.rich_options:
+            labels = tuple(option.label for option in spec.rich_options)
+        else:
+            options = tuple(spec.options) if spec and spec.options else ()
+            labels = tuple(composer_option_label(metadata_ctx, value) for value in options)
 
     lines = [
         f"Input required — {question}",

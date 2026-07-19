@@ -17,7 +17,7 @@ describe('PromptHelpIcon', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
 
     await user.tab()
-    expect(screen.getByRole('button', { name: 'Show input guidance' })).toHaveFocus()
+    expect(screen.getByRole('button', { name: 'Show help' })).toHaveFocus()
     expect(screen.getByRole('tooltip')).toHaveTextContent(
       'Used in the pressure design thickness equation.',
     )

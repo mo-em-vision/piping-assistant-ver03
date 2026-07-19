@@ -1,0 +1,60 @@
+---
+description: Node-owned decision copy and engineering_decision center-panel blocks
+globs: engine/messaging/decision_*.py,engine/messaging/decision_interaction_resolver.py,engine/state/decision_recorder.py,api/engineering_decision_transcript.py,api/desktop_service.py,api/parameter_definitions.py,knowledge/**/paragraph/*.yaml,knowledge/global/parameters/**,desktopApp/src/components/workflow/WorkflowComposer.tsx,desktopApp/src/components/workflow/ResolutionBranchComposer.tsx
+alwaysApply: false
+---
+
+# Engineering decision blocks
+
+Confirmed branch and expansion-gate choices must appear as **one durable report sentence per decision key** in the center panel. Copy is **node-owned**; runtime stores structured evidence, not prose.
+
+**Source of truth:** `docs/rules.md` §12, §12b, §13. Contracts: `audits/contracts/nodes/paragraph.md`, `audits/contracts/nodes/parameter.md`. Center panel: `docs/desktopApp/center_panel_output_contract.md`.
+
+## Copy ownership (single owner — no duplicates)
+
+| Decision | Author on | PARAM keeps |
+| --- | --- | --- |
+| Straight pipe, pressure loading, similar paragraph gates | Paragraph `execution.interactions[]` (`question`, `help_text`, `options[].label`, `options[].help_text`, `options[].report_statement`) | `key`, `metadata.role`, `composer_input` binding only |
+| Resolution branch (e.g. outside diameter method) | `PARAM-*` `resolution_branch_question`, `resolution_branch_help_text`, `resolution_branches[]` | Same node — not paragraph `execution.interactions` |
+
+Resolve via `engine/messaging/decision_interaction_resolver.py`. **No** PARAM `user_prompt` / `composer_options` fallback for `NODE_OWNED_DECISION_KEYS`.
+
+## Runtime vs presentation
+
+| Layer | Owns |
+| --- | --- |
+| `Fact` + `ExecutionContext.Decision` | `decision_key`, `selected_value`, `selected_label`, `requesting_node_id`, `activated_node_ids` |
+| `engineering_decision` transcript block | Authored `report_statement` after `{selected_label}`, `{requesting_reference}`, `{activated_reference}` substitution |
+
+Record: `engine/state/decision_recorder.py`. Render: `engine/messaging/decision_statement.py`. Persist: `api/engineering_decision_transcript.py`.
+
+## Center panel block
+
+| Field | Value |
+| --- | --- |
+| `display_role` | `engineering_decision` (**not** `scope_assumption`) |
+| `block_id` | `engineering-decision-{decision_key}` |
+| `source` | `engineering_decision` |
+| Merge | Update in place on re-submit; no duplicate blocks on reload |
+
+`ask_archive` / `answer_archive` stay audit-only — **do not** change `api/input_archive_transcript.py` for decisions.
+
+## Composer (unresolved ask only)
+
+- Prompt/options/help from resolver → `parameter_input_prompt` / `parameter_definitions`
+- Checkbox: authored option labels (not hardcoded Yes/No)
+- `PromptHelpIcon` when `option.help_text` or `branch.help_text` is set
+
+## Do not
+
+- Invent report sentences in planner, graph, API serializers, or frontend
+- Use `scope_assumption` for branch decisions
+- Emit unresolved prompts into `ordered_scroll_blocks`
+- Add `if workflow ==` / `if node_id ==` branches in generic renderers
+
+## Tests
+
+- `tests/api/test_engineering_decision_blocks.py`
+- `tests/api/test_flow_guidance_phase2.py`, `tests/api/test_center_panel_phase6_contract.py`
+- `tests/models/test_display_role_contract.py`, `tests/api/test_pipe_wall_output_lifecycle.py`
+- `desktopApp/tests/components/workflow/PromptHelpIcon.test.tsx`

@@ -25,7 +25,7 @@ User-facing engineering workspace scroll area for active tasks. Defines block ro
 | Concern | Authority |
 | --- | --- |
 | Navigation ordering / missing fields | `engineering_plan`, planner outputs |
-| Parameter prompt copy | `current_ask`, `engine/messaging/`, PARAM nodes |
+| Parameter prompt copy | `current_ask`, `engine/messaging/`, condition-owning node metadata |
 | Equation engineering truth | Execution trace, `equation_display_trace` (`docs/rules.md` §24) |
 | Durable display history | `flow_guidance.transcript_blocks`, durable `display_outputs` equation blocks (§25) |
 
@@ -82,6 +82,7 @@ Legacy migration lives only in `tests/helpers/legacy_display_role_migration.py` 
 | --- | --- | --- |
 | `workflow_intro` | durable | Engineering display (runtime `texts`) |
 | `scope_assumption` | durable | **Reserved** ordering slot |
+| `engineering_decision` | durable | Engineering display — confirmed branch/decision report statements (`engineering-decision-{decision_key}`) |
 | `branch_narration` | durable | Flow Guidance Layer |
 | `input_context` | durable or preview | Flow Guidance (durable when in transcript); preview when tied to `display_channel` |
 | `engineering_reference` | durable | Engineering display |
@@ -115,6 +116,7 @@ Dedupe: preview-tier blocks with the same `equation_node_id` collapse to the ric
 | `branch_narration` / `input_context` (guidance) | `guidance-{workflow_id}-{entry_id}` |
 | `workflow_intro` | `workflow-intro-{workflow_id}` |
 | `scope_assumption` | `scope-assumption-{source_node_id}` |
+| `engineering_decision` | `engineering-decision-{decision_key}` |
 | `node_intro` | `path-preview-intro-{node_id}` |
 | `equation` (stable) | `equation-{equation_node_id}` |
 | `equation` (preview/active legacy ids) | `path-preview-equation-*`, `node-activation-equation-*` |
@@ -144,8 +146,9 @@ Authoritative tuple: `models/display_role.DISPLAY_ROLE_ORDER` → `contracts/cen
 
 1. `workflow_intro`
 2. `scope_assumption` (reserved)
-3. `branch_narration`
-4. `ask_archive` / `answer_archive` (transcript only; excluded from scroll)
+3. `engineering_decision`
+4. `branch_narration`
+5. `ask_archive` / `answer_archive` (transcript only; excluded from scroll)
 5. `engineering_reference`
 6. `paragraph_context`
 7. `input_context`

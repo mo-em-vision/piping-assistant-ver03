@@ -5,18 +5,6 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from engine.executor.lookup_rule_matching import match_column_value
-from engine.executor.lookup_rule_resolvers import (
-    RESOLVER_JOINT_CATEGORY_NORMALIZE,
-    RESOLVER_MATERIAL_CATALOG,
-    RESOLVER_METALLURGICAL_GROUP_KEY,
-    RESOLVER_NPS_KEY,
-    RESOLVER_SCHEDULE_KEY,
-    filter_rows_by_material_group,
-    resolve_input_value,
-    resolve_material_catalog_key,
-    _row_material_token,
-)
 from engine.executor.lookup_rule_schema import (
     STRATEGY_MATERIAL_CATEGORY,
     STRATEGY_MATERIAL_CATEGORY_TEMPERATURE,
@@ -28,9 +16,25 @@ from engine.executor.lookup_rule_schema import (
     STRATEGY_PIPE_NPS,
     STRATEGY_PIPE_NPS_SCHEDULE,
     RuleSpec,
+    rule_output_column_policies,
+)
+from engine.executor.table_resolver import (
+    RowResolutionPolicy,
+    resolution_result_to_meta,
+    resolve_table_rows,
+)
+from engine.executor.lookup_rule_resolvers import (
+    RESOLVER_JOINT_CATEGORY_NORMALIZE,
+    RESOLVER_MATERIAL_CATALOG,
+    RESOLVER_METALLURGICAL_GROUP_KEY,
+    RESOLVER_NPS_KEY,
+    RESOLVER_SCHEDULE_KEY,
+    filter_rows_by_material_group,
+    resolve_input_value,
+    resolve_material_catalog_key,
+    _row_material_token,
 )
 from engine.executor.pipe_dimension_lookup import PipeDimensionLookup
-from engine.graph.lookup_conditionals import resolve_lookup_input_value
 from engine.reference.standards_tables import flatten_lookup_table_rows
 
 
@@ -63,25 +67,62 @@ def _resolved_inputs(
 def _temperature_query(
     *,
     value: Any,
-    input_spec: Any,
     inputs: dict[str, Any],
     table_data: dict[str, Any],
+    axis_policy: RowResolutionPolicy | None,
 ) -> float:
     unit_key = "design_temperature_unit"
     unit = str(inputs.get(unit_key) or "F")
-    param_node = input_spec.parameter
-    if param_node:
-        return resolve_lookup_input_value(
-            float(value),
-            input_key="design_temperature",
-            input_unit=unit,
-            output_param_node_id=param_node,
-            table_unit=str(table_data.get("temperature_unit") or "F"),
-        )
+    table_unit = str(
+        table_data.get("temperature_unit")
+        or (axis_policy.unit if axis_policy else None)
+        or "F"
+    )
     from engine.executor.unit_manager import convert_to_si
 
-    converted, _ = convert_to_si(float(value), unit, target_unit=str(table_data.get("temperature_unit") or "F").lower())
-    return float(converted)
+    converted, _ = convert_to_si(float(value), unit, target_unit=table_unit.lower())
+    temp = float(converted)
+    if axis_policy is None:
+        return temp
+    if axis_policy.min_bound is not None and temp < axis_policy.min_bound:
+        if axis_policy.outside_range == "clamp_to_boundary":
+            return float(axis_policy.min_bound)
+    if axis_policy.max_bound is not None and temp > axis_policy.max_bound:
+        if axis_policy.outside_range == "clamp_to_boundary":
+            return float(axis_policy.max_bound)
+    return temp
+
+
+def _resolve_temperature_rows(
+    *,
+    spec: RuleSpec,
+    rows: list[dict[str, Any]],
+    temp_f: float,
+    axis_key: str = "design_temperature",
+    extra_meta: dict[str, Any] | None = None,
+    returns: list[dict[str, Any]] | None = None,
+) -> tuple[dict[str, float], dict[str, Any]]:
+    temp_input = spec.inputs[axis_key]
+    axis_policy = spec.row_resolution.get(axis_key)
+    if axis_policy is None:
+        axis_policy = RowResolutionPolicy(
+            breakpoint_column=temp_input.column or "design_temperature",
+            method="exact",
+        )
+    breakpoint_column = axis_policy.breakpoint_column or temp_input.column or "design_temperature"
+    output_columns = rule_output_column_policies(spec, axis_key)
+    result = resolve_table_rows(
+        rows,
+        breakpoint_column=breakpoint_column,
+        output_columns=output_columns,
+        query_value=temp_f,
+        policy=axis_policy,
+    )
+    meta = resolution_result_to_meta(result, policy=axis_policy)
+    if extra_meta:
+        meta.update(extra_meta)
+    meta["design_temperature_f"] = temp_f
+    return _apply_outputs(spec, result.values, returns=returns), meta
 
 
 def _material_rows(table_data: dict[str, Any], material_key: str) -> list[dict[str, Any]]:
@@ -210,32 +251,24 @@ def execute_material_temperature(
 ) -> tuple[dict[str, float], dict[str, Any]]:
     resolved = _resolved_inputs(spec, inputs, table_data=table_data, standards_root=standards_root)
     material_key = resolved["material_grade"]
-    temp_input = spec.inputs["design_temperature"]
+    axis_policy = spec.row_resolution.get("design_temperature")
     temp_f = _temperature_query(
         value=resolved["design_temperature"],
-        input_spec=temp_input,
         inputs=inputs,
         table_data=table_data,
+        axis_policy=axis_policy,
     )
     rows = _material_rows(table_data, str(material_key))
     if not rows:
         _policy_error(spec.on_no_match, f"No rows for material: {material_key!r}")
 
-    out_spec = next(iter(spec.outputs.values()))
-    value, matched_row, interpolated = match_column_value(
-        rows,
-        query_value=temp_f,
-        value_column=out_spec.column,
-        temp_column=temp_input.column or "design_temperature",
-        match=temp_input.match,
+    return _resolve_temperature_rows(
+        spec=spec,
+        rows=rows,
+        temp_f=temp_f,
+        extra_meta={"material": material_key},
+        returns=returns,
     )
-    meta = {
-        "material": material_key,
-        "design_temperature_f": temp_f,
-        "interpolated": interpolated,
-        "matched_row": matched_row,
-    }
-    return _apply_outputs(spec, {out_spec.column: float(value)}, returns=returns), meta
 
 
 def execute_material_group_temperature(
@@ -247,32 +280,24 @@ def execute_material_group_temperature(
 ) -> tuple[dict[str, float], dict[str, Any]]:
     resolved = _resolved_inputs(spec, inputs, table_data=table_data, standards_root=None)
     group = str(resolved["metallurgical_group"])
-    temp_input = spec.inputs["design_temperature"]
+    axis_policy = spec.row_resolution.get("design_temperature")
     temp_f = _temperature_query(
         value=resolved["design_temperature"],
-        input_spec=temp_input,
         inputs=inputs,
         table_data=table_data,
+        axis_policy=axis_policy,
     )
     rows = filter_rows_by_material_group(flatten_lookup_table_rows(table_data), group)
     if not rows:
         _policy_error(spec.on_no_match, f"No rows for material group: {group!r}")
 
-    out_spec = next(iter(spec.outputs.values()))
-    value, matched_row, interpolated = match_column_value(
-        rows,
-        query_value=temp_f,
-        value_column=out_spec.column,
-        temp_column=temp_input.column or "design_temperature",
-        match=temp_input.match,
+    return _resolve_temperature_rows(
+        spec=spec,
+        rows=rows,
+        temp_f=temp_f,
+        extra_meta={"material_group": group},
+        returns=returns,
     )
-    meta = {
-        "material_group": group,
-        "design_temperature_f": temp_f,
-        "interpolated": interpolated,
-        "matched_row": matched_row,
-    }
-    return _apply_outputs(spec, {out_spec.column: float(value)}, returns=returns), meta
 
 
 def execute_material_category(
@@ -338,14 +363,13 @@ def execute_material_category_temperature(
     category = str(resolved["pipe_construction_type"])
     category_input = spec.inputs["pipe_construction_type"]
     category_column = category_input.column or "weld_joint_category"
-    temp_input = spec.inputs["design_temperature"]
+    axis_policy = spec.row_resolution.get("design_temperature")
     temp_f = _temperature_query(
         value=resolved["design_temperature"],
-        input_spec=temp_input,
         inputs=inputs,
         table_data=table_data,
+        axis_policy=axis_policy,
     )
-    out_spec = next(iter(spec.outputs.values()))
 
     rows = [
         row
@@ -361,21 +385,13 @@ def execute_material_category_temperature(
             f"No rows for material {material_key!r} and category {category!r}",
         )
 
-    value, matched_row, interpolated = match_column_value(
-        rows,
-        query_value=temp_f,
-        value_column=out_spec.column,
-        temp_column=temp_input.column or "design_temperature",
-        match=temp_input.match,
+    return _resolve_temperature_rows(
+        spec=spec,
+        rows=rows,
+        temp_f=temp_f,
+        extra_meta={"material": material_key, "category": category},
+        returns=returns,
     )
-    meta = {
-        "material": material_key,
-        "category": category,
-        "design_temperature_f": temp_f,
-        "interpolated": interpolated,
-        "matched_row": matched_row,
-    }
-    return _apply_outputs(spec, {out_spec.column: float(value)}, returns=returns), meta
 
 
 def execute_material_only(

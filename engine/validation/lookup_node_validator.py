@@ -82,6 +82,7 @@ def validate_lookup_node(meta: dict[str, Any]) -> list[str]:
             )
 
     issues.extend(_validate_table_note_edges(meta))
+    issues.extend(_validate_lookup_node_policy_fields(meta))
     from engine.validation.lookup_rule_validator import validate_lookup_config
 
     lookup_cfg = meta.get("lookup") if isinstance(meta.get("lookup"), dict) else {}
@@ -138,6 +139,29 @@ def _validate_table_note_edges(meta: dict[str, Any]) -> list[str]:
             issues.append(
                 f"table note {note_id} id prefix does not match lookup id {lookup_id}"
             )
+    return issues
+
+
+def _validate_lookup_node_policy_fields(meta: dict[str, Any]) -> list[str]:
+    """Reject resolution policy fields that belong on table definitions."""
+    issues: list[str] = []
+    forbidden_top_level = (
+        "lookup_rules",
+        "row_resolution",
+        "interpolation",
+        "interpolate_columns",
+    )
+    for field in forbidden_top_level:
+        if field in meta:
+            issues.append(
+                f"lookup node must not contain {field!r}; "
+                "author on the table definition YAML"
+            )
+    lookup_cfg = meta.get("lookup")
+    if isinstance(lookup_cfg, dict):
+        for field in ("interpolation", "row_resolution", "interpolate_columns"):
+            if field in lookup_cfg:
+                issues.append(f"lookup block must not contain {field!r}")
     return issues
 
 

@@ -89,7 +89,7 @@ Recommended for executable tables: `lookup_keys`, `provided_values`, `data.stora
 | `edition` | Authority edition |
 | `table_class` | Table category |
 | `provides_parameters` | Shorthand param list |
-| `lookup_rules` | Interpolation, missing key behavior |
+| `lookup_rules` | Strategy, input resolvers, output columns, and `row_resolution` with `interpolate_columns` / `output_columns` |
 | `source.paragraph` | Citing paragraph |
 | `data.path` | External data file |
 | `data.storage` | `external_yaml`, `tables_db`, etc. |

@@ -237,15 +237,24 @@ def build_resolution_ui(
             {
                 "id": branch_id,
                 "label": str(branch.get("label") or branch_id.replace("_", " ").title()),
+                "help_text": (
+                    str(branch.get("help_text") or "").strip() or None
+                ),
                 "composer": composer,
                 "submit_parameter": composer.get("submit_parameter"),
             }
         )
+    nested = meta.get("metadata")
+    block = nested if isinstance(nested, dict) else meta
     return {
         "branches": branches,
         "active_branch": active_branch,
         "default_value": default_resolution_branch_id(meta),
         "branch_fact_key": resolution_branch_fact_key(param_key),
+        "question": str(block.get("resolution_branch_question") or "").strip() or None,
+        "help_text": (
+            str(block.get("resolution_branch_help_text") or "").strip() or None
+        ),
     }
 
 

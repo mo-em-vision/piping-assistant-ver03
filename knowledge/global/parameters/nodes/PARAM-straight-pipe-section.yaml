@@ -7,9 +7,6 @@ parameter_class: selection
 description: >
   Confirms the calculation applies to a straight section of pipe per §304.1.1(a).
   Non-straight sections are not yet supported.
-user_prompt:
-  prompt: Is the pipe wall thickness you would like to calculate for a straight section of pipe?
-  help_text: Non-straight sections (fittings, bends) are not yet supported.
 canonical_symbol: straight_pipe_section
 aliases:
   - straight pipe section
@@ -22,13 +19,8 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-06
+  last_revision: 2026-07-19
   edited_by: admin
   composer_input: checkbox
   default_value: true
-  composer_options:
-    - value: "true"
-      label: Yes — straight pipe section
-    - value: "false"
-      label: No — fitting, bend, or other non-straight component
 ---

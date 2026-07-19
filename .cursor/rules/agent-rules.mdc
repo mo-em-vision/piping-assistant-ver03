@@ -14,7 +14,7 @@ Apply it when planning, coding, debugging, adding dependencies, writing tests, o
 | Task | Sections |
 | --- | --- |
 | Any significant change | Skim full doc; §1–§10 always |
-| Parameter asks / composer copy | §12, §17 |
+| Parameter asks / composer copy | §12, §12b, §17 |
 | Graph paths / expansion | §13, `.cursor/rules/graph-expansion.mdc` |
 | Parameter keys / lookup display | §14–§16 |
 | Planner inspector / validation | §19–§20 |
@@ -30,6 +30,7 @@ These extend `docs/rules.md` — they do not replace it:
 - `.cursor/rules/graph-expansion.mdc` — §13
 - `.cursor/rules/parameter-key-consistency.mdc` — §14
 - `.cursor/rules/param-composer-metadata.mdc` — §17
+- `.cursor/rules/decision-output-blocks.mdc` — §12b
 - `.cursor/rules/lookup-conditionals.mdc` — §18
 - `.cursor/rules/lookup-derived-parameters.mdc` — §16
 - `.cursor/rules/table-options-queries.mdc` — table option queries

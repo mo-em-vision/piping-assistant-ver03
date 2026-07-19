@@ -96,6 +96,24 @@ metadata:
 | `execution` | Applicability, assumptions, interactions, conditions, subsections, parameter_defaults |
 | `nomenclature` | Optional symbol table; prefer `introduces_parameter` edges |
 
+### `execution.interactions` decision schema
+
+Each decision interaction on a condition-owning paragraph must declare:
+
+| Field | Rule |
+| --- | --- |
+| `id` | Stable interaction id (machine key) |
+| `parameter` or `field` | Bound `PARAM-*` id or fact key |
+| `question` | Composer question text |
+| `help_text` | Optional prompt-level help (tooltip only) |
+| `options` | Non-empty list of selectable outcomes |
+| `options[].value` | Stored fact value |
+| `options[].label` | Composer option label |
+| `options[].help_text` | Optional per-option help (tooltip only) |
+| `options[].report_statement` | **Required** report-ready prose after selection; supports `{selected_label}`, `{requesting_reference}`, `{activated_reference}` only |
+
+`execution.assumptions` remains for graph expansion gating only — not a presentation copy source when `execution.interactions` is authored for the same field.
+
 Do **not** set `text.source_language` — inherited from `pack.yaml`.
 
 ## 9. Forbidden fields

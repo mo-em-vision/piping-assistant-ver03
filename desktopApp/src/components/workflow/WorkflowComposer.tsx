@@ -273,24 +273,33 @@ export function WorkflowComposer({
     }
 
     if (parameter.type === 'checkbox') {
+      const checkboxOptions =
+        options.length > 0
+          ? options
+          : [
+              { value: 'true', label: 'Yes' },
+              { value: 'false', label: 'No' },
+            ]
       return (
         <div className="workflow-panel__selection-actions">
-          <button
-            type="button"
-            className={`workflow-panel__option${value === true ? ' workflow-panel__option--selected' : ''}`}
-            disabled={busy}
-            onClick={() => void submitCurrentValue(true)}
-          >
-            Yes
-          </button>
-          <button
-            type="button"
-            className={`workflow-panel__option${value === false ? ' workflow-panel__option--selected' : ''}`}
-            disabled={busy}
-            onClick={() => void submitCurrentValue(false)}
-          >
-            No
-          </button>
+          {checkboxOptions.map((option) => {
+            const optionValue = option.value === 'true' || option.value === true
+            const selected = value === optionValue
+            return (
+              <button
+                key={String(option.value)}
+                type="button"
+                className={`workflow-panel__option${selected ? ' workflow-panel__option--selected' : ''}`}
+                disabled={busy}
+                onClick={() => void submitCurrentValue(optionValue)}
+              >
+                <span className="workflow-panel__option-label">
+                  {option.label}
+                  {option.help_text ? <PromptHelpIcon helpText={option.help_text} /> : null}
+                </span>
+              </button>
+            )
+          })}
         </div>
       )
     }
@@ -333,7 +342,10 @@ export function WorkflowComposer({
                   setValue(next)
                 }}
               >
-                {option.label}
+                <span className="workflow-panel__option-label">
+                  {option.label}
+                  {option.help_text ? <PromptHelpIcon helpText={option.help_text} /> : null}
+                </span>
               </button>
             )
           })}

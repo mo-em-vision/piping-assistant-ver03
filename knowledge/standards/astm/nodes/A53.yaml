@@ -24,20 +24,6 @@ lookup:
   rule: by_grade
   bindings:
     material_grade: PARAM-material-grade
-lookup_rules:
-  by_grade:
-    strategy: material_catalog
-    inputs:
-      material_grade:
-        resolver: material_catalog
-    outputs:
-      resolved_material_id:
-        column: material_id
-        parameter: PARAM-material-grade
-    on_no_match:
-      action: error
-    on_multiple_matches:
-      action: error
 edges:
   - type: reads_table
     target: astm_a53_material_properties

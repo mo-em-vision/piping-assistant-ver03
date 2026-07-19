@@ -151,8 +151,10 @@ Stop if you drift into kitchen-sink refactors, wrong abstractions, or duplicatin
 
 ### Where prompt text lives
 
-- **Workflow interaction specs** — `runtime.interactions` on the primary workflow YAML. Gate phases (yes/no, branch decisions) delegate numbered formatting to `engine/messaging/step_prompt.py`.
-- **PARAM-* node metadata** — `user_prompt.prompt`, `user_prompt.help_text`, `description`, `metadata.input_examples`, and `metadata.composer_options` labels on parameter nodes, read via `engine/messaging/parameter_prompt_context.py` (messaging-owned; Graph Engine does not own user-facing wording).
+- **Paragraph decision interactions** — `execution.interactions` on the condition-owning paragraph node. Owns decision question, prompt help text, option labels, option help text, and per-option `report_statement` for expansion gates and path-decision branches. Resolved via `engine/messaging/decision_interaction_resolver.py`.
+- **Parameter resolution branches** — `metadata.resolution_branch_question`, `metadata.resolution_branch_help_text`, and `metadata.resolution_branches[]` on parameter nodes that own a resolution choice (e.g. outside-diameter method). Same resolver; not converted to paragraph `execution.interactions`.
+- **Workflow interaction specs** — `runtime.interactions` on the primary workflow YAML (legacy; gate phases delegate numbered formatting to `engine/messaging/step_prompt.py`).
+- **PARAM-* node metadata** — `user_prompt.prompt`, `user_prompt.help_text`, `description`, and `metadata.input_examples` for **ordinary value collection** only. PARAM must not duplicate decision copy already authored on the condition-owning node.
 - **Equation / lookup context** — `engine/messaging/formula_parameter_prompt.py` (graph-driven; no workflow-specific branches).
 - **Final messaging fallback** — structured minimal prompt from PARAM `name` / `canonical_symbol` when no higher-priority source applies.
 - **LLM agent stubs** — `ai/prompts/` (intent/planner agents only; not desktop parameter asks).
@@ -165,11 +167,12 @@ All desktop/API parameter asks must resolve through:
 
 Order inside that function (do not bypass or reorder without updating docs and tests):
 
-1. Workflow nested `runtime.interactions` interaction question (gate phases use numbered formatting from `step_prompt` helpers; PARAM `user_prompt` preferred for numbered decision copy)
-2. PARAM-* node `user_prompt`, then useful `description` if no prompt (`parameter_prompt_context.py`)
-3. Equation or lookup context (`formula_parameter_prompt.guidance_for_parameter_input`)
-4. Legacy `phase_questions` on planning (backward compatibility only)
-5. Final messaging fallback from PARAM metadata (`name`, `symbol`, `input_examples`)
+1. Condition-owning node decision copy — paragraph `execution.interactions` or PARAM `resolution_branches` via `decision_interaction_resolver` (gate phases use numbered formatting from `step_prompt` helpers)
+2. Workflow nested `runtime.interactions` interaction question (legacy workflow YAML only)
+3. PARAM-* node `user_prompt`, then useful `description` if no prompt (`parameter_prompt_context.py`) — ordinary value collection only; not a fallback for migrated decisions
+4. Equation or lookup context (`formula_parameter_prompt.guidance_for_parameter_input`)
+5. Legacy `phase_questions` on planning (backward compatibility only)
+6. Final messaging fallback from PARAM metadata (`name`, `symbol`, `input_examples`)
 
 ### Desktop / API prompt paths
 
@@ -212,6 +215,95 @@ Full rule file: `.cursor/rules/planner-active-input-projection.mdc`.
 
 ---
 
+## 12b. Engineering decision blocks (confirmed branch report text)
+
+**After the user confirms a branch or expansion-gate decision, the center panel must show one durable report sentence per decision key — authored on the condition-owning node, not invented at runtime.**
+
+This is **presentation of confirmed engineering choices**, separate from:
+
+- **Composer prompts** (unresolved question only — §12)
+- **Input archives** (`ask_archive` / `answer_archive` — audit transcript only, excluded from scroll)
+- **Flow Guidance narration** (`branch_narration` — traversal prose, §21)
+
+### Single copy owner per decision text type
+
+| Decision type | Authoritative owner | PARAM role |
+| --- | --- | --- |
+| Expansion gate / path decision on a paragraph (e.g. straight pipe, pressure loading) | Paragraph `execution.interactions[]` on the **condition-owning** paragraph | `PARAM-*` retains `key`, `metadata.role`, `composer_input` binding only — **no** `user_prompt` or `composer_options` for migrated decisions |
+| Parameter resolution branch (e.g. outside-diameter method) | `metadata.resolution_branch_question`, `resolution_branch_help_text`, and `metadata.resolution_branches[]` on the owning `PARAM-*` | Same node owns branch labels, help text, and `report_statement` |
+
+Resolve all node-owned decision copy through `engine/messaging/decision_interaction_resolver.py`. **Do not** fall back to PARAM `user_prompt`, `composer_options`, or assumption bridges for keys in `NODE_OWNED_DECISION_KEYS`.
+
+### Runtime evidence vs rendered sentence
+
+| Concern | Owner | Shape |
+| --- | --- | --- |
+| Engineering truth | `Fact` on task + structured `ExecutionContext.Decision` | `decision_key`, `selected_value`, `selected_label`, `requesting_node_id`, `activated_node_ids`, `interaction_id`, `submission_id` |
+| Report sentence | `engineering_decision` transcript block | Authored `report_statement` after placeholder substitution |
+
+Record structured decisions via `engine/state/decision_recorder.py` (`record_decision_from_fact` with `StandardsReader`). The rendered block is derived — never store the prose sentence as the canonical decision record.
+
+### Center-panel block contract
+
+| Field | Rule |
+| --- | --- |
+| `display_role` | `engineering_decision` — **not** `scope_assumption` |
+| `block_id` | `engineering-decision-{decision_key}` (canonical parameter key) |
+| `source` | `engineering_decision` |
+| Lifecycle | Durable; **update in place** when the same decision key is re-submitted |
+| Scroll | Included in `ordered_scroll_blocks` via `api/center_panel_contract.py` |
+| Ordering | After `scope_assumption`, before `branch_narration` (`contracts/center_panel_report_role_order.json`) |
+
+Persist through `api/engineering_decision_transcript.py` → `flow_guidance_transcript` merge path. **Do not** change `api/input_archive_transcript.py` behavior for decisions.
+
+### `report_statement` placeholders
+
+Authored per option/branch on the owning node. Renderer: `engine/messaging/decision_statement.py`.
+
+| Placeholder | Resolves from |
+| --- | --- |
+| `{selected_label}` | Selected option label |
+| `{requesting_reference}` | `presentation.reference_label` (or paragraph reference) on `requesting_node_id` |
+| `{activated_reference}` | First `activated_node_ids` entry; falls back to `{requesting_reference}` when none |
+
+No other placeholders. No workflow-id or node-id branches in the generic renderer.
+
+### Composer UI
+
+- Unresolved question, option labels, and per-option `help_text` come from the resolver via `api/parameter_definitions.py` / `build_parameter_input_prompt()`.
+- Desktop: `WorkflowComposer` uses authored option labels (not hardcoded Yes/No); `PromptHelpIcon` beside options/branches when `help_text` is non-empty.
+- Resolution branches: `ResolutionBranchComposer` shows branch `help_text` tooltips from PARAM `resolution_branches`.
+
+### Do not
+
+- Use `scope_assumption` for confirmed branch decisions.
+- Duplicate decision question or report copy on both paragraph and PARAM for migrated keys.
+- Add runtime PARAM/assumption synthesis fallbacks for `NODE_OWNED_DECISION_KEYS`.
+- Put decision report sentences in the planner, graph engine, Flow Guidance YAML, or frontend.
+- Emit unresolved composer prompts into `ordered_scroll_blocks`.
+- Hardcode `if workflow == …` / `if node_id == …` in generic decision renderers.
+
+### Modules
+
+| Layer | Path |
+| --- | --- |
+| Resolver | `engine/messaging/decision_interaction_resolver.py` |
+| Placeholder render | `engine/messaging/decision_statement.py` |
+| Runtime record | `engine/state/decision_recorder.py`, `models/execution_context.py` |
+| Transcript | `api/engineering_decision_transcript.py` |
+| Submit wiring | `api/desktop_service.py` |
+| Composer payload | `api/parameter_definitions.py`, `engine/messaging/parameter_input_prompt.py` |
+
+### Tests
+
+- `tests/api/test_engineering_decision_blocks.py` — 15 proofs (copy ownership, no PARAM fallback, scroll vs archive, in-place update, placeholders)
+- Regression: `tests/api/test_flow_guidance_phase2.py`, `tests/api/test_center_panel_phase6_contract.py`, `tests/models/test_display_role_contract.py`, `tests/api/test_pipe_wall_output_lifecycle.py`
+- Desktop: `desktopApp/tests/components/workflow/PromptHelpIcon.test.tsx`, `desktopApp/tests/utils/buildCenterPanelTranscript.test.ts`, `desktopApp/tests/utils/centerPanelContractSync.test.ts`
+
+Full rule file: `.cursor/rules/decision-output-blocks.mdc`. Node contracts: `audits/contracts/nodes/paragraph.md`, `audits/contracts/nodes/parameter.md`. Center-panel detail: `docs/desktopApp/center_panel_output_contract.md`.
+
+---
+
 ## 13. Graph-driven workflow paths (no hardcoded steps)
 
 **Workflow paths, branches, and parameter asks must come from graph expansion — not from hardcoded lists in engine, API, or UI code.**
@@ -248,7 +340,7 @@ Workflow YAML must **not** author branch gates, path decisions, or parameter fie
 | Block expansion until user confirms | Paragraph/equation `execution.assumptions` with `required_for_expansion` |
 | Internal vs external (or similar) branch | `applicability.applies_when` on branch paragraph/equation; parent `introduces_parameter` for path-decision `PARAM-*` |
 | Branch-only parameter | `introduces_parameter` on the branch paragraph + parameter node; optional `applies_when` |
-| Path-decision parameter | Global `PARAM-*` with `metadata.role: path_decision`; prompt on `user_prompt` |
+| Path-decision parameter | Global `PARAM-*` with `metadata.role: path_decision` for graph binding; decision copy on introducing paragraph `execution.interactions` |
 | Workflow completion | `goal_expansion.root_goal.target_parameter` + `entry_points.definition_anchor` |
 | Ask order within a phase | Graph expansion order and PARAM priority — not workflow YAML lists |
 
@@ -366,7 +458,7 @@ Correct: `Resolved from `**`ASME B31.3 Table A-1`** (only the citation is clicka
 | --- | --- |
 | `PARAM-*` node | Required before the parameter appears in workflow phases, sidecars, or composer |
 | `metadata.composer_input` | UI control: `number`, `dropdown`, `checkbox`, `material`, … |
-| `metadata.composer_options` | Static `{value, label}` pairs for path decisions and categorical choices **only** (mutually exclusive with `table_options`) |
+| `metadata.composer_options` | Static `{value, label}` pairs for **ordinary** categorical choices only — **not** migrated path/expansion decisions (those use node-owned copy per §12b) |
 | `metadata.table_options` | Table-backed dropdown/search: `{table, query}` binding to a named `option_queries` profile on the table/catalog YAML |
 | `parameter_class` + `dimension` | Default composer type when `composer_input` is omitted |
 | `build_composer_parameter_spec()` | Sole resolver for label/type/units/static options; raises if PARAM node is missing |
@@ -875,6 +967,7 @@ Shared formatting: `engine/equation/latex_format.py` (`\mathrm{}` units, numeric
 
 - When content for an existing durable `block_id` changes, **update the block in place** — do not append a second copy with the same id.
 - `transcript_blocks` append **new** `block_id`s only. Re-fetching task state (`get_task`, reload, projection refresh) must **not** duplicate durable blocks already in transcript or `display_outputs`.
+- **Engineering decisions** — one durable block per `decision_key` at `engineering-decision-{decision_key}`; re-submit updates that block in place (§12b).
 - `presentation_blocks` / `display_outputs` may rebuild each turn; durable history in `transcript_blocks` remains append-only (§21).
 
 ### Equation atomic unit

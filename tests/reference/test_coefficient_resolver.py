@@ -106,23 +106,22 @@ def test_lookup_y_interpolates_between_tabulated_points() -> None:
     assert abs(value - 0.6) < 1e-9
 
 
-def test_y_parameter_lookup_conditionals_clamp_temperature() -> None:
-    from engine.graph.lookup_conditionals import (
-        apply_lookup_conditional_bounds,
-        lookup_conditionals_for_parameter,
-        resolve_lookup_input_value,
-    )
+def test_y_table_row_resolution_clamps_temperature() -> None:
+    from engine.executor.lookup_engine import LookupEngine
 
-    conditionals = lookup_conditionals_for_parameter("PARAM-temperature-coefficient-y")
-    design_temp = conditionals["design_temperature"]
-    assert apply_lookup_conditional_bounds(100.0, design_temp) == 900.0
-    assert resolve_lookup_input_value(
-        100.0,
-        input_key="design_temperature",
-        input_unit="F",
-        output_param_node_id="PARAM-temperature-coefficient-y",
-        table_unit="F",
-    ) == 900.0
+    engine = LookupEngine(_pack_root())
+    result = engine.execute_rule_lookup(
+        table_ref="asme-b313-table-304-1-1-1",
+        rule="by_material_group_temperature",
+        inputs={
+            "design_temperature": 100.0,
+            "design_temperature_unit": "F",
+            "metallurgical_group": "ferritic_steels",
+        },
+    )
+    assert result.meta.get("query_value") == pytest.approx(900.0)
+    value = result.outputs.get("temperature_coefficient_Y")
+    assert value == pytest.approx(0.4)
 
 
 def test_thick_wall_y_formula() -> None:

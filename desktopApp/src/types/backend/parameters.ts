@@ -15,6 +15,7 @@ export type ParameterStatus = 'pending' | 'confirmation_required' | 'confirmed'
 export interface ParameterOptionDto {
   value: string
   label: string
+  help_text?: string | null
 }
 
 export interface ResolutionBranchComposerDto {
@@ -28,6 +29,7 @@ export interface ResolutionBranchComposerDto {
 export interface ResolutionBranchDto {
   id: string
   label: string
+  help_text?: string | null
   composer: ResolutionBranchComposerDto
   submit_parameter?: string | null
 }
@@ -37,6 +39,8 @@ export interface ResolutionUiDto {
   active_branch: string | null
   default_value?: string | null
   branch_fact_key: string
+  question?: string | null
+  help_text?: string | null
 }
 
 /** @deprecated Use resolution_ui on resolution_branch parameters */

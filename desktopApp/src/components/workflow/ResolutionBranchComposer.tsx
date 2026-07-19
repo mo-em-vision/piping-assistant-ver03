@@ -4,6 +4,7 @@ import type { ParameterDefinitionDto } from '@/types/backend/parameters'
 
 import { ComposerInlineInput } from './ComposerInlineInput'
 import { ScrollSelectPicker } from './ScrollSelectPicker'
+import { PromptHelpIcon } from './PromptHelpIcon'
 
 import './ResolutionBranchComposer.css'
 
@@ -123,7 +124,10 @@ export function ResolutionBranchComposer({
               disabled={busy}
               onClick={() => void handleBranchSelect(branch.id)}
             >
-              {branch.label}
+              <span className="resolution-branch-composer__mode-label">
+                {branch.label}
+                {branch.help_text ? <PromptHelpIcon helpText={branch.help_text} /> : null}
+              </span>
             </button>
           )
         })}

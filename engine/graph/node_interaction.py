@@ -52,6 +52,16 @@ class InteractionMode(str, Enum):
 
 
 @dataclass(frozen=True)
+class InteractionOption:
+    """Rich option metadata from authored execution.interactions or resolution_branches."""
+
+    value: str
+    label: str
+    help_text: str | None = None
+    report_statement: str | None = None
+
+
+@dataclass(frozen=True)
 class NodeInteractionSpec:
     """A single variable the workflow may require from the user."""
 
@@ -69,6 +79,10 @@ class NodeInteractionSpec:
     unit: str = "dimensionless"
     symbol: str | None = None
     default_condition: str | None = None
+    interaction_id: str | None = None
+    help_text: str | None = None
+    rich_options: tuple[InteractionOption, ...] = ()
+    parameter_ref: str | None = None
 
     def alias_map(self) -> dict[str, str]:
         return {key: value for key, value in self.aliases}
@@ -103,8 +117,59 @@ def parse_interactions(metadata: dict[str, Any], node_id: str) -> list[NodeInter
     return specs
 
 
+def _resolve_interaction_variable(item: dict[str, Any]) -> str:
+    variable = str(item.get("variable") or item.get("field") or "").strip()
+    if variable:
+        return variable
+    parameter_ref = str(item.get("parameter") or "").strip()
+    if parameter_ref.startswith("PARAM-"):
+        from engine.reference.parameter_keys import param_key_from_param_id
+
+        return param_key_from_param_id(parameter_ref)
+    return ""
+
+
+def _parse_rich_options(item: dict[str, Any]) -> tuple[InteractionOption, ...]:
+    raw_options = item.get("options") or []
+    if not raw_options:
+        return ()
+    if not isinstance(raw_options, list):
+        return ()
+    if not raw_options or not isinstance(raw_options[0], dict):
+        return ()
+    parsed: list[InteractionOption] = []
+    for option in raw_options:
+        if not isinstance(option, dict):
+            continue
+        value = str(option.get("value", "")).strip()
+        if not value:
+            continue
+        label = str(option.get("label") or value.replace("_", " ").title()).strip()
+        help_text_raw = option.get("help_text")
+        help_text = (
+            str(help_text_raw).strip()
+            if isinstance(help_text_raw, str) and help_text_raw.strip()
+            else None
+        )
+        report_raw = option.get("report_statement")
+        report_statement = (
+            str(report_raw).strip()
+            if isinstance(report_raw, str) and report_raw.strip()
+            else None
+        )
+        parsed.append(
+            InteractionOption(
+                value=value,
+                label=label,
+                help_text=help_text,
+                report_statement=report_statement,
+            )
+        )
+    return tuple(parsed)
+
+
 def _interaction_from_dict(item: dict[str, Any], node_id: str) -> NodeInteractionSpec | None:
-    variable = str(item.get("variable") or item.get("field") or "")
+    variable = _resolve_interaction_variable(item)
     if not variable:
         return None
 
@@ -114,7 +179,11 @@ def _interaction_from_dict(item: dict[str, Any], node_id: str) -> NodeInteractio
     except ValueError:
         mode = InteractionMode.DECISION
 
-    options = tuple(str(v) for v in (item.get("options") or []))
+    rich_options = _parse_rich_options(item)
+    if rich_options:
+        options = tuple(option.value for option in rich_options)
+    else:
+        options = tuple(str(v) for v in (item.get("options") or []))
     aliases_raw = item.get("aliases") or {}
     aliases: list[tuple[str, str]] = []
     if isinstance(aliases_raw, dict):
@@ -144,6 +213,15 @@ def _interaction_from_dict(item: dict[str, Any], node_id: str) -> NodeInteractio
     else:
         confirmation_required = bool(item.get("confirmation_required", False))
 
+    help_text_raw = item.get("help_text")
+    help_text = (
+        str(help_text_raw).strip()
+        if isinstance(help_text_raw, str) and help_text_raw.strip()
+        else None
+    )
+    parameter_ref = str(item.get("parameter") or "").strip() or None
+    interaction_id = str(item.get("id") or "").strip() or None
+
     return NodeInteractionSpec(
         variable=variable,
         mode=mode,
@@ -159,6 +237,10 @@ def _interaction_from_dict(item: dict[str, Any], node_id: str) -> NodeInteractio
         unit=str(item.get("unit", "dimensionless")),
         symbol=str(item["symbol"]) if item.get("symbol") else None,
         default_condition=str(item["default_condition"]) if item.get("default_condition") else None,
+        interaction_id=interaction_id,
+        help_text=help_text,
+        rich_options=rich_options,
+        parameter_ref=parameter_ref,
     )
 
 

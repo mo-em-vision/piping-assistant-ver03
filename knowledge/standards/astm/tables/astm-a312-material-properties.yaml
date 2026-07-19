@@ -1,0 +1,15 @@
+table_id: astm_a312_material_properties
+lookup_rules:
+  by_grade:
+    strategy: material_catalog
+    inputs:
+      material_grade:
+        resolver: material_catalog
+    outputs:
+      resolved_material_id:
+        column: material_id
+        parameter: PARAM-material-grade
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error

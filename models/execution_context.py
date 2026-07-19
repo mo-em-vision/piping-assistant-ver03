@@ -94,6 +94,13 @@ class Decision:
     source: str
     timestamp: str
     reason: str | None = None
+    decision_key: str | None = None
+    interaction_id: str | None = None
+    requesting_node_id: str | None = None
+    selected_label: str | None = None
+    activated_node_ids: list[str] | None = None
+    source_type: str | None = None
+    submission_id: str | None = None
 
 
 @dataclass

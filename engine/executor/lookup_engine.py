@@ -9,7 +9,7 @@ from typing import Any
 from engine.executor.table_registry import resolve_graph_node_table_id
 from engine.reference.asme_b31_3_table_ids import TABLE_304_1_1, TABLE_304_1_1_1, TABLE_A_1
 from engine.reference.material_catalog_db import standards_root_from_pack_root
-from engine.reference.material_resolver import canonical_material_id, resolve_material_table_key
+from engine.reference.material_resolver import canonical_material_id
 from engine.reference.parameter_keys import MATERIAL_GRADE_KEY, read_parameter_value
 from engine.reference.pack_tables_db import resolve_pack_tables_db
 from engine.reference.standards_tables import StandardsTablesDatabase
@@ -91,47 +91,34 @@ class LookupEngine:
         table_ref = str(
             lookup_config.get("table_id")
             or lookup_config.get("table")
-            or ""
+            or "asme-b313-table-A-1"
         ).strip()
-        table_data = self._tables_db.get_table(table_ref)
-        if table_data is None:
-            raise FileNotFoundError(f"Lookup table not found: {table_ref}")
-        material = str(read_parameter_value(inputs, MATERIAL_GRADE_KEY) or "").strip()
-        if not material:
-            raise ValueError(f"{MATERIAL_GRADE_KEY} is required for stress lookup")
+        from engine.executor.lookup_rule_schema import TABLE_REF_ALIASES
 
+        table_ref = TABLE_REF_ALIASES.get(table_ref, table_ref)
+        normalized = _lookup_inputs_with_units(inputs)
+        rule_result = self.execute_rule_lookup(
+            table_ref=table_ref,
+            rule=str(lookup_config.get("rule") or "by_material_temperature"),
+            inputs=normalized,
+            returns=[{"parameter": "PARAM-allowable-stress", "symbol": "S"}],
+        )
+        stress_pa = rule_result.outputs.get("allowable_stress") or rule_result.outputs.get("S")
+        if stress_pa is None:
+            raise ValueError("allowable_stress was not resolved from table lookup")
+
+        material = str(read_parameter_value(inputs, MATERIAL_GRADE_KEY) or "").strip()
         standards_root = standards_root_from_pack_root(self._pack_root)
         material_id = canonical_material_id(material, standards_root=standards_root) or material
-
-        temp_value = float(inputs["design_temperature"])
-        temp_unit = str(inputs.get("design_temperature_unit", "F"))
-        table_unit = str(table_data.get("temperature_unit") or "F")
-        from engine.graph.lookup_conditionals import resolve_lookup_input_value
-
-        temp_f = resolve_lookup_input_value(
-            temp_value,
-            input_key="design_temperature",
-            input_unit=temp_unit,
-            output_param_node_id="PARAM-allowable-stress",
-            table_unit=table_unit,
-        )
-
-        interpolation = bool(lookup_config.get("interpolation", table_data.get("interpolation", False)))
-        stress_pa, row, interpolated = self._lookup_stress(
-            table_data,
-            material=material_id,
-            temperature_f=temp_f,
-            interpolate=interpolation,
-            standards_root=standards_root,
-        )
+        temp_f = float(rule_result.meta.get("design_temperature_f") or normalized.get("design_temperature", 0))
 
         trace = LookupTrace(
-            table_id=str(table_data.get("table_id", table_ref)),
+            table_id=str(rule_result.meta.get("table_id") or table_ref),
             material=material_id,
             design_temperature_f=temp_f,
-            allowable_stress_pa=stress_pa,
-            interpolated=interpolated,
-            matched_row=row,
+            allowable_stress_pa=float(stress_pa),
+            interpolated=bool(rule_result.meta.get("interpolated")),
+            matched_row=rule_result.meta.get("matched_row"),
         )
 
         calculation = CalculationResult(
@@ -145,10 +132,10 @@ class LookupEngine:
                 CalculationStep(
                     name="table_lookup",
                     inputs={MATERIAL_GRADE_KEY: material_id, "design_temperature_F": temp_f},
-                    result=stress_pa,
+                    result=float(stress_pa),
                 )
             ],
-            final_result=QuantityResult(symbol="S", value=stress_pa, unit="Pa"),
+            final_result=QuantityResult(symbol="S", value=float(stress_pa), unit="Pa"),
             status=CalculationStatus.PASS,
         )
 
@@ -245,62 +232,3 @@ class LookupEngine:
         )
         return dict(result.outputs)
 
-    def _lookup_stress(
-        self,
-        table_data: dict[str, Any],
-        *,
-        material: str,
-        temperature_f: float,
-        interpolate: bool,
-        standards_root: Path | None = None,
-    ) -> tuple[float, dict[str, Any] | None, bool]:
-        materials = table_data.get("materials", {}) or {}
-        material_key = resolve_material_table_key(
-            materials,
-            material,
-            standards_root=standards_root,
-        )
-        if material_key is None:
-            raise ValueError(f"Material not found in lookup table: {material}")
-
-        rows = materials[material_key].get("rows", [])
-        if not rows:
-            raise ValueError(f"No rows for material: {material_key}")
-
-        sorted_rows = sorted(rows, key=lambda r: float(r["design_temperature"]))
-
-        for row in sorted_rows:
-            if float(row["design_temperature"]) == temperature_f:
-                return float(row["allowable_stress"]), row, False
-
-        if not interpolate:
-            closest = min(sorted_rows, key=lambda r: abs(float(r["design_temperature"]) - temperature_f))
-            return float(closest["allowable_stress"]), closest, False
-
-        below = None
-        above = None
-        for row in sorted_rows:
-            temp = float(row["design_temperature"])
-            if temp <= temperature_f:
-                below = row
-            if temp >= temperature_f and above is None:
-                above = row
-
-        if below is None and above is not None:
-            return float(above["allowable_stress"]), above, False
-        if above is None and below is not None:
-            return float(below["allowable_stress"]), below, False
-        if below is None or above is None:
-            closest = min(sorted_rows, key=lambda r: abs(float(r["design_temperature"]) - temperature_f))
-            return float(closest["allowable_stress"]), closest, False
-
-        t0 = float(below["design_temperature"])
-        t1 = float(above["design_temperature"])
-        if t0 == t1:
-            return float(below["allowable_stress"]), below, False
-
-        s0 = float(below["allowable_stress"])
-        s1 = float(above["allowable_stress"])
-        fraction = (temperature_f - t0) / (t1 - t0)
-        stress = s0 + fraction * (s1 - s0)
-        return stress, {"design_temperature": temperature_f, "allowable_stress": stress}, True

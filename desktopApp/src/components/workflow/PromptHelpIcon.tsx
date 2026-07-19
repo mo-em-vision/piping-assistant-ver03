@@ -19,7 +19,7 @@ export function PromptHelpIcon({ helpText }: PromptHelpIconProps) {
       <button
         type="button"
         className="prompt-help-icon__button"
-        aria-label="Show input guidance"
+        aria-label="Show help"
         aria-describedby={open ? tooltipId : undefined}
         aria-expanded={open}
         onMouseEnter={() => setOpen(true)}

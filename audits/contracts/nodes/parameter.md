@@ -79,7 +79,10 @@ metadata:
 | `user_prompt.prompt` | Brief composer heading |
 | `user_prompt.help_text` | Optional engineering guidance (not unit-entry instructions) |
 | `metadata.composer_input` | UI control type |
-| `metadata.composer_options` | Static dropdown choices |
+| `metadata.composer_options` | Static dropdown choices (ordinary value collection; not decision copy when `execution.interactions` owns the decision) |
+| `metadata.resolution_branch_question` | Branch-selection question for `resolution_branch` parameters |
+| `metadata.resolution_branch_help_text` | Optional prompt-level help for branch selection |
+| `metadata.resolution_branches` | Resolution path definitions (see below) |
 | `metadata.canonical_unit` | Default unit symbol or `UNIT-*` |
 | `metadata.default_value` | Proposed default |
 | `metadata.input_examples` | Prompt examples |
@@ -88,7 +91,23 @@ metadata:
 | `metadata.status` | Lifecycle |
 | `edges` | `has_dimension`, `used_by`, etc. |
 
-### Allowed `parameter_class` values
+### `metadata.resolution_branches` schema
+
+For parameters with `metadata.composer_input: resolution_branch`:
+
+| Field | Rule |
+| --- | --- |
+| `metadata.resolution_branch_question` | Composer question for branch selection |
+| `metadata.resolution_branch_help_text` | Optional prompt-level help |
+| `resolution_branches[].id` | Branch fact value |
+| `resolution_branches[].label` | Composer tab/option label |
+| `resolution_branches[].help_text` | Optional per-branch help |
+| `resolution_branches[].report_statement` | **Required** report-ready prose; same placeholders as paragraph interactions |
+| `resolution_branches[].method` | `table_lookup` or `user_input` |
+| `resolution_branches[].via_parameters` | Prerequisite PARAM ids for lookup branches |
+
+`user_prompt` on resolution-branch parameters is for **post-branch value entry** (e.g. direct numeric OD), not the branch-selection question.
+
 
 ```text
 physical_quantity, geometric_quantity, material_designation,

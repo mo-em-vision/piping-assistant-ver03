@@ -10,8 +10,6 @@ from engine.reference.material_catalog_db import material_display_name, standard
 from engine.reference.parameter_keys import MATERIAL_GRADE_KEY, read_parameter_value
 from engine.reference.material_resolver import canonical_material_id, resolve_material_table_key
 from engine.reference.asme_b31_3_table_ids import (
-    TABLE_302_3_5,
-    TABLE_304_1_1,
     TABLE_A_2,
     TABLE_A_3,
 )
@@ -28,70 +26,30 @@ def interpolate_by_temperature(
     interpolate: bool = True,
 ) -> tuple[float, dict[str, Any] | None, bool]:
     """Look up a scalar value by temperature with optional linear interpolation."""
+    from engine.executor.table_resolver import OutputColumnPolicy, RowResolutionPolicy, resolve_table_rows
+
     if not rows:
         raise ValueError("No rows available for temperature lookup")
 
-    sorted_rows = sorted(rows, key=lambda r: float(r["design_temperature"]))
-
-    for row in sorted_rows:
-        if float(row["design_temperature"]) == temperature_f:
-            return float(row[value_key]), row, False
-
+    method = "linear_interpolation" if interpolate else "exact"
+    policy = RowResolutionPolicy(
+        breakpoint_column="design_temperature",
+        method=method,
+        interpolate_columns=(value_key,) if interpolate else (),
+    )
+    output_columns = {value_key: OutputColumnPolicy(method=method)}
     if not interpolate:
-        closest = min(
-            sorted_rows,
-            key=lambda r: abs(float(r["design_temperature"]) - temperature_f),
-        )
-        return float(closest[value_key]), closest, False
+        output_columns = {value_key: OutputColumnPolicy(method="exact")}
 
-    below = None
-    above = None
-    for row in sorted_rows:
-        temp = float(row["design_temperature"])
-        if temp <= temperature_f:
-            below = row
-        if temp >= temperature_f and above is None:
-            above = row
-
-    if below is None and above is not None:
-        return float(above[value_key]), above, False
-    if above is None and below is not None:
-        return float(below[value_key]), below, False
-    if below is None or above is None:
-        closest = min(
-            sorted_rows,
-            key=lambda r: abs(float(r["design_temperature"]) - temperature_f),
-        )
-        return float(closest[value_key]), closest, False
-
-    t0 = float(below["design_temperature"])
-    t1 = float(above["design_temperature"])
-    if t0 == t1:
-        return float(below[value_key]), below, False
-
-    v0 = float(below[value_key])
-    v1 = float(above[value_key])
-    fraction = (temperature_f - t0) / (t1 - t0)
-    value = v0 + fraction * (v1 - v0)
-    return value, {"design_temperature": temperature_f, value_key: value}, True
-
-
-def _tables_db(pack_root: Path) -> StandardsTablesDatabase:
-    return StandardsTablesDatabase(resolve_pack_tables_db(pack_root))
-
-
-def _load_table(pack_root: Path, table_ref: str) -> dict[str, Any]:
-    data = _tables_db(pack_root).get_table(table_ref)
-    if data is None:
-        raise FileNotFoundError(f"Lookup table not found: {table_ref}")
-    return data
-
-
-def temperature_to_fahrenheit(value: float, unit: str = "F") -> float:
-    from engine.executor.unit_manager import convert_to_si
-
-    temp_f, _ = convert_to_si(value, unit, target_unit="f")
-    return temp_f
+    result = resolve_table_rows(
+        rows,
+        breakpoint_column="design_temperature",
+        output_columns=output_columns,
+        query_value=float(temperature_f),
+        policy=policy,
+    )
+    value = result.values[value_key]
+    return value, result.matched_row, result.interpolated
 
 
 def lookup_y_coefficient(
@@ -103,33 +61,33 @@ def lookup_y_coefficient(
     metallurgical_group: str | None = None,
 ) -> tuple[float, bool]:
     """Return Y from Table 304.1.1-1 at design temperature."""
-    from engine.graph.lookup_conditionals import resolve_lookup_input_value
-    from engine.reference.standards_tables import flatten_lookup_table_rows
+    from engine.executor.lookup_engine import LookupEngine
 
-    table_data = _load_table(pack_root, TABLE_304_1_1)
-    lookup_temp_f = resolve_lookup_input_value(
-        design_temperature,
-        input_key="design_temperature",
-        input_unit=design_temperature_unit,
-        output_param_node_id="PARAM-temperature-coefficient-Y",
-        table_unit=str(table_data.get("temperature_unit") or "F"),
-    )
-    rows = flatten_lookup_table_rows(table_data)
-    group_token = str(metallurgical_group or "").strip()
-    if group_token:
-        rows = _filter_y_rows_for_material(rows, group_token)
+    inputs: dict[str, Any] = {
+        "design_temperature": design_temperature,
+        "design_temperature_unit": design_temperature_unit,
+    }
+    if metallurgical_group:
+        inputs["metallurgical_group"] = metallurgical_group
     elif material:
-        rows = _filter_y_rows_for_material(rows, material)
-    elif rows:
-        rows = [row for row in rows if row.get("material_id") == "ferritic_steels"] or rows
-    interpolate = bool(table_data.get("interpolation", True))
-    value, _, interpolated = interpolate_by_temperature(
-        rows,
-        temperature_f=lookup_temp_f,
-        value_key="coefficient_Y",
-        interpolate=interpolate,
+        inputs["metallurgical_group"] = material
+    else:
+        inputs["metallurgical_group"] = "ferritic_steels"
+
+    engine = LookupEngine(pack_root)
+    result = engine.execute_rule_lookup(
+        table_ref="asme-b313-table-304-1-1-1",
+        rule="by_material_group_temperature",
+        inputs=inputs,
     )
-    return value, interpolated
+    value = (
+        result.outputs.get("temperature_coefficient_Y")
+        or result.outputs.get("temperature_coefficient_y")
+        or result.outputs.get("Y")
+    )
+    if value is None:
+        raise ValueError("temperature_coefficient_Y was not resolved")
+    return float(value), bool(result.meta.get("interpolated"))
 
 
 def _filter_y_rows_for_material(rows: list[dict[str, Any]], material: str) -> list[dict[str, Any]]:
@@ -251,50 +209,44 @@ def lookup_w_factor(
     weld_joint_category: str = "seamless",
 ) -> float | None:
     """Look up W from Table 302.3.5-1 when rows are available; otherwise return 1.0."""
-    try:
-        table_data = _load_table(pack_root, TABLE_302_3_5)
-    except FileNotFoundError:
-        return None
-    rows = table_data.get("rows", []) or []
-    if not rows:
-        return 1.0
-    standards_root = standards_root_from_pack_root(pack_root)
-    material_key = resolve_material_table_key(
-        {_row_material_token(row): row for row in rows},
-        material,
-        standards_root=standards_root,
-    )
-    if material_key is None:
-        return 1.0
-    table_unit = str(table_data.get("temperature_unit") or "F")
-    from engine.graph.lookup_conditionals import resolve_lookup_input_value
+    from engine.executor.lookup_engine import LookupEngine
 
-    temp_f = resolve_lookup_input_value(
-        design_temperature,
-        input_key="design_temperature",
-        input_unit=design_temperature_unit,
-        output_param_node_id="PARAM-weld-strength-reduction-factor-W",
-        table_unit=table_unit,
-    )
-    category = weld_joint_category.strip().lower().replace("-", "_")
-    for row in rows:
-        row_material = _row_material_token(row)
-        row_category = str(row.get("weld_joint_category", "")).strip().lower().replace("-", "_")
-        if row_material == material_key and row_category == category:
-            return float(row.get("weld_strength_reduction_W", row.get("W", 1.0)))
-    value_key = "weld_strength_reduction_W"
-    if value_key not in rows[0]:
-        value_key = "W"
     try:
-        value, _, _ = interpolate_by_temperature(
-            rows,
-            temperature_f=temp_f,
-            value_key=value_key,
-            interpolate=bool(table_data.get("interpolation", True)),
+        engine = LookupEngine(pack_root)
+        result = engine.execute_rule_lookup(
+            table_ref="asme-b313-table-302-3-5-1",
+            rule="by_material_construction_temperature",
+            inputs={
+                "material_grade": material,
+                "design_temperature": design_temperature,
+                "design_temperature_unit": design_temperature_unit,
+                "pipe_construction_type": weld_joint_category,
+            },
         )
-        return value
-    except (ValueError, KeyError):
-        return 1.0
+        value = result.outputs.get("weld_strength_reduction_factor_W")
+        if value is not None:
+            return float(value)
+    except (ValueError, FileNotFoundError):
+        pass
+    return 1.0
+
+
+def _tables_db(pack_root: Path) -> StandardsTablesDatabase:
+    return StandardsTablesDatabase(resolve_pack_tables_db(pack_root))
+
+
+def _load_table(pack_root: Path, table_ref: str) -> dict[str, Any]:
+    data = _tables_db(pack_root).get_table(table_ref)
+    if data is None:
+        raise FileNotFoundError(f"Lookup table not found: {table_ref}")
+    return data
+
+
+def temperature_to_fahrenheit(value: float, unit: str = "F") -> float:
+    from engine.executor.unit_manager import convert_to_si
+
+    temp_f, _ = convert_to_si(value, unit, target_unit="f")
+    return temp_f
 
 
 def _thin_wall_assumed(existing_inputs: dict[str, Any]) -> bool:

@@ -14,7 +14,7 @@ alwaysApply: true
 
 Workflow **paths**, **branches**, and **parameter asks** are resolved by node expansion and authored graph structure. Every connection that controls eligibility belongs on nodes or edges in `knowledge/` — not in workflow YAML conditionals or Python/TypeScript hardcoding.
 
-**Source of truth:** `docs/rules.md` §13.
+**Source of truth:** `docs/rules.md` §13. Decision report blocks: §12b / `.cursor/rules/decision-output-blocks.mdc`.
 
 ## What the graph owns
 
@@ -24,7 +24,7 @@ Workflow **paths**, **branches**, and **parameter asks** are resolved by node ex
 | Conditional branch | Edge `when`, `depends_on` with `when` |
 | Branch-only parameters | `introduces_parameter`, parameter node + `applies_when` |
 | Pre-expansion gates | Paragraph/equation `execution.assumptions` with `required_for_expansion` |
-| Path decisions | `PARAM-*` with `metadata.role: path_decision` + paragraph `applies_when` |
+| Path decisions | `PARAM-*` with `metadata.role: path_decision` for graph binding; decision **copy** on introducing paragraph `execution.interactions` (§12b) |
 | User-input vs lookup | Parameter `resolution.method` |
 | Workflow completion | `goal_expansion.root_goal.target_parameter` + `entry_points.definition_anchor` |
 

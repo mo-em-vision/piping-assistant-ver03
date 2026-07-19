@@ -12,6 +12,6 @@ Each `lookup_rules` entry must declare exactly one `strategy`. Required logical 
 | `material_category_temperature` | `material_grade`, `pipe_construction_type`, `design_temperature` | `material_catalog`, `joint_category_normalize`, `identity` |
 | `material_only` | `material_grade` | `material_catalog` |
 
-Temperature inputs require a `match` block with `method`, `outside_range`, `duplicate_rows`, and `missing_value`.
+Temperature strategies require a `row_resolution.<temperature_input_key>` block with breakpoint axis policy and explicit `interpolate_columns` (or per-column `output_columns` when behavior differs).
 
-Implementation: `engine/executor/lookup_rule_strategies.py`.
+Implementation: `engine/executor/lookup_rule_strategies.py`, `engine/executor/table_resolver.py`.

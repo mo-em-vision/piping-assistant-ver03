@@ -9,19 +9,13 @@ description: >
   Temperature-dependent coefficient Y used in internal pressure design thickness
   equations. Resolved from Table 304.1.1-1 by design metal temperature, with
   interpolation for intermediate temperatures per ASME B31.3 §304.1.2.
+  Endpoint clamping (900–1250 °F) is declared on table 304.1.1-1 row_resolution.
 canonical_symbol: Y
 aliases:
   - temperature coefficient Y
   - coefficient Y
 introduced_by:
   - asme-b313-304-1-1-b
-lookup_conditionals:
-  design_temperature:
-    unit: UNIT-degF
-    min: 900
-    max: 1250
-    below_min: use_min
-    above_max: use_max
 edges:
   - type: has_dimension
     target: DIM-dimensionless

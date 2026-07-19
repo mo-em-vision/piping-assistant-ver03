@@ -22,20 +22,31 @@ edges:
 metadata:
   status: active
   version: 1
-  last_revision: 2026-07-15
+  last_revision: 2026-07-19
   edited_by: admin
   canonical_unit: UNIT-mm
   composer_input: resolution_branch
   default_value: nps_lookup
+  resolution_branch_question: How should outside diameter D be determined?
+  resolution_branch_help_text: >
+    Select NPS lookup when the pipe matches standard ASME B36.10M sizes, or enter outside
+    diameter directly when it is known or non-standard.
   resolution_branches:
     - id: nps_lookup
       label: NPS
+      help_text: Resolve outside diameter from nominal pipe size using ASME B36.10M Table 2-1.
+      report_statement: >
+        Outside diameter D was resolved from nominal pipe size (NPS) per {requesting_reference},
+        using ASME B36.10M Table 2-1.
       method: table_lookup
       via_parameters:
         - PARAM-nominal-pipe-size
       lookup: asme-b3610-nps-outside-diameter-lookup
     - id: direct_od
       label: Outside diameter
+      help_text: Enter the outside diameter directly when NPS lookup is not applicable.
+      report_statement: >
+        Outside diameter D was entered directly by the user per {requesting_reference}.
       method: user_input
       value_composer: number
 ---

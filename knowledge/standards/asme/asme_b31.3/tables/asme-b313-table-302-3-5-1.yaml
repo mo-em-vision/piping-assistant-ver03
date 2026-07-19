@@ -1,0 +1,32 @@
+table_id: asme-b313-table-302-3-5-1
+lookup_rules:
+  by_material_construction_temperature:
+    strategy: material_category_temperature
+    row_resolution:
+      design_temperature:
+        breakpoint_column: design_temperature
+        unit: degF
+        method: linear_interpolation
+        outside_range: error
+        duplicate_breakpoints: error
+        missing_value: error
+        interpolate_columns:
+          - weld_strength_reduction_W
+    inputs:
+      material_grade:
+        resolver: material_catalog
+      pipe_construction_type:
+        resolver: joint_category_normalize
+        column: weld_joint_category
+      design_temperature:
+        resolver: identity
+        column: design_temperature
+        parameter: PARAM-design-temperature
+    outputs:
+      weld_strength_reduction_factor_W:
+        column: weld_strength_reduction_W
+        parameter: PARAM-weld-strength-reduction-factor-w
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error

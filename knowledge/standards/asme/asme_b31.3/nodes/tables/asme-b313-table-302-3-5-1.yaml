@@ -28,32 +28,6 @@ lookup:
     material_grade: PARAM-material-grade
     design_temperature: PARAM-design-temperature
     pipe_construction_type: PARAM-pipe-construction-type
-lookup_rules:
-  by_material_construction_temperature:
-    strategy: material_category_temperature
-    inputs:
-      material_grade:
-        resolver: material_catalog
-      pipe_construction_type:
-        resolver: joint_category_normalize
-        column: weld_joint_category
-      design_temperature:
-        resolver: identity
-        column: design_temperature
-        parameter: PARAM-design-temperature
-        match:
-          method: linear_interpolation
-          outside_range: error
-          duplicate_rows: error
-          missing_value: error
-    outputs:
-      weld_strength_reduction_factor_W:
-        column: weld_strength_reduction_W
-        parameter: PARAM-weld-strength-reduction-factor-w
-    on_no_match:
-      action: error
-    on_multiple_matches:
-      action: error
 edges:
   - type: depends_on
     target: 302.3.5-e

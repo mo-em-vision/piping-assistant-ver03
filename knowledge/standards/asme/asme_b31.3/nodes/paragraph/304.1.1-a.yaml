@@ -49,6 +49,41 @@ execution:
       blocks_expansion_on: [false]
       expansion_block_message: >
         Non-straight pipe sections are not yet supported.
+  interactions:
+    - id: straight_pipe_section
+      parameter: PARAM-straight-pipe-section
+      field: straight_pipe_section
+      question: Is the pipe wall thickness you would like to calculate for a straight section of pipe?
+      help_text: Non-straight sections (fittings, bends) are not yet supported in this workflow.
+      options:
+        - value: "true"
+          label: Yes — straight pipe section
+          help_text: Select when the calculation applies to a straight run of pipe per §304.1.1(a).
+          report_statement: >
+            The calculation was confirmed to apply to a straight pipe section per {requesting_reference}.
+            The straight-pipe pressure-design provisions were therefore applied.
+        - value: "false"
+          label: No — fitting, bend, or other non-straight component
+          help_text: Select when the component is not a straight pipe section. Non-straight pressure design is not yet supported.
+          report_statement: >
+            The user indicated that the component is not a straight pipe section.
+            Non-straight pipe pressure-design provisions are not supported in this workflow per {requesting_reference}.
+    - id: pressure_loading
+      parameter: PARAM-pressure-design-case
+      field: pressure_design_case
+      question: Is the pipe subjected to internal or external pressure?
+      help_text: The loading condition determines whether §304.1.2 (internal pressure) or §304.1.3 (external pressure) applies.
+      options:
+        - value: internal_pressure
+          label: Internal pressure
+          help_text: Select when the pipe is pressurized from the inside.
+          report_statement: >
+            The pipe was evaluated for internal pressure. The requirements of {activated_reference} were therefore applied.
+        - value: external_pressure
+          label: External pressure
+          help_text: Select when the pipe is subjected to external pressure.
+          report_statement: >
+            The pipe was evaluated for external pressure. The requirements of {activated_reference} were therefore applied.
 metadata:
   status: active
   source_revision_year: 2024

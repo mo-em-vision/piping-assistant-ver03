@@ -25,29 +25,6 @@ lookup:
   bindings:
     material_grade: PARAM-material-grade
     design_temperature: PARAM-design-temperature
-lookup_rules:
-  by_material_temperature:
-    strategy: material_temperature
-    inputs:
-      material_grade:
-        resolver: material_catalog
-      design_temperature:
-        resolver: identity
-        column: design_temperature
-        parameter: PARAM-design-temperature
-        match:
-          method: linear_interpolation
-          outside_range: error
-          duplicate_rows: error
-          missing_value: error
-    outputs:
-      allowable_stress:
-        column: allowable_stress
-        parameter: PARAM-allowable-stress
-    on_no_match:
-      action: error
-    on_multiple_matches:
-      action: error
 edges:
   - type: returns_parameter
     target: PARAM-allowable-stress

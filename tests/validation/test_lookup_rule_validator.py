@@ -39,18 +39,19 @@ def test_missing_strategy_is_rejected() -> None:
 def test_bindings_must_cover_strategy_inputs() -> None:
     raw_rule = {
         "strategy": "material_temperature",
+        "row_resolution": {
+            "design_temperature": {
+                "breakpoint_column": "design_temperature",
+                "method": "linear_interpolation",
+                "interpolate_columns": ["allowable_stress"],
+            }
+        },
         "inputs": {
             "material_grade": {"resolver": "material_catalog"},
             "design_temperature": {
                 "resolver": "identity",
                 "column": "design_temperature",
                 "parameter": "PARAM-design-temperature",
-                "match": {
-                    "method": "linear_interpolation",
-                    "outside_range": "error",
-                    "duplicate_rows": "error",
-                    "missing_value": "error",
-                },
             },
         },
         "outputs": {

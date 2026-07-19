@@ -8,7 +8,7 @@ alwaysApply: false
 
 Every gatherable workflow parameter must have a global `PARAM-*` node. The desktop composer reads UI specs **only** from that node via `build_composer_parameter_spec()` — never from hardcoded maps or interaction fallbacks.
 
-**Source of truth:** `docs/rules.md` §17. Table-backed options: `.cursor/rules/table-options-queries.mdc`.
+**Source of truth:** `docs/rules.md` §17. Decision copy: §12b / `.cursor/rules/decision-output-blocks.mdc`. Table-backed options: `.cursor/rules/table-options-queries.mdc`.
 
 ## Before adding a parameter
 
@@ -22,7 +22,7 @@ Every gatherable workflow parameter must have a global `PARAM-*` node. The deskt
 | Field | Purpose | Example |
 | --- | --- | --- |
 | `composer_input` | UI control type | `number`, `dropdown`, `checkbox`, `material` |
-| `composer_options` | **Static** choices only (no table source) | `[{value: internal_pressure, label: Internal Pressure}]` |
+| `composer_options` | **Static** choices for ordinary categoricals only — not migrated path/expansion decisions (§12b) | Omit when paragraph `execution.interactions` owns the decision |
 | `table_options` | Table-backed dropdown/search binding | `{table: B3610-table-2-1, query: nps_values}` |
 | `canonical_unit` | Default unit symbol or `UNIT-*` id | `UNIT-mm`, `NPS` |
 | `default_value` | Proposed default before user input | `true` for straight-pipe assumption |
@@ -41,6 +41,7 @@ Declare `metadata.table_options` on the PARAM node; define SQL profiles in `opti
 - Add `_*_dropdown_options()` helpers or `if parameter_id == …` option overrides in API.
 - Put `composer_options` on parameters whose values come from tables.
 - Fall back to workflow `interactions` when a PARAM node is missing.
+- Put decision question or `report_statement` copy on PARAM when the condition-owning paragraph already owns it (§12b).
 
 ## Verification
 

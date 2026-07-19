@@ -58,11 +58,16 @@ function isNextWorkflowsBlock(block: FlowGuidancePresentationBlock): boolean {
   return block.kind === 'next_workflows' && block.source === 'workflow_runtime'
 }
 
+function isEngineeringDecisionBlock(block: FlowGuidancePresentationBlock): boolean {
+  return block.kind === 'text' && block.source === 'engineering_decision'
+}
+
 function isDurableTranscriptBlock(block: FlowGuidancePresentationBlock): boolean {
   return (
     isGuidanceNarrationBlock(block) ||
     isRuntimeTranscriptBlock(block) ||
     isWorkflowNodeTranscriptBlock(block) ||
+    isEngineeringDecisionBlock(block) ||
     isNextWorkflowsBlock(block)
   )
 }
@@ -81,6 +86,9 @@ function inferTranscriptDisplayRole(block: FlowGuidancePresentationBlock): strin
   }
   if (blockId.startsWith('archived-answer-')) {
     return 'answer_archive'
+  }
+  if (blockId.startsWith('engineering-decision-')) {
+    return 'engineering_decision'
   }
   return inferGuidanceDisplayRole(block)
 }

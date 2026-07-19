@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from engine.executor.table_resolver import OutputColumnPolicy, RowResolutionPolicy
 from engine.reference.standards_markdown import split_frontmatter
 from engine.reference.table_options_resolver import _table_yaml_candidates
 
@@ -70,6 +71,15 @@ RULE_NAME_ALIASES = {
     "material_group_and_temperature": "by_material_group_temperature",
 }
 
+TABLE_REF_ALIASES = {
+    "A-1": "asme-b313-table-A-1",
+    "asme_b31.3_A-1": "asme-b313-table-A-1",
+    "A-2": "asme-b313-table-A-2",
+    "asme_b31.3_A-2": "asme-b313-table-A-2",
+    "A-3": "asme-b313-table-A-3",
+    "asme_b31.3_A-3": "asme-b313-table-A-3",
+}
+
 RULE_STRATEGY_BY_NAME = {
     "by_nps": STRATEGY_PIPE_NPS,
     "by_nps_schedule": STRATEGY_PIPE_NPS_SCHEDULE,
@@ -85,19 +95,10 @@ RULE_STRATEGY_BY_NAME = {
 
 
 @dataclass(frozen=True)
-class MatchPolicy:
-    method: str
-    outside_range: str
-    duplicate_rows: str
-    missing_value: str
-
-
-@dataclass(frozen=True)
 class InputSpec:
     logical_key: str
     resolver: str
     column: str | None = None
-    match: MatchPolicy | None = None
     parameter: str | None = None
 
 
@@ -116,6 +117,7 @@ class RuleSpec:
     outputs: dict[str, OutputSpec]
     on_no_match: str
     on_multiple_matches: str
+    row_resolution: dict[str, RowResolutionPolicy] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -139,7 +141,42 @@ def _parse_table_yaml(path: Path) -> dict[str, Any]:
 
 
 def load_table_lookup_rules(table_ref: str, *, standards_root: Path) -> dict[str, Any]:
-    for path in _table_yaml_candidates(table_ref, standards_root):
+    """Load lookup_rules from table definition YAML (pack tables/ preferred over node YAML)."""
+    ref = TABLE_REF_ALIASES.get(str(table_ref or "").strip(), str(table_ref or "").strip())
+    candidates: list[Path] = []
+
+    # Pack table definition files (authoritative)
+    b313_pack_tables = standards_root / "asme" / "asme_b31.3" / "tables"
+    if ref.startswith("asme-b313-table-") or ref.startswith("asme_b31.3_"):
+        stem = ref.replace("asme_b31.3_", "asme-b313-table-").replace("_", "-")
+        if not stem.startswith("asme-b313-table-"):
+            stem = f"asme-b313-table-{ref}"
+        candidates.append(b313_pack_tables / f"{stem}.yaml")
+        candidates.append(b313_pack_tables / f"{ref}.yaml")
+
+    astm_pack_tables = standards_root / "astm" / "tables"
+    astm_ids = {
+        "astm_a106_material_properties": "A106",
+        "astm_a105_material_properties": "A105",
+        "astm_a53_material_properties": "A53",
+        "astm_a312_material_properties": "A312",
+    }
+    astm_stem = astm_ids.get(ref)
+    if astm_stem:
+        candidates.append(astm_pack_tables / f"astm-{astm_stem.lower()}-material-properties.yaml")
+        candidates.append(astm_pack_tables / f"{astm_stem}.yaml")
+    elif ref in {"A106", "A105", "A53", "A312"}:
+        candidates.append(astm_pack_tables / f"astm-{ref.lower()}-material-properties.yaml")
+        candidates.append(astm_pack_tables / f"{ref}.yaml")
+
+    # Legacy / B36.10 paths via shared candidate resolver
+    candidates.extend(_table_yaml_candidates(table_ref, standards_root))
+
+    seen: set[Path] = set()
+    for path in candidates:
+        if path in seen or not path.is_file():
+            continue
+        seen.add(path)
         data = _parse_table_yaml(path)
         rules = data.get("lookup_rules")
         if isinstance(rules, dict) and rules:
@@ -147,15 +184,74 @@ def load_table_lookup_rules(table_ref: str, *, standards_root: Path) -> dict[str
     return {}
 
 
-def _parse_match_policy(raw: Any) -> MatchPolicy | None:
+def _parse_row_resolution_policy(raw: Any, *, axis_key: str) -> RowResolutionPolicy | None:
     if not isinstance(raw, dict):
         return None
-    return MatchPolicy(
+    interpolate_raw = raw.get("interpolate_columns")
+    interpolate_columns: tuple[str, ...] = ()
+    if isinstance(interpolate_raw, list):
+        interpolate_columns = tuple(str(c).strip() for c in interpolate_raw if str(c).strip())
+
+    output_columns: dict[str, OutputColumnPolicy] = {}
+    output_raw = raw.get("output_columns")
+    if isinstance(output_raw, dict):
+        for col_name, col_item in output_raw.items():
+            if not isinstance(col_item, dict):
+                continue
+            output_columns[str(col_name)] = OutputColumnPolicy(
+                method=str(col_item.get("method") or "exact").strip(),
+                unit=str(col_item.get("unit") or "").strip() or None,
+            )
+
+    min_bound = raw.get("min")
+    max_bound = raw.get("max")
+    return RowResolutionPolicy(
+        breakpoint_column=str(raw.get("breakpoint_column") or axis_key).strip(),
+        unit=str(raw.get("unit") or "").strip() or None,
         method=str(raw.get("method") or "exact").strip(),
         outside_range=str(raw.get("outside_range") or "error").strip(),
-        duplicate_rows=str(raw.get("duplicate_rows") or "error").strip(),
+        duplicate_breakpoints=str(
+            raw.get("duplicate_breakpoints") or raw.get("duplicate_rows") or "error"
+        ).strip(),
         missing_value=str(raw.get("missing_value") or "error").strip(),
+        min_bound=float(min_bound) if min_bound is not None else None,
+        max_bound=float(max_bound) if max_bound is not None else None,
+        interpolate_columns=interpolate_columns,
+        output_columns=output_columns,
     )
+
+
+def rule_output_column_policies(
+    spec: RuleSpec,
+    axis_key: str,
+) -> dict[str, OutputColumnPolicy]:
+    """Derive per-table-column resolution policies for a breakpoint axis."""
+    axis_policy = spec.row_resolution.get(axis_key)
+    if axis_policy is None:
+        return {
+            out_spec.column: OutputColumnPolicy(method="exact")
+            for out_spec in spec.outputs.values()
+        }
+
+    if axis_policy.output_columns:
+        return dict(axis_policy.output_columns)
+
+    policies: dict[str, OutputColumnPolicy] = {}
+    interpolate_set = set(axis_policy.interpolate_columns)
+    for out_spec in spec.outputs.values():
+        col = out_spec.column
+        if col in interpolate_set:
+            policies[col] = OutputColumnPolicy(
+                method="linear_interpolation",
+                unit=axis_policy.unit,
+            )
+        else:
+            policies[col] = OutputColumnPolicy(method="exact", unit=axis_policy.unit)
+    return policies
+
+
+def load_table_row_resolution(spec: RuleSpec, logical_key: str) -> RowResolutionPolicy | None:
+    return spec.row_resolution.get(logical_key)
 
 
 def parse_rule_spec(rule_name: str, raw: dict[str, Any]) -> RuleSpec:
@@ -178,7 +274,6 @@ def parse_rule_spec(rule_name: str, raw: dict[str, Any]) -> RuleSpec:
             logical_key=str(logical_key),
             resolver=resolver,
             column=str(item.get("column") or "").strip() or None,
-            match=_parse_match_policy(item.get("match")),
             parameter=str(item.get("parameter") or "").strip() or None,
         )
 
@@ -217,6 +312,14 @@ def parse_rule_spec(rule_name: str, raw: dict[str, Any]) -> RuleSpec:
     if not strategy:
         raise ValueError(f"Lookup rule {rule_name!r} requires strategy.")
 
+    row_resolution: dict[str, RowResolutionPolicy] = {}
+    row_resolution_raw = raw.get("row_resolution")
+    if isinstance(row_resolution_raw, dict):
+        for axis_key, axis_item in row_resolution_raw.items():
+            parsed = _parse_row_resolution_policy(axis_item, axis_key=str(axis_key))
+            if parsed is not None:
+                row_resolution[str(axis_key)] = parsed
+
     return RuleSpec(
         name=normalize_rule_name(rule_name),
         strategy=strategy,
@@ -224,6 +327,7 @@ def parse_rule_spec(rule_name: str, raw: dict[str, Any]) -> RuleSpec:
         outputs=outputs,
         on_no_match=no_match_action,
         on_multiple_matches=multiple_action,
+        row_resolution=row_resolution,
     )
 
 

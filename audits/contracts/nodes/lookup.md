@@ -65,7 +65,7 @@ metadata:
 ---
 ```
 
-Rule definitions (`lookup_rules`) for the named `lookup.rule` may be co-located on the lookup node or on the bound table data YAML. Full schema: [`spec/lookup_rules.md`](../../../spec/lookup_rules.md).
+Rule definitions for `lookup.rule` must be authored on the bound table definition YAML (see [`table.md`](table.md), [`spec/lookup_rules.md`](../../../spec/lookup_rules.md)). Lookup nodes must not contain `lookup_rules`, `row_resolution`, `match`, `interpolation`, or `interpolate_columns`.
 
 ## 7. Required fields
 
@@ -90,7 +90,6 @@ Rule definitions (`lookup_rules`) for the named `lookup.rule` may be co-located 
 | `authority.authorized_by` | Governing paragraph ids — compiled to graph edges at load; do not author `authorized_by` in `edges` (per [01-shared-node-contract.md](01-shared-node-contract.md) §10) |
 | `authority.authority_context_required` | Requires active authority context |
 | `requires` | Input parameter bindings with symbols |
-| `lookup_rules` | Rule specs keyed by `lookup.rule` (may be co-located or on table data YAML) |
 | `source` | Pack, yaml path, tables_db reference |
 | `inputs` | Legacy input descriptor list (prefer `lookup.bindings`) |
 | `edges` | `requires_parameter`, `reads_table`, `returns_parameter` |
@@ -124,6 +123,7 @@ Also forbidden:
 - `authorized_by` in `edges` (use top-level `authority.authorized_by`)
 - `calculates_parameter` edges (use `returns_parameter`)
 - `lookup.keys` in the `lookup` block (deprecated; use `lookup.bindings`)
+- `lookup_rules`, `row_resolution`, `match`, `interpolation`, `interpolate_columns` (belong on table definition YAML)
 - Top-level `links` block
 
 ## 10. Permitted outgoing relationships

@@ -3,6 +3,7 @@
   "workflow_description",
   "workflow_intro",
   "scope_assumption",
+  "engineering_decision",
   "branch_narration",
   "ask_archive",
   "answer_archive",

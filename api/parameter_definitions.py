@@ -37,6 +37,11 @@ from api.workflow_timeline import (
     revealed_pipe_wall_input_ids,
     submittable_parameter_ids,
 )
+from engine.messaging.decision_interaction_resolver import (
+    composer_options_from_view,
+    is_node_owned_decision_key,
+    resolve_decision_interaction,
+)
 from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
 from engine.messaging.parameter_prompt_context import parameter_metadata_context, parameter_prompt_from_metadata
 from engine.navigation.active_input_projection import (
@@ -159,6 +164,31 @@ def build_parameter_definitions(
                 payload["prompt"] = metadata_ctx.prompt
             if metadata_ctx.help_text:
                 payload["help_text"] = metadata_ctx.help_text
+        if reader is not None:
+            canonical_id = canonical_parameter_key(parameter_id)
+            decision_key = canonical_id
+            if spec.get("type") == "resolution_branch":
+                from engine.graph.resolution_branches import resolution_branch_fact_key
+
+                decision_key = resolution_branch_fact_key(canonical_id)
+            if is_node_owned_decision_key(decision_key):
+                view = resolve_decision_interaction(reader, task, decision_key)
+                if view is not None:
+                    payload["prompt"] = view.question
+                    if view.help_text:
+                        payload["help_text"] = view.help_text
+                    payload["options"] = composer_options_from_view(view)
+                    if spec.get("type") == "checkbox":
+                        payload["type"] = "checkbox"
+                    elif payload["options"]:
+                        payload["type"] = "dropdown"
+            elif spec.get("resolution_ui") and isinstance(spec["resolution_ui"], dict):
+                branch_question = spec["resolution_ui"].get("question")
+                if isinstance(branch_question, str) and branch_question.strip():
+                    payload["prompt"] = branch_question.strip()
+                branch_help = spec["resolution_ui"].get("help_text")
+                if isinstance(branch_help, str) and branch_help.strip():
+                    payload["help_text"] = branch_help.strip()
         if spec.get("resolution_ui"):
             payload["resolution_ui"] = spec["resolution_ui"]
         if reader is not None:

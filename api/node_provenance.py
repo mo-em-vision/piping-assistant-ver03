@@ -180,6 +180,35 @@ def parameter_input_provenance(
     parameter_id: str,
 ) -> dict[str, Any] | None:
     """Provenance for a workflow parameter prompt (interaction, param node, or equation)."""
+    from engine.messaging.decision_interaction_resolver import (
+        is_node_owned_decision_key,
+        resolve_decision_interaction,
+    )
+    from engine.graph.resolution_branches import resolution_branch_fact_key
+
+    canonical = parameter_id
+    decision_key = canonical
+    if is_node_owned_decision_key(canonical):
+        decision_key = canonical
+    elif canonical == "outside_diameter":
+        decision_key = resolution_branch_fact_key("outside_diameter")
+
+    if is_node_owned_decision_key(decision_key):
+        view = resolve_decision_interaction(reader, task, decision_key)
+        if view is not None:
+            source_field = (
+                "metadata.resolution_branches"
+                if view.requesting_node_id.startswith("PARAM-")
+                else "execution.interactions"
+            )
+            provenance = provenance_for_node(
+                reader,
+                view.requesting_node_id,
+                source_field=source_field,
+            )
+            if provenance:
+                return provenance
+
     spec = interaction_for_parameter(reader, task, parameter_id)
     if spec is not None:
         provenance = provenance_for_node(reader, spec.node_id, source_field="user_prompt.prompt")

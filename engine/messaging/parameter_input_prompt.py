@@ -12,6 +12,10 @@ from engine.graph.node_interaction import (
     find_interaction,
     question_for_interaction,
 )
+from engine.messaging.decision_interaction_resolver import (
+    is_node_owned_decision_key,
+    resolve_decision_interaction,
+)
 from engine.messaging.formula_parameter_prompt import focus_node_for_parameter, guidance_for_parameter_input
 from engine.messaging.parameter_prompt_context import (
     parameter_metadata_context,
@@ -79,6 +83,12 @@ def build_parameter_input_prompt(
     """Return a user-facing prompt for a workflow parameter input."""
     canonical_id = canonical_parameter_key(parameter_id)
     facts = dict(task.fact_store.active_facts())
+
+    if is_node_owned_decision_key(canonical_id):
+        view = resolve_decision_interaction(reader, task, canonical_id)
+        if view is not None and view.question:
+            return view.question
+
     metadata_ctx = parameter_metadata_context(reader, canonical_id)
     spec = interaction_for_parameter(reader, task, canonical_id)
 
@@ -97,6 +107,9 @@ def build_parameter_input_prompt(
         interaction_prompt = question_for_interaction(spec, facts).strip()
         if interaction_prompt:
             return interaction_prompt
+
+    if is_node_owned_decision_key(canonical_id):
+        return _final_messaging_fallback(canonical_id, planning=planning, metadata_ctx=metadata_ctx)
 
     metadata_prompt = parameter_prompt_from_metadata(metadata_ctx)
     if metadata_prompt:
@@ -130,10 +143,16 @@ def build_short_parameter_input_prompt(
     """Return a short composer prompt without numbered choices or long narration."""
     canonical_id = canonical_parameter_key(parameter_id)
     facts = dict(task.fact_store.active_facts())
+
+    if is_node_owned_decision_key(canonical_id):
+        view = resolve_decision_interaction(reader, task, canonical_id)
+        if view is not None and view.question:
+            return view.question
+
     metadata_ctx = parameter_metadata_context(reader, canonical_id)
 
     short = short_prompt_from_metadata(metadata_ctx)
-    if short:
+    if short and not is_node_owned_decision_key(canonical_id):
         return short
 
     spec = interaction_for_parameter(reader, task, canonical_id)

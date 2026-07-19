@@ -25,20 +25,6 @@ lookup:
   rule: by_material
   bindings:
     material_grade: PARAM-material-grade
-lookup_rules:
-  by_material:
-    strategy: material_only
-    inputs:
-      material_grade:
-        resolver: material_catalog
-    outputs:
-      basic_casting_quality_factor:
-        column: quality_factor_E_c
-        parameter: PARAM-basic-casting-quality-factor
-    on_no_match:
-      action: error
-    on_multiple_matches:
-      action: error
 edges:
   - type: depends_on
     target: 302.3.3-b

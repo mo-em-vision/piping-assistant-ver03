@@ -1,45 +1,47 @@
-# Lookup conditionals (table boundary rules)
+# Table row resolution (boundary and interpolation rules)
 
-Temperature (and other lookup-key) boundary behavior is **authored on the output `PARAM-*` node**, not hardcoded in `engine/reference/` or table-specific resolvers.
+Row-resolution behavior (exact match, linear interpolation, endpoint clamp, reject-outside-range) is **authored on the table definition** via `lookup_rules.<rule>.row_resolution` — not on lookup nodes or in Python resolvers.
 
-**Source of truth:** `docs/rules.md` §18.
+**Source of truth:** `docs/rules.md` §18, [`spec/lookup_rules.md`](../../spec/lookup_rules.md).
 
-## Author on the output parameter node
+## Author on the table definition
 
 ```yaml
-lookup_conditionals:
+row_resolution:
   design_temperature:
-    unit: UNIT-degF
+    breakpoint_column: design_temperature
+    unit: degF
+    method: linear_interpolation
+    outside_range: clamp_to_boundary
     min: 900
     max: 1250
-    below_min: use_min
-    above_max: use_max
+    interpolate_columns:
+      - coefficient_Y
 ```
 
 | Field | Purpose |
 | --- | --- |
-| Key | Lookup input / fact key (`design_temperature`, …) — must match `lookup.keys` |
-| `unit` | Unit for `min` / `max` thresholds (`UNIT-degF`, `UNIT-degC`, …) |
-| `min` / `max` | Tabulated range endpoints |
-| `below_min` | `use_min` — use value at `min` when input is lower |
-| `above_max` | `use_max` — use value at `max` when input is higher |
+| `breakpoint_column` | Row sort key (separate from interpolated columns) |
+| `interpolate_columns` | Output columns that share one bracketing pass and interpolation fraction |
+| `outside_range` | `error`, `clamp_to_boundary`, `lower_bound`, `upper_bound` |
+| `min` / `max` | Optional explicit permitted range |
 
-Between `min` and `max`, the lookup node’s `interpolation: true` applies. The table stores tabulated points only.
+Use `output_columns` only when columns need different resolution methods on the same axis.
 
 ## Engine behavior
 
-1. `lookup_conditionals_for_parameter()` reads rules from the output `PARAM-*` node (graph or YAML).
-2. `lookup_parameter_resolution.py` exposes `lookup_conditionals` on inferred `table_lookup` resolution.
-3. Lookup execution (`lookup_engine`, coefficient resolvers) calls `bounded_lookup_input_value()` / `apply_lookup_conditionals_to_inputs()` — **generic interpreter only**.
+1. `load_table_lookup_rules()` loads rules from `<pack>/tables/<table_ref>.yaml`.
+2. `resolve_table_rows()` in `engine/executor/table_resolver.py` finds bracketing rows once, computes one interpolation fraction, applies it to every declared interpolated column.
+3. Per-column provenance is recorded in `meta.column_provenance`.
 
 ## Do not
 
+- Put `lookup_rules`, `row_resolution`, `match`, or `interpolation` on lookup nodes.
 - Hardcode table ids, temperature limits, or clamp logic in `coefficient_resolver.py`, `lookup_engine.py`, or workflow code.
-- Put `temperature_bounds` on lookup nodes when the rule applies to the derived parameter — author on the **output** `PARAM-*` node.
-- Add per-table Python functions for boundary behavior.
+- Add per-table Python functions for boundary or interpolation behavior.
 
 ## Tests
 
-- `tests/graph/test_lookup_conditionals.py`
-- `tests/graph/test_lookup_parameter_resolution.py`
-- Table-specific resolver tests assert behavior via PARAM metadata, not engine literals.
+- `tests/executor/test_table_resolver.py`
+- `tests/executor/test_table_rule_lookup.py`
+- `tests/validation/test_lookup_node_validator.py`

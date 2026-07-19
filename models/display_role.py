@@ -15,6 +15,7 @@ class DisplayRole(StrEnum):
     workflow_intro = "workflow_intro"
     input_waiting = "input_waiting"
     scope_assumption = "scope_assumption"
+    engineering_decision = "engineering_decision"
     branch_narration = "branch_narration"
     ask_archive = "ask_archive"
     answer_archive = "answer_archive"
@@ -53,6 +54,7 @@ DISPLAY_ROLE_ORDER: tuple[DisplayRole, ...] = (
     DisplayRole.workflow_description,
     DisplayRole.workflow_intro,
     DisplayRole.scope_assumption,
+    DisplayRole.engineering_decision,
     DisplayRole.branch_narration,
     DisplayRole.ask_archive,
     DisplayRole.answer_archive,
@@ -224,6 +226,8 @@ def infer_display_fields_from_block(block: dict[str, Any]) -> dict[str, Any]:
         resolved["display_role"] = DisplayRole.workflow_intro.value
     elif block_id.startswith("result-summary-"):
         resolved["display_role"] = DisplayRole.result_summary.value
+    elif block_id.startswith("engineering-decision-"):
+        resolved["display_role"] = DisplayRole.engineering_decision.value
     elif block_id.startswith("archived-ask-"):
         resolved["display_role"] = DisplayRole.ask_archive.value
     elif block_id.startswith("archived-answer-"):

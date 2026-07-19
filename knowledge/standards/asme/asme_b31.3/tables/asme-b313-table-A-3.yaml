@@ -1,0 +1,28 @@
+table_id: asme-b313-table-A-3
+option_queries:
+  joint_categories_for_material:
+    storage: standards_tables
+    table_id: asme_b31.3_A-3
+    requires: [material_grade]
+    value_column: joint_category
+    label_template: "{value}"
+    distinct: true
+    filter:
+      material_grade: material_id
+lookup_rules:
+  by_material_joint_category:
+    strategy: material_category
+    inputs:
+      material_grade:
+        resolver: material_catalog
+      pipe_construction_type:
+        resolver: joint_category_normalize
+        column: joint_category
+    outputs:
+      basic_quality_factor:
+        column: quality_factor_E
+        parameter: PARAM-basic-quality-factors-for-longitudinal-weld-joints-in-pipes-and-tubes
+    on_no_match:
+      action: error
+    on_multiple_matches:
+      action: error
