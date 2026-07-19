@@ -2,7 +2,7 @@
 
 Source of truth for Cursor agents and contributors. `.cursor/rules/agent-rules.mdc` points here; do not contradict this file.
 
-`docs/rules.md`, `.cursor/rules/**`, node templates, and architecture decision documents are protected files. Agents must not modify them unless the approved task explicitly lists them as allowed files. When a conflict is found, report it and propose an amendment instead of editing the rule.
+`docs/rules.md`, `.cursor/rules/**`, node templates, and architecture decision documents are protected files. Agents must not modify them unless the approved task explicitly lists them as allowed files. When a conflict is found, report it and propose an amendment instead of editing the rule. after any edits report the exact diffs of the protected files.
 
 ---
 
