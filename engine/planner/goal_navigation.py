@@ -57,27 +57,18 @@ def next_actionable_goal(task: Task) -> Goal | None:
         param = goal_parameter_key(goal)
         if _param_satisfied(task, param):
             continue
-        from engine.navigation import (
-            composer_parameter_id,
-            is_pipe_wall_thickness_task,
-            pipe_wall_step_applies,
-        )
+        from engine.navigation import composer_parameter_id, step_applies_for_timeline
         from engine.graph.definition_equations import has_execution_trace
+        from engine.planner.workflow_goal_metadata import goal_output_value_for_task
         from models.planning import NavigationPhase
 
         if (
             str(goal.metadata.get("phase") or "") == NavigationPhase.DEFINITION_EQUATION_COMPLETION.value
-            and not (
-                has_execution_trace(task)
-                and (
-                    task.outputs.get("t") is not None
-                    or task.outputs.get("required_thickness") is not None
-                )
-            )
+            and not (has_execution_trace(task) and goal_output_value_for_task(task) is not None)
         ):
             continue
 
-        if is_pipe_wall_thickness_task(task) and not pipe_wall_step_applies(task, param):
+        if not step_applies_for_timeline(task, param):
             continue
         if goal.satisfaction.status in {SatisfactionStatus.PENDING, SatisfactionStatus.READY}:
             goal.metadata["composer_parameter"] = composer_parameter_id(task, param)

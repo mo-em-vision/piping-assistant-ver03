@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from engine.navigation.timeline_row_ids import timeline_row_id
 from engine.reference.parameter_keys import api_parameter_id
 from models.task import Task
 
@@ -27,13 +28,13 @@ def timeline_step_id_for_parameter(
     revealed: list[str] | None = None,
 ) -> str:
     """Map composer/current_ask parameter ids to timeline row ids."""
-    parameter_id = api_parameter_id(parameter_id)
+    parameter_id = timeline_row_id(api_parameter_id(parameter_id))
     candidates = [parameter_id]
     if parameter_id in {"nominal_pipe_size", "outside_diameter"}:
         candidates.extend(["nominal_pipe_size", "outside_diameter"])
     if revealed:
-        revealed_set = {api_parameter_id(item) for item in revealed}
+        revealed_set = {timeline_row_id(api_parameter_id(item)) for item in revealed}
         for candidate in candidates:
-            if api_parameter_id(candidate) in revealed_set:
-                return api_parameter_id(candidate)
+            if timeline_row_id(api_parameter_id(candidate)) in revealed_set:
+                return timeline_row_id(api_parameter_id(candidate))
     return parameter_id

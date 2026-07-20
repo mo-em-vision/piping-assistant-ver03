@@ -8,9 +8,7 @@ import pytest
 
 from api.desktop_service import DesktopApiService
 from api.serializers import WORKFLOW_CATALOG, workflow_catalog
-from api.workflow_timeline import is_mawp_task, revealed_mawp_input_ids
-from engine.state.goal_projection import planning_projection
-from engine.router import MAWP_DESIGN
+from engine.router import MAWP_DESIGN, is_supported_planning_workflow
 from engine.state.state_manager import TaskStateManager
 
 
@@ -60,7 +58,7 @@ def test_mawp_task_detection() -> None:
     manager = TaskStateManager()
     task = manager.create_task("mawp-detect")
     task.outputs["workflow"] = MAWP_DESIGN
-    assert is_mawp_task(task) is True
+    assert is_supported_planning_workflow(MAWP_DESIGN) is True
 
 
 def test_mawp_bootstrap_seeds_pressure_design_case_and_nps_resolution_branch(

@@ -25,17 +25,10 @@ from api.parameter_definitions import build_parameter_definitions
 from api.reference_links import enrich_display_output_dict, enrich_flow_guidance_payload
 from api.workflow_timeline import (
     collect_all_missing,
-    is_mawp_task,
-    is_pipe_wall_thickness_task,
-    mawp_input_step_done,
-    mawp_step_title,
-    pipe_wall_input_step_done,
-    pipe_wall_step_title,
+    input_step_done,
     revealed_input_ids,
-    revealed_pipe_wall_input_ids,
     submittable_parameter_ids,
     timeline_step_id_for_parameter,
-    workflow_input_step_done,
     workflow_step_title,
 )
 from api.workflow_bootstrap import task_ready_for_execution
@@ -44,10 +37,17 @@ from engine.graph.definition_equations import (
     has_execution_trace,
     pending_definition_equation_inputs,
 )
+from engine.navigation.timeline_completion import goal_output_value, timeline_completion_steps
+from engine.navigation.timeline_projection import HIDDEN_TIMELINE_INPUTS
 from engine.reference.parameter_keys import MATERIAL_GRADE_KEY
 from engine.reference.standards_reader import StandardsReader
-from engine.graph.graph_engine import GraphEngine
-from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
+from engine.graph.graph_engine import GraphEngine, normalize_root_id
+from engine.router import (
+    MAWP_DESIGN,
+    PIPE_WALL_THICKNESS_DESIGN,
+    is_supported_planning_workflow,
+    normalize_planning_workflow_id,
+)
 from engine.state.authority_context_projection import authority_context_summary
 from engine.state.execution_context_projection import execution_context_summary
 from engine.planner.goal_navigation import build_current_ask
@@ -156,11 +156,9 @@ def _workflow_meta(workflow_id: str, reader: StandardsReader | None = None) -> d
 
 
 def _task_workflow_id(task: Task) -> str:
-    workflow = task.outputs.get("workflow")
-    if isinstance(workflow, str) and workflow:
-        return workflow
-    if task.task_id.startswith("pipe-wall-thickness"):
-        return PIPE_WALL_THICKNESS_DESIGN
+    workflow = task.outputs.get("workflow") or task.outputs.get("selected_root")
+    if isinstance(workflow, str) and workflow.strip():
+        return normalize_planning_workflow_id(workflow)
     return ""
 
 
@@ -239,22 +237,44 @@ def _thickness_step_display_value(task: Task, thickness: float) -> str:
     return format_thickness_result_display(float(thickness), unit)
 
 
-def _categorical_selection_display(input_id: str, value: Any) -> str | None:
+def _categorical_selection_display(
+    input_id: str,
+    value: Any,
+    task: Task | None = None,
+    *,
+    standards_root: Path | None = None,
+) -> str | None:
     from engine.reference.parameter_keys import load_parameter_node_metadata, param_node_id_for_input
+    from engine.reference.standards_reader import StandardsReader
 
     metadata = load_parameter_node_metadata(param_node_id_for_input(input_id))
     if metadata is None:
-        return None
-    nested = metadata.get("metadata") or {}
-    if not isinstance(nested, dict):
-        return None
-    for option in nested.get("composer_options") or []:
-        if not isinstance(option, dict):
-            continue
-        if str(option.get("value")) == str(value):
-            label = str(option.get("label") or "").strip()
-            if label:
-                return label
+        metadata = None
+    else:
+        nested = metadata.get("metadata") or {}
+        if isinstance(nested, dict):
+            for option in nested.get("composer_options") or []:
+                if not isinstance(option, dict):
+                    continue
+                if str(option.get("value")) == str(value):
+                    label = str(option.get("label") or "").strip()
+                    if label:
+                        return label
+
+    if standards_root is not None and task is not None:
+        reader = StandardsReader(standards_root, standard="asme_b31.3")
+        from engine.messaging.decision_interaction_resolver import (
+            composer_options_from_view,
+            resolve_decision_interaction,
+        )
+
+        view = resolve_decision_interaction(reader, task, input_id)
+        if view is not None:
+            for option in composer_options_from_view(view):
+                if str(option.get("value")) == str(value):
+                    label = str(option.get("label") or "").strip()
+                    if label:
+                        return label
     return None
 
 
@@ -268,7 +288,9 @@ def _input_display(
 
     fact = active_fact_for_key(task, input_id)
     if fact is not None:
-        display = _categorical_selection_display(input_id, fact_scalar_value(fact))
+        display = _categorical_selection_display(
+            input_id, fact_scalar_value(fact), task, standards_root=standards_root
+        )
         if display:
             return display
     return _input_display_value(task, input_id, standards_root=standards_root)
@@ -346,7 +368,15 @@ def _mawp_step_display_value(task: Task, mawp_pa: float) -> str:
     return format_value_with_unit_for_display(float(mawp_pa) / 1_000_000, "MPa") or f"{mawp_pa} Pa"
 
 
-def _build_mawp_timeline(
+def _calculation_step_display_value(task: Task, step_id: str, raw_value: Any) -> str:
+    if step_id == "mawp":
+        return _mawp_step_display_value(task, float(raw_value))
+    if step_id == "thickness":
+        return _thickness_step_display_value(task, float(raw_value))
+    return format_value_with_unit_for_display(raw_value, "") or str(raw_value)
+
+
+def _build_goal_driven_timeline(
     task: Task,
     planning: dict[str, Any],
     *,
@@ -354,132 +384,22 @@ def _build_mawp_timeline(
     reader: StandardsReader | None = None,
     ask_parameter_id: str | None = None,
 ) -> list[dict[str, Any]]:
+    if reader is None:
+        return []
+
+    workflow_id = _task_workflow_id(task)
+    calc_step, report_step = timeline_completion_steps(reader, workflow_id)
     phase_missing = planning.get("phase_missing") or {}
     phase_questions = planning.get("phase_questions") or {}
     current_phase = str(planning.get("current_phase") or "")
-
     all_missing = collect_all_missing(planning)
-    revealed_inputs = revealed_input_ids(task, planning, reader=reader)
-    ordered_steps: list[tuple[str, str]] = [
-        (step_id, workflow_step_title(task, step_id, planning, reader=reader))
-        for step_id in revealed_inputs
-    ]
-    ordered_steps.extend(
-        [
-            ("mawp", mawp_step_title("mawp", planning, task=task, reader=reader)),
-            ("report", mawp_step_title("report", planning, task=task, reader=reader)),
-        ]
-    )
 
-    mawp_output = task.outputs.get("mawp") or task.outputs.get("MAWP")
-    mawp_done = mawp_output is not None
-    report_done = task.status == TaskStatus.COMPLETED
-
-    timeline: list[dict[str, Any]] = []
-    active_assigned = False
-    editing_parameter = active_edit_parameter(task)
-    submittable_ids = submittable_parameter_ids(task, planning)
-    preferred_active = _preferred_timeline_active_input_id(
-        task,
-        editing_parameter=editing_parameter,
-        ask_parameter_id=ask_parameter_id,
-        submittable_ids=submittable_ids,
-        revealed_inputs=revealed_inputs,
-    )
-
-    for step_id, title in ordered_steps:
-        if step_id == "mawp":
-            if mawp_done:
-                status = "done"
-                hint = None
-                display_value = _mawp_step_display_value(task, float(mawp_output))
-            elif not active_assigned and current_phase not in {
-                "expansion_assumptions",
-                "path_decisions",
-            }:
-                status = "active"
-                hint = "Waiting for MAWP calculation"
-                display_value = None
-                active_assigned = True
-            else:
-                status = "pending"
-                hint = None
-                display_value = None
-        elif step_id == "report":
-            if report_done:
-                status = "done"
-                hint = None
-            elif mawp_done:
-                status = "active"
-                hint = "Generate the engineering report"
-            else:
-                status = "pending"
-                hint = "Available after MAWP calculation completes"
-            display_value = None
-        else:
-            if editing_parameter and step_id == editing_parameter:
-                status = "active"
-                hint = "Update this value in the workflow composer."
-                display_value = _input_display(task, step_id, standards_root=standards_root)
-                active_assigned = True
-            else:
-                input_done = workflow_input_step_done(task, step_id, all_missing)
-                status, active_assigned = _input_timeline_status(
-                    step_id=step_id,
-                    input_done=input_done,
-                    preferred_active=preferred_active,
-                    active_assigned=active_assigned,
-                )
-                if status == "done":
-                    hint = None
-                    display_value = _input_display(task, step_id, standards_root=standards_root)
-                elif status == "active":
-                    hint = _step_hint(step_id, phase_missing, phase_questions, current_phase)
-                    display_value = None
-                else:
-                    hint = None
-                    display_value = None
-
-        timeline.append(
-            _step(
-                step_id=step_id,
-                title=title,
-                status=status,
-                display_value=display_value,
-                hint=hint,
-                editable=(
-                    status == "done"
-                    and is_timeline_parameter_editable(task, step_id)
-                    and step_id != editing_parameter
-                ),
-                provenance=step_provenance(reader, task, step_id, planning) if reader else None,
-            )
-        )
-
-    return timeline
-
-
-def _build_pipe_wall_timeline(
-    task: Task,
-    planning: dict[str, Any],
-    *,
-    standards_root: Path | None = None,
-    reader: StandardsReader | None = None,
-    ask_parameter_id: str | None = None,
-) -> list[dict[str, Any]]:
-    phase_missing = planning.get("phase_missing") or {}
-    phase_questions = planning.get("phase_questions") or {}
-    current_phase = str(planning.get("current_phase") or "")
-
-    all_missing = collect_all_missing(planning)
     definition_pending = current_phase == "definition_equation_completion" or bool(
         phase_missing.get("definition_equation_completion")
     )
-    if not definition_pending and reader is not None:
+    if not definition_pending and has_execution_trace(task):
         graph = task.outputs.get("graph_root") or task.outputs.get("selected_root") or task.outputs.get("workflow")
-        if graph and has_execution_trace(task):
-            from engine.graph.graph_engine import GraphEngine, normalize_root_id
-
+        if graph:
             preview = GraphEngine().build_plan(
                 task_id=task.task_id,
                 root_id=normalize_root_id(str(graph)),
@@ -490,33 +410,40 @@ def _build_pipe_wall_timeline(
                 pending_definition_equation_inputs(task, reader, preview.execution_order)
             )
 
-    revealed_inputs = revealed_pipe_wall_input_ids(task, planning, reader=reader)
+    revealed_inputs = [
+        step_id
+        for step_id in revealed_input_ids(task, planning, reader=reader)
+        if step_id not in {"d_input_mode", "thin_wall", "outside_diameter__resolution_branch"}
+    ]
     ordered_steps: list[tuple[str, str]] = [
-        (
-            step_id,
-            pipe_wall_step_title(step_id, planning, task=task, reader=reader),
-        )
+        (step_id, workflow_step_title(task, step_id, planning, reader=reader))
         for step_id in revealed_inputs
     ]
     ordered_steps.extend(
         [
-            ("thickness", pipe_wall_step_title("thickness", planning, task=task, reader=reader)),
-            ("report", pipe_wall_step_title("report", planning, task=task, reader=reader)),
+            (
+                calc_step.step_id,
+                workflow_step_title(task, calc_step.step_id, planning, reader=reader),
+            ),
+            (
+                report_step.step_id,
+                workflow_step_title(task, report_step.step_id, planning, reader=reader),
+            ),
         ]
     )
 
-    thickness_output = task.outputs.get("required_thickness") or task.outputs.get("thickness")
-    thickness_done = thickness_output is not None
+    calc_output = goal_output_value(task.outputs, calc_step.output_keys)
+    calc_done = calc_output is not None
     report_done = task.status == TaskStatus.COMPLETED
     submittable_ids = submittable_parameter_ids(task, planning)
     pending_input_steps = [
         step_id
         for step_id, _title in ordered_steps
-        if step_id not in {"thickness", "report"}
-        and not pipe_wall_input_step_done(task, step_id, all_missing)
+        if step_id not in {calc_step.step_id, report_step.step_id}
+        and not input_step_done(task, step_id, all_missing)
     ]
-    thickness_step_ready = (
-        thickness_done
+    calc_step_ready = (
+        calc_done
         or has_execution_trace(task)
         or (
             not submittable_ids
@@ -537,38 +464,35 @@ def _build_pipe_wall_timeline(
     )
 
     for step_id, title in ordered_steps:
-        if step_id == "thickness":
-            if thickness_done:
+        if step_id == calc_step.step_id:
+            if calc_done:
                 status = "done"
                 hint = None
-                display_value = _thickness_step_display_value(task, float(thickness_output))
+                display_value = _calculation_step_display_value(task, step_id, calc_output)
             elif (
-                thickness_step_ready
+                calc_step_ready
                 and not active_assigned
-                and current_phase not in {
-                    "expansion_assumptions",
-                    "path_decisions",
-                }
+                and current_phase not in {"expansion_assumptions", "path_decisions"}
             ):
                 status = "active"
-                hint = "Waiting for thickness calculation"
+                hint = f"Waiting for {calc_step.title.lower()}"
                 display_value = None
                 active_assigned = True
             else:
                 status = "pending"
                 hint = None
                 display_value = None
-        elif step_id == "report":
+        elif step_id == report_step.step_id:
             if report_done:
                 status = "done"
                 hint = None
-            elif thickness_done and not definition_pending:
+            elif calc_done and not definition_pending:
                 status = "active"
                 hint = "Generate the engineering report"
             else:
                 status = "pending"
                 hint = (
-                    "Available after minimum required thickness is calculated"
+                    f"Available after {calc_step.title.lower()} is calculated"
                     if definition_pending
                     else "Available after calculation completes"
                 )
@@ -580,7 +504,7 @@ def _build_pipe_wall_timeline(
                 display_value = _input_display(task, step_id, standards_root=standards_root)
                 active_assigned = True
             else:
-                input_done = pipe_wall_input_step_done(task, step_id, all_missing)
+                input_done = input_step_done(task, step_id, all_missing)
                 status, active_assigned = _input_timeline_status(
                     step_id=step_id,
                     input_done=input_done,
@@ -614,6 +538,40 @@ def _build_pipe_wall_timeline(
         )
 
     return timeline
+
+
+def _build_mawp_timeline(
+    task: Task,
+    planning: dict[str, Any],
+    *,
+    standards_root: Path | None = None,
+    reader: StandardsReader | None = None,
+    ask_parameter_id: str | None = None,
+) -> list[dict[str, Any]]:
+    return _build_goal_driven_timeline(
+        task,
+        planning,
+        standards_root=standards_root,
+        reader=reader,
+        ask_parameter_id=ask_parameter_id,
+    )
+
+
+def _build_pipe_wall_timeline(
+    task: Task,
+    planning: dict[str, Any],
+    *,
+    standards_root: Path | None = None,
+    reader: StandardsReader | None = None,
+    ask_parameter_id: str | None = None,
+) -> list[dict[str, Any]]:
+    return _build_goal_driven_timeline(
+        task,
+        planning,
+        standards_root=standards_root,
+        reader=reader,
+        ask_parameter_id=ask_parameter_id,
+    )
 
 
 def _step_hint(
@@ -651,16 +609,8 @@ def _build_progress_steps(
     reader: StandardsReader | None = None,
     ask_parameter_id: str | None = None,
 ) -> list[dict[str, Any]]:
-    if is_mawp_task(task):
-        return _build_mawp_timeline(
-            task,
-            planning,
-            standards_root=standards_root,
-            reader=reader,
-            ask_parameter_id=ask_parameter_id,
-        )
-    if is_pipe_wall_thickness_task(task):
-        return _build_pipe_wall_timeline(
+    if is_supported_planning_workflow(_task_workflow_id(task)) and reader is not None:
+        return _build_goal_driven_timeline(
             task,
             planning,
             standards_root=standards_root,
@@ -672,6 +622,8 @@ def _build_progress_steps(
     missing_inputs = set(planning.get("missing_inputs") or [])
 
     for input_id, fact in task.fact_store.active_facts().items():
+        if input_id in HIDDEN_TIMELINE_INPUTS:
+            continue
         if input_id in missing_inputs:
             status = "active"
         elif fact.validation.status in {ValidationStatus.CONFIRMED, ValidationStatus.VALIDATED, ValidationStatus.PENDING}:

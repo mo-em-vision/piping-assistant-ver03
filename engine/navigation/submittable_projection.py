@@ -8,10 +8,10 @@ from engine.graph.navigation_phases import allowed_fields_for_phase
 from engine.graph.graph_timeline import graph_input_step_order
 from engine.graph.workflow_navigation import workflow_collection_field_order
 from engine.navigation.composer_mapping import composer_parameter_id, composer_parameter_ids
-from engine.navigation.workflow_path import (
+from engine.navigation.timeline_projection import (
     hidden_timeline_inputs,
-    is_mawp_task,
     step_applies_for_timeline,
+    uses_inside_diameter_path,
 )
 from engine.reference.parameter_keys import api_parameter_id
 from engine.state.goal_projection import missing_input_keys
@@ -121,6 +121,57 @@ def _resolved_navigation_field_order(
     return ()
 
 
+def _planning_phase_field_order(planning: dict[str, Any]) -> tuple[str, ...]:
+    phase_missing = planning.get("phase_missing") or {}
+    if not isinstance(phase_missing, dict):
+        return ()
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for phase_id in _NAVIGATION_PHASE_SEQUENCE:
+        for field in phase_missing.get(phase_id) or []:
+            field_id = str(field).strip()
+            if field_id and field_id not in seen:
+                seen.add(field_id)
+                ordered.append(field_id)
+    return tuple(ordered)
+
+
+def _workflow_expansion_field_order(
+    task: Task,
+    *,
+    reader: StandardsReader | None = None,
+) -> tuple[str, ...]:
+    if reader is None:
+        return ()
+    from engine.graph.expansion_policy import collect_workflow_expansion_fields
+    from engine.graph.graph_engine import normalize_root_id, resolve_workflow_node_id
+    from engine.graph.graph_store import GraphStore
+
+    workflow_id = _task_workflow_id(task)
+    if not workflow_id:
+        return ()
+    store = GraphStore(reader.pack_root)
+    if not store.available:
+        return ()
+    slug = normalize_root_id(workflow_id)
+    resolved = resolve_workflow_node_id(slug)
+    root_id = resolved if store.get_node(resolved) is not None else slug
+    return tuple(collect_workflow_expansion_fields(store, root_id))
+
+
+def _merge_step_orders(*sources: tuple[str, ...]) -> tuple[str, ...]:
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for source in sources:
+        for field in source:
+            field_id = str(field).strip()
+            if not field_id or field_id in seen:
+                continue
+            seen.add(field_id)
+            ordered.append(field_id)
+    return tuple(ordered)
+
+
 def _planner_goal_sequence_order(task: Task) -> tuple[str, ...]:
     """Parameter ids in goal-tree order (planner build sequence from phased expansion)."""
     from models.goal import GoalClass, goal_parameter_key
@@ -147,34 +198,106 @@ def _planner_goal_sequence_order(task: Task) -> tuple[str, ...]:
     return tuple(ordered)
 
 
+def _split_graph_input_order(graph_order: tuple[str, ...]) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    from engine.reference.parameter_keys import load_parameter_node_metadata, param_node_id_for_input
+    from engine.reference.parameter_metadata import is_path_decision_parameter
+
+    path_decisions: list[str] = []
+    parameter_gathering: list[str] = []
+    for field_id in graph_order:
+        metadata = load_parameter_node_metadata(param_node_id_for_input(field_id))
+        if is_path_decision_parameter(metadata):
+            path_decisions.append(field_id)
+        else:
+            parameter_gathering.append(field_id)
+    return tuple(path_decisions), tuple(parameter_gathering)
+
+
+def _inject_diameter_gathering_order(step_order: tuple[str, ...]) -> tuple[str, ...]:
+    """Keep NPS/outside-diameter pair together after design pressure when both appear."""
+    anchor = "internal_design_gage_pressure"
+    if anchor not in step_order:
+        return step_order
+    diameter_fields = [field for field in ("nominal_pipe_size", "outside_diameter") if field in step_order]
+    if not diameter_fields:
+        return step_order
+    fields = list(step_order)
+    insert_at = fields.index(anchor) + 1
+    for diam in diameter_fields:
+        fields.remove(diam)
+    for offset, diam in enumerate(("nominal_pipe_size", "outside_diameter")):
+        if diam in diameter_fields:
+            fields.insert(insert_at + offset, diam)
+    return tuple(fields)
+
+
+def _inject_pressure_temperature_order(step_order: tuple[str, ...]) -> tuple[str, ...]:
+    """Collect design pressure before design temperature in timeline ordering."""
+    if "design_temperature" not in step_order:
+        return step_order
+    fields = list(step_order)
+    insert_at = fields.index("design_temperature")
+    for pressure_field in ("internal_design_gage_pressure", "external_design_gage_pressure"):
+        if pressure_field in fields:
+            fields.remove(pressure_field)
+            fields.insert(insert_at, pressure_field)
+            insert_at += 1
+    return tuple(fields)
+
+
+def _inject_material_temperature_order(step_order: tuple[str, ...]) -> tuple[str, ...]:
+    """Keep material selection before design temperature in timeline ordering."""
+    if "material_grade" not in step_order or "design_temperature" not in step_order:
+        return step_order
+    fields = list(step_order)
+    fields.remove("design_temperature")
+    fields.insert(fields.index("material_grade") + 1, "design_temperature")
+    return tuple(fields)
+
+
 def collection_step_order(
     task: Task,
     planning: dict[str, Any] | None = None,
     *,
     reader: StandardsReader | None = None,
 ) -> tuple[str, ...]:
-    """Parameter ids in workflow navigation presentation order, then graph expansion, then goals."""
+    """Parameter ids in expansion, navigation, graph, and goal presentation order."""
     planning = planning or {}
-
-    nav_order = _resolved_navigation_field_order(task, planning, reader=reader)
-    if nav_order:
-        return nav_order
-
-    graph_order = _resolved_graph_input_order(task, planning, reader=reader)
-    if graph_order:
-        return graph_order
-
-    goal_order = _planner_goal_sequence_order(task)
-    if goal_order:
-        return goal_order
-
     from engine.planner.goal_navigation import goal_collection_parameter_ids
 
-    fallback = goal_collection_parameter_ids(task)
-    if fallback:
-        return tuple(fallback)
+    explicit_nav = _resolved_navigation_field_order(task, planning, reader=reader)
+    if explicit_nav:
+        return _merge_step_orders(
+            _workflow_expansion_field_order(task, reader=reader),
+            explicit_nav,
+        )
 
-    return ()
+    for source in (planning.get("graph_input_order"), task.outputs.get("graph_input_order")):
+        if isinstance(source, list) and source:
+            explicit_graph = tuple(str(item) for item in source if str(item).strip())
+            if explicit_graph:
+                return _merge_step_orders(
+                    _workflow_expansion_field_order(task, reader=reader),
+                    explicit_graph,
+                )
+
+    graph_order = _resolved_graph_input_order(task, planning, reader=reader)
+    path_order, gather_order = _split_graph_input_order(graph_order)
+
+    return _inject_material_temperature_order(
+        _inject_pressure_temperature_order(
+            _inject_diameter_gathering_order(
+                _merge_step_orders(
+                    _workflow_expansion_field_order(task, reader=reader),
+                    path_order,
+                    gather_order,
+                    _planning_phase_field_order(planning),
+                    _planner_goal_sequence_order(task),
+                    tuple(goal_collection_parameter_ids(task) or []),
+                )
+            )
+        )
+    )
 
 
 def _sort_ids_by_step_order(ids: set[str], step_order: tuple[str, ...]) -> list[str]:
@@ -209,8 +332,11 @@ def _phase_allowed_input_ids(
     if isinstance(allowlists, dict) and current_phase in allowlists:
         return frozenset(str(item) for item in allowlists[current_phase] if str(item))
     try:
-        workflow = "mawp_design" if is_mawp_task(task) else None
-        return allowed_fields_for_phase(NavigationPhase(current_phase), workflow=workflow)
+        workflow_id = str(task.outputs.get("workflow") or task.outputs.get("selected_root") or "")
+        return allowed_fields_for_phase(
+            NavigationPhase(current_phase),
+            workflow=workflow_id or None,
+        )
     except ValueError:
         return frozenset()
 

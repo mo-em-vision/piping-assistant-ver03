@@ -43,7 +43,6 @@ from engine.graph.definition_equations import (
     has_execution_trace,
     try_complete_definition_equations,
 )
-from api.workflow_timeline import is_pipe_wall_thickness_task
 from engine.planner.tools import GraphTools
 from api.material_catalog import search_astm_materials, warm_astm_material_catalog
 from api.material_detail import get_material_detail as resolve_material_detail
@@ -124,43 +123,50 @@ class DesktopApiService:
             return task, True
         return task, False
 
-    def _maybe_refresh_stale_pipe_wall_task(self, task, manager):
+    def _maybe_refresh_post_execution_task(self, task, manager):
+        from engine.graph.definition_equations import has_execution_trace, pending_definition_equation_inputs
+        from engine.graph.graph_engine import GraphEngine, normalize_root_id
+        from engine.planner.workflow_goal_metadata import goal_output_value_for_task
+
         task, changed = self._maybe_ensure_task_planning(task, manager)
         if not has_execution_trace(task) and task_ready_for_execution(task):
             task = maybe_execute_ready_workflow(task.task_id, manager, self._reader())
             changed = True
-        if not is_pipe_wall_thickness_task(task):
-            return task, changed
         if not has_execution_trace(task):
             return task, changed
 
-        workflow = str(task.outputs.get("workflow") or "")
-        if workflow == "B313-PIPE-WALL-THICKNESS-DESIGN":
-            selected = str(task.outputs.get("selected_root") or "")
+        workflow = normalize_root_id(str(task.outputs.get("workflow") or task.outputs.get("selected_root") or ""))
+        if workflow.startswith("B313-"):
+            selected = normalize_root_id(str(task.outputs.get("selected_root") or ""))
             if selected and selected != workflow:
                 task.outputs["workflow"] = selected
                 changed = True
 
-        has_t = task.outputs.get("t") is not None or task.outputs.get("required_thickness") is not None
-        missing_tm = (
-            task.outputs.get("t_m") is None
-            and task.outputs.get("minimum_required_thickness") is None
+        if goal_output_value_for_task(task) is None:
+            return task, changed
+
+        reader = self._reader()
+        preview = GraphEngine().build_plan(
+            task_id=task.task_id,
+            root_id=workflow,
+            inputs=dict(task.fact_store.active_facts()),
+            reader=reader,
         )
+        pending = pending_definition_equation_inputs(task, reader, preview.execution_order)
         planning = planning_projection(task)
         phase = planning.get("current_phase")
-
-        needs_refresh = has_t and missing_tm and (
+        needs_refresh = bool(pending) and (
             task.status != TaskStatus.COMPLETED
             or phase != "definition_equation_completion"
         )
         if needs_refresh:
-            refresh_task_planning(task, self._reader())
+            refresh_task_planning(task, reader)
             manager.replace_task(task.task_id, task)
             changed = True
         return task, changed
 
     def _prepare_task_for_projection(self, task, manager) -> tuple[Any, bool]:
-        task, refresh_changed = self._maybe_refresh_stale_pipe_wall_task(task, manager)
+        task, refresh_changed = self._maybe_refresh_post_execution_task(task, manager)
         task, transcript_changed = sync_flow_guidance_transcript(task, self._reader())
         if transcript_changed:
             manager.replace_task(task.task_id, task)

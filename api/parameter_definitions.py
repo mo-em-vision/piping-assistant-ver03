@@ -21,7 +21,7 @@ from engine.executor.nps_input_resolver import apply_nominal_pipe_size_lookup
 from engine.executor.unit_manager import normalize_unit
 from engine.state.goal_projection import planning_projection
 from engine.reference.material_resolver import canonical_material_id
-from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN
+from engine.router import is_supported_planning_workflow
 from engine.state.state_manager import TaskStateManager
 from engine.state.task_facts import deactivate_fact, store_system_categorical_fact
 from engine.inspection.performance_trace import perf_span
@@ -31,8 +31,6 @@ from models.task import Task
 from api.parameter_edit import active_edit_parameter, clear_edit_session
 from api.node_provenance import param_node_index, parameter_input_provenance, provenance_for_node
 from api.workflow_timeline import (
-    is_mawp_task,
-    is_pipe_wall_thickness_task,
     revealed_input_ids,
     revealed_pipe_wall_input_ids,
     submittable_parameter_ids,
@@ -48,6 +46,7 @@ from engine.navigation.active_input_projection import (
     composer_parameter_ids_for_task,
     uses_planner_input_projection,
 )
+from engine.navigation.timeline_row_ids import timeline_row_id
 from engine.reference.parameter_composer_spec import build_composer_parameter_spec
 from engine.reference.table_options_resolver import resolve_table_dropdown_options
 from engine.reference.parameter_keys import (
@@ -96,22 +95,12 @@ def build_parameter_definitions(
 
     requested_ids = _requested_parameter_ids(task, planning, reader=reader)
     if not uses_planner_input_projection(task) and _DIAMETER_INPUT_PARAMETERS & set(requested_ids):
-        from api.workflow_timeline import _pipe_wall_uses_inside_diameter, is_pipe_wall_thickness_task
+        from engine.navigation.timeline_projection import step_applies_for_timeline
 
         for diameter_id in _DIAMETER_INPUT_PARAMETERS:
             if diameter_id in requested_ids:
                 continue
-            if (
-                is_pipe_wall_thickness_task(task)
-                and diameter_id == "inside_diameter"
-                and not _pipe_wall_uses_inside_diameter(task)
-            ):
-                continue
-            if (
-                is_pipe_wall_thickness_task(task)
-                and diameter_id in {"nominal_pipe_size", "outside_diameter"}
-                and _pipe_wall_uses_inside_diameter(task)
-            ):
+            if not step_applies_for_timeline(task, diameter_id):
                 continue
             requested_ids = [*requested_ids, diameter_id]
     submittable_ids = set(submittable_parameter_ids(task, planning))
@@ -121,9 +110,10 @@ def build_parameter_definitions(
     parameters: list[dict[str, Any]] = []
     editing = active_edit_parameter(task)
     for parameter_id in requested_ids:
-        parameter_id = api_parameter_id(parameter_id)
+        row_id = timeline_row_id(parameter_id)
+        canonical_id = api_parameter_id(parameter_id)
         spec = build_composer_parameter_spec(
-            parameter_id,
+            canonical_id,
             reader=reader,
             param_index=param_index,
             task=task,
@@ -140,24 +130,25 @@ def build_parameter_definitions(
                 options = table_options
         if options and spec.get("type") not in {"material", "checkbox"}:
             spec["type"] = "dropdown"
-        existing = active_fact_for_key(task, parameter_id)
-        metadata_ctx = parameter_metadata_context(reader, parameter_id) if reader is not None else None
+        existing = active_fact_for_key(task, canonical_id)
+        metadata_ctx = parameter_metadata_context(reader, canonical_id) if reader is not None else None
         payload: dict[str, Any] = {
-            "name": parameter_id,
+            "name": row_id,
             "label": spec["label"],
             "type": spec["type"],
             "required": True,
             "units": list(spec.get("units") or []),
             "default_unit": spec.get("default_unit", "dimensionless"),
             "default_value": existing.default if existing and existing.default is not None else spec.get("default_value"),
-            "value": _current_value(task, parameter_id),
+            "value": _current_value(task, canonical_id),
             "options": options or None,
             "validation": spec.get("validation"),
-            "status": _parameter_status(task, parameter_id),
+            "status": _parameter_status(task, canonical_id),
             "requires_confirmation": bool(existing.requires_confirmation) if existing else False,
-            "guidance": _parameter_guidance(task, planning, parameter_id, reader),
-            "editing": editing == parameter_id,
-            "submittable": canonical_parameter_key(parameter_id) in canonical_submittable_ids,
+            "guidance": _parameter_guidance(task, planning, canonical_id, reader),
+            "editing": editing == row_id or editing == canonical_id,
+            "submittable": canonical_parameter_key(canonical_id) in canonical_submittable_ids
+                or timeline_row_id(canonical_id) in submittable_ids,
         }
         if metadata_ctx is not None:
             if metadata_ctx.prompt:
@@ -165,8 +156,7 @@ def build_parameter_definitions(
             if metadata_ctx.help_text:
                 payload["help_text"] = metadata_ctx.help_text
         if reader is not None:
-            canonical_id = canonical_parameter_key(parameter_id)
-            decision_key = canonical_id
+            decision_key = canonical_parameter_key(canonical_id)
             if spec.get("type") == "resolution_branch":
                 from engine.graph.resolution_branches import resolution_branch_fact_key
 
@@ -192,9 +182,9 @@ def build_parameter_definitions(
         if spec.get("resolution_ui"):
             payload["resolution_ui"] = spec["resolution_ui"]
         if reader is not None:
-            provenance = parameter_input_provenance(reader, task, parameter_id)
+            provenance = parameter_input_provenance(reader, task, canonical_id)
             if provenance is None:
-                param_node_id = param_index.get(parameter_id)
+                param_node_id = param_index.get(canonical_id)
                 if param_node_id:
                     guidance = payload.get("guidance")
                     source_field = "user_prompt.prompt" if guidance else "title"
@@ -220,7 +210,14 @@ def _requested_parameter_ids(
             editing_parameter=active_edit_parameter(task),
         )
 
-    if is_pipe_wall_thickness_task(task) or is_mawp_task(task):
+    if is_supported_planning_workflow(_task_workflow_id(task)):
+        if uses_planner_input_projection(task):
+            return composer_parameter_ids_for_task(
+                task,
+                planning,
+                reader=reader,
+                editing_parameter=active_edit_parameter(task),
+            )
         requested = revealed_input_ids(task, planning, reader=reader)
         editing = active_edit_parameter(task)
         if editing and editing not in requested:
@@ -520,7 +517,7 @@ def _submit_task_input_impl(
             manager.replace_task(task_id, task)
             task = manager.get_task(task_id)
 
-        if parameter == "pipe_schedule" and workflow_id == MAWP_DESIGN:
+        if parameter == "pipe_schedule":
             if standards_root is None:
                 raise ValueError("Standards root is required to resolve pipe schedule.")
             apply_pipe_schedule_lookup(task, standards_root)

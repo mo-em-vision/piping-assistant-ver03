@@ -13,7 +13,6 @@ from ai.agents.planner_agent import PlannerAgent
 from ai.agents._constants import missing_inputs_for_workflow
 from ai.client import MissingAPIKeyError, OpenAIClient
 from ai.input_extractor import ExtractionResult, extract_pipe_wall_thickness_inputs
-from ai.interaction_specs import default_pipe_wall_thickness_decision_interactions
 from engine.graph.node_interaction import NodeInteractionSpec
 from ai.response.response_handler import ResponseHandler
 from engine.reference.standards_reader import StandardsReader
@@ -430,9 +429,6 @@ class ChatOrchestrator:
             pending = pending_decision_interactions(specs, task.fact_store.active_facts())
             if pending:
                 return tuple(pending)
-        workflow = str(task.outputs.get("workflow") or "")
-        if workflow == PIPE_WALL_THICKNESS_DESIGN:
-            return default_pipe_wall_thickness_decision_interactions()
         return ()
 
     def _path_interaction_specs(self, task: Any) -> list[NodeInteractionSpec]:
@@ -490,7 +486,9 @@ class ChatOrchestrator:
         nav = NavigationPlan(selected_nodes=node_ids)
         node_id = resolve_focus_calculation_node(
             nav, self.standards_reader, task_inputs=task.fact_store.active_facts()
-        ) or "304.1.2-a"
+        )
+        if not node_id:
+            return {}
         return build_symbol_map(
             self.standards_reader,
             node_id,

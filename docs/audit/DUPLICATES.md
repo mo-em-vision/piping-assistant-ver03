@@ -97,9 +97,6 @@ Consolidated 2026-07 — design docs trimmed; deleted `docs/core/2. system_overv
 | Node authoring | `audits/contracts/nodes/00-START-HERE.md` | `8. Node Template.md` (deleted) |
 | Doc index | `docs/core/README.md` | Ad-hoc cross-links in every core file |
 
-## Limitation hints (both unused)
+## Limitation hints (removed)
 
-| Implementation | Path |
-|----------------|------|
-| `GraphTools.limitation_hints` | `engine/planner/tools.py` |
-| `RuleTools.limitation_hints` | `engine/planner/tools.py` |
+`GraphTools.limitation_hints` and `RuleTools` were removed from `engine/planner/tools.py` (no runtime callers).

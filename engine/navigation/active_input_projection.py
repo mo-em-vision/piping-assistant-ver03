@@ -6,13 +6,19 @@ from typing import TYPE_CHECKING, Any
 
 from engine.navigation.composer_mapping import composer_parameter_ids
 from engine.navigation.submittable_projection import collection_step_order
-from engine.navigation.workflow_path import hidden_timeline_inputs, step_applies_for_timeline
+from engine.navigation.timeline_projection import (
+    HIDDEN_TIMELINE_INPUTS,
+    ensure_diameter_timeline_pair,
+    hidden_timeline_inputs,
+    step_applies_for_timeline,
+)
 from engine.planner.plan_phases import strategy_field
 from engine.planner.plan_selection import (
     engineering_plan_for_task,
     planner_submittable_fields_from_task,
     task_has_stored_engineering_plan,
 )
+from engine.navigation.timeline_row_ids import timeline_row_id
 from engine.reference.parameter_keys import api_parameter_id
 from engine.router import is_supported_planning_workflow
 from models.fact import ValidationStatus, fact_scalar_value
@@ -21,15 +27,11 @@ from models.task import Task
 if TYPE_CHECKING:
     from engine.reference.standards_reader import StandardsReader
 
-_TIMELINE_ROW_ID_FOR_CANONICAL: dict[str, str] = {
-    "temperature_coefficient_y": "temperature_coefficient_Y",
-    "weld_strength_reduction_factor_w": "weld_joint_strength_reduction_factor_W",
-}
+_TIMELINE_ROW_ID_FOR_CANONICAL: dict[str, str] = {}
 
 
 def _timeline_row_id(parameter_key: str) -> str:
-    canonical = api_parameter_id(parameter_key)
-    return _TIMELINE_ROW_ID_FOR_CANONICAL.get(canonical, canonical)
+    return timeline_row_id(parameter_key)
 
 
 def _task_workflow_id(task: Task) -> str:
@@ -132,13 +134,7 @@ def _planner_timeline_field_ids(task: Task) -> list[str]:
 
 
 def _ensure_diameter_timeline_pair(task: Task, revealed: set[str]) -> None:
-    from engine.navigation.workflow_path import pipe_wall_uses_inside_diameter
-
-    if pipe_wall_uses_inside_diameter(task):
-        return
-    if "nominal_pipe_size" in revealed or "outside_diameter" in revealed:
-        revealed.add("nominal_pipe_size")
-        revealed.add("outside_diameter")
+    ensure_diameter_timeline_pair(task, revealed)
 
 
 def composer_parameter_ids_for_task(

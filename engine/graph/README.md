@@ -35,15 +35,13 @@ Legacy `depends_on` traversal remains behind `VER03_LEGACY_GRAPH_TRAVERSAL=1` or
 |------|------------|-------|
 | `parameter_registry.apply_registry_to_inputs`, `merge_descriptor_into_input` | **High** | No importers |
 | `navigation_phases.build_phased_navigation`, `build_mawp_phased_navigation` | **High** | Superseded by `build_workflow_phased_navigation`; docs only |
-| `display_emitter.emit_active_context` | **High** | No importers |
-| `prefetch_cache().get` / read path | **High** | Writes only; no consumer reads cache |
-| `parameter_registry.seed_parameter_registry` (legacy path) | **Medium** | Called only when legacy traversal enabled |
-| `GraphTools.limitation_hints` / `RuleTools` | **High** | Duplicate; never called |
+| `display_emitter` (removed) | **Resolved** | Moved to `engine/presentation/graph_display_blocks.py` |
+| `GraphTools.limitation_hints` / `RuleTools` (removed) | **Resolved** | Dead code removed from `engine/planner/tools.py` |
 
 ## Notes
 
+- **Presentation blocks:** equation/context display blocks live in `engine/presentation/graph_display_blocks.py` (not the graph layer).
 - **Duplicate traversal:** `traversal.py` (BFS/DFS/topo) used by `micro_graph_engine` and `lazy_expander`; legacy path in `graph_engine.py` uses separate depends_on logic.
-- **Duplicate limitation hints:** `GraphTools.limitation_hints` and `RuleTools.limitation_hints` — identical, unused.
 - `graph_engine._STUB_ROOTS` surfaces unimplemented workflow candidates.
 
 ## Execution Traces
@@ -83,7 +81,8 @@ GraphEngine.prefetch → MicroGraphEngine.prefetch
 | `assumption_checker.py` | Expansion/execution assumption eval | `AssumptionEvaluation`, `evaluate_*` | graph_engine, planner, node_runner |
 | `conditions.py` | `when` clause matching | `when_clause_matches`, `GraphCycleError` | traversal, lazy_expander, graph_engine |
 | `definition_equations.py` | Post-calc definition equations | `try_complete_definition_equations` | executor, workflow_bootstrap |
-| `display_emitter.py` | Output blocks from graph nodes | `emit_initiation_blocks`, `emit_equation_blocks` | micro_graph_engine, presentation/blocks |
+| `micro_graph_engine.py` | Micro-graph plan build | `MicroGraphEngine` | graph_engine, executor |
+| `graph_display_blocks.py` | *(moved to presentation)* | — | `engine/presentation/graph_display_blocks.py` |
 | `doc_templates.py` | `{{var}}` doc rendering | `build_doc_context`, `render_doc_template` | documentation_resolver, lifecycle_emitter |
 | `documentation_resolver.py` | Structured node docs | `resolve_workflow_documentation` | workflow_state |
 | `graph_builder.py` | MD/YAML → PackGraph | `GraphBuilder`, `compute_source_fingerprint` | graph_cache |

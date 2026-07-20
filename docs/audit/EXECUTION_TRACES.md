@@ -26,10 +26,12 @@ User (WorkflowPanel / ComposerInlineInput)
 User (CreateTaskDialog)
   → desktopApp/src/services/api/projectApi.ts
   → api/server.py (POST /api/v1/tasks)
-  → api/workflow_bootstrap.py
-  → engine/graph/graph_store.py
-  → engine/planner/planner.py
-  → serializers.task_state
+  → api/workflow_bootstrap.py (thin API adapter)
+  → engine/planning/workflow_initiation.py (initiate_workflow_task)
+  → engine/planning/planning_refresh.py (refresh_workflow_planning)
+  → engine/graph/graph_engine.py / micro_graph_engine.py
+  → engine/planner/engineering_plan_builder.py (build_engineering_plan)
+  → api/serializers.py (task_state)
   → desktopApp/src/components/workflow/WorkflowPanel.tsx
 ```
 

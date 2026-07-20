@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import re
 
+from engine.graph.graph_engine import normalize_root_id
+
 PIPE_WALL_THICKNESS_DESIGN = "pipe_wall_thickness_design"
 MAWP_DESIGN = "mawp_design"
 
@@ -64,9 +66,43 @@ def supported_planning_workflows() -> frozenset[str]:
     return _SUPPORTED_WORKFLOWS
 
 
+def normalize_planning_workflow_id(workflow_id: str | None) -> str:
+    """Map legacy graph workflow ids to canonical planning workflow slugs."""
+    if not workflow_id:
+        return ""
+    text = str(workflow_id).strip()
+    if not text:
+        return ""
+    if text in _SUPPORTED_WORKFLOWS:
+        return text
+    from engine.graph.workflow_adapters import LEGACY_ROOT_ALIASES
+
+    slug = normalize_root_id(text)
+    if slug in _SUPPORTED_WORKFLOWS:
+        return slug
+
+    graph_to_canonical = {
+        graph_id: canonical
+        for canonical, graph_id in LEGACY_ROOT_ALIASES.items()
+        if canonical in _SUPPORTED_WORKFLOWS
+    }
+    for candidate in (text, slug):
+        if candidate in graph_to_canonical:
+            return graph_to_canonical[candidate]
+
+    for alias_key, graph_id in LEGACY_ROOT_ALIASES.items():
+        if alias_key in _SUPPORTED_WORKFLOWS:
+            continue
+        if text == alias_key or slug == alias_key:
+            return graph_to_canonical.get(graph_id, text)
+
+    return text
+
+
 def is_supported_planning_workflow(workflow_id: str | None) -> bool:
     """Return True when *workflow_id* is a supported EngineeringPlan workflow."""
-    return bool(workflow_id) and workflow_id in _SUPPORTED_WORKFLOWS
+    normalized = normalize_planning_workflow_id(workflow_id)
+    return bool(normalized) and normalized in _SUPPORTED_WORKFLOWS
 
 
 class Router:

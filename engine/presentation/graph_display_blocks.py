@@ -1,4 +1,4 @@
-"""Emit display output blocks from micro-graph nodes."""
+"""Emit presentation output blocks from micro-graph nodes."""
 
 from __future__ import annotations
 

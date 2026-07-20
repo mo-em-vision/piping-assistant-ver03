@@ -210,3 +210,33 @@ def root_target_for_workflow(
         fallback_target_field=fallback.replace("-", "_"),
     )
     return spec.target_field
+
+
+_GOAL_OUTPUT_KEYS: dict[str, tuple[str, ...]] = {
+    "minimum_required_thickness": ("required_thickness", "thickness", "t"),
+    "maximum_allowable_working_pressure": ("mawp", "MAWP"),
+}
+
+
+def goal_output_keys_for_workflow(
+    reader: StandardsReader,
+    workflow_id: str,
+) -> tuple[str, ...]:
+    spec = resolve_root_goal_spec(reader, workflow_id)
+    return _GOAL_OUTPUT_KEYS.get(spec.target_field, (spec.target_field,))
+
+
+def goal_output_value_for_task(task) -> Any:
+    from engine.planner.plan_selection import engineering_plan_for_task
+
+    plan = engineering_plan_for_task(task)
+    target_field = ""
+    if plan is not None and plan.root_goal is not None:
+        target_field = str(plan.root_goal.target_field or "")
+    if not target_field:
+        target_field = str(task.outputs.get("goal_output") or "").strip()
+    keys = _GOAL_OUTPUT_KEYS.get(target_field, (target_field,)) if target_field else ()
+    for key in keys:
+        if key and task.outputs.get(key) is not None:
+            return task.outputs.get(key)
+    return None

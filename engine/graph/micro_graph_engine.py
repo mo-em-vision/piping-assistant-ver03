@@ -12,7 +12,7 @@ from engine.graph.assumption_checker import (
     field_value,
 )
 from engine.graph.conditions import when_clause_matches
-from engine.graph.display_emitter import emit_initiation_blocks
+from engine.presentation.graph_display_blocks import emit_initiation_blocks
 from engine.graph.graph_store import GraphStore
 from engine.graph.lazy_expander import (
     ExpansionState,

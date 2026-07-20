@@ -13,8 +13,9 @@ Normalized **`EngineeringPlan`** output (`models/engineering_plan.py`) captures 
 | Symbol | File |
 |--------|------|
 | `Planner` | `planner.py` |
-| `GraphTools`, `StateTools`, `RuleTools` | `tools.py` |
-| `build_pipe_wall_engineering_plan`, `build_engineering_plan` | `engineering_plan_builder.py` |
+| `GraphTools`, `StateTools` | `tools.py` |
+| `build_engineering_plan` | `engineering_plan_builder.py` |
+| `initiate_workflow_task`, `refresh_workflow_planning` | `engine/planning/workflow_initiation.py` |
 | `build_planner_traversal_state` | `planner_traversal.py` |
 | `build_planner_inspector_summary` | `plan_inspector.py` |
 | `store_engineering_plan_on_task` | `legacy_goal_adapter.py` |
@@ -46,13 +47,11 @@ Failures attach to `plan.debug` and surface in the Planner dev tab. Tests: `test
 
 | Item | Confidence |
 |------|------------|
-| `Planner._rules` / `RuleTools` instance | **High** — constructed, never used |
-| `GraphTools.limitation_hints` | **High** — duplicate of `RuleTools`, no callers |
-| `RuleTools.limitation_hints` | **High** — no callers |
+| *(none flagged)* | `RuleTools` / `limitation_hints` removed |
 
 ## Notes
 
-- Hard-coded `_DEFAULT_PRIORITIES` for `pipe_wall_thickness_design` in `planner.py`; MAWP uses graph-driven navigation more heavily.
+- Graph-driven navigation phases via `navigation_phases.build_workflow_phased_navigation`; no workflow-specific priority maps in `planner.py`.
 - Default parameter prompt copy is owned by PARAM-* nodes (`question`, `description`, `metadata.input_examples`), read by `engine/messaging/parameter_prompt_context.py` — not the planner.
 - **`PlannerTraversalState`** is derived from plan requirements + `input_strategy` + graph preview (not a second traversal engine). `current_active_node_id` follows phase order and must not jump to coefficient lookups before expansion/path gates resolve.
 
@@ -68,12 +67,11 @@ User message (CLI)
 ```
 
 ```
-api/workflow_bootstrap.refresh_planning_state
+api/workflow_bootstrap.bootstrap_new_task / refresh_task_planning
+  → engine/planning/workflow_initiation.initiate_workflow_task / refresh_workflow_planning
   → GraphTools + navigation_phases
-  → build_engineering_plan / build_pipe_wall_engineering_plan
-  → finalize_engineering_plan (dependencies, legacy_goal_map)
-  → validate_engineering_plan (attach plan.debug on failure)
-  → store_engineering_plan_on_task
+  → build_engineering_plan
+  → finalize_planning_refresh
       → engineering_plan, engineering_plan_view
       → planner_inspector_summary, planner_debug_projection
       → graph_navigation

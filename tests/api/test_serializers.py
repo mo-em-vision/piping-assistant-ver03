@@ -62,6 +62,15 @@ def test_task_state_includes_curated_timeline() -> None:
         "missing_assumptions": [],
         "current_phase": "parameter_gathering",
         "phase_missing": {"parameter_gathering": ["nominal_pipe_size"]},
+        "collection_field_order": [
+            "straight_pipe_section",
+            "pressure_design_case",
+            "internal_design_gage_pressure",
+            "nominal_pipe_size",
+            "outside_diameter",
+            "material_grade",
+            "design_temperature",
+        ],
     }
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
@@ -80,7 +89,7 @@ def test_task_state_includes_curated_timeline() -> None:
         "Thickness",
         "Report",
     ]
-    assert state["progress"]["timeline"][1]["display_value"] == "The pipe is internally pressurized."
+    assert state["progress"]["timeline"][1]["display_value"] == "Internal pressure"
     assert state["progress"]["timeline"][2]["display_value"] == "8.0 bar"
     assert state["progress"]["timeline"][3]["status"] == "active"
     assert state["progress"]["timeline"][5]["display_value"] == "ASTM A106 Grade B"

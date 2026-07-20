@@ -216,7 +216,7 @@ def render_equation_blocks(
     store,
     inputs: dict,
 ) -> list[dict[str, Any]]:
-    from engine.graph.display_emitter import emit_equation_blocks
+    from engine.presentation.graph_display_blocks import emit_equation_blocks
 
     history_by_node = {
         str(entry.get("node_id", "")): entry

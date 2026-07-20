@@ -19,15 +19,13 @@ from engine.navigation.submittable_projection import (
     collection_step_order,
     submittable_parameter_ids,
 )
-from engine.navigation.workflow_path import (
+from engine.navigation.timeline_projection import (
     HIDDEN_TIMELINE_INPUTS,
     hidden_timeline_inputs,
-    is_mawp_task,
-    is_pipe_wall_thickness_task,
-    pipe_wall_step_applies,
-    pipe_wall_uses_inside_diameter,
     step_applies_for_timeline,
+    uses_inside_diameter_path,
 )
+from engine.navigation.timeline_sync import sync_timeline_input_order
 
 __all__ = [
     "HIDDEN_TIMELINE_INPUTS",
@@ -41,11 +39,9 @@ __all__ = [
     "timeline_revealed_input_ids",
     "uses_planner_input_projection",
     "hidden_timeline_inputs",
-    "is_mawp_task",
-    "is_pipe_wall_thickness_task",
-    "pipe_wall_step_applies",
-    "pipe_wall_uses_inside_diameter",
     "step_applies_for_timeline",
+    "uses_inside_diameter_path",
     "submittable_parameter_ids",
     "timeline_step_id_for_parameter",
+    "sync_timeline_input_order",
 ]

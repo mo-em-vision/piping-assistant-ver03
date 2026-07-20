@@ -8,7 +8,7 @@ from api.workflow_timeline import (
     _HIDDEN_TIMELINE_INPUTS,
     collection_step_order,
 )
-from engine.router import PIPE_WALL_THICKNESS_DESIGN
+from engine.router import is_supported_planning_workflow
 from engine.state.task_facts import deactivate_fact
 from models.task import Task, TaskStatus
 
@@ -47,7 +47,7 @@ def downstream_input_ids(task: Task, parameter_id: str) -> list[str]:
 
 
 def is_timeline_parameter_editable(task: Task, parameter_id: str) -> bool:
-    if str(task.outputs.get("workflow") or "") != PIPE_WALL_THICKNESS_DESIGN:
+    if not is_supported_planning_workflow(str(task.outputs.get("workflow") or "")):
         return False
     step_order = collection_step_order(task)
     if parameter_id in _HIDDEN_TIMELINE_INPUTS or parameter_id not in step_order:

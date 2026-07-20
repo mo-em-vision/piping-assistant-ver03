@@ -181,17 +181,6 @@ class GraphTools:
             existing_inputs=existing_inputs,
         )
 
-    def limitation_hints(self, node_ids: list[str]) -> list[str]:
-        hints: list[str] = []
-        for node_id in node_ids:
-            record = self._reader.load(node_id)
-            for item in record.metadata.get("limitations", []) or []:
-                if isinstance(item, dict):
-                    condition = str(item.get("condition", ""))
-                    if condition:
-                        hints.append(condition)
-        return hints
-
 
 class StateTools:
     """Task state read/write for planner decisions."""
@@ -268,21 +257,3 @@ class StateTools:
         registry: dict,
     ) -> Task:
         return self._state.store_parameter_registry(task_id, registry)
-
-
-class RuleTools:
-    """Read-only rule/limitation hints for the planner (no validation execution)."""
-
-    def __init__(self, reader: StandardsReader) -> None:
-        self._reader = reader
-
-    def limitation_hints(self, node_ids: list[str]) -> list[str]:
-        hints: list[str] = []
-        for node_id in node_ids:
-            record = self._reader.load(node_id)
-            for item in record.metadata.get("limitations", []) or []:
-                if isinstance(item, dict):
-                    condition = str(item.get("condition", ""))
-                    if condition:
-                        hints.append(condition)
-        return hints

@@ -12,11 +12,11 @@ from engine.navigation import (
     collect_all_missing,
     composer_parameter_id,
     composer_parameter_ids,
-    is_pipe_wall_thickness_task,
-    pipe_wall_step_applies,
+    step_applies_for_timeline,
     submittable_parameter_ids,
     timeline_step_id_for_parameter,
 )
+from engine.router import is_supported_planning_workflow
 from engine.navigation.missing_inputs import collect_all_missing as engine_collect_all_missing
 from engine.planner.goal_navigation import build_current_ask
 from engine.planner.workflow_goal_metadata import workflow_display_title_from_node
@@ -140,9 +140,9 @@ def test_path_filters_pipe_wall_branches(project_root: Path) -> None:
             ),
         ),
     )
-    assert is_pipe_wall_thickness_task(task)
-    assert pipe_wall_step_applies(task, "nominal_pipe_size") is True
-    assert pipe_wall_step_applies(task, "inside_diameter") is False
+    assert is_supported_planning_workflow(PIPE_WALL_ROOT)
+    assert step_applies_for_timeline(task, "nominal_pipe_size") is True
+    assert step_applies_for_timeline(task, "inside_diameter") is False
 
     _, direct_task, _ = _pipe_wall_task(
         project_root,
@@ -156,14 +156,14 @@ def test_path_filters_pipe_wall_branches(project_root: Path) -> None:
             ),
         ),
     )
-    assert pipe_wall_step_applies(direct_task, "inside_diameter") is False
-    assert pipe_wall_step_applies(direct_task, "outside_diameter") is True
+    assert step_applies_for_timeline(direct_task, "inside_diameter") is False
+    assert step_applies_for_timeline(direct_task, "outside_diameter") is True
 
     manager = TaskStateManager()
     unsupported = manager.create_task("path-unsupported", status=TaskStatus.AWAITING_INPUT)
     unsupported.outputs["workflow"] = "flange_selection"
-    assert is_pipe_wall_thickness_task(unsupported) is False
-    assert pipe_wall_step_applies(unsupported, "nominal_pipe_size") is True
+    assert not is_supported_planning_workflow("flange_selection")
+    assert step_applies_for_timeline(unsupported, "nominal_pipe_size") is True
 
 
 def test_submittable_projection_fresh_pipe_wall(project_root: Path) -> None:

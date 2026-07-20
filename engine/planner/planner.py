@@ -19,18 +19,7 @@ from models.event import EventType
 from models.planning import NavigationPhase, NavigationPlan, StructuredIntent, WorkflowCandidate
 from models.task import Task
 
-from .tools import GraphTools, RuleTools, StateTools
-
-_PIPE_WALL_THICKNESS = "pipe_wall_thickness_design"
-
-_DEFAULT_PRIORITIES: dict[str, list[str]] = {
-    _PIPE_WALL_THICKNESS: [
-        "pressure loading case",
-        "material stress evaluation",
-        "pressure design / wall thickness",
-        "thin-wall applicability check",
-    ],
-}
+from .tools import GraphTools, StateTools
 
 
 class Planner:
@@ -46,7 +35,6 @@ class Planner:
         self._reader = reader
         self._graph = GraphTools(reader)
         self._state = StateTools(state)
-        self._rules = RuleTools(reader)
         self._events = events or EventLogger()
 
     @property
@@ -215,10 +203,7 @@ class Planner:
         questions = phased.questions
 
         workflow = intent.workflow or intent.intent or selected.engineering_intent
-        priorities = _DEFAULT_PRIORITIES.get(
-            workflow or "",
-            ["dependency resolution", "required input collection"],
-        )
+        priorities = ["dependency resolution", "required input collection"]
         path_decision = self._path_decision(existing_inputs, exec_nodes)
 
         plan = NavigationPlan(
