@@ -2,7 +2,7 @@
 
 Source of truth for Cursor agents and contributors. `.cursor/rules/agent-rules.mdc` points here; do not contradict this file.
 
-`docs/rules.md`, `.cursor/rules/**`, node templates, and architecture decision documents are protected files. Agents must not modify them unless the approved task explicitly lists them as allowed files. When a conflict is found, report it and propose an amendment instead of editing the rule. after any edits report the exact diffs of the protected files.
+Protected paths are defined in [`config/restricted_paths.yaml`](config/restricted_paths.yaml) (categories and paths). Editing policy, task modes, and workflow are in [`docs/protected-files/registry.md`](docs/protected-files/registry.md). Authoritative protected files require **documentation-edit mode** (`Mode: documentation-edit` + `Allowed files:` list). During implementation, stop and report when a change requires an authoritative doc update instead of editing the rule silently.
 
 ---
 
@@ -1002,10 +1002,27 @@ These are progressive content on the **same** block via `equation_display_trace`
 - Scroll and report order follow **authored traversal / display history order** (`DISPLAY_ROLE_ORDER`, `contracts/center_panel_report_role_order.json`, chronological append within role).
 - Do **not** reorder visible blocks by reconstruction order (build pass order, dict iteration, or frontend merge discovery order).
 
+### Planner-activated center panel blocks
+
+Center-panel engineering scroll content (paragraph context, equation preview, definition activation) is driven by **planner traversal activation**, not `task.active_nodes` or ad-hoc equation-focus heuristics.
+
+| `engineering_plan.traversal` bucket | Node types | Center panel |
+| --- | --- | --- |
+| `expanded_nodes` | paragraph, equation, definition, text, lookup, table | Emit block when a builder exists; keep visible per chain rule above |
+| `pending_expansion_nodes` | same structural types | Emit preview block for that node when visible |
+| `current_active_node` | `parameter` | **No scroll block** — composer owns `current_ask` |
+| `current_active_node` | paragraph / equation (rare) | Emit via same dispatcher |
+| `workflow` | — | Skip (`workflow_intro` handled separately) |
+
+- Assembly entry point: `api/planner_traversal_display.py` (`collect_traversal_display_nodes`, `build_planner_traversal_display_blocks`).
+- `api/output_blocks.build_display_outputs()` calls the traversal adapter; evaluated equations from execution trace still merge via `api/equation_display_registry.py` (§24).
+- Definition-phase equations with unmet upstream calculated inputs remain hidden until prerequisites resolve.
+
 ### Layer ownership
 
 | Concern | Owner |
 | --- | --- |
+| Planner-activated structural blocks (paragraph, equation preview, definition intro) | `api/planner_traversal_display.py` reading `engineering_plan.traversal` |
 | Stable `block_id` assignment, dedupe, in-place merge | API (`api/output_blocks.py`, `api/display_block_metadata.py`, `api/center_panel_contract.py`) |
 | Durable transcript persistence | `api/flow_guidance_sync.py`, `task.outputs["flow_guidance_transcript"]` |
 | Scroll assembly | `assemble_center_panel_scroll_blocks` / `buildCenterPanelTranscript.ts` |
@@ -1013,6 +1030,7 @@ These are progressive content on the **same** block via `equation_display_trace`
 
 ### Tests
 
+- `tests/api/test_planner_traversal_display.py`
 - `tests/api/test_display_block_lifecycle.py`
 - `tests/api/test_pipe_wall_output_lifecycle.py`
 - `tests/api/test_center_panel_display_sequence.py`

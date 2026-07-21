@@ -25,18 +25,20 @@ User-facing engineering workspace scroll area for active tasks. Defines block ro
 | Concern | Authority |
 | --- | --- |
 | Navigation ordering / missing fields | `engineering_plan`, planner outputs |
+| Structural center-panel activation (paragraph, equation preview) | `engineering_plan.traversal` via `api/planner_traversal_display.py` |
 | Parameter prompt copy | `current_ask`, `engine/messaging/`, condition-owning node metadata |
 | Equation engineering truth | Execution trace, `equation_display_trace` (`docs/rules.md` §24) |
 | Durable display history | `flow_guidance.transcript_blocks`, durable `display_outputs` equation blocks (§25) |
 
 `flow_guidance.presentation_blocks` is an ephemeral projection snapshot — not workflow engineering state.
 
-### Implementation drift (code alignment deferred to Phase 2B)
+### Implementation notes
 
-| Topic | Target (this contract) | Drift (do not document as permanent) |
-| --- | --- | --- |
-| Active user ask | Composer (`current_ask` / `active_prompt`) only; scroll must not own composer questions | `api/output_blocks._input_waiting_blocks()` may emit volatile `input_waiting` in `display_outputs` — migration decision in Phase 2B |
-| Workflow introduction | Single durable `workflow_intro` (`workflow-intro-{workflow_id}`) | Some API/tests still reference separate `title` display role — migration decision in Phase 2B |
+| Topic | Rule |
+| --- | --- |
+| Active user ask | Composer (`current_ask` / `active_prompt`) only; scroll must not own composer questions |
+| Structural engineering blocks | `engineering_plan.traversal` is display authority (`api/planner_traversal_display.py`); do not select scroll equations from `task.active_nodes` focus heuristics |
+| Workflow introduction | Single durable `workflow_intro` (`workflow-intro-{workflow_id}`) |
 
 ## Report vs transcript (Phase 6)
 
@@ -182,7 +184,7 @@ Within the same role: chronological append order. Preview-tier (non-equation): r
 
 ### Paragraph / paragraph context
 
-- **`paragraph_context`:** live focus paragraph when `presentation.summary` exists (`api/paragraph_display.paragraph_context_blocks_for_focus()`).
+- **`paragraph_context`:** planner-activated paragraph nodes from `engineering_plan.traversal` when `presentation.summary` exists (`api/planner_traversal_display.py` → `api/paragraph_display.build_paragraph_display_block()`).
 - **`engineering_reference`:** paragraph trace/reference prose from execution trace.
 - **Shape:** `id=paragraph-{node_id}`, `type=text`.
 
@@ -191,6 +193,7 @@ Within the same role: chronological append order. Preview-tier (non-equation): r
 - **Canonical:** `display_role: equation` + `display_state` + `equation_content`.
 - **Stable id:** `equation-{equation_node_id}` — same block updates in place: symbolic → input table → substitution/result via `equation_display_trace`.
 - **Lifecycle:** `display_state` in `{preview, active}` → `preview`; `evaluated` → `durable`.
+- **Discovery:** traversal equation ids from `engineering_plan.traversal` plus evaluated execution-trace entries (`api/equation_display_registry.discover_equation_display_entries`).
 - **Center-panel live snapshot:** `mergeDisplayOutputs` includes preview/active equations from the **current API response** so the scroll area shows the in-progress equation and parameter table. Session transcript cache (`transcriptCache`) stores **durable blocks only** — preview equations are not persisted across reload.
 - **Progressive layout (single block):** symbolic line → input table → substituted line (when all inputs resolved) → evaluated result line. Parameter table remains visible after evaluation.
 - **Legacy ids** (`path-preview-equation-*`, `equation-trace-*`) may still appear on ids but roles are canonical only in API output.

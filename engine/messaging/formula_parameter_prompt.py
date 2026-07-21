@@ -77,12 +77,12 @@ def resolve_focus_calculation_node(
     selected = path_decision.get("selected_node")
     if selected:
         record = reader.load(str(selected))
-        if str(record.metadata.get("type", "")) == "calculation":
+        if str(record.metadata.get("type", "")) in {"calculation", "equation"}:
             return record.node_id
 
     for node_id in navigation_plan.selected_nodes:
         record = reader.load(node_id)
-        if str(record.metadata.get("type", "")) == "calculation":
+        if str(record.metadata.get("type", "")) in {"calculation", "equation"}:
             return record.node_id
     return None
 

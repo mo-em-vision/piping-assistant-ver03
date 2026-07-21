@@ -10,6 +10,7 @@ from api.display_block_metadata import (
     _persisted_equation_trace_entries,
     equation_trace_semantic_key,
 )
+from api.planner_traversal_display import traversal_equation_node_ids
 from engine.graph.definition_equations import (
     _resolve_output_value,
     definition_equation_specs_for_order,
@@ -217,9 +218,19 @@ def _equation_visible_for_display(
     *,
     evaluated_ids: frozenset[str],
     focus_equation_id: str | None,
+    traversal_ids: frozenset[str] | None = None,
 ) -> bool:
     """Projection-only visibility gate; registry history is not modified here."""
     if equation_node_id in evaluated_ids:
+        return True
+    if traversal_ids and equation_node_id in traversal_ids:
+        try:
+            record = reader.load(equation_node_id)
+        except FileNotFoundError:
+            return False
+        execution_phase = str(record.metadata.get("execution_phase", "")).strip()
+        if execution_phase == "definition":
+            return _definition_equation_upstream_prerequisites_met(task, reader, equation_node_id)
         return True
     if focus_equation_id and equation_node_id == focus_equation_id:
         return True
@@ -248,6 +259,7 @@ def filter_visible_equation_display_entries(
 
     evaluated_ids = _evaluated_equation_node_ids(task)
     focus_equation_id = _focus_equation_node_id(task, planning, reader)
+    traversal_ids = traversal_equation_node_ids(task)
     visible: list[tuple[str, str]] = []
     for equation_node_id, source_node_id in entries:
         if _equation_visible_for_display(
@@ -257,6 +269,7 @@ def filter_visible_equation_display_entries(
             equation_node_id,
             evaluated_ids=evaluated_ids,
             focus_equation_id=focus_equation_id,
+            traversal_ids=traversal_ids,
         ):
             visible.append((equation_node_id, source_node_id))
     return visible
@@ -295,6 +308,10 @@ def discover_equation_display_entries(
 
     for item in _persisted_equation_trace_entries(task):
         add(item["equation_node_id"], item["source_node_id"])
+
+    for equation_node_id in sorted(traversal_equation_node_ids(task)):
+        source_node_id = source_node_id_for_equation(reader, equation_node_id)
+        add(equation_node_id, source_node_id)
 
     focus_node = resolve_focus_node_for_equation_display(task, planning, reader)
     if focus_node:

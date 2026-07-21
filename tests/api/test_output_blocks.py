@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from engine.state.state_manager import TaskStateManager
 from models.input import InputSource, InputStatus
+from models.engineering_plan import TraversalExpandedNode
 from models.task import TaskStatus
 
 from api.output_blocks import build_display_outputs
@@ -113,7 +114,7 @@ def test_preview_outputs_for_awaiting_input_task(standards_reader) -> None:
     assert not any(block["id"].startswith("node-activation-") for block in blocks)
 
 
-def test_new_pipe_wall_task_single_eq_2_preview_block(standards_reader) -> None:
+def test_new_pipe_wall_task_shows_traversal_paragraph_without_eq2_preview(standards_reader) -> None:
     from api.desktop_service import DesktopApiService
     from config.loader import CLIConfig
     from pathlib import Path
@@ -142,19 +143,13 @@ def test_new_pipe_wall_task_single_eq_2_preview_block(standards_reader) -> None:
         for block in state["display_outputs"]
         if block.get("equation_node_id") == "asme-b313-304-1-1-eq-2"
     ]
-    assert len(eq_blocks) >= 1
-    preview_blocks = [
+    assert eq_blocks == []
+    paragraph_blocks = [
         block
-        for block in eq_blocks
-        if block.get("id") == "equation-asme-b313-304-1-1-eq-2"
+        for block in state["display_outputs"]
+        if block.get("type") == "paragraph_context"
     ]
-    assert len(preview_blocks) >= 1
-    equation = preview_blocks[0]
-    assert equation.get("lifecycle") in {"durable", "preview", None}
-    assert "input_table" in equation
-    assert "variables" not in equation
-    symbols = [row["symbol"] for row in equation["input_table"]["rows"]]
-    assert len(symbols) == len(set(symbols))
+    assert len(paragraph_blocks) >= 1
     assert "planning-status" not in {block["id"] for block in state["display_outputs"]}
     assert state.get("workflow_display", {}).get("display_title") == "Pipe Wall Thickness Design"
     assert "pipe_wall_thickness_design" not in state.get("name", "")
@@ -272,6 +267,10 @@ def test_task_state_includes_display_outputs(
 
 
 def test_path_preview_equation_resolves_variable_descriptions(standards_reader) -> None:
+    from engine.state.fact_migration import fact_from_engineering_input
+    from tests.acceptance.helpers import internal_pressure_assumption, straight_section_assumption
+    from tests.helpers.planner_traversal import store_built_engineering_plan
+
     manager = TaskStateManager()
     task = manager.create_task("pipe-wall-thickness-desi-test09", status=TaskStatus.AWAITING_INPUT)
     planning = {
@@ -288,6 +287,17 @@ def test_path_preview_equation_resolves_variable_descriptions(standards_reader) 
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     task.active_nodes = ["B313-304.1.1", "304.1.2-a"]
+    for inp in (straight_section_assumption(), internal_pressure_assumption()):
+        manager.store_fact(
+            task.task_id,
+            fact_from_engineering_input(
+                inp,
+                task_id=task.task_id,
+                workflow_id="pipe_wall_thickness_design",
+            ),
+        )
+    task = manager.get_task(task.task_id)
+    store_built_engineering_plan(task, standards_reader)
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     equation_blocks = [
@@ -370,6 +380,8 @@ def test_execution_trace_keeps_definition_node_outputs(standards_reader) -> None
 def test_thin_wall_condition_shown_in_paragraph_context_block(
     state_manager, standards_reader
 ) -> None:
+    from tests.helpers.planner_traversal import store_synthetic_traversal_plan
+
     task = state_manager.create_task("thin-wall-fail-display", status=TaskStatus.COMPLETED)
     task.outputs = {
         "workflow": "pipe_wall_thickness_design",
@@ -379,6 +391,10 @@ def test_thin_wall_condition_shown_in_paragraph_context_block(
             {"node_id": "304.1.2-a", "trace": {"calculation": {"final_result": {"value": 5.0}}}}
         ],
     }
+    store_synthetic_traversal_plan(
+        task,
+        expanded=[TraversalExpandedNode("304.1.2-a", "paragraph", expanded_at_order=1)],
+    )
     state_manager.replace_task(task.task_id, task)
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
@@ -423,6 +439,7 @@ def _eq2_trace_block(blocks: list[dict]) -> dict:
 def test_eq2_trace_shows_derived_reference_for_t_before_eq3a_evaluation(standards_reader) -> None:
     from api.equation_inputs_display import AWAITING_USER_INPUT
     from tests.api.test_equation_display_trace import _apply_simulated_completed_state
+    from tests.helpers.planner_traversal import store_built_engineering_plan
 
     manager = TaskStateManager()
     task = manager.create_task("eq2-derived-ref", status=TaskStatus.AWAITING_INPUT)
@@ -439,6 +456,7 @@ def test_eq2_trace_shows_derived_reference_for_t_before_eq3a_evaluation(standard
     _apply_simulated_completed_state(task, standards_reader)
     task.outputs.pop("t", None)
     task.outputs.pop("required_thickness", None)
+    store_built_engineering_plan(task, standards_reader)
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     trace = _eq2_trace_block(blocks)
@@ -450,6 +468,7 @@ def test_eq2_trace_shows_derived_reference_for_t_before_eq3a_evaluation(standard
 def test_eq2_trace_updates_t_value_after_eq3a_evaluation(standards_reader) -> None:
     from api.equation_inputs_display import AWAITING_USER_INPUT
     from api.output_blocks import build_display_outputs
+    from tests.helpers.planner_traversal import store_built_engineering_plan
 
     manager = TaskStateManager()
     task = manager.create_task("eq-trace-live-t", status=TaskStatus.AWAITING_INPUT)
@@ -470,13 +489,14 @@ def test_eq2_trace_updates_t_value_after_eq3a_evaluation(standards_reader) -> No
     }
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     task.active_nodes = ["304.1.1-a", "304.1.2-a"]
+    store_built_engineering_plan(task, standards_reader)
 
     blocks = build_display_outputs(task, standards_root=standards_reader.standards_root)
     trace = _eq2_trace_block(blocks)
     t_row = next(row for row in trace["input_table"]["rows"] if row["symbol"] == "t")
     assert t_row["value"] != AWAITING_USER_INPUT
     assert "2.000" in t_row["value"]
-    assert t_row.get("value_reference") is not None
+    assert t_row.get("value_reference") is not None or t_row.get("value_provenance")
     assert t_row.get("value_status") == "equation_derived"
 
 

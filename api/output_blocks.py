@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import re
 from pathlib import Path
 from typing import Any
 
@@ -17,14 +16,10 @@ from api.display_block_metadata import (
     tag_display_block,
 )
 from models.display_role import DisplayRole, resolve_display_block, sort_blocks_by_report_role
-from api.equation_evaluation_display import equation_display_blocks_for_task
-from api.node_display import build_activated_node_blocks
-from api.node_provenance import definition_node_id_for_task, enrich_display_blocks_provenance
-from api.paragraph_display import paragraph_context_blocks_for_focus
+from api.planner_traversal_display import build_planner_traversal_display_blocks
 from api.reference_links import enrich_display_output_dict, enrich_row_provenance_dict
 from api.result_summary_display import build_result_summary_display_block
-from api.workflow_bootstrap import resolve_activated_definition_node
-from engine.reference.formula_display import load_equation_context
+from api.node_provenance import definition_node_id_for_task, enrich_display_blocks_provenance
 from engine.reference.standards_reader import StandardsReader
 from engine.state.goal_projection import planning_projection
 from models.task import Task
@@ -38,16 +33,11 @@ def build_display_outputs(
 ) -> list[dict[str, Any]]:
     planning = planning_projection(task)
     resolved_reader = reader or _reader_for(standards_root)
-    trace = task.outputs.get("_execution_trace")
-    has_trace = isinstance(trace, list) and bool(trace)
-    trace_list = trace if has_trace else None
 
     blocks: list[dict[str, Any]] = []
 
     blocks.extend(_warning_blocks_from_task(task))
-    blocks.extend(_workflow_scope_blocks(task, planning, resolved_reader))
-    blocks.extend(_paragraph_context_blocks(task, planning, resolved_reader, trace=trace_list))
-    blocks.extend(_equation_display_blocks(task, planning, resolved_reader, trace=trace_list))
+    blocks.extend(_planner_traversal_blocks(task, planning, resolved_reader))
 
     summary = build_result_summary_display_block(task, resolved_reader)
     if summary is not None:
@@ -164,95 +154,12 @@ def _equation_blocks_show_awaiting_input(blocks: list[dict[str, Any]]) -> bool:
     return False
 
 
-def _workflow_scope_blocks(
+def _planner_traversal_blocks(
     task: Task,
     planning: dict[str, Any],
     reader: StandardsReader,
 ) -> list[dict[str, Any]]:
-    return _activated_definition_blocks_for_focus(task, planning, reader)
-
-
-def _paragraph_context_blocks(
-    task: Task,
-    planning: dict[str, Any],
-    reader: StandardsReader,
-    *,
-    trace: list[Any] | None,
-) -> list[dict[str, Any]]:
-    return paragraph_context_blocks_for_focus(task, planning, reader, trace=trace)
-
-
-def _equation_display_blocks(
-    task: Task,
-    planning: dict[str, Any],
-    reader: StandardsReader,
-    *,
-    trace: list[Any] | None,
-) -> list[dict[str, Any]]:
-    paragraph_blocks = paragraph_context_blocks_for_focus(task, planning, reader, trace=trace)
-    paragraph_ids = {
-        str(block.get("source_node_id") or block.get("id", "").removeprefix("paragraph-"))
-        for block in paragraph_blocks
-    }
-    activation_blocks = _activated_definition_blocks_for_focus(task, planning, reader)
-    for block in activation_blocks:
-        if block.get("type") == "equation":
-            continue
-    return equation_display_blocks_for_task(
-        task,
-        planning,
-        reader,
-        paragraph_node_ids=paragraph_ids,
-    )
-
-
-def _activated_definition_blocks(
-    task: Task,
-    planning: dict[str, Any],
-    reader: StandardsReader,
-) -> list[dict[str, Any]]:
-    node_id = planning.get("active_definition_node")
-    if not node_id:
-        workflow_id = _task_workflow_id(task)
-        if workflow_id:
-            node_id = resolve_activated_definition_node(reader, workflow_id)
-    if not node_id:
-        for candidate in task.active_nodes:
-            try:
-                if str(reader.load(candidate).metadata.get("type", "")) == "definition":
-                    node_id = candidate
-                    break
-            except FileNotFoundError:
-                continue
-    if not node_id:
-        return []
-    return build_activated_node_blocks(reader, str(node_id))
-
-
-def _activated_definition_blocks_for_focus(
-    task: Task,
-    planning: dict[str, Any],
-    reader: StandardsReader,
-) -> list[dict[str, Any]]:
-    """Activation blocks for the active calculation path only (no foreign-branch equations)."""
-    from api.equation_evaluation_display import resolve_focus_node_for_equation_display
-
-    focus_node = resolve_focus_node_for_equation_display(task, planning, reader)
-    blocks = _activated_definition_blocks(task, planning, reader)
-    if not focus_node:
-        return [block for block in blocks if block.get("type") != "equation"]
-
-    filtered: list[dict[str, Any]] = []
-    for block in blocks:
-        if block.get("type") == "equation":
-            continue
-        filtered.append(block)
-    return filtered
-
-
-def _task_workflow_id(task: Task) -> str:
-    workflow = task.outputs.get("workflow")
-    return str(workflow) if workflow else ""
+    return build_planner_traversal_display_blocks(task, reader, planning=planning)
 
 
 def _warning_block_id(message: str) -> str:

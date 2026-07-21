@@ -32,8 +32,10 @@ The center panel scroll area renders **only** block types listed in [`contracts/
 7. **Next workflows** — render only `Related Workflows: {workflow name}` lines; no intro/title/description chrome.
 8. **Equation blocks** use `type: "equation"` with canonical `equation_node_id` / `equation_display_trace` — not legacy workflow-specific ids (`mawp-*-equation`, `path-calculation-substituted-equation`, etc.).
 9. **Engineering decisions** — confirmed branch report sentences use `display_role: engineering_decision`, `source: engineering_decision`, stable id `engineering-decision-{decision_key}`; update in place on re-submit (§12b). Not `scope_assumption`.
+10. **Planner traversal activation** — structural nodes in `engineering_plan.traversal` (`expanded_nodes`, `pending_expansion_nodes`, non-parameter `current_active_node`) must emit center-panel blocks via `api/planner_traversal_display.py`. Parameter activation stays composer-only (`current_ask`); do not select scroll equations from `task.active_nodes` focus heuristics.
 
 ## Tests
 
 - Backend: `tests/api/test_center_panel_block_registry.py`
+- Backend: `tests/api/test_planner_traversal_display.py`
 - Desktop: `desktopApp/tests/utils/centerPanelBlockRegistry.test.tsx`
