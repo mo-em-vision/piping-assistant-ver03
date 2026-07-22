@@ -306,7 +306,7 @@ Full rule file: `.cursor/rules/decision-output-blocks.mdc`. Node contracts: `aud
 
 ## 13. Graph-driven workflow paths (no hardcoded steps)
 
-**Workflow paths, branches, and parameter asks must come from graph expansion — not from hardcoded lists in engine, API, or UI code.**
+The active path, branch selection, and required user inputs must be derived from the authored knowledge graph. Engine, API, workflow runtime, and UI code must not define workflow-specific execution sequences or field lists.
 
 The active execution subgraph is resolved from authored knowledge nodes: `assumptions`, `applicability.applies_when`, edge `when` clauses, `depends_on`, `interactions`, parameter `resolution`, and workflow `entry_points`. When the user supplies or changes a fact, replanning must shrink or grow the goal tree and missing-field set to match the newly active path.
 
@@ -342,7 +342,7 @@ Workflow YAML must **not** author branch gates, path decisions, or parameter fie
 | Branch-only parameter | `introduces_parameter` on the branch paragraph + parameter node; optional `applies_when` |
 | Path-decision parameter | Global `PARAM-*` with `metadata.role: path_decision` for graph binding; decision copy on introducing paragraph `execution.interactions` |
 | Workflow completion | `goal_expansion.root_goal.target_parameter` + `entry_points.definition_anchor` |
-| Ask order within a phase | Graph expansion order and PARAM priority — not workflow YAML lists |
+| Ask order within a phase | Graph expansion order + requirement `depends_on` depth; generic tie-breakers on graph-derived metadata only (see **Planner hardcode policy** below) — not workflow YAML lists or per-field priority maps |
 
 After graph YAML changes: `python scripts/build_graph_db.py` when using SQLite cache; extend `tests/graph/test_expansion_policy.py` (assert via metadata behavior, not engine id literals).
 
@@ -351,6 +351,27 @@ After graph YAML changes: `python scripts/build_graph_db.py` when using SQLite c
 - **Presentation order** — timeline sort keys and composer row order (filtered to graph-revealed fields via `graph_input_order` / `collection_field_order` on task outputs).
 - **Prompt copy** — `engine/messaging/` and PARAM `user_prompt` (see §12).
 - **Phase enum labels** — `expansion_assumptions`, `path_decisions`, `parameter_gathering`, etc. (engine-owned; not workflow field lists).
+
+### Planner hardcode policy
+
+The planner (`engine/planner/`) may hardcode only **workflow-agnostic execution policy**. Path selection, required inputs, and ask order within a phase must come from graph expansion and plan requirements — not from per-workflow or per-parameter literals in planner code.
+
+**Allowed:**
+
+1. Generic phase ordering enums (`NavigationPhase`, `_PHASE_ORDER`, phase title labels).
+2. Graph and plan validation invariants (`validate_engineering_plan()`, dependency structure checks).
+3. Inspector labels and state labels (`plan_inspector.py`, debug projection copy, phase status names).
+4. Generic tie-breaking rules that operate only on graph-derived metadata (e.g. `depends_on` depth, requirements emission order, execution-walk index, `parameter_collection_priority`).
+
+**Not allowed:**
+
+1. Per-parameter or per-field next-step priorities in planner code (no `_PRIORITY` maps, `priority_override` for gatherable fields, or hardcoded `next_fields` sequences).
+2. Branch-specific field lists or sequences (no workflow YAML field lists merged over `required_user_inputs()`).
+3. Workflow-specific defaults, fallback paths, or required-input lists in the planner.
+4. Production node IDs, parameter keys, or workflow IDs used to control planning (`if workflow == "…"`, literal `PARAM-*` / paragraph ids to pick the next ask).
+5. Any planner rule that adds an input not present in the active graph-derived required-input set.
+
+Ask order within a navigation phase: graph expansion order + requirement `depends_on` depth, with generic tie-breakers only (`engine/planner/requirement_ordering.py`). See also §12 (planner vs messaging) and `docs/core/11. planner_layer_design.md`.
 
 Full rule file: `.cursor/rules/graph-expansion.mdc`. Design detail: `docs/core/14. graph_engine_design.md`, `docs/desktopApp/05_backend_ui_contract.md` §6.
 

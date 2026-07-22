@@ -8,7 +8,7 @@ from typing import Any
 from engine.executor.allowable_stress_resolver import apply_allowable_stress_lookup
 from engine.executor.coefficient_lookup import apply_coefficient_lookups
 from engine.executor.metallurgical_group_resolver import apply_metallurgical_group_lookup
-from engine.executor.mawp_geometry_resolver import (
+from engine.executor.nps_schedule_geometry_resolver import (
     apply_pipe_schedule_lookup,
     store_outside_diameter_resolution_branch,
 )
@@ -32,7 +32,6 @@ from api.parameter_edit import active_edit_parameter, clear_edit_session
 from api.node_provenance import param_node_index, parameter_input_provenance, provenance_for_node
 from api.workflow_timeline import (
     revealed_input_ids,
-    revealed_pipe_wall_input_ids,
     submittable_parameter_ids,
 )
 from engine.messaging.decision_interaction_resolver import (

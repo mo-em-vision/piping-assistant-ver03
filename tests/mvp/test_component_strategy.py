@@ -88,13 +88,14 @@ class TestReportGeneratorStrategy:
 class TestAiInteractionStrategy:
     """§7 AI Interaction — questions without engineering decisions."""
 
-    def test_input_agent_requests_without_calculating(self) -> None:
+    def test_input_agent_requests_without_calculating(self, standards_reader) -> None:
         from ai.agents.input_agent import InputAgent
         from models.task import Task
 
         agent = InputAgent(client=None)
         task = new_task("mvp-ai", status=TaskStatus.AWAITING_INPUT)
-        result = agent.analyze(task, workflow=PIPE_WALL_THICKNESS_ROOT)
+        task.outputs["workflow"] = PIPE_WALL_THICKNESS_ROOT
+        result = agent.analyze(task, workflow=PIPE_WALL_THICKNESS_ROOT, reader=standards_reader)
 
         assert result.missing_inputs
         assert result.requests

@@ -1,5 +1,5 @@
 ---
-description: Protected docs, audits, standards knowledge, and Cursor rules — read registry each session; no edits without user approval
+description: Protected paths — read manifest and registry each session; documentation-edit mode for authoritative changes
 alwaysApply: true
 ---
 
@@ -7,34 +7,52 @@ alwaysApply: true
 
 ## Session start
 
-At the beginning of each session, read the protected-files registry:
+Read:
 
-[`docs/protected-files/registry.md`](../../docs/protected-files/registry.md)
+1. **Path manifest** — [`config/restricted_paths.yaml`](../../config/restricted_paths.yaml) (machine-readable paths and categories; hooks read this file)
+2. **Policy** — [`docs/protected-files/registry.md`](../../docs/protected-files/registry.md) (modes, workflow, ownership)
 
-Use the **Protected glob patterns** table as the source of truth for paths that require owner approval before editing.
+Do **not** maintain a separate hardcoded path list in agent rules or prompts.
 
-## Protected paths (no edit without explicit user approval)
+## Task modes
 
-| Pattern | Scope |
-| --- | --- |
-| `docs/**` | All project documentation |
-| `docs/protected-files/**` | This registry and policy |
-| `.cursor/rules/**` | Cursor agent rules (`.mdc` policy files) |
-| `audits/**` | Standalone audit notes at repo root |
-| `knowledge/standards/**` | Standards knowledge packs (YAML/MD nodes, pack config, compiled `*.db` caches) |
+### Normal implementation mode (default)
 
-Full enumerated lists and maintenance rules: [`docs/protected-files/registry.md`](../../docs/protected-files/registry.md).
+- Authoritative protected paths (`constitutional`, `contract`, `agent_rule`, `architecture_authoritative`, `generated`) are **read-only**.
+- If implementation requires changing one, stop with `RESTRICTED DOCUMENTATION PHASE REQUIRED — IMPLEMENTATION BLOCKED` and name the exact file.
+- `explanatory` and `architecture_explanatory` may sync only under the explanatory-sync exception in the registry (impact report listing + no normative-language additions).
+
+### Docs alignment — clarify before assuming
+When a user request appears to drift from docs/rules.md, docs/core/, or .cursor/rules/:
+1. Read the relevant doc sections first.
+2. If misalignment or ambiguity remains, use AskQuestion with concrete options, e.g.:
+   - "Follow docs as written (recommended)"
+   - "Update docs first, then implement"
+   - "Override docs for this task (explain why)"
+   - "I need more context — here is what conflicts: …"
+3. Do not implement until the user answers.
+4. If Architecture Consistency Review would be NEEDS_DECISION or BLOCKED, ask via AskQuestion before writing the plan.
+
+### Documentation-edit mode
+
+User declares in the latest message:
+
+```text
+Mode: documentation-edit
+
+Allowed files:
+- docs/rules.md
+```
+
+Edit **only** listed manifest paths. Code and tests are read-only. Present diffs before applying changes to authoritative categories.
 
 ## Always follow
 
-1. **Read before you write** — before significant planning, architecture, API, desktop, node, workflow, or standards work, read the relevant protected docs (start with `docs/rules.md`) and confirm the target path is not protected unless the user approved the edit.
-2. **No silent edits** — do not modify protected files unless the user explicitly requests that file or section in the current task.
-3. **Propose, don't patch** — if implementation suggests a protected-file update, describe **what**, **why**, and **which paths**; wait for approval.
-4. **Disclosure on every protected edit** — when proposing or performing an approved edit to any protected file, state explicitly in the response:
-   - **File(s):** full repo-relative path(s)
-   - **What:** sections, fields, or lines affected
-   - **Why:** user request, correction, or other justified reason
-5. **User-requested protected work is allowed** — when the user asks to update docs, audits, standards nodes, or Cursor rules, edit only what they asked for and still state what and why before editing.
+1. **Read before you write** — confirm target path category in the manifest before editing.
+2. **No silent edits** — do not modify protected files outside the active task mode and scope.
+3. **Propose first** for authoritative categories — present diff, wait for approval, then apply.
+4. **Disclosure** — state which file(s), what changes, and why before any protected edit.
+5. **Impact report** — in implementation mode, list explanatory files in `Implementation impact report:` before syncing them.
 
 ## Minimum reads by task type
 
@@ -45,6 +63,6 @@ Full enumerated lists and maintenance rules: [`docs/protected-files/registry.md`
 | Audit / as-built questions | `docs/audit/INDEX.md` |
 | Desktop | relevant `docs/desktopApp/*.md` |
 | Knowledge nodes | relevant files under [`audits/contracts/nodes/`](../../audits/contracts/nodes/00-START-HERE.md) |
-| Standards pack content | relevant files under `knowledge/standards/` (read-only unless user approves edits) |
+| Standards pack content | relevant files under `knowledge/standards/` |
 
 Do not use protected files as a substitute for reading implementation code; use both.

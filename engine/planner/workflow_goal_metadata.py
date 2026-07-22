@@ -163,6 +163,20 @@ def workflow_display_description_from_node(reader: StandardsReader, workflow_id:
     return str(metadata.get("description") or "").strip()
 
 
+def workflow_report_documentation(reader: StandardsReader, workflow_id: str) -> dict[str, str]:
+    """Return report-oriented documentation strings from workflow node metadata."""
+    metadata = _workflow_node_metadata(reader, workflow_id)
+    runtime = metadata.get("runtime") if isinstance(metadata.get("runtime"), dict) else {}
+    documentation = runtime.get("documentation") if isinstance(runtime.get("documentation"), dict) else {}
+    if not documentation:
+        top_level = metadata.get("documentation")
+        documentation = top_level if isinstance(top_level, dict) else {}
+    return {
+        "summary": str(documentation.get("summary") or "").strip(),
+        "report_summary": str(documentation.get("report_summary") or "").strip(),
+    }
+
+
 def selection_fields_for_workflow(reader: StandardsReader, workflow_id: str) -> frozenset[str]:
     metadata = _workflow_node_metadata(reader, workflow_id)
     fields = set(_DEFAULT_SELECTION_FIELDS)

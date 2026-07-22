@@ -289,60 +289,6 @@ def build_workflow_phased_navigation(
     return result
 
 
-def build_phased_navigation(
-    *,
-    assumption_eval: AssumptionEvaluation,
-    expansion_eval: AssumptionEvaluation,
-    user_inputs: list[str],
-    execution_eval: AssumptionEvaluation,
-    question_map: dict[str, str],
-    config: WorkflowNavigationConfig | None = None,
-    reader: StandardsReader | None = None,
-    workflow_id: str | None = None,
-) -> PhasedNavigation:
-    """Build pipe-wall-thickness phased navigation (config from reader when provided)."""
-    if config is None:
-        if reader is not None and workflow_id:
-            config = load_workflow_navigation(reader, workflow_id)
-        else:
-            config = _empty_navigation_config("pipe_wall_thickness_design")
-    return build_workflow_phased_navigation(
-        config=config,
-        assumption_eval=assumption_eval,
-        expansion_eval=expansion_eval,
-        user_inputs=user_inputs,
-        execution_eval=execution_eval,
-        question_map=question_map,
-    )
-
-
-def build_mawp_phased_navigation(
-    *,
-    assumption_eval: AssumptionEvaluation,
-    expansion_eval: AssumptionEvaluation,
-    user_inputs: list[str],
-    execution_eval: AssumptionEvaluation,
-    question_map: dict[str, str],
-    config: WorkflowNavigationConfig | None = None,
-    reader: StandardsReader | None = None,
-    workflow_id: str | None = None,
-) -> PhasedNavigation:
-    """Build MAWP phased navigation (config from reader when provided)."""
-    if config is None:
-        if reader is not None and workflow_id:
-            config = load_workflow_navigation(reader, workflow_id)
-        else:
-            config = _empty_navigation_config("mawp_design")
-    return build_workflow_phased_navigation(
-        config=config,
-        assumption_eval=assumption_eval,
-        expansion_eval=expansion_eval,
-        user_inputs=user_inputs,
-        execution_eval=execution_eval,
-        question_map=question_map,
-    )
-
-
 def allowed_fields_for_phase(
     phase: NavigationPhase,
     *,

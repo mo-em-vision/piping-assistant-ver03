@@ -70,17 +70,14 @@ def test_workflow_sidecars_expose_runtime_metadata() -> None:
         record = reader.load(workflow_id)
         assert record.metadata.get("slug") or record.metadata.get("key")
         assert record.metadata.get("engineering_intent") or record.metadata.get("key")
-
-    pipe = reader.load("WF-PIPE-WALL-THICKNESS")
-    assert pipe.metadata.get("texts")
-
-    mawp = reader.load("WF-MAWP")
-    assert mawp.metadata.get("equations")
-    assert mawp.metadata.get("inputs")
-    assert mawp.metadata.get("nomenclature")
-    assert mawp.metadata.get("provisional_assumptions")
-    assert mawp.metadata.get("navigation") is None
-    assert pipe.metadata.get("interactions") is None
+        assert record.metadata.get("texts")
+        assert record.metadata.get("documentation")
+        assert record.metadata.get("equations") is None
+        assert record.metadata.get("inputs") is None
+        assert record.metadata.get("nomenclature") is None
+        assert record.metadata.get("provisional_assumptions") is None
+        assert record.metadata.get("navigation") is None
+        assert record.metadata.get("interactions") is None
 
 
 def test_workflow_slug_resolution() -> None:

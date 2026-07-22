@@ -1,0 +1,43 @@
+version: 1
+
+# Machine-readable protected-path manifest.
+# Policy (modes, workflow, ownership): docs/protected-files/registry.md
+# Hooks and scripts read ONLY this file — not registry markdown.
+
+globs:
+  - pattern: ".cursor/rules/**"
+    category: agent_rule
+  - pattern: "knowledge/standards/**"
+    category: contract
+  - pattern: "audits/**"
+    category: contract
+  - pattern: "**/*_graph.db"
+    category: generated
+  - pattern: "docs/protected-files/**"
+    category: constitutional
+  - pattern: "docs/core/**"
+    category: architecture_authoritative
+  - pattern: "docs/desktopApp/**"
+    category: architecture_authoritative
+  - pattern: "docs/process/**"
+    category: architecture_authoritative
+  - pattern: "docs/architecture/**"
+    category: architecture_authoritative
+  - pattern: "docs/workflows/**"
+    category: architecture_authoritative
+  - pattern: "docs/tests/**"
+    category: architecture_authoritative
+  - pattern: "docs/audit/**"
+    category: explanatory
+
+entries:
+  - path: docs/rules.md
+    category: constitutional
+  - path: docs/Feature creation prompt template.md
+    category: architecture_authoritative
+  - path: docs/developer_inspection_framework.md
+    category: architecture_authoritative
+  - path: contracts/center_panel_report_role_order.json
+    category: generated
+  - path: audits/reports/nodes/current-node-yaml-audit.md
+    category: generated

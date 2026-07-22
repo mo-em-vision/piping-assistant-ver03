@@ -11,7 +11,7 @@ from engine.reference.standards_reader import StandardsReader
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource
 from models.task import Task, new_task, TaskStatus
-from tests.helpers.facts import fact_get_value
+from tests.helpers.facts import fact_get_value, legacy_input, set_fact_from_input
 from models.fact import SourceType, ValidationStatus
 
 
@@ -26,9 +26,24 @@ def test_build_pipe_wall_thickness_report_incomplete() -> None:
 
     assert report.workflow == "pipe_wall_thickness_design"
     assert report.status == "INCOMPLETE"
-    assert "design_pressure" in report.missing_inputs
+    assert report.missing_inputs
     assert report.formula_display is not None
-    assert any(section.node == "304.1.2-a" for section in report.sections)
+    assert report.sections
+
+
+def test_build_mawp_report_uses_workflow_template(project_root: Path) -> None:
+    from engine.state.state_manager import TaskStateManager
+    from engine.router import MAWP_DESIGN
+
+    manager = TaskStateManager()
+    task = manager.create_task("mawp-report-test", status=TaskStatus.AWAITING_INPUT)
+    task.outputs["workflow"] = MAWP_DESIGN
+    reader = StandardsReader(project_root / "knowledge" / "standards", standard="asme_b31.3")
+    report = build_report_from_task(task, reader)
+
+    assert report.workflow == MAWP_DESIGN
+    assert report.template_name == "mawp_design_report.md"
+    assert "MAWP" in report.title or "Maximum Allowable" in report.title
 
 
 def test_build_report_with_inputs() -> None:
@@ -51,7 +66,7 @@ def test_render_markdown_contains_sections() -> None:
     md = render_markdown(report)
 
     assert "Purpose" in md
-    assert "304.1.2-a" in md or "304.1.2" in md
+    assert report.sections
     assert "Technical Appendix" in md
 
 

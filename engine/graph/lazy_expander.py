@@ -182,7 +182,13 @@ def _expand_output_producers(
         param_id = queue.pop(0)
         for edge in store.incoming(
             param_id,
-            edge_types={"implements", "parameter", "outputs", "returns_parameter"},
+            edge_types={
+                "implements",
+                "parameter",
+                "outputs",
+                "returns_parameter",
+                "calculates_parameter",
+            },
         ):
             producer_id = edge.from_id
             if producer_id in node_set:

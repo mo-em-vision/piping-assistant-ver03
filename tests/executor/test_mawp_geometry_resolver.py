@@ -1,4 +1,4 @@
-"""Tests for MAWP geometry resolver."""
+"""Tests for NPS/schedule geometry resolver."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from engine.executor.mawp_geometry_resolver import apply_pipe_schedule_lookup
+from engine.executor.nps_schedule_geometry_resolver import apply_pipe_schedule_lookup
 from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import TaskStatus

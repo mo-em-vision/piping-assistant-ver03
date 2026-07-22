@@ -107,13 +107,16 @@ For `calculation_kind: function`, either `executor` or `expression.formula` is r
 | `applicability.applies_when` | Branch gating conditions (may also nest as `execution.applies_when`) |
 | `validation` | Dimensional / authority checks |
 | `edges` | `requires_parameter`, `calculates_parameter`, `depends_on_equation` |
-| `execution` | Nested block for execution metadata: `variables`, `steps`, `outputs`, `display`, `applies_when`, `nomenclature_ref`, `executor`, `execution_function`, `calculation_module`, `equation_id`, `paragraph` |
+| `execution` | Nested block for execution metadata: `variables`, `steps`, `outputs`, `display`, `applies_when`, `executor`, `execution_function`, `calculation_module`, `equation_id`, `paragraph` |
+
+**Display rule:** equation input symbol names, descriptions, and units for preview/input tables resolve from each `requires[].parameter` → `PARAM-*` node. The inline `variables` block is for execution (SymPy steps, executor bindings) only — not a nomenclature or display source of truth.
 
 ## 9. Forbidden fields
 
 ```text
 runtime_value, fact_value, user_input, execution_id, task_id,
-calculation_result, selected_for_execution, active_in_context
+calculation_result, selected_for_execution, active_in_context,
+nomenclature_ref
 ```
 
 Also forbidden:
@@ -135,7 +138,7 @@ Also forbidden:
 
 ## 11. Fields consumed by runtime components
 
-**Canonical authoring:** The execution kernel reads `requires`, `calculates`, `expression`, and nested `execution` fields (`variables`, `steps`, `executor`, `display`, `applies_when`, etc.) from the primary equation YAML. Graph expansion reads branch gating from `applicability.applies_when` and/or `execution.applies_when`. Presentation reads `display` for equation blocks. Validation engine may read `validation` metadata before execution. Nomenclature resolver uses `nomenclature_ref` for symbol tables.
+**Canonical authoring:** The execution kernel reads `requires`, `calculates`, `expression`, and nested `execution` fields (`variables`, `steps`, `executor`, `display`, `applies_when`, etc.) from the primary equation YAML. Graph expansion reads branch gating from `applicability.applies_when` and/or `execution.applies_when`. Presentation reads `display` for equation blocks and resolves input symbol metadata from `requires` → `PARAM-*`. Paragraph citation chips use `paragraph_number` or `authority.authorized_by` on the equation node — not `nomenclature_ref`.
 
 **Legacy runtime compatibility (read-only):** `engine/reference/equation_sidecar.py` may still merge metadata from old `{id}.execution.yaml` or `{id}/execution.yaml` files when present during pack load. This loader path is migration compatibility only — do not author, create, or maintain execution sidecars. Consolidate any remaining legacy files into the primary YAML `execution:` block.
 

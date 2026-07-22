@@ -59,6 +59,7 @@ Use `@audit` citations so the agent opens the right file and section:
 You can also paste a markdown link:
 
 ```text
+Update [engine/planner/README.md#resolution-branch-requirements--detail](../../engine/planner/README.md#resolution_branch_requirementspy--detail) when changing PARAM `resolution_branches` planner emission or validation.
 Update [engine/planner/README.md#execution-traces](../../engine/planner/README.md#execution-traces)
 for the new phased navigation path.
 ```

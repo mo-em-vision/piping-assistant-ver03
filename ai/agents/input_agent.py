@@ -2,23 +2,20 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING
 
-from engine.state.state_manager import TaskStateManager
+from engine.messaging.parameter_input_prompt import build_parameter_input_prompt
+from engine.navigation.task_missing_inputs import missing_inputs_for_task
+from engine.reference.parameter_keys import param_node_id_for_input
 from models.agent import AgentAction, AgentContext, InputAgentResult, InputRequest
 from models.planning import NavigationPhase, NavigationPlan
 from models.task import Task
 
-from ai.agents._constants import (
-    PIPE_WALL_THICKNESS_DESIGN,
-    PIPE_WALL_THICKNESS_NODE,
-    REQUIRED_ASSUMPTION_FIELDS,
-    REQUIRED_LOOKUP_INPUTS,
-    REQUIRED_USER_INPUTS,
-)
 from ai.agents.base import BaseAgent
 
-MATERIAL_STRESS_NODE = "asme-b313-table-A-1"
+if TYPE_CHECKING:
+    from engine.reference.standards_reader import StandardsReader
+    from engine.state.state_manager import TaskStateManager
 
 _DETERMINISTIC_PHASES = frozenset(
     {
@@ -33,68 +30,6 @@ _DETERMINISTIC_PHASES = frozenset(
 class InputAgent(BaseAgent):
     prompt_file = "input_agent.md"
 
-    _REASONS: dict[str, str] = {
-        "straight_pipe_section": (
-            "Required before expanding the §304.1.1 wall thickness path. "
-            "This workflow currently supports straight pipe sections only."
-        ),
-        "pressure_design_case": (
-            "Required before expanding the §304.1.1 wall thickness path. "
-            "The equation t = PD/2(SEW+PY) applies only to internally "
-            "pressurized pipe."
-        ),
-        "design_pressure": "Required by ASME B31.3 §304.1.1 for thickness calculation.",
-        "outside_diameter": "Required by ASME B31.3 §304.1.1 for thickness calculation.",
-        "material": (
-            "Required to look up allowable stress at design temperature "
-            "from the material stress table."
-        ),
-        "design_temperature": (
-            "Required because allowable stress depends on design metal temperature."
-        ),
-        "external_design_pressure": (
-            "Required for external pressure wall thickness design per ASME B31.3 §304.1.3."
-        ),
-        "pipe_construction_type": (
-            "Select the pipe construction or longitudinal joint type to resolve quality "
-            "factor E from Tables A-2 and A-3."
-        ),
-        "joint_category": (
-            "Select the pipe construction or longitudinal joint type to resolve quality "
-            "factor E from Tables A-2 and A-3."
-        ),
-        "temperature_coefficient_Y": (
-            "Please confirm the temperature coefficient Y = 0.4, "
-            "or provide a different value."
-        ),
-    }
-
-    _SYMBOLS: dict[str, str] = {
-        "straight_pipe_section": "straight_pipe_section",
-        "pressure_design_case": "pressure_design_case",
-        "design_pressure": "P",
-        "outside_diameter": "D",
-        "material": "material",
-        "design_temperature": "T",
-        "external_design_pressure": "P_ext",
-        "weld_joint_efficiency": "E",
-        "weld_joint_strength_reduction_factor_W": "W",
-        "temperature_coefficient_Y": "Y",
-    }
-
-    _NODE_IDS: dict[str, str] = {
-        "straight_pipe_section": PIPE_WALL_THICKNESS_NODE,
-        "pressure_design_case": PIPE_WALL_THICKNESS_NODE,
-        "design_pressure": PIPE_WALL_THICKNESS_NODE,
-        "outside_diameter": PIPE_WALL_THICKNESS_NODE,
-        "external_design_pressure": "B313-304.1.3",
-        "weld_joint_efficiency": PIPE_WALL_THICKNESS_NODE,
-        "weld_joint_strength_reduction_factor_W": PIPE_WALL_THICKNESS_NODE,
-        "temperature_coefficient_Y": PIPE_WALL_THICKNESS_NODE,
-        "material": MATERIAL_STRESS_NODE,
-        "design_temperature": MATERIAL_STRESS_NODE,
-    }
-
     def analyze(
         self,
         task: Task,
@@ -102,19 +37,23 @@ class InputAgent(BaseAgent):
         workflow: str | None = None,
         context: AgentContext | None = None,
         navigation_plan: NavigationPlan | None = None,
+        reader: StandardsReader | None = None,
     ) -> InputAgentResult:
-        missing = self._missing_inputs(task, workflow, navigation_plan)
+        missing = self._missing_inputs(task, navigation_plan, reader=reader)
         if not missing:
             return InputAgentResult(missing_inputs=[], action=AgentAction.REQUEST_INPUT)
 
-        requests = [self._build_request(input_id, navigation_plan) for input_id in missing]
+        requests = [
+            self._build_request(task, input_id, navigation_plan, reader=reader)
+            for input_id in missing
+        ]
 
         if (
             self._client is not None
             and missing
             and not self._uses_deterministic_prompt(navigation_plan)
         ):
-            requests = self._enrich_with_llm(task, missing, requests, context)
+            requests = self._enrich_with_llm(task, missing, requests, context, reader=reader)
 
         return InputAgentResult(
             requests=requests,
@@ -130,6 +69,7 @@ class InputAgent(BaseAgent):
         workflow: str | None = None,
         context: AgentContext | None = None,
         navigation_plan: NavigationPlan | None = None,
+        reader: StandardsReader | None = None,
     ) -> InputAgentResult:
         task = state_manager.get_task(task_id)
         return self.analyze(
@@ -137,13 +77,15 @@ class InputAgent(BaseAgent):
             workflow=workflow,
             context=context,
             navigation_plan=navigation_plan,
+            reader=reader,
         )
 
     def _missing_inputs(
         self,
         task: Task,
-        workflow: str | None,
         navigation_plan: NavigationPlan | None,
+        *,
+        reader: StandardsReader | None,
     ) -> list[str]:
         if navigation_plan:
             phase_fields = navigation_plan.phase_missing.get(
@@ -167,16 +109,7 @@ class InputAgent(BaseAgent):
             if missing:
                 return missing
 
-        if workflow != PIPE_WALL_THICKNESS_DESIGN and workflow is not None:
-            return []
-
-        required = list(REQUIRED_USER_INPUTS) + list(REQUIRED_LOOKUP_INPUTS)
-        assumption_fields = list(REQUIRED_ASSUMPTION_FIELDS)
-        return [
-            input_id
-            for input_id in assumption_fields + required
-            if task.fact_store.active_fact(input_id) is None
-        ]
+        return missing_inputs_for_task(task, reader=reader)
 
     @staticmethod
     def _uses_deterministic_prompt(navigation_plan: NavigationPlan | None) -> bool:
@@ -186,10 +119,17 @@ class InputAgent(BaseAgent):
 
     def _build_request(
         self,
+        task: Task,
         input_id: str,
         navigation_plan: NavigationPlan | None,
+        *,
+        reader: StandardsReader | None,
     ) -> InputRequest:
-        reason = self._REASONS.get(input_id, f"Required input: {input_id}")
+        reason = f"Required input: {input_id}"
+        if reader is not None:
+            prompt = build_parameter_input_prompt(reader, task, input_id)
+            if prompt:
+                reason = prompt
         if navigation_plan and navigation_plan.questions:
             for question in navigation_plan.questions:
                 if input_id.replace("_", " ") in question.lower():
@@ -199,9 +139,9 @@ class InputAgent(BaseAgent):
         return InputRequest(
             action=AgentAction.REQUEST_INPUT,
             input_id=input_id,
-            symbol=self._SYMBOLS.get(input_id),
+            symbol=None,
             reason=reason,
-            node_id=self._NODE_IDS.get(input_id, PIPE_WALL_THICKNESS_NODE),
+            node_id=param_node_id_for_input(input_id),
         )
 
     def _enrich_with_llm(
@@ -210,6 +150,8 @@ class InputAgent(BaseAgent):
         missing: list[str],
         requests: list[InputRequest],
         context: AgentContext | None,
+        *,
+        reader: StandardsReader | None,
     ) -> list[InputRequest]:
         payload = self.complete_json(
             (
@@ -232,15 +174,11 @@ class InputAgent(BaseAgent):
                 InputRequest(
                     action=AgentAction.REQUEST_INPUT,
                     input_id=input_id,
-                    symbol=(
-                        self._SYMBOLS.get(input_id)
-                        or (original.symbol if original else None)
-                        or item.get("symbol")
-                    ),
+                    symbol=original.symbol if original else item.get("symbol"),
                     reason=str(item.get("reason", "")),
                     node_id=item.get(
                         "node_id",
-                        self._NODE_IDS.get(input_id, PIPE_WALL_THICKNESS_NODE),
+                        original.node_id if original else param_node_id_for_input(input_id),
                     ),
                 )
             )

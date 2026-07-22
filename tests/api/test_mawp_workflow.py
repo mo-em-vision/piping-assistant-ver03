@@ -8,7 +8,9 @@ import pytest
 
 from api.desktop_service import DesktopApiService
 from api.serializers import WORKFLOW_CATALOG, workflow_catalog
+from api.workflow_timeline import revealed_input_ids
 from engine.router import MAWP_DESIGN, is_supported_planning_workflow
+from engine.state.goal_projection import planning_projection
 from engine.state.state_manager import TaskStateManager
 
 
@@ -91,6 +93,6 @@ def test_revealed_mawp_inputs_include_geometry() -> None:
             "parameter_gathering": ["nominal_pipe_size", "pipe_schedule"],
         },
     }
-    revealed = revealed_mawp_input_ids(task, planning)
+    revealed = revealed_input_ids(task, planning)
     assert "nominal_pipe_size" in revealed
     assert "pipe_schedule" in revealed

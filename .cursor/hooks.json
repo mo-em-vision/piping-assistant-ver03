@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "python .cursor/hooks/guard_restricted_paths.py --event afterFileEdit",
+        "failClosed": true
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "python .cursor/hooks/guard_restricted_paths.py --event postToolUse",
+        "matcher": "Shell",
+        "failClosed": true
+      }
+    ],
+    "stop": [
+      {
+        "command": "python .cursor/hooks/guard_restricted_paths.py --event stop",
+        "failClosed": true
+      }
+    ]
+  }
+}

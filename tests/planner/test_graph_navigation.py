@@ -113,8 +113,8 @@ def test_gates_resolved_graph_navigation_collects_parameter_gathering() -> None:
     nav = build_graph_navigation_from_plan(plan)
 
     assert nav["current_phase"] == "parameter_gathering"
-    assert nav["missing_user_inputs"] == ["internal_design_gage_pressure"]
-    assert nav["active_field"] == "internal_design_gage_pressure"
+    assert nav["missing_user_inputs"] == ["design_temperature"]
+    assert nav["active_field"] == "design_temperature"
     assert nav["missing_coefficient_inputs"] == []
 
 

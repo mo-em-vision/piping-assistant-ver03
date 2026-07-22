@@ -540,40 +540,6 @@ def _build_goal_driven_timeline(
     return timeline
 
 
-def _build_mawp_timeline(
-    task: Task,
-    planning: dict[str, Any],
-    *,
-    standards_root: Path | None = None,
-    reader: StandardsReader | None = None,
-    ask_parameter_id: str | None = None,
-) -> list[dict[str, Any]]:
-    return _build_goal_driven_timeline(
-        task,
-        planning,
-        standards_root=standards_root,
-        reader=reader,
-        ask_parameter_id=ask_parameter_id,
-    )
-
-
-def _build_pipe_wall_timeline(
-    task: Task,
-    planning: dict[str, Any],
-    *,
-    standards_root: Path | None = None,
-    reader: StandardsReader | None = None,
-    ask_parameter_id: str | None = None,
-) -> list[dict[str, Any]]:
-    return _build_goal_driven_timeline(
-        task,
-        planning,
-        standards_root=standards_root,
-        reader=reader,
-        ask_parameter_id=ask_parameter_id,
-    )
-
-
 def _step_hint(
     step_id: str,
     phase_missing: dict[str, Any],

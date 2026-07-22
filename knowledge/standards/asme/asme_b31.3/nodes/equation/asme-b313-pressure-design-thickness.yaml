@@ -35,8 +35,12 @@ metadata:
   status: active
   version: 1
   legacy_equation_id: pressure_design_thickness
-  last_revision: 2026-07-07
+  last_revision: 2026-07-21
   edited_by: admin
+applicability:
+  applies_when:
+  - parameter: PARAM-wall-thickness-basis
+    operator: present
 display:
   text: t = t_actual - c
 paragraph_number: 304.1.2-a
@@ -62,5 +66,4 @@ outputs:
   unit: mm
   type: quantity
 equation_id: pressure_design_thickness
-nomenclature_ref: 304.1.1-b
 ---

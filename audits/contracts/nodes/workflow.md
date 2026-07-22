@@ -81,13 +81,29 @@ metadata:
 | `domain` | Engineering domain tags |
 | `expected_authorities` | `AUTH-*` list |
 | `entry_points` | Definition anchor (`role: definition_anchor`) aligned with root goal target parameter |
-| `expected_parameters` | Bootstrap hint only — anticipated `PARAM-*` for goal planning. **Active parameter asks** are authoritative from graph expansion `required_user_inputs()` per `docs/rules.md` §13. |
 | `goal_expansion` | Root and child goal templates, including `root_goal.completion` |
 | `applicability.applies_to` | `CONCEPT-*` filters |
 | `report` | Report section requirements |
 | `runtime.texts` | Flow guidance / initiation copy |
 | `runtime.documentation` | Completion summaries and report prose |
-| `edges` | `may_use_equation`, `may_use_lookup`, `next`, etc. — **not** `starts_from_*` on workflows |
+
+### Canonical calculation workflow shape
+
+For **design_calculation** workflows, [`workflows/pipe-wall-thickness.yaml`](../../../workflows/pipe-wall-thickness.yaml) is the normative template:
+
+- `entry_points` + `goal_expansion.root_goal` declare the single output `PARAM-*` and completion rule.
+- `runtime` carries presentation-only metadata (`texts`, `documentation`, `suggested_workflows`, slug/intent aliases).
+- **Do not** author `expected_parameters`, top-level `edges`, or engineering runtime blocks (`inputs`, `equations`, `conditions`, `nomenclature`, `provisional_assumptions`).
+
+Graph expansion from the definition anchor discovers participating parameters, equations, lookups, and assumptions.
+
+### Forbidden on calculation workflows
+
+| Forbidden | Use instead |
+| --- | --- |
+| `expected_parameters` | Graph `required_user_inputs()` from expansion |
+| Top-level `edges` (`may_use_*`, `requires_parameter`, `depends_on`, …) | Graph traversal from `entry_points` definition anchor |
+| `runtime.inputs`, `runtime.equations`, `runtime.conditions`, `runtime.nomenclature`, `runtime.provisional_assumptions` | Equation, parameter, and paragraph graph nodes |
 
 ### Forbidden workflow conditionals
 
@@ -100,6 +116,10 @@ Do **not** author branch gates, path decisions, or parameter ask lists on workfl
 | `runtime.navigation.assumption_gate_fields` | Paragraph `execution.assumptions` on anchor path |
 | Non-empty `runtime.navigation.phases` field lists | Graph expansion order + PARAM priority |
 | `runtime.provisional_assumptions` for branching | Graph node assumptions |
+| `runtime.inputs` | Parameter `PARAM-*` nodes and graph expansion |
+| `runtime.equations` | Equation nodes reachable from the goal anchor |
+| `runtime.conditions` | Paragraph/equation `execution.conditions` and validation rules |
+| `runtime.nomenclature` | `PARAM-*` metadata and equation `requires` bindings |
 
 Navigation phases (`expansion_assumptions`, `path_decisions`, `parameter_gathering`, etc.) are **engine enums**. The engine assigns fields to phases from graph metadata — workflows do not list phase fields.
 
@@ -132,8 +152,12 @@ calculation_result, runtime_result, current_phase, active_goal_id
 ```
 
 - Top-level `links` block
+- `expected_parameters` on **design_calculation** workflows
+- Top-level `edges` on **design_calculation** workflows (graph traversal owns participation)
 
-## 10. Permitted outgoing relationships
+## 10. Permitted outgoing relationships (legacy / non-calculation workflows only)
+
+For **design_calculation** workflows, do **not** author workflow `edges`. The table below applies to other workflow classes or legacy packs only:
 
 | Edge type | Target | Notes |
 | --- | --- | --- |

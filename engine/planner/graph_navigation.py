@@ -123,7 +123,7 @@ _PHASE_PREVIEW_SKIP = frozenset(
 )
 
 _NAV_DISPLAY_FIELD_ALIASES = {
-    "outside_diameter": "diameter_input_mode",
+    "outside_diameter": "outside_diameter__resolution_branch",
 }
 
 

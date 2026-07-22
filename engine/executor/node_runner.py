@@ -203,14 +203,11 @@ class NodeRunner:
         task_inputs: dict[str, Fact],
     ) -> bool:
         fact_key = self._lookup_returns_fact_key(record)
-        if not fact_key or fact_key not in task_inputs:
+        if not fact_key:
             return False
-        stored = task_inputs[fact_key]
-        if fact_scalar_value(stored) is None:
-            return False
-        if stored.requires_confirmation and not fact_is_expansion_ready(stored):
-            return False
-        return True
+        from engine.reference.parameter_keys import parameter_is_ready
+
+        return parameter_is_ready(task_inputs, fact_key)
 
     def _run_lookup(
         self,
@@ -316,7 +313,7 @@ class NodeRunner:
         source = record.metadata.get("source")
         if isinstance(source, dict):
             db_table_id = str(source.get("table_id") or "").strip()
-            if db_table_id:
+            if db_table_id and not table_ref:
                 table_ref = self._lookup_engine._resolve_table_ref(db_table_id)
         try:
             lookup_rule = str(

@@ -51,7 +51,7 @@ Failures attach to `plan.debug` and surface in the Planner dev tab. Tests: `test
 
 ## Notes
 
-- Graph-driven navigation phases via `navigation_phases.build_workflow_phased_navigation`; no workflow-specific priority maps in `planner.py`.
+- Graph-driven navigation phases via `navigation_phases.build_workflow_phased_navigation`; requirement ordering via `requirement_ordering.py` (graph expansion walk + `depends_on` depth), not per-field Python priority maps.
 - Default parameter prompt copy is owned by PARAM-* nodes (`question`, `description`, `metadata.input_examples`), read by `engine/messaging/parameter_prompt_context.py` — not the planner.
 - **`PlannerTraversalState`** is derived from plan requirements + `input_strategy` + graph preview (not a second traversal engine). `current_active_node_id` follows phase order and must not jump to coefficient lookups before expansion/path gates resolve.
 
@@ -61,6 +61,8 @@ Failures attach to `plan.debug` and surface in the Planner dev tab. Tests: `test
 User message (CLI)
   → ai/agents/planner_agent.PlannerAgent
   → Planner.plan(task, intent)
+  → build_engineering_plan + store_engineering_plan_on_task (supported workflows)
+  → navigation_plan_from_engineering_plan (legacy read model for agents/chat)
   → GraphTools (expand, assumptions, interactions)
   → StateTools (persist inputs, registry)
   → NavigationPlan / AgentAction
@@ -89,7 +91,10 @@ GET inspection payload (DEV_INSPECTION_ENABLED)
 | File | Purpose | Key exports | Importers |
 |------|---------|-------------|-----------|
 | `__init__.py` | Public exports | `Planner`, tool classes | external |
-| `planner.py` | **Navigation coordinator** | `Planner` | planner_agent, tests |
+| `planner.py` | **Navigation coordinator** — builds/refreshes `EngineeringPlan`, returns `NavigationPlan` projection | `Planner` | planner_agent, tests |
+| `navigation_projection.py` | `EngineeringPlan` → legacy `NavigationPlan` read model | `navigation_plan_from_engineering_plan`, `navigation_plan_from_task` | planner, flow_guidance, tests |
+| `requirement_ordering.py` | Graph expansion + dependency sort keys for planner | `build_requirement_order_context`, `requirement_sort_key` | plan_phases, generic_plan |
+| `resolution_branch_requirements.py` | PARAM `resolution_branches` → planner alternatives/lookup reqs | `maybe_emit_resolution_branch_requirements`, `apply_resolution_branch_statuses` | graph_requirements |
 | `tools.py` | Facades over graph/state | `GraphTools`, `StateTools`, `RuleTools` | planner, desktop_service, workflow_bootstrap |
 | `engineering_plan_builder.py` | Normalized plan assembly | `build_pipe_wall_engineering_plan`, `build_engineering_plan` | goal_builder, workflow_bootstrap, tests |
 | `pipe_wall_plan.py` | Pipe wall requirement templates | `build_pipe_wall_requirements`, `build_pipe_wall_dependencies` | engineering_plan_builder |
@@ -103,6 +108,14 @@ GET inspection payload (DEV_INSPECTION_ENABLED)
 | `graph_navigation.py` | Categorized missing-field lists | `build_graph_navigation_from_plan` | legacy_goal_adapter |
 | `activation_conditions.py` | Requirement activation eval | `evaluate_activation_condition` | engineering_plan_builder |
 | `legacy_goal_adapter.py` | Goal tree + task outputs | `store_engineering_plan_on_task`, `build_goal_tree` | goal_builder |
+
+### resolution_branch_requirements.py — detail
+
+- **Inputs:** `GraphStore`, active `planning_fields`, PARAM nodes with `metadata.composer_input: resolution_branch` and `metadata.resolution_branches[]`
+- **Outputs:** Resolution-branch requirement (`REQ-*` or legacy `REQ-diameter_resolution`), alternative paths, via-parameter user inputs, branch lookup output requirements
+- **Side effects:** Mutates the requirements map in place during `build_graph_requirements()`
+- **Policy:** Branch labels, methods, and lookup wiring come from PARAM metadata — not planner literals (`docs/rules.md` §13)
+- **Tests:** `tests/planner/test_resolution_branch_requirements.py`, `tests/planner/test_plan_requirements.py`
 
 ### planner_traversal.py — detail
 

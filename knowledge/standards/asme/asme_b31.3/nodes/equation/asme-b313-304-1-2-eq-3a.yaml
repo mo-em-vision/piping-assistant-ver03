@@ -63,7 +63,7 @@ metadata:
   status: active
   version: 1
   legacy_equation_id: eq-3a
-  last_revision: 2026-07-13
+  last_revision: 2026-07-21
   edited_by: admin
 display:
   text: t = PD / 2(S E_j W + PY)
@@ -76,6 +76,8 @@ applicability:
     operator: equals
     value: true
   - parameter: PARAM-inside-diameter
+    operator: absent
+  - parameter: PARAM-wall-thickness-basis
     operator: absent
 equation_number: 3a
 paragraph_number: 304.1.2-a
@@ -133,5 +135,4 @@ outputs:
   unit: mm
   type: quantity
 equation_id: wall_thickness
-nomenclature_ref: 304.1.1-b
 ---

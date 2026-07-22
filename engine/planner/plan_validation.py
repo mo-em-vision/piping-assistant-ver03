@@ -6,18 +6,15 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from engine.planner.graph_requirements import requirement_id
+from engine.planner.resolution_branch_requirements import branch_lookup_requirement_id
 from engine.planner.plan_phases import strategy_field, _is_gatherable_submittable_requirement
 from models.engineering_plan import EngineeringPlan, LEGACY_REQUIREMENT_FIELD_NAMES
 from models.planning import NavigationPhase
 
 _MAX_GOAL_TITLE_LENGTH = 80
-_MUTUALLY_EXCLUSIVE_DIAMETER_REQS = frozenset(
-    {requirement_id(key) for key in ("outside_diameter", "nominal_pipe_size")}
-)
-
 _LOOKUP_INPUT_SOURCE_CLASSES = frozenset({"user_input", "derived_value"})
 _LOOKUP_RESOLUTION_METHODS = frozenset({"lookup", "material_catalog", "table_lookup"})
-_DIAMETER_ALT_METHODS = frozenset({"direct_input", "lookup"})
+_KNOWN_ALTERNATIVE_METHODS = frozenset({"direct_input", "lookup", "selection"})
 _GATE_PHASES = frozenset({"expansion_assumptions", "path_decisions"})
 _COMPUTATION_PHASES = frozenset({"equation_execution", "validation", "reporting"})
 
@@ -52,6 +49,36 @@ def _alternative_ids(requirements: dict) -> set[str]:
         for alt in req.alternatives or []:
             alt_ids.add(alt.id)
     return alt_ids
+
+
+def _resolution_branch_lookup_pairs(requirements: dict) -> list[tuple[str, str]]:
+    """Return (resolution requirement id, branch lookup requirement id) pairs."""
+    pairs: list[tuple[str, str]] = []
+    for req in requirements.values():
+        if not req.alternatives:
+            continue
+        anchor = str(req.field or "").strip()
+        if not anchor:
+            continue
+        lookup_id = branch_lookup_requirement_id(anchor)
+        if lookup_id in requirements:
+            pairs.append((req.id, lookup_id))
+    return pairs
+
+
+def _resolution_branch_exclusive_req_groups(requirements: dict) -> list[frozenset[str]]:
+    """Alternative field groups that must not all block the root goal."""
+    groups: list[frozenset[str]] = []
+    for req in requirements.values():
+        if not req.alternatives:
+            continue
+        group: set[str] = set()
+        for alt in req.alternatives:
+            for field_name in alt.fields or []:
+                group.add(requirement_id(field_name))
+        if len(group) > 1:
+            groups.append(frozenset(group))
+    return groups
 
 
 def _is_long_prompt_title(title: str) -> bool:
@@ -152,14 +179,13 @@ def _validate_dependency_edge(
     if edge.type != "lookup_input":
         return
 
-    if (
-        edge.from_id == "REQ-diameter_resolution"
-        and edge.to_id == "REQ-outside_diameter_lookup"
-    ):
-        result.errors.append(
-            "REQ-diameter_resolution must not be a lookup_input source for outside diameter lookup."
-        )
-        result.valid = False
+    for resolution_id, lookup_id in _resolution_branch_lookup_pairs(requirements):
+        if edge.from_id == resolution_id and edge.to_id == lookup_id:
+            result.errors.append(
+                f"{resolution_id} must not be a lookup_input source for {lookup_id}."
+            )
+            result.valid = False
+            break
 
     source = requirements.get(edge.from_id)
     target = requirements.get(edge.to_id)
@@ -194,17 +220,14 @@ def _validate_alternative_groups(requirements: dict, result: PlannerValidationRe
                 f"{req_id} exposes alternatives but fewer than two paths are defined."
             )
         methods = {alt.method for alt in alternatives if alt.method}
-        if methods and not methods.issubset(_DIAMETER_ALT_METHODS | {"selection"}):
+        if methods and not methods.issubset(_KNOWN_ALTERNATIVE_METHODS):
             result.warnings.append(
                 f"{req_id} alternatives use uncommon methods: {sorted(methods)}."
             )
-        if methods == _DIAMETER_ALT_METHODS:
-            for expected in _DIAMETER_ALT_METHODS:
-                if expected not in methods:
-                    result.errors.append(
-                        f"{req_id} alternatives must include both direct_input and lookup methods."
-                    )
-                    result.valid = False
+        if len(alternatives) >= 2 and not methods:
+            result.warnings.append(
+                f"{req_id} alternatives are missing method metadata."
+            )
 
 
 def _validate_requirement_resolution_metadata(
@@ -504,20 +527,21 @@ def validate_engineering_plan(plan: EngineeringPlan) -> PlannerValidationResult:
             )
             result.valid = False
 
-    diameter_top_level = _MUTUALLY_EXCLUSIVE_DIAMETER_REQS.intersection(set(root.blocked_by))
-    if len(diameter_top_level) > 1:
-        result.errors.append(
-            "Root goal must not be blocked by both outside_diameter and nominal_pipe_size."
-        )
-        result.valid = False
+    for exclusive_group in _resolution_branch_exclusive_req_groups(requirements):
+        blocked = exclusive_group.intersection(set(root.blocked_by))
+        if len(blocked) > 1:
+            result.errors.append(
+                "Root goal must not be blocked by multiple exclusive resolution-branch "
+                f"alternatives: {sorted(blocked)}."
+            )
+            result.valid = False
 
-    if (
-        requirement_id("nominal_pipe_size") in requirements
-        and "REQ-outside_diameter_lookup" in requirements
-    ):
-        lookup = requirements["REQ-outside_diameter_lookup"]
-        if lookup.requirement_class != "table_lookup":
-            result.errors.append("Outside diameter from NPS must use a table_lookup requirement.")
+    for _resolution_id, lookup_id in _resolution_branch_lookup_pairs(requirements):
+        lookup = requirements.get(lookup_id)
+        if lookup is not None and lookup.requirement_class != "table_lookup":
+            result.errors.append(
+                f"{lookup_id} must use a table_lookup requirement for resolution-branch output."
+            )
             result.valid = False
 
     for blocked_id in root.blocked_by:

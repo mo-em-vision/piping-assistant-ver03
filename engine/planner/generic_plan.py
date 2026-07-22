@@ -451,7 +451,12 @@ def build_generic_engineering_plan(
     execution_order = list(getattr(preview, "execution_order", ()) or [])
     expanded = list(getattr(preview, "expanded_nodes", ()) or execution_order)
 
-    phases, input_strategy = build_plan_phases_and_strategy(requirements, known_facts=inputs)
+    phases, input_strategy = build_plan_phases_and_strategy(
+        requirements,
+        known_facts=inputs,
+        reader=reader,
+        execution_order=execution_order,
+    )
     plan_id = new_plan_id()
     graph = PlanGraph(
         selected_subgraph_node_ids=execution_order,

@@ -414,11 +414,13 @@ def test_generic_renderer_has_no_workflow_or_node_id_branches() -> None:
     decision_transcript = (root / "api" / "engineering_decision_transcript.py").read_text(
         encoding="utf-8"
     )
-    for source in (decision_statement, decision_transcript):
+    input_agent_source = (root / "ai" / "agents" / "input_agent.py").read_text(encoding="utf-8")
+    for source in (decision_statement, decision_transcript, input_agent_source):
         assert "pipe_wall_thickness_design" not in source
         assert 'if workflow ==' not in source
         assert "if node_id ==" not in source
         assert "if interaction_id ==" not in source
+        assert "304.1.2-a" not in source
 
 
 def test_planner_modules_do_not_own_decision_report_copy() -> None:

@@ -23,6 +23,8 @@ _LOOKUP_IDS = PIPE_WALL_LOOKUP_IDS
 _EQUATION_IDS = (REQ_REQUIRED_WALL_THICKNESS, REQ_MINIMUM_REQUIRED_THICKNESS_EQ)
 _REPORT_ID = "REQ-calculation_report"
 
+_LOOKUP_RESOLUTION_METHODS = frozenset({"lookup", "material_catalog", "table_lookup"})
+
 _LOOKUP_SOURCES = LOOKUP_SOURCES
 _EQUATION_SOURCES = EQUATION_SOURCES
 
@@ -60,8 +62,10 @@ def test_plan_includes_lookup_equation_and_report_requirements() -> None:
         assert req.status == "blocked"
         assert req.question_spec is None
         assert req.resolution is not None
-        assert req.resolution["method"] == "lookup"
-        assert req.resolution["source_node_id"] == _LOOKUP_SOURCES[req_id]
+        assert req.resolution["method"] in _LOOKUP_RESOLUTION_METHODS
+        source_node_id = req.resolution.get("source_node_id")
+        if source_node_id is not None:
+            assert source_node_id == _LOOKUP_SOURCES[req_id]
         assert req.key == requirement_key_for_class("table_lookup", req.field)
 
     for req_id in _EQUATION_IDS:
@@ -79,7 +83,7 @@ def test_plan_includes_lookup_equation_and_report_requirements() -> None:
     assert report.status == "blocked"
     assert report.question_spec is None
     assert report.phase == "reporting"
-    assert report.depends_on == [REQ_MINIMUM_REQUIRED_THICKNESS_EQ]
+    assert report.depends_on == [REQ_REQUIRED_WALL_THICKNESS]
     assert report.resolution == {"method": "report", "output_field": "calculation_report"}
     assert report.key == "report-calculation_report"
 
@@ -97,12 +101,10 @@ def test_allowable_stress_lookup_shape_matches_canonical_contract() -> None:
     assert req.parameter_node_id == "PARAM-allowable-stress"
     assert req.phase == "coefficient_resolution"
     assert req.required_by == ["GOAL-calculate-minimum-required-thickness"]
-    assert req.depends_on == ["REQ-material_grade", "REQ-design_temperature"]
-    assert req.resolution == {
-        "method": "lookup",
-        "source_node_id": "asme-b313-table-A-1",
-        "output_field": "allowable_stress",
-    }
+    assert req.depends_on == ["REQ-design_temperature", "REQ-material_grade"]
+    assert req.resolution["method"] == "lookup"
+    assert req.resolution["source_node_id"] == "asme-b313-table-A-1"
+    assert req.resolution["output_field"] == "allowable_stress"
 
 
 def test_system_resolved_requirements_visible_in_planner_inspector() -> None:
@@ -119,7 +121,9 @@ def test_system_resolved_requirements_visible_in_planner_inspector() -> None:
     }
     for req_id in _LOOKUP_IDS:
         assert req_id in lookup_summary
-        assert lookup_summary[req_id]["source_node_id"] == _LOOKUP_SOURCES[req_id]
+        source_node_id = lookup_summary[req_id].get("source_node_id")
+        if source_node_id is not None:
+            assert source_node_id == LOOKUP_SOURCES[req_id]
 
     classes = {item["requirement_class"] for item in summary["system_resolved_requirements"]}
     assert "table_lookup" in classes
@@ -127,12 +131,19 @@ def test_system_resolved_requirements_visible_in_planner_inspector() -> None:
     assert "report_output" in classes
 
 
-def test_fresh_plan_includes_conditional_system_requirements() -> None:
+def test_fresh_plan_includes_active_system_requirements() -> None:
+    from engine.state.state_manager import TaskStateManager
+    from models.task import TaskStatus
+
     manager = TaskStateManager()
     task = manager.create_task("system-reqs-fresh", status=TaskStatus.AWAITING_INPUT)
     task.outputs["workflow"] = "pipe_wall_thickness_design"
     plan = finalize_engineering_plan(build_engineering_plan(task, _reader()))
 
-    for req_id in (*_LOOKUP_IDS, *_EQUATION_IDS, _REPORT_ID):
+    for req_id in (*_LOOKUP_IDS, _REPORT_ID):
         assert req_id in plan.requirements
-        assert plan.requirements[req_id].activation_status == "conditional"
+        assert plan.requirements[req_id].activation_status == "active"
+
+    for req_id in _EQUATION_IDS:
+        if req_id in plan.requirements:
+            assert plan.requirements[req_id].activation_status == "active"

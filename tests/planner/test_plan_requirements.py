@@ -10,6 +10,8 @@ from engine.planner.legacy_goal_adapter import enrich_plan_requirements
 from engine.planner.plan_validation import validate_engineering_plan
 from engine.planner.tools import GraphTools
 from engine.reference.standards_reader import StandardsReader
+from engine.state.fact_migration import fact_from_engineering_input
+from engine.state.fact_migration import fact_from_engineering_input
 from engine.state.state_manager import TaskStateManager
 from models.engineering_plan import LEGACY_REQUIREMENT_FIELD_NAMES, requirement_key_for_class
 from models.task import TaskStatus
@@ -66,13 +68,24 @@ def test_initial_internal_pressure_requirement_is_missing_not_ready() -> None:
     assert internal.activation_status == "active"
 
 
-def test_pressure_design_case_is_branch_decision_with_select_key() -> None:
-    _, task = _gates_satisfied_task()
-    plan = build_engineering_plan(task, _reader())
+def test_pressure_design_case_is_active_path_decision_requirement() -> None:
+    manager = TaskStateManager()
+    task = manager.create_task("req-shape-pwt", status=TaskStatus.AWAITING_INPUT)
+    task.outputs["workflow"] = "pipe_wall_thickness_design"
+    manager.store_fact(
+        task.task_id,
+        fact_from_engineering_input(
+            straight_section_assumption(),
+            task_id=task.task_id,
+            workflow_id="pipe_wall_thickness_design",
+        ),
+    )
+    task = manager.get_task(task.task_id)
+    plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
     pressure = plan.requirements["REQ-pressure_design_case"]
-    assert pressure.requirement_class == "branch_decision"
-    assert pressure.key == requirement_key_for_class("branch_decision", "pressure_design_case")
-    assert pressure.key == "select-pressure_design_case"
+    assert pressure.requirement_class == "user_input"
+    assert pressure.phase == "path_decisions"
+    assert pressure.field == "pressure_design_case"
 
 
 def test_diameter_resolution_has_top_level_alternatives_and_question_spec() -> None:
@@ -82,7 +95,7 @@ def test_diameter_resolution_has_top_level_alternatives_and_question_spec() -> N
     assert diameter.alternatives
     assert len(diameter.alternatives) == 2
     assert diameter.question_spec is not None
-    assert diameter.question_spec.field == "diameter_input_mode"
+    assert diameter.question_spec.field == "outside_diameter__resolution_branch"
 
     by_id = {alt.id: alt for alt in diameter.alternatives}
     direct = by_id["ALT-direct-outside-diameter"]

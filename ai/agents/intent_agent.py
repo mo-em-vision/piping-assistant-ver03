@@ -4,14 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from engine.router import MAWP_DESIGN, PIPE_WALL_THICKNESS_DESIGN, route
+from engine.graph.graph_engine import normalize_root_id
+from engine.graph.workflow_adapters import resolve_workflow_node_id
+from engine.router import PIPE_WALL_THICKNESS_DESIGN, route
 from models.agent import AgentAction, AgentContext, IntentResult
 
-from ai.agents._constants import (
-    MAWP_ROOT,
-    PIPE_WALL_THICKNESS_ROOT,
-    detect_missing_context,
-)
+from ai.agents._constants import detect_missing_context
 from ai.agents.base import BaseAgent
 
 
@@ -23,7 +21,7 @@ class IntentAgent(BaseAgent):
             return self._from_workflow_continuation(request, context)
 
         workflow = route(request)
-        if workflow in {PIPE_WALL_THICKNESS_DESIGN, MAWP_DESIGN}:
+        if workflow in {PIPE_WALL_THICKNESS_DESIGN, "mawp_design"}:
             return self._from_router_match(request, workflow)
 
         try:
@@ -47,9 +45,9 @@ class IntentAgent(BaseAgent):
     ) -> IntentResult:
         workflow = context.workflow or ""
         missing = list(context.missing_inputs) if context.missing_inputs else []
-        if not missing and workflow != MAWP_DESIGN:
+        if not missing:
             missing = detect_missing_context(request)
-        root = MAWP_ROOT if workflow == MAWP_DESIGN else PIPE_WALL_THICKNESS_ROOT
+        root = resolve_workflow_node_id(workflow, normalize=normalize_root_id)
         return IntentResult(
             intent=workflow,
             domain="piping",
@@ -62,7 +60,7 @@ class IntentAgent(BaseAgent):
         )
 
     def _from_router_match(self, request: str, workflow: str) -> IntentResult:
-        root = MAWP_ROOT if workflow == MAWP_DESIGN else PIPE_WALL_THICKNESS_ROOT
+        root = resolve_workflow_node_id(workflow, normalize=normalize_root_id)
         return IntentResult(
             intent=workflow,
             domain="piping",

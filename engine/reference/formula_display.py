@@ -223,31 +223,68 @@ def _equation_context_from_micro_node(reader: StandardsReader, node: Any) -> dic
     }
 
 
+def _variable_rows_from_requires(
+    reader: StandardsReader,
+    node_metadata: dict[str, Any],
+) -> list[dict[str, str]]:
+    """Build display variable rows from equation requires[] bound to PARAM-* nodes."""
+    from engine.equation.input_table import (
+        equation_parameter_description,
+        param_unit_from_metadata,
+    )
+
+    rows: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in node_metadata.get("requires") or []:
+        if not isinstance(item, dict):
+            continue
+        symbol = str(item.get("symbol") or item.get("alias") or "").strip()
+        param_id = str(item.get("parameter") or require_target_id(item) or "").strip()
+        if not symbol or symbol in seen:
+            continue
+        seen.add(symbol)
+        if param_id:
+            name = equation_parameter_description(reader, param_id)
+            unit = param_unit_from_metadata(reader, param_id)
+        else:
+            name = _collapse_whitespace(str(item.get("description") or symbol))
+            unit = str(item.get("unit") or "").strip()
+        row: dict[str, str] = {"symbol": symbol, "name": name or symbol}
+        if unit and unit != "dimensionless":
+            row["unit"] = unit
+        rows.append(row)
+    return rows
+
+
+def _equation_paragraph_reference(
+    reader: StandardsReader,
+    metadata: dict[str, Any],
+) -> dict[str, str] | None:
+    """Citation link from equation paragraph_number or authority.authorized_by."""
+    paragraph = str(metadata.get("paragraph_number") or "").strip()
+    if not paragraph:
+        authority = metadata.get("authority") or {}
+        if isinstance(authority, dict):
+            authorized = authority.get("authorized_by") or []
+            if authorized:
+                paragraph = str(authorized[0]).strip()
+    if not paragraph:
+        return None
+    return _nomenclature_reference_link(reader, paragraph)
+
+
 def resolve_equation_display_variables(
     reader: StandardsReader,
     node_id: str,
 ) -> dict[str, Any]:
-    """Resolve equation variable rows and nomenclature reference for display blocks."""
+    """Resolve equation variable rows and paragraph citation for display blocks."""
     resolved_id = _resolve_equation_node_id(reader, node_id)
     node = reader.load(resolved_id)
     if str(node.metadata.get("type", "")) == "equation":
-        section_id = node_id if node_id != resolved_id else (_section_for_equation(reader, resolved_id) or node_id)
-        nomenclature_ref = _nomenclature_section_for(reader, section_id) or section_id
         equation_data = _micro_equation_display_data(reader, node)
         result = _resolve_equation_display_from_data(reader, equation_data, node.metadata)
-        if result.get("nomenclature_reference") is None and nomenclature_ref:
-            section = reader.load(nomenclature_ref)
-            paragraph = str(
-                section.metadata.get("paragraph")
-                or section.metadata.get("paragraph_number")
-                or ""
-            ).strip()
-            if paragraph:
-                result["nomenclature_reference"] = {
-                    "node_id": nomenclature_ref,
-                    "label": _nomenclature_section_label(paragraph, nomenclature_ref),
-                    "paragraph": paragraph,
-                }
+        if result.get("nomenclature_reference") is None:
+            result["nomenclature_reference"] = _equation_paragraph_reference(reader, node.metadata)
         return result
     equation_data = _primary_equation_data(reader, resolved_id)
     if not equation_data:
@@ -255,18 +292,7 @@ def resolve_equation_display_variables(
     section_id = resolved_id if is_section_node(node.metadata) else node_id
     result = _resolve_equation_display_from_data(reader, equation_data, node.metadata)
     if result.get("nomenclature_reference") is None and section_id != resolved_id:
-        section = reader.load(section_id)
-        paragraph = str(
-            section.metadata.get("paragraph")
-            or section.metadata.get("paragraph_number")
-            or ""
-        ).strip()
-        if paragraph:
-            result["nomenclature_reference"] = {
-                "node_id": section_id,
-                "label": _nomenclature_section_label(paragraph, section_id),
-                "paragraph": paragraph,
-            }
+        result["nomenclature_reference"] = _nomenclature_reference_link(reader, section_id)
     return result
 
 
@@ -275,17 +301,12 @@ def _resolve_equation_display_from_data(
     equation_data: dict[str, Any],
     node_metadata: dict[str, Any],
 ) -> dict[str, Any]:
-    from engine.reference.nomenclature_resolver import (
-        entry_for_symbol,
-        load_nomenclature,
-        load_nomenclature_for_node,
-    )
-
-    nomenclature_ref = str(equation_data.get("nomenclature_ref", "")).strip()
-    nomenclature: dict[str, Any] = {}
-    if nomenclature_ref:
-        nomenclature = load_nomenclature(reader, nomenclature_ref)
-    nomenclature.update(load_nomenclature_for_node(reader, node_metadata))
+    requires_rows = _variable_rows_from_requires(reader, node_metadata)
+    if requires_rows:
+        return {
+            "variables": requires_rows,
+            "nomenclature_reference": _equation_paragraph_reference(reader, node_metadata),
+        }
 
     variables_block = equation_data.get("variables") or {}
     if not isinstance(variables_block, dict):
@@ -298,11 +319,8 @@ def _resolve_equation_display_from_data(
         symbol = str(payload.get("symbol") or key).strip()
         if not symbol:
             continue
-        name = _resolve_variable_description(
-            payload,
-            nomenclature=nomenclature,
-            symbol=symbol,
-            key=str(key),
+        name = _collapse_whitespace(
+            str(payload.get("description") or payload.get("name") or symbol)
         )
         row: dict[str, str] = {"symbol": symbol, "name": name}
         unit = str(payload.get("unit", "")).strip()
@@ -321,7 +339,7 @@ def _resolve_equation_display_from_data(
 
     return {
         "variables": deduped_rows,
-        "nomenclature_reference": _nomenclature_reference_link(reader, nomenclature_ref),
+        "nomenclature_reference": _equation_paragraph_reference(reader, node_metadata),
     }
 
 
@@ -448,12 +466,8 @@ def _micro_equation_display_data(reader: StandardsReader, node: Any) -> dict[str
             "description": description,
             "unit": str(legacy.get("unit") or param.metadata.get("unit", "dimensionless")),
         }
-    nomenclature_ref = str(node.metadata.get("nomenclature_ref") or "").strip()
-    if not nomenclature_ref and section_id:
-        nomenclature_ref = _nomenclature_section_for(reader, section_id) or section_id
     return {
         "variables": variables,
-        "nomenclature_ref": nomenclature_ref,
         "display": str(
             node.metadata.get("display_latex") or node.metadata.get("sympy") or ""
         ).strip(),

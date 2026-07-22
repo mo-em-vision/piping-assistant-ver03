@@ -30,12 +30,9 @@ from models.task import Task
 if TYPE_CHECKING:
     from engine.reference.standards_reader import StandardsReader
 
-# Backward-compatible private aliases for API modules that import underscore names.
+# Backward-compatible private alias for API modules that import underscore name.
 _HIDDEN_TIMELINE_INPUTS = HIDDEN_TIMELINE_INPUTS
-_pipe_wall_uses_inside_diameter = uses_inside_diameter_path
-_pipe_wall_step_applies = step_applies_for_timeline
 _hidden_timeline_inputs = hidden_timeline_inputs
-_step_applies_for_timeline = step_applies_for_timeline
 
 
 def _task_workflow_id(task: Task) -> str:
@@ -118,24 +115,6 @@ def revealed_input_ids(
     return legacy_timeline_revealed_input_ids(task, planning, reader=reader)
 
 
-def revealed_pipe_wall_input_ids(
-    task: Task,
-    planning: dict[str, Any],
-    *,
-    reader: StandardsReader | None = None,
-) -> list[str]:
-    return revealed_input_ids(task, planning, reader=reader)
-
-
-def revealed_mawp_input_ids(
-    task: Task,
-    planning: dict[str, Any],
-    *,
-    reader: StandardsReader | None = None,
-) -> list[str]:
-    return revealed_input_ids(task, planning, reader=reader)
-
-
 def workflow_step_title(
     task: Task,
     step_id: str,
@@ -144,32 +123,6 @@ def workflow_step_title(
     reader: StandardsReader | None = None,
 ) -> str:
     return _step_title_from_graph(task, step_id, planning, reader=reader)
-
-
-def pipe_wall_step_title(
-    step_id: str,
-    planning: dict[str, Any] | None = None,
-    *,
-    task: Task | None = None,
-    reader: StandardsReader | None = None,
-) -> str:
-    if task is not None:
-        return _step_title_from_graph(task, step_id, planning, reader=reader)
-    if planning:
-        graph_titles = planning.get("graph_step_titles")
-        if isinstance(graph_titles, dict) and step_id in graph_titles:
-            return str(graph_titles[step_id])
-    return step_id.replace("_", " ").title()
-
-
-def mawp_step_title(
-    step_id: str,
-    planning: dict[str, Any] | None = None,
-    *,
-    task: Task | None = None,
-    reader: StandardsReader | None = None,
-) -> str:
-    return pipe_wall_step_title(step_id, planning, task=task, reader=reader)
 
 
 def _is_proposed_default(fact: Fact) -> bool:
@@ -241,21 +194,10 @@ def workflow_input_step_done(task: Task, step_id: str, all_missing: set[str]) ->
     return input_step_done(task, step_id, all_missing)
 
 
-def pipe_wall_input_step_done(task: Task, step_id: str, all_missing: set[str]) -> bool:
-    return input_step_done(task, step_id, all_missing)
-
-
-def mawp_input_step_done(task: Task, step_id: str, all_missing: set[str]) -> bool:
-    return input_step_done(task, step_id, all_missing)
-
-
 __all__ = [
     "HIDDEN_TIMELINE_INPUTS",
     "_HIDDEN_TIMELINE_INPUTS",
     "_hidden_timeline_inputs",
-    "_pipe_wall_step_applies",
-    "_pipe_wall_uses_inside_diameter",
-    "_step_applies_for_timeline",
     "collect_all_missing",
     "collection_step_order",
     "composer_parameter_id",
@@ -263,18 +205,13 @@ __all__ = [
     "has_timeline_input_label",
     "hidden_timeline_inputs",
     "input_step_done",
-    "mawp_input_step_done",
-    "mawp_step_title",
     "parameter_collection_index",
-    "pipe_wall_input_step_done",
-    "pipe_wall_step_title",
     "revealed_input_ids",
-    "revealed_mawp_input_ids",
-    "revealed_pipe_wall_input_ids",
     "step_applies_for_timeline",
     "submittable_parameter_ids",
     "sync_timeline_input_order",
     "timeline_step_id_for_parameter",
+    "uses_inside_diameter_path",
     "workflow_input_step_done",
     "workflow_step_title",
 ]

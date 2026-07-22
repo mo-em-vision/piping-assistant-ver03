@@ -9,16 +9,22 @@ from engine.reference.node_authoring_policy import FORBIDDEN_RUNTIME_STATE_KEYS,
 Severity = Literal["FAIL", "WARN", "INFO"]
 
 WORKFLOW_RUNTIME_BLOCK = "runtime"
-WORKFLOW_RUNTIME_KEYS: frozenset[str] = frozenset(
+WORKFLOW_LEGACY_RUNTIME_KEYS: frozenset[str] = frozenset(
     {
-        "navigation",
-        "assumptions",
-        "interactions",
         "provisional_assumptions",
         "inputs",
         "equations",
         "conditions",
         "nomenclature",
+    }
+)
+
+WORKFLOW_RUNTIME_KEYS: frozenset[str] = frozenset(
+    {
+        "navigation",
+        "assumptions",
+        "interactions",
+        *WORKFLOW_LEGACY_RUNTIME_KEYS,
         "texts",
         "documentation",
         "suggested_workflows",
@@ -112,6 +118,32 @@ def check_workflow_conditionals(meta: dict[str, Any]) -> list[tuple[Severity, st
                 "FAIL",
                 "runtime.assumptions must not be authored; "
                 "use graph node execution.assumptions",
+            )
+        )
+    for key in sorted(WORKFLOW_LEGACY_RUNTIME_KEYS):
+        if present_value(runtime, key):
+            findings.append(
+                (
+                    "FAIL",
+                    f"runtime.{key} must not be authored; "
+                    "use graph nodes (equations, parameters, paragraph assumptions)",
+                )
+            )
+    if present_value(meta, "expected_parameters"):
+        findings.append(
+            (
+                "FAIL",
+                "expected_parameters must not be authored; "
+                "graph expansion owns active parameter discovery",
+            )
+        )
+    edges = meta.get("edges") or []
+    if edges:
+        findings.append(
+            (
+                "FAIL",
+                "workflow edges must not be authored on calculation workflows; "
+                "use graph traversal from entry_points definition_anchor",
             )
         )
     return findings

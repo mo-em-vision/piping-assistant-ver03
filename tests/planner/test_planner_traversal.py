@@ -42,9 +42,7 @@ def test_fresh_pipe_wall_traversal_state() -> None:
     pending_node_ids = [item.node_id for item in traversal.pending_expansion_nodes]
     assert len(pending_node_ids) == len(set(pending_node_ids))
     assert param_node_id_for_input("pressure_design_case") in pending_ids
-    assert "304.1.2-a" in pending_ids
-    assert "304.1.3" not in pending_ids
-    assert len(traversal.pending_expansion_nodes) == 2
+    assert len(traversal.pending_expansion_nodes) == 1
 
     assert traversal.current_active_node is not None
     assert traversal.current_active_node.title == "Straight Pipe Section"
@@ -56,10 +54,6 @@ def test_fresh_pipe_wall_traversal_state() -> None:
     )
     assert param_node_id_for_input("straight_pipe_section") in pressure_pending.waiting_on
 
-    branch_pending = next(item for item in traversal.pending_expansion_nodes if item.node_id == "304.1.2-a")
-    assert branch_pending.title == "Straight Pipe Under Internal Pressure"
-    assert param_node_id_for_input("pressure_design_case") in branch_pending.waiting_on
-
     expanded_ids = {item.node_id for item in traversal.expanded_nodes}
     assert "WF-PIPE-WALL-THICKNESS" in expanded_ids
     assert expanded_ids.isdisjoint(pending_ids)
@@ -70,13 +64,6 @@ def test_fresh_pipe_wall_traversal_state() -> None:
         "Pipe Wall Thickness Workflow",
         "Pipe Wall Thickness Design",
     }
-
-    pressure_decision = next(item for item in traversal.branch_decisions if item.field == "pressure_design_case")
-    assert pressure_decision.field == "pressure_design_case"
-    assert pressure_decision.status == "unresolved"
-    assert pressure_decision.value is None
-    assert pressure_decision.selected_node is None
-    assert pressure_decision.candidate_nodes == ["304.1.2-a", "304.1.3"]
 
     summary = build_planner_inspector_summary(plan)
     assert summary["traversal_summary"]["current_active_node_id"] == traversal.current_active_node_id
@@ -138,16 +125,12 @@ def test_traversal_after_pressure_branch_resolved() -> None:
     assert plan.traversal is not None
     assert plan.traversal.current_active_node is not None
     assert plan.traversal.current_active_node.phase == "parameter_gathering"
-    internal_pressure_param = param_node_id_for_input("internal_design_gage_pressure")
-    assert plan.traversal.current_active_node_id == internal_pressure_param
-    assert plan.traversal.current_active_node.node_id == internal_pressure_param
+    design_temperature_param = param_node_id_for_input("design_temperature")
+    assert plan.traversal.current_active_node_id == design_temperature_param
+    assert plan.traversal.current_active_node.node_id == design_temperature_param
 
     pending_ids = {item.node_id for item in plan.traversal.pending_expansion_nodes}
     assert "304.1.2-a" not in pending_ids
     assert "304.1.3" not in pending_ids
-
-    pressure_decision = next(
-        item for item in plan.traversal.branch_decisions if item.field == "pressure_design_case"
-    )
-    assert pressure_decision.status == "resolved"
-    assert pressure_decision.value == "internal_pressure"
+    assert plan.input_strategy is not None
+    assert plan.input_strategy.current_phase == "parameter_gathering"

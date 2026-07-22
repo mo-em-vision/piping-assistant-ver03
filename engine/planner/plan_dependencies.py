@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-from engine.planner.graph_requirements import (
-    _DIAMETER_RESOLUTION_ID,
-    lookup_requirement_id,
-    requirement_id,
-)
+from engine.planner.graph_requirements import lookup_requirement_id, requirement_id
 from models.engineering_plan import PlanDependency, PlanRequirement
 
 
@@ -86,19 +82,6 @@ def _alternative_structural_edges(
                     )
                 )
 
-    if (
-        _lookup_requirement_for_field(requirements, "outside_diameter")
-        == "REQ-outside_diameter_lookup"
-        and _DIAMETER_RESOLUTION_ID in requirements
-        and "REQ-outside_diameter_lookup" in requirements
-    ):
-        edges.append(
-            PlanDependency(
-                from_id="REQ-outside_diameter_lookup",
-                to_id=_DIAMETER_RESOLUTION_ID,
-                type="resolves",
-            )
-        )
     return edges
 
 

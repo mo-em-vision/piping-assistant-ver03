@@ -19,5 +19,5 @@ def test_planner_agent_returns_correct_root_for_pipe_workflow() -> None:
     result = agent.plan(intent)
 
     assert result.root_nodes == ["pipe_wall_thickness_design"]
-    assert "wall thickness" in " ".join(result.priorities).lower()
+    assert result.priorities == ["dependency resolution", "required input collection"]
     assert result.action in {AgentAction.PROPOSE_PATH, AgentAction.REQUEST_INPUT}

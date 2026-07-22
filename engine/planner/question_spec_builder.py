@@ -13,7 +13,7 @@ _REASON_CODES: dict[str, str] = {
     "internal_design_gage_pressure": "required_by_asme_b31_3_304_1_2_internal_pressure",
     "outside_diameter": "required_for_pressure_design_thickness",
     "nominal_pipe_size": "required_for_outside_diameter_lookup",
-    "diameter_input_mode": "required_for_pressure_design_thickness",
+    "outside_diameter__resolution_branch": "required_for_pressure_design_thickness",
     "material_grade": "required_for_allowable_stress_lookup",
     "design_temperature": "required_for_allowable_stress_and_coefficients",
     "corrosion_allowance": "required_for_minimum_required_thickness",
@@ -23,19 +23,7 @@ _REASON_CODES: dict[str, str] = {
     "external_design_pressure": "required_by_asme_b31_3_304_1_3_external_pressure",
 }
 
-_PRIORITY: dict[str, int] = {
-    "straight_pipe_section": 0,
-    "pressure_design_case": 0,
-    "internal_design_gage_pressure": 1,
-    "diameter_input_mode": 2,
-    "outside_diameter": 2,
-    "nominal_pipe_size": 2,
-    "material_grade": 3,
-    "design_temperature": 4,
-    "corrosion_allowance": 5,
-    "pipe_construction_type": 6,
-    "external_design_pressure": 1,
-}
+_DEFAULT_PRIORITY = 100
 
 
 def _expected_value_class(meta: dict) -> str:
@@ -93,6 +81,6 @@ def build_question_spec(
         reason_code=_REASON_CODES.get(field),
         expected_value_class=expected_value_class_override or _expected_value_class(meta),
         allowed_units=_allowed_units(meta),
-        priority=priority_override if priority_override is not None else _PRIORITY.get(field, 50),
+        priority=priority_override if priority_override is not None else _DEFAULT_PRIORITY,
         ask_policy=ask_policy,
     )

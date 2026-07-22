@@ -24,7 +24,6 @@ EQUATION_EXECUTION_KEYS: frozenset[str] = frozenset(
         "calculation_module",
         "outputs",
         "equation_id",
-        "nomenclature_ref",
         "display",
         "applies_when",
         "paragraph",
@@ -59,6 +58,15 @@ def check_equation_frontmatter_placement(meta: dict[str, Any]) -> list[tuple[Sev
 
     definition_block = _block(meta, EQUATION_DEFINITION_BLOCK)
     execution_block = _block(meta, EQUATION_EXECUTION_BLOCK)
+
+    if present_value(meta, "nomenclature_ref") or present_value(execution_block, "nomenclature_ref"):
+        findings.append(
+            (
+                "FAIL",
+                "nomenclature_ref must not be authored; "
+                "resolve symbol metadata from requires[].parameter PARAM-* nodes",
+            )
+        )
 
     for key in sorted(EQUATION_DEFINITION_KEYS):
         if present_value(meta, key) and present_value(definition_block, key):

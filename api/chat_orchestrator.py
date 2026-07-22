@@ -10,9 +10,9 @@ from ai.agents.context_agent import ContextAgent
 from ai.agents.input_agent import InputAgent
 from ai.agents.intent_agent import IntentAgent
 from ai.agents.planner_agent import PlannerAgent
-from ai.agents._constants import missing_inputs_for_workflow
+from engine.navigation.task_missing_inputs import missing_inputs_for_task
 from ai.client import MissingAPIKeyError, OpenAIClient
-from ai.input_extractor import ExtractionResult, extract_pipe_wall_thickness_inputs
+from ai.input_extractor import ExtractionResult, extract_engineering_inputs
 from engine.graph.node_interaction import NodeInteractionSpec
 from ai.response.response_handler import ResponseHandler
 from engine.reference.standards_reader import StandardsReader
@@ -87,9 +87,9 @@ class ChatOrchestrator:
                     active_task_id=active.task_id,
                     user_message=message,
                     workflow=self._resolve_workflow(active),
-                    missing_inputs=missing_inputs_for_workflow(
-                        self._resolve_workflow(active),
-                        self._stored_input_keys(active),
+                    missing_inputs=missing_inputs_for_task(
+                        active,
+                        reader=self.standards_reader,
                     ),
                 ),
             )
@@ -113,7 +113,7 @@ class ChatOrchestrator:
 
         workflow = self._resolve_workflow(active)
         missing_inputs = (
-            missing_inputs_for_workflow(workflow, self._stored_input_keys(active))
+            missing_inputs_for_task(active, reader=self.standards_reader)
             if active
             else []
         )
@@ -199,6 +199,7 @@ class ChatOrchestrator:
             workflow=workflow,
             context=context,
             navigation_plan=navigation_plan,
+            reader=self.standards_reader,
         )
         debug["Input Agent"] = asdict(input_result)
 
@@ -378,7 +379,7 @@ class ChatOrchestrator:
         pending_decisions = self._pending_decision_interactions(task)
         pending_values = self._pending_value_confirmations(task)
         symbol_map = self._symbol_map_for_task(task)
-        result = extract_pipe_wall_thickness_inputs(
+        result = extract_engineering_inputs(
             message,
             task_id=task_id,
             pending_interactions=pending_decisions,

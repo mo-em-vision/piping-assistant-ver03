@@ -128,5 +128,4 @@ outputs:
   unit: Pa
   type: quantity
 equation_id: mawp_pressure
-nomenclature_ref: WF-MAWP
 ---

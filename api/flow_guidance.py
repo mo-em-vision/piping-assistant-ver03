@@ -13,8 +13,25 @@ from models.presentation import PresentationBlock, PresentationResponse
 from models.task import Task
 
 
-def navigation_plan_from_task(task: Task) -> NavigationPlan:
-    """Build a NavigationPlan view from goal-store planning projection."""
+def navigation_plan_from_task(
+    task: Task,
+    *,
+    reader: StandardsReader | None = None,
+) -> NavigationPlan:
+    """Build a NavigationPlan view from stored EngineeringPlan or goal-store projection."""
+    from engine.planner.navigation_projection import navigation_plan_from_engineering_plan
+    from engine.planner.plan_selection import engineering_plan_for_task
+
+    engineering_plan = engineering_plan_for_task(task)
+    if engineering_plan is not None:
+        path_decision = task.outputs.get("path_decision")
+        return navigation_plan_from_engineering_plan(
+            engineering_plan,
+            task=task,
+            reader=reader,
+            path_decision=path_decision if isinstance(path_decision, dict) else None,
+        )
+
     planning = planning_projection(task)
     try:
         phase = NavigationPhase(
@@ -77,7 +94,7 @@ def build_flow_guidance_payload(
         empty = PresentationResponse()
         return empty.to_dict()
 
-    navigation_plan = navigation_plan_from_task(task)
+    navigation_plan = navigation_plan_from_task(task, reader=reader)
     task_facts = {
         key: fact.value for key, fact in task.fact_store.active_facts().items()
     }

@@ -6,50 +6,57 @@ from engine.planner.engineering_plan_builder import build_engineering_plan
 from engine.planner.legacy_goal_adapter import finalize_engineering_plan
 from engine.planner.plan_dependencies import build_plan_dependencies
 from engine.planner.plan_validation import validate_engineering_plan
-from engine.state.state_manager import TaskStateManager
-from models.task import TaskStatus
 from tests.planner.helpers import _reader
 from engine.planner.graph_requirements import lookup_requirement_id
-from engine.reference.parameter_keys import LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY
+from tests.planner.test_plan_requirements import _gates_satisfied_task
 from tests.planner.plan_contract import (
     PIPE_WALL_LOOKUP_IDS,
     REQ_MINIMUM_REQUIRED_THICKNESS_EQ,
     REQ_REQUIRED_WALL_THICKNESS,
-    WELD_W_FIELD,
 )
-
-_W_EJ_LOOKUP_ID = lookup_requirement_id(LONGITUDINAL_WELD_JOINT_QUALITY_FACTOR_KEY)
-_W_LOOKUP_ID = lookup_requirement_id(WELD_W_FIELD)
 
 _EXPECTED_PIPE_WALL_EDGES = {
     ("ALT-nps-lookup", "REQ-nominal_pipe_size", "activates"),
-    ("REQ-corrosion_allowance", "REQ-minimum_required_thickness_eq", "equation_input"),
-    ("REQ-corrosion_allowance", "REQ-required_wall_thickness", "equation_input"),
+    ("REQ-allowable_stress_lookup", "REQ-required_wall_thickness", "equation_input"),
+    (
+        "REQ-basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes_lookup",
+        "REQ-required_wall_thickness",
+        "equation_input",
+    ),
     ("REQ-design_temperature", "REQ-allowable_stress_lookup", "lookup_input"),
-    ("REQ-design_temperature", "REQ-temperature_coefficient_Y_lookup", "lookup_input"),
-    ("REQ-design_temperature", "REQ-weld_joint_strength_reduction_factor_W_lookup", "lookup_input"),
+    ("REQ-design_temperature", "REQ-temperature_coefficient_y_lookup", "lookup_input"),
+    ("REQ-design_temperature", "REQ-weld_strength_reduction_factor_w_lookup", "lookup_input"),
+    ("REQ-internal_design_gage_pressure", "REQ-required_wall_thickness", "equation_input"),
     ("REQ-material_grade", "REQ-allowable_stress_lookup", "lookup_input"),
-    ("REQ-material_grade", _W_EJ_LOOKUP_ID, "lookup_input"),
+    (
+        "REQ-material_grade",
+        "REQ-basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes_lookup",
+        "lookup_input",
+    ),
     ("REQ-material_grade", "REQ-metallurgical_group_lookup", "lookup_input"),
-    ("REQ-material_grade", "REQ-weld_joint_strength_reduction_factor_W_lookup", "lookup_input"),
+    ("REQ-material_grade", "REQ-weld_strength_reduction_factor_w_lookup", "lookup_input"),
     ("REQ-nominal_pipe_size", "REQ-outside_diameter_lookup", "lookup_input"),
     ("REQ-outside_diameter_lookup", "REQ-diameter_resolution", "resolves"),
-    ("REQ-pipe_construction_type", _W_EJ_LOOKUP_ID, "lookup_input"),
-    ("REQ-pipe_construction_type", "REQ-weld_joint_strength_reduction_factor_W_lookup", "lookup_input"),
+    (
+        "REQ-pipe_construction_type",
+        "REQ-basic_quality_factors_for_longitudinal_weld_joints_in_pipes_and_tubes_lookup",
+        "lookup_input",
+    ),
+    ("REQ-pipe_construction_type", "REQ-weld_strength_reduction_factor_w_lookup", "lookup_input"),
     ("REQ-required_wall_thickness", "REQ-calculation_report", "requires"),
     ("REQ-required_wall_thickness", "REQ-minimum_required_thickness_eq", "equation_input"),
+    ("REQ-temperature_coefficient_y_lookup", "REQ-required_wall_thickness", "equation_input"),
+    ("REQ-weld_strength_reduction_factor_w_lookup", "REQ-required_wall_thickness", "equation_input"),
 }
 
 
-def _fresh_task():
-    manager = TaskStateManager()
-    task = manager.create_task("plan-deps", status=TaskStatus.AWAITING_INPUT)
-    task.outputs["workflow"] = "pipe_wall_thickness_design"
+def _gates_open_task():
+    _, task = _gates_satisfied_task()
     return task
 
 
 def test_build_plan_dependencies_matches_pipe_wall_contract() -> None:
-    task = _fresh_task()
+    task = _gates_open_task()
     plan = finalize_engineering_plan(build_engineering_plan(task, _reader()))
     validation = validate_engineering_plan(plan)
     assert validation.valid, validation.errors
@@ -60,7 +67,7 @@ def test_build_plan_dependencies_matches_pipe_wall_contract() -> None:
 
 
 def test_canonical_requirements_have_no_edges_field() -> None:
-    task = _fresh_task()
+    task = _gates_open_task()
     plan = finalize_engineering_plan(build_engineering_plan(task, _reader()))
 
     for req_id, req in plan.requirements.items():
@@ -73,7 +80,7 @@ def test_canonical_requirements_have_no_edges_field() -> None:
 
 
 def test_legacy_goal_map_includes_dependency_edges() -> None:
-    task = _fresh_task()
+    task = _gates_open_task()
     plan = finalize_engineering_plan(build_engineering_plan(task, _reader()))
     assert plan.legacy_goal_map is not None
 
@@ -87,7 +94,7 @@ def test_legacy_goal_map_includes_dependency_edges() -> None:
 
 
 def test_lookup_and_equation_requirements_have_incoming_edges() -> None:
-    task = _fresh_task()
+    task = _gates_open_task()
     plan = finalize_engineering_plan(build_engineering_plan(task, _reader()))
     incoming = {(edge.to_id, edge.type) for edge in plan.dependencies}
 
@@ -101,7 +108,7 @@ def test_lookup_and_equation_requirements_have_incoming_edges() -> None:
 
 
 def test_build_plan_dependencies_from_requirements_only() -> None:
-    task = _fresh_task()
+    task = _gates_open_task()
     plan = build_engineering_plan(task, _reader())
     edges = build_plan_dependencies(plan.requirements, workflow_id=plan.workflow_id)
     assert len(edges) == len(_EXPECTED_PIPE_WALL_EDGES)

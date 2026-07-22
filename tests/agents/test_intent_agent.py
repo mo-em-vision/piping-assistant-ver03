@@ -15,7 +15,7 @@ def test_intent_agent_wraps_router_for_pipe_thickness() -> None:
     assert result.intent == PIPE_WALL_THICKNESS_DESIGN
     assert result.domain == "piping"
     assert "ASME B31.3" in result.possible_standards
-    assert result.root_nodes == ["tasks/asme_b31.3/pipe_wall_thickness_design/root.md"]
+    assert result.root_nodes == ["B313-WF-PIPE-WALL-THICKNESS"]
     assert result.confidence >= 0.9
     assert result.action == AgentAction.PROPOSE_PATH
     assert len(agent.client.calls) == 0

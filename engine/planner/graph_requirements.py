@@ -24,14 +24,17 @@ from engine.reference.parameter_keys import (
 )
 from engine.reference.standards_reader import StandardsReader
 from engine.reference.workflow_sidecar import _param_to_field
-from models.engineering_plan import ActivationCondition, PlanRequirement, RequirementAlternative
+from models.engineering_plan import ActivationCondition, PlanRequirement
+from engine.planner.resolution_branch_requirements import (
+    _DIAMETER_RESOLUTION_ID,
+    _OUTSIDE_DIAMETER_LOOKUP_ID,
+    apply_resolution_branch_statuses,
+    maybe_emit_resolution_branch_requirements,
+    resolution_requirement_id,
+)
 
 _LOOKUP_SUFFIX = "_lookup"
 _EQ_SUFFIX = "_eq"
-_DIAMETER_RESOLUTION_ID = "REQ-diameter_resolution"
-_OUTSIDE_DIAMETER_LOOKUP_ID = "REQ-outside_diameter_lookup"
-_ALT_DIRECT_OD = "ALT-direct-outside-diameter"
-_ALT_NPS_LOOKUP = "ALT-nps-lookup"
 _GATE_PHASES = frozenset({"expansion_assumptions", "path_decisions"})
 _COEFFICIENT_PHASE = "coefficient_resolution"
 _EQUATION_PHASE = "equation_execution"
@@ -158,8 +161,9 @@ def _dependency_requirement_id(
     lookup_id = lookup_requirement_id(canonical)
     if lookup_id in requirements:
         return lookup_id
-    if canonical == "outside_diameter" and _DIAMETER_RESOLUTION_ID in requirements:
-        return _DIAMETER_RESOLUTION_ID
+    res_id = resolution_requirement_id(canonical)
+    if res_id in requirements:
+        return res_id
     user_id = requirement_id(canonical)
     if user_id in requirements:
         return user_id
@@ -303,51 +307,6 @@ def _equations_on_target_path(
     return needed_equations
 
 
-def _table_targets_for_parameter(
-    store: GraphStore,
-    param_node_id: str,
-) -> list[str]:
-    tables: list[str] = []
-    for edge in store.outgoing(param_node_id):
-        if edge.edge_type not in {"used_by", "introduced_by"}:
-            continue
-        target = store.get_node(edge.to_id)
-        if target is not None and target.node_type == "table":
-            tables.append(edge.to_id)
-
-    meta = load_parameter_node_metadata(param_node_id)
-    if isinstance(meta, dict):
-        for edge in meta.get("edges") or []:
-            if not isinstance(edge, dict):
-                continue
-            if str(edge.get("type") or "") != "used_by":
-                continue
-            target_id = str(edge.get("target") or "").strip()
-            if not target_id:
-                continue
-            target = store.get_node(target_id)
-            if target is not None and target.node_type == "table":
-                tables.append(target_id)
-            elif target_id not in tables:
-                tables.append(target_id)
-    return tables
-
-
-def _shared_dimension_table(
-    store: GraphStore,
-    *param_node_ids: str,
-) -> str | None:
-    tables: list[str] = []
-    for param_id in param_node_ids:
-        tables.extend(_table_targets_for_parameter(store, param_id))
-    if not tables:
-        return None
-    first = tables[0]
-    if all(table == first for table in tables):
-        return first
-    return first
-
-
 def _activation_from_parameter_node(
     store: GraphStore,
     param_node_id: str | None,
@@ -428,7 +387,6 @@ def _emit_user_requirement(
         depends_on=[],
         question_spec=build_question_spec(
             field,
-            priority_override=0 if phase in _GATE_PHASES else None,
             ask_policy="ask_later" if phase == _LATE_INPUT_PHASE else "ask_now",
         ),
         resolution={"method": "user_input", "output_field": field},
@@ -511,131 +469,6 @@ def _emit_report_requirement(
         resolution={"method": "report", "output_field": "calculation_report"},
         title="Calculation Report",
     )
-
-
-def _replace_requirement_preserving_order(
-    requirements: dict[str, PlanRequirement],
-    *,
-    old_id: str,
-    new_req: PlanRequirement,
-) -> None:
-    """Insert *new_req* at the dict position previously held by *old_id*."""
-    keys = list(requirements.keys())
-    if old_id not in keys:
-        requirements[new_req.id] = new_req
-        return
-    index = keys.index(old_id)
-    rebuilt: dict[str, PlanRequirement] = {}
-    inserted = False
-    for i, key in enumerate(keys):
-        if key == old_id:
-            rebuilt[new_req.id] = new_req
-            inserted = True
-            continue
-        rebuilt[key] = requirements[key]
-    if not inserted:
-        rebuilt[new_req.id] = new_req
-    requirements.clear()
-    requirements.update(rebuilt)
-
-
-def _maybe_emit_diameter_resolution(
-    requirements: dict[str, PlanRequirement],
-    *,
-    store: GraphStore,
-    root_goal_id: str,
-    planning_fields: set[str],
-) -> None:
-    od_field = "outside_diameter"
-    nps_field = "nominal_pipe_size"
-    if od_field not in planning_fields and nps_field not in planning_fields:
-        return
-
-    od_param = param_node_id_for_input(od_field)
-    nps_param = param_node_id_for_input(nps_field)
-    table_id = _shared_dimension_table(store, od_param, nps_param)
-    if table_id is None:
-        return
-
-    if _DIAMETER_RESOLUTION_ID in requirements:
-        return
-
-    od_req_id = requirement_id(od_field)
-    diameter_req = PlanRequirement(
-        id=_DIAMETER_RESOLUTION_ID,
-        field=od_field,
-        parameter_node_id=od_param,
-        requirement_class="user_input",
-        status="missing",
-        phase="parameter_gathering",
-        required_by=[root_goal_id],
-        depends_on=[],
-        alternatives=[
-            RequirementAlternative(
-                id=_ALT_DIRECT_OD,
-                label="Provide outside diameter directly",
-                fields=[od_field],
-                resolves=od_field,
-                method="direct_input",
-            ),
-            RequirementAlternative(
-                id=_ALT_NPS_LOOKUP,
-                label="Provide NPS and look up outside diameter",
-                fields=[nps_field],
-                resolves=od_field,
-                method="lookup",
-            ),
-        ],
-        question_spec=build_question_spec(
-            "diameter_input_mode",
-            label_override="Pipe diameter",
-            expected_value_class_override="pipe_size",
-            priority_override=2,
-        ),
-    )
-    _replace_requirement_preserving_order(
-        requirements,
-        old_id=od_req_id,
-        new_req=diameter_req,
-    )
-
-    if nps_field in planning_fields:
-        _emit_user_requirement(
-            requirements,
-            field=nps_field,
-            phase="parameter_gathering",
-            root_goal_id=_DIAMETER_RESOLUTION_ID,
-            selection_fields=frozenset(),
-            lookup_fields=frozenset(),
-            required_by=[_DIAMETER_RESOLUTION_ID],
-        )
-        nps_req = requirements.get(requirement_id(nps_field))
-        if nps_req is not None:
-            nps_req.question_spec = build_question_spec(nps_field, ask_policy="ask_if_needed")
-            nps_req.resolution = {
-                "method": "user_input",
-                "output_field": nps_field,
-                "role": "lookup_key",
-            }
-
-    if _OUTSIDE_DIAMETER_LOOKUP_ID not in requirements:
-        nps_dep = requirement_id(nps_field) if requirement_id(nps_field) in requirements else []
-        requirements[_OUTSIDE_DIAMETER_LOOKUP_ID] = PlanRequirement(
-            id=_OUTSIDE_DIAMETER_LOOKUP_ID,
-            field=od_field,
-            parameter_node_id=od_param,
-            requirement_class="table_lookup",
-            status="blocked",
-            phase="parameter_gathering",
-            required_by=[_DIAMETER_RESOLUTION_ID],
-            depends_on=[requirement_id(nps_field)] if requirement_id(nps_field) in requirements else [],
-            resolution={
-                "method": "lookup",
-                "source_node_id": table_id,
-                "output_field": od_field,
-                "role": "lookup_output",
-            },
-        )
 
 
 def _workflow_has_report(reader: StandardsReader, workflow_id: str) -> bool:
@@ -885,11 +718,12 @@ def build_graph_requirements(
                 target_field=target_field,
             )
 
-    _maybe_emit_diameter_resolution(
+    maybe_emit_resolution_branch_requirements(
         requirements,
         store=store,
         root_goal_id=root_goal_id,
         planning_fields=planning_fields,
+        execution_order=execution_order,
     )
 
     path_activation = _collect_path_activation(store, execution_order, selection_fields)
@@ -918,74 +752,13 @@ def build_graph_requirements(
     return requirements
 
 
-def _diameter_mode(existing_inputs: dict) -> str | None:
-    from engine.graph.resolution_branches import active_resolution_branch_id
-
-    branch = active_resolution_branch_id("outside_diameter", existing_inputs)
-    if branch in {"direct_od", "nps_lookup"}:
-        return str(branch)
-    for mode_field in ("d_input_mode", "diameter_input_mode"):
-        mode = field_value(mode_field, existing_inputs)
-        if mode in {"direct_od", "nps_lookup", "direct_id"}:
-            return str(mode)
-    from engine.reference.parameter_keys import parameter_is_ready
-
-    if parameter_is_ready(existing_inputs, "outside_diameter"):
-        return "direct_od"
-    if parameter_is_ready(existing_inputs, "nominal_pipe_size"):
-        return "nps_lookup"
-    if parameter_is_ready(existing_inputs, "inside_diameter"):
-        return "direct_id"
-    return None
-
-
 def apply_alternative_resolution_statuses(
     requirements: dict[str, PlanRequirement],
     *,
     existing_inputs: dict,
 ) -> None:
-    from engine.reference.parameter_keys import parameter_is_ready
-
-    diameter_mode = _diameter_mode(existing_inputs)
-    diameter = requirements.get(_DIAMETER_RESOLUTION_ID)
-    if diameter is None:
-        return
-
-    od_lookup = requirements.get(_OUTSIDE_DIAMETER_LOOKUP_ID)
-    nps_req = requirements.get(requirement_id("nominal_pipe_size"))
-
-    if diameter_mode == "direct_od" and parameter_is_ready(existing_inputs, "outside_diameter"):
-        diameter.status = "resolved"
-    elif diameter_mode == "direct_id" and parameter_is_ready(existing_inputs, "inside_diameter"):
-        diameter.status = "resolved"
-    elif diameter_mode == "nps_lookup":
-        if parameter_is_ready(existing_inputs, "outside_diameter"):
-            diameter.status = "resolved"
-        else:
-            # Branch choice is complete; outside diameter will be lookup-derived.
-            diameter.status = "resolved"
-    elif diameter.status == "missing":
-        pass
-
-    if od_lookup is not None:
-        if diameter_mode != "nps_lookup":
-            od_lookup.status = "not_applicable"
-        elif parameter_is_ready(existing_inputs, "outside_diameter"):
-            od_lookup.status = "resolved"
-        elif not parameter_is_ready(existing_inputs, "nominal_pipe_size"):
-            od_lookup.status = "blocked"
-        else:
-            od_lookup.status = "ready"
-
-    if nps_req is not None:
-        if diameter_mode == "direct_od":
-            nps_req.status = "not_applicable"
-        elif parameter_is_ready(existing_inputs, "nominal_pipe_size"):
-            nps_req.status = "resolved"
-        elif diameter_mode == "nps_lookup":
-            nps_req.status = "missing"
-        else:
-            nps_req.status = "not_applicable"
+    """Backward-compatible alias for resolution-branch status application."""
+    apply_resolution_branch_statuses(requirements, existing_inputs=existing_inputs)
 
 
 def required_outputs_for_plan(

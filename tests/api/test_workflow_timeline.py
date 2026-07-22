@@ -13,7 +13,7 @@ from engine.state.state_manager import TaskStateManager
 from models.input import EngineeringInput, InputSource, InputStatus
 from models.task import TaskStatus
 
-from api.workflow_timeline import revealed_pipe_wall_input_ids, submittable_parameter_ids
+from api.workflow_timeline import revealed_input_ids, submittable_parameter_ids
 from tests.api.conftest import api_session_id
 from tests.helpers.facts import fact_get_value, legacy_input, set_fact_from_input
 from tests.helpers.goals import task_with_planning
@@ -324,7 +324,7 @@ def test_revealed_inputs_include_current_and_completed_phases() -> None:
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
 
-    revealed = revealed_pipe_wall_input_ids(task, planning_projection(task))
+    revealed = revealed_input_ids(task, planning_projection(task))
     assert revealed == [
         "internal_design_gage_pressure",
         "nominal_pipe_size",
@@ -369,7 +369,7 @@ def test_revealed_inputs_expand_into_coefficient_phase() -> None:
     task_with_planning(task, planning, workflow_id="pipe_wall_thickness_design")
     manager.replace_task(task.task_id, task)
 
-    revealed = revealed_pipe_wall_input_ids(task, planning_projection(task))
+    revealed = revealed_input_ids(task, planning_projection(task))
     assert "allowable_stress" in revealed
     assert "pipe_construction_type" in revealed or "joint_category" in revealed
     assert "weld_joint_efficiency" not in revealed
@@ -433,7 +433,7 @@ def test_timeline_input_order_appends_newly_revealed_parameters() -> None:
     }
     task.outputs = {"workflow": "pipe_wall_thickness_design"}
     task_with_planning(task, planning_early, workflow_id="pipe_wall_thickness_design")
-    early = revealed_pipe_wall_input_ids(task, planning_projection(task))
+    early = revealed_input_ids(task, planning_projection(task))
     task.outputs["timeline_input_order"] = early
 
     set_fact_from_input(task, legacy_input(input_id="material_grade",
@@ -461,7 +461,7 @@ def test_timeline_input_order_appends_newly_revealed_parameters() -> None:
     }
     task_with_planning(task, planning_late, workflow_id="pipe_wall_thickness_design")
 
-    revealed = revealed_pipe_wall_input_ids(task, planning_projection(task))
+    revealed = revealed_input_ids(task, planning_projection(task))
     assert revealed[:4] == [
         "straight_pipe_section",
         "pressure_design_case",

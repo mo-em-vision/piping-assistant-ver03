@@ -38,10 +38,10 @@ from tests.navigation.helpers.contracts import (
 )
 from engine.router import MAWP_DESIGN
 
-_FRESH_PWT = ["internal_design_gage_pressure"]
-_NPS_BRANCH = ["nominal_pipe_size"]
-_DIRECT_OD = ["internal_design_gage_pressure"]
-_MAWP_FRESH = ["straight_pipe_section"]
+_FRESH_PWT = ["design_temperature"]
+_NPS_BRANCH = ["design_temperature"]
+_DIRECT_OD = ["design_temperature"]
+_MAWP_FRESH = ["pressure_design_case"]
 
 
 def _reader(project_root: Path) -> StandardsReader:

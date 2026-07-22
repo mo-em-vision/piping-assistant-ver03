@@ -5,6 +5,11 @@ from __future__ import annotations
 from models.engineering_plan import EngineeringPlan, InputStrategy, PlanPhase, PlanRequirement
 from models.fact import Fact, FactClass, ValidationStatus
 from models.planning import NavigationPhase
+from engine.planner.requirement_ordering import (
+    RequirementOrderContext,
+    build_requirement_order_context,
+    requirement_sort_key,
+)
 
 _PHASE_ORDER = [
     NavigationPhase.EXPANSION_ASSUMPTIONS.value,
@@ -101,22 +106,39 @@ def _is_askable_requirement(req: PlanRequirement) -> bool:
     return True
 
 
-def _askable_fields_for_phase(requirements: dict[str, PlanRequirement], phase: str) -> list[tuple[int, str]]:
-    askable: list[tuple[int, str]] = []
-    for req in requirements.values():
+def _askable_fields_for_phase(
+    requirements: dict[str, PlanRequirement],
+    phase: str,
+    order_context: RequirementOrderContext | None = None,
+) -> list[str]:
+    askable: list[tuple[tuple, str]] = []
+    for req_id, req in requirements.items():
         if req.phase != phase:
             continue
         if not _is_askable_requirement(req):
             continue
-        askable.append((req.question_spec.priority, strategy_field(req)))
+        askable.append(
+            (
+                requirement_sort_key(
+                    req_id,
+                    req,
+                    order_context,
+                    strategy_field_name=strategy_field(req),
+                ),
+                strategy_field(req),
+            )
+        )
     askable.sort(key=lambda item: (item[0], item[1]))
-    return askable
+    return [field for _, field in askable]
 
 
-def first_incomplete_phase(requirements: dict[str, PlanRequirement]) -> str:
+def first_incomplete_phase(
+    requirements: dict[str, PlanRequirement],
+    order_context: RequirementOrderContext | None = None,
+) -> str:
     """First phase with an active, unresolved askable requirement."""
     for phase in _PHASE_ORDER:
-        if _askable_fields_for_phase(requirements, phase):
+        if _askable_fields_for_phase(requirements, phase, order_context):
             return phase
     for phase in _PHASE_ORDER:
         for req in requirements.values():
@@ -136,6 +158,7 @@ def first_incomplete_phase(requirements: dict[str, PlanRequirement]) -> str:
 def _requirement_ids_for_phase(
     requirements: dict[str, PlanRequirement],
     phase_id: str,
+    order_context: RequirementOrderContext | None = None,
 ) -> list[str]:
     req_ids = [
         rid
@@ -144,13 +167,15 @@ def _requirement_ids_for_phase(
         and req.status != "not_applicable"
         and req.activation_status != "not_applicable"
     ]
-    req_ids.sort(key=lambda rid: _requirement_sort_key(requirements[rid], rid))
+    req_ids.sort(
+        key=lambda rid: requirement_sort_key(
+            rid,
+            requirements[rid],
+            order_context,
+            strategy_field_name=strategy_field(requirements[rid]),
+        )
+    )
     return req_ids
-
-
-def _requirement_sort_key(req: PlanRequirement, requirement_id: str) -> tuple:
-    priority = req.question_spec.priority if req.question_spec else 999
-    return (priority, requirement_id)
 
 
 def _phase_is_complete(requirements: dict[str, PlanRequirement], req_ids: list[str]) -> bool:
@@ -175,13 +200,14 @@ def derive_plan_phases(
     known_facts: dict[str, Fact] | None = None,
     *,
     input_strategy: InputStrategy | None = None,
+    order_context: RequirementOrderContext | None = None,
 ) -> list[PlanPhase]:
     """Derive ordered plan phases with statuses from requirement and activation state."""
     del known_facts
     active_phase = (
         input_strategy.current_phase
         if input_strategy and input_strategy.current_phase
-        else first_incomplete_phase(requirements)
+        else first_incomplete_phase(requirements, order_context)
     )
     single_next = bool(
         input_strategy is None or input_strategy.mode == "single_next_question"
@@ -191,7 +217,7 @@ def derive_plan_phases(
     phases: list[PlanPhase] = []
     output_order = 0
     for index, phase_id in enumerate(_PHASE_ORDER):
-        req_ids = _requirement_ids_for_phase(requirements, phase_id)
+        req_ids = _requirement_ids_for_phase(requirements, phase_id, order_context)
         if not req_ids:
             continue
 
@@ -371,16 +397,18 @@ def derive_submittable_fields(
 def derive_input_strategy(
     plan: EngineeringPlan,
     known_facts: dict[str, Fact] | None = None,
+    *,
+    order_context: RequirementOrderContext | None = None,
 ) -> InputStrategy:
     """Derive single-next-question input strategy from plan requirements and phase state."""
     requirements = plan.requirements
     phases = list(plan.phases)
     if not phases:
-        phases = derive_plan_phases(requirements)
+        phases = derive_plan_phases(requirements, order_context=order_context)
 
-    current_phase = first_incomplete_phase(requirements)
-    askable = _askable_fields_for_phase(requirements, current_phase)
-    next_fields = [field for _, field in askable[:1]]
+    current_phase = first_incomplete_phase(requirements, order_context)
+    askable = _askable_fields_for_phase(requirements, current_phase, order_context)
+    next_fields = askable[:1]
     mode = "single_next_question"
     submittable_fields = derive_submittable_fields(
         requirements,
@@ -403,11 +431,23 @@ def derive_input_strategy(
 def build_plan_phases_and_strategy(
     requirements: dict[str, PlanRequirement],
     known_facts: dict[str, Fact] | None = None,
+    *,
+    reader=None,
+    execution_order: list[str] | None = None,
 ) -> tuple[list[PlanPhase], InputStrategy]:
     """Derive phases and input strategy together for plan construction."""
-    current_phase = first_incomplete_phase(requirements)
-    askable = _askable_fields_for_phase(requirements, current_phase)
-    next_fields = [field for _, field in askable[:1]]
+    order_context = build_requirement_order_context(
+        requirements,
+        reader=reader,
+        execution_order=execution_order,
+    )
+    from engine.planner.requirement_ordering import sync_question_spec_priorities
+
+    sync_question_spec_priorities(requirements, order_context)
+
+    current_phase = first_incomplete_phase(requirements, order_context)
+    askable = _askable_fields_for_phase(requirements, current_phase, order_context)
+    next_fields = askable[:1]
     mode = "single_next_question"
     strategy_shell = InputStrategy(
         mode=mode,
@@ -420,6 +460,7 @@ def build_plan_phases_and_strategy(
     phases = derive_plan_phases(
         requirements,
         input_strategy=strategy_shell,
+        order_context=order_context,
     )
     submittable_fields = derive_submittable_fields(
         requirements,
@@ -468,7 +509,11 @@ def refresh_stored_plan_input_strategy(
     apply_alternative_resolution_statuses(plan.requirements, existing_inputs=facts)
     if has_execution_trace(task):
         _promote_late_phase_inputs(plan)
-    phases, strategy = build_plan_phases_and_strategy(plan.requirements, known_facts=facts)
+    phases, strategy = build_plan_phases_and_strategy(
+        plan.requirements,
+        known_facts=facts,
+        execution_order=list(plan.graph.selected_subgraph_node_ids or ()),
+    )
     plan.phases = phases
     plan.input_strategy = strategy
     store_engineering_plan_on_task(task, plan)

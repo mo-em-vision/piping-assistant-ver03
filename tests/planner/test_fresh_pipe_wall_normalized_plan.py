@@ -25,9 +25,8 @@ _CANONICAL_PLAN_KEYS = (
     "traversal",
 )
 
-_REQUIRED_ROOT_OUTPUTS = (
+_REQUIRED_ROOT_OUTPUTS_FRESH = (
     "minimum_required_thickness",
-    "required_wall_thickness",
     "calculation_report",
 )
 
@@ -63,7 +62,7 @@ def test_fresh_pipe_wall_canonical_plan_contract() -> None:
     assert plan.root_goal.id == "GOAL-calculate-minimum-required-thickness"
     assert plan.root_goal.target_parameter == "PARAM-minimum-required-thickness"
     assert plan.root_goal.target_field == "minimum_required_thickness"
-    assert list(plan.root_goal.required_outputs) == list(_REQUIRED_ROOT_OUTPUTS)
+    assert list(plan.root_goal.required_outputs) == list(_REQUIRED_ROOT_OUTPUTS_FRESH)
 
     serialized = plan.to_dict()
     for key in _CANONICAL_PLAN_KEYS:

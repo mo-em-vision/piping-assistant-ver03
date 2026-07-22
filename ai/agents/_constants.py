@@ -6,26 +6,6 @@ import re
 
 PIPE_WALL_THICKNESS_DESIGN = "pipe_wall_thickness_design"
 
-PIPE_WALL_THICKNESS_ROOT = "tasks/asme_b31.3/pipe_wall_thickness_design/root.md"
-MAWP_ROOT = "WF-MAWP"
-
-PIPE_WALL_THICKNESS_NODE = "304.1.2-a"
-
-REQUIRED_ASSUMPTION_FIELDS: tuple[str, ...] = (
-    "straight_pipe_section",
-    "pressure_design_case",
-)
-
-REQUIRED_USER_INPUTS: tuple[str, ...] = (
-    "design_pressure",
-    "outside_diameter",
-)
-
-REQUIRED_LOOKUP_INPUTS: tuple[str, ...] = (
-    "material",
-    "design_temperature",
-)
-
 CONTEXT_KEYWORDS: tuple[re.Pattern[str], ...] = (
     re.compile(r"\bweather\b", re.IGNORECASE),
     re.compile(r"\btoday\b", re.IGNORECASE),
@@ -54,41 +34,6 @@ MISSING_CONTEXT_PATTERNS: dict[str, re.Pattern[str]] = {
         re.IGNORECASE,
     ),
 }
-
-REQUIRED_PIPE_INPUTS: tuple[str, ...] = (
-    "pressure_design_case",
-    "design_pressure",
-    "outside_diameter",
-    "material",
-    "design_temperature",
-)
-
-
-REQUIRED_MAWP_INPUTS: tuple[str, ...] = (
-    "wall_thickness_basis",
-    "actual_wall_thickness",
-    "corrosion_allowance",
-    "outside_diameter",
-    "material_grade",
-    "design_temperature",
-)
-
-
-def missing_pipe_inputs(stored: dict[str, object]) -> list[str]:
-    """Return required pipe wall thickness input ids not yet in stored inputs."""
-    return [input_id for input_id in REQUIRED_PIPE_INPUTS if input_id not in stored]
-
-
-def missing_inputs_for_workflow(
-    workflow: str | None,
-    stored: dict[str, object],
-) -> list[str]:
-    """Return workflow-specific missing input ids for agent context."""
-    if workflow == "mawp_design":
-        return [input_id for input_id in REQUIRED_MAWP_INPUTS if input_id not in stored]
-    if workflow == PIPE_WALL_THICKNESS_DESIGN:
-        return missing_pipe_inputs(stored)
-    return []
 
 
 def detect_missing_context(message: str) -> list[str]:

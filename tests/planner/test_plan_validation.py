@@ -12,11 +12,39 @@ from models.task import TaskStatus
 from tests.planner.helpers import _reader
 
 
+from tests.planner.test_plan_requirements import _gates_satisfied_task
+
+
+def _gates_open_plan():
+    _, task = _gates_satisfied_task()
+    return build_engineering_plan(task, _reader())
+
+
 def _fresh_plan():
     state = TaskStateManager()
     task = state.create_task("plan-validation", status=TaskStatus.AWAITING_INPUT)
     task.outputs["workflow"] = "pipe_wall_thickness_design"
     return build_engineering_plan(task, _reader())
+
+
+def test_validate_rejects_resolution_branch_as_lookup_input_source() -> None:
+    plan = _gates_open_plan()
+    resolution_id = next(
+        req_id
+        for req_id, req in plan.requirements.items()
+        if req.alternatives and req.field == "outside_diameter"
+    )
+    lookup_id = "REQ-outside_diameter_lookup"
+    plan.dependencies.append(
+        PlanDependency(
+            from_id=resolution_id,
+            to_id=lookup_id,
+            type="lookup_input",
+        )
+    )
+    result = validate_engineering_plan(plan)
+    assert not result.valid
+    assert any(resolution_id in error for error in result.errors)
 
 
 def test_validate_rejects_diameter_resolution_as_lookup_input_source() -> None:
@@ -34,7 +62,7 @@ def test_validate_rejects_diameter_resolution_as_lookup_input_source() -> None:
 
 
 def test_validate_accepts_nominal_pipe_size_lookup_input_edge() -> None:
-    plan = _fresh_plan()
+    plan = _gates_open_plan()
     result = validate_engineering_plan(plan)
     assert result.valid, result.errors
     assert any(
@@ -77,9 +105,18 @@ def test_validate_rejects_pending_and_expanded_node_overlap() -> None:
 def test_validate_rejects_branch_candidate_active_before_decision_resolved() -> None:
     plan = _fresh_plan()
     assert plan.traversal is not None
+    from models.engineering_plan import TraversalBranchDecision
+
+    plan.traversal.branch_decisions = [
+        TraversalBranchDecision(
+            field="pressure_design_case",
+            value=None,
+            selected_node=None,
+            candidate_nodes=["304.1.2-a"],
+            status="unresolved",
+        )
+    ]
     plan.traversal.current_active_node_id = "304.1.2-a"
-    if plan.traversal.current_active_node is not None:
-        plan.traversal.current_active_node.node_id = "304.1.2-a"
 
     result = validate_engineering_plan(plan)
     assert not result.valid
@@ -89,6 +126,17 @@ def test_validate_rejects_branch_candidate_active_before_decision_resolved() -> 
 def test_validate_rejects_branch_candidate_expanded_before_decision_resolved() -> None:
     plan = _fresh_plan()
     assert plan.traversal is not None
+    from models.engineering_plan import TraversalBranchDecision
+
+    plan.traversal.branch_decisions = [
+        TraversalBranchDecision(
+            field="pressure_design_case",
+            value=None,
+            selected_node=None,
+            candidate_nodes=["304.1.2-a"],
+            status="unresolved",
+        )
+    ]
     plan.traversal.expanded_nodes.append(
         TraversalExpandedNode(
             node_id="304.1.2-a",

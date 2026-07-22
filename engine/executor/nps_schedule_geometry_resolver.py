@@ -1,4 +1,4 @@
-"""Resolve MAWP workflow geometry inputs from NPS/schedule or direct entry."""
+"""Resolve pipe geometry inputs from NPS/schedule or direct entry."""
 
 from __future__ import annotations
 

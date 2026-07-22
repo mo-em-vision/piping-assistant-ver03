@@ -73,5 +73,4 @@ outputs:
   unit: mm2
   type: quantity
 equation_id: eq-7
-nomenclature_ref: 304.3.3-a
 ---

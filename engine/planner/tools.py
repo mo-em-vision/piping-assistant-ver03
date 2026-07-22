@@ -199,6 +199,7 @@ class StateTools:
         selected_root: str | None,
         active_nodes: list[str],
         planning_summary: dict[str, Any],
+        skip_goal_migration: bool = False,
     ) -> Task:
         from engine.state.goal_migration import goals_from_planning_summary
         from engine.state.goal_satisfaction import refresh_goal_satisfaction
@@ -212,12 +213,13 @@ class StateTools:
         task = self._state.get_task(task_id)
         task.outputs["selected_nodes"] = list(planning_summary.get("selected_nodes") or active_nodes)
         task.outputs["path_decision"] = planning_summary.get("path_decision")
-        task.execution_context.goal_store = goals_from_planning_summary(
-            planning_summary,
-            task_id=task_id,
-            workflow_id=workflow or selected_root,
-        )
-        refresh_goal_satisfaction(task)
+        if not skip_goal_migration:
+            task.execution_context.goal_store = goals_from_planning_summary(
+                planning_summary,
+                task_id=task_id,
+                workflow_id=workflow or selected_root,
+            )
+            refresh_goal_satisfaction(task)
         self._state.replace_task(task_id, task)
         return task
 

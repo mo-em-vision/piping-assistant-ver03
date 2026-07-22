@@ -40,7 +40,7 @@ def test_mawp_expansion_includes_b3610_lookup_in_nps_mode(project_root: Path) ->
     expansion = expand_workflow(store, root_id, inputs, lazy=False)
     active = set(expansion.active_nodes)
 
-    assert "asme-b3610-pipe-dimensions-lookup" in active
+    assert "asme-b3610-nps-outside-diameter-lookup" in active
     assert "PARAM-nominal-pipe-size" in active
     assert "asme-b313-table-A-3" in active
 

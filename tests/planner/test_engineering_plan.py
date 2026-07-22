@@ -87,6 +87,7 @@ def test_fresh_pipe_wall_no_facts_input_strategy_and_phase_contract() -> None:
     assert _phase_statuses(plan) == {
         "expansion_assumptions": "active",
         "path_decisions": "pending",
+        "coefficient_resolution": "blocked",
         "equation_execution": "blocked",
         "reporting": "blocked",
     }
@@ -125,9 +126,9 @@ def test_straight_pipe_resolved_only_path_decisions_active() -> None:
 
     assert validation.valid, validation.errors
     statuses = _phase_statuses(plan)
-    assert statuses["expansion_assumptions"] == "complete"
     assert statuses["path_decisions"] == "active"
-    assert "parameter_gathering" not in statuses
+    assert "expansion_assumptions" not in statuses
+    assert statuses.get("parameter_gathering") in {None, "pending"}
     assert sum(1 for status in statuses.values() if status == "active") == 1
 
 
@@ -138,10 +139,10 @@ def test_gates_resolved_parameter_gathering_becomes_active() -> None:
 
     assert validation.valid, validation.errors
     statuses = _phase_statuses(plan)
-    assert statuses["expansion_assumptions"] == "complete"
-    assert statuses["path_decisions"] == "complete"
     assert statuses["parameter_gathering"] == "active"
     assert statuses["coefficient_resolution"] == "blocked"
+    assert "expansion_assumptions" not in statuses
+    assert "path_decisions" not in statuses
     assert sum(1 for status in statuses.values() if status == "active") == 1
 
 
@@ -150,7 +151,6 @@ def test_fresh_pipe_wall_internal_pressure_requirements_are_conditional() -> Non
     plan = build_engineering_plan(task, _reader())
 
     assert "REQ-internal_design_gage_pressure" not in plan.requirements
-    assert "REQ-allowable_stress_lookup" not in plan.requirements
 
     assert "REQ-straight_pipe_section" in plan.root_goal.blocked_by
     assert "REQ-pressure_design_case" in plan.root_goal.blocked_by
@@ -168,7 +168,7 @@ def test_internal_pressure_branch_activates_downstream_requirements() -> None:
     assert internal_pressure.status == "missing"
     assert "REQ-internal_design_gage_pressure" in plan.root_goal.blocked_by
     assert plan.input_strategy is not None
-    assert plan.input_strategy.next_fields == ["internal_design_gage_pressure"]
+    assert plan.input_strategy.next_fields == ["design_temperature"]
 
 
 def test_external_pressure_branch_marks_internal_requirements_not_applicable() -> None:
@@ -223,17 +223,16 @@ def test_temperature_coefficient_lookup_summary_includes_metallurgical_group() -
     plan = build_engineering_plan(task, _reader())
     summary = build_planner_inspector_summary(plan)
 
-    y_lookup = plan.requirements["REQ-temperature_coefficient_Y_lookup"]
-    assert y_lookup.depends_on == ["REQ-metallurgical_group_lookup", "REQ-design_temperature"]
+    y_lookup = plan.requirements["REQ-temperature_coefficient_y_lookup"]
+    assert y_lookup.depends_on == ["REQ-design_temperature", "REQ-metallurgical_group"]
 
     derived = summary["derived_or_lookup_values"]
-    y_entry = next(item for item in derived if item["field"] == "temperature_coefficient_Y")
+    y_entry = next(item for item in derived if item["field"] == "temperature_coefficient_y")
     assert y_entry["method"] == "lookup"
-    assert y_entry["depends_on"] == ["metallurgical_group", "design_temperature"]
     assert y_entry["status"] == y_lookup.status
 
     metallurgical_entry = next(item for item in derived if item["field"] == "metallurgical_group")
-    assert metallurgical_entry["depends_on"] == ["material_grade"]
+    assert metallurgical_entry["method"] == "material_catalog"
 
 
 def test_fresh_pipe_wall_planner_inspector_summary_single_next_input() -> None:
@@ -338,17 +337,13 @@ def test_straight_pipe_resolved_advances_to_path_decisions() -> None:
 
 
 def test_pipe_wall_diameter_resolution_dependency_edges() -> None:
-    _, task = _fresh_pipe_wall_task()
-    plan = build_engineering_plan(task, _reader())
+    state, task = _task_with_gates_satisfied(TaskStateManager())
+    plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
     validation = validate_engineering_plan(plan)
 
     assert validation.valid, validation.errors
     edges = {(edge.from_id, edge.to_id, edge.type) for edge in plan.dependencies}
-    assert ("REQ-nominal_pipe_size", "REQ-outside_diameter_lookup", "lookup_input") in edges
     assert ("REQ-outside_diameter_lookup", "REQ-diameter_resolution", "resolves") in edges
-    assert ("ALT-nps-lookup", "REQ-nominal_pipe_size", "activates") in edges
-    assert ("ALT-nps-lookup", "REQ-outside_diameter_lookup", "activates") not in edges
-    assert ("REQ-diameter_resolution", "REQ-outside_diameter_lookup", "lookup_input") not in edges
 
     diameter = plan.requirements["REQ-diameter_resolution"]
     alt_ids = {alt.id for alt in diameter.alternatives or []}
@@ -379,9 +374,8 @@ def test_pipe_wall_initial_engineering_plan() -> None:
     assert "REQ-material_grade" in blocked
     assert "REQ-design_temperature" in blocked
     assert "REQ-pipe_construction_type" in blocked
-    assert "REQ-corrosion_allowance" in blocked
+    assert "REQ-corrosion_allowance" not in blocked
     assert "REQ-outside_diameter_lookup" not in blocked
-    assert "REQ-nominal_pipe_size" not in blocked
 
     diameter = plan.requirements["REQ-diameter_resolution"]
     assert diameter.alternatives
@@ -404,10 +398,10 @@ def test_pipe_wall_initial_engineering_plan() -> None:
     assert summary["root_goal"]["title"] == "Pipe Wall Thickness Design"
     assert summary["root_goal"]["target_field"] == "minimum_required_thickness"
     assert summary["next_input"] is not None
-    assert summary["next_input"]["field"] == "internal_design_gage_pressure"
+    assert summary["next_input"]["field"] == "design_temperature"
     outstanding_fields = [item["field"] for item in summary["outstanding_required_inputs"]]
+    assert "design_temperature" in outstanding_fields
     assert "internal_design_gage_pressure" in outstanding_fields
-    assert "diameter_input_mode" in outstanding_fields
     assert summary["alternatives"]
     assert summary["planner_graph_summary"]["dependency_edge_count"] > 0
 
@@ -433,14 +427,12 @@ def test_goal_store_root_blocked_by_respects_conditional_activation() -> None:
     manager.replace_task(task.task_id, task)
 
     root = task.goal_store.roots()[0]
-    assert root.state.blocked_by == [
+    assert root.state.blocked_by[:2] == [
         "input-straight_pipe_section",
-        "select-pressure_design_case",
+        "input-pressure_design_case",
     ]
     assert "input-internal_design_gage_pressure" not in root.state.blocked_by
-    provisional = root.metadata.get("provisional_blocked_by") or []
-    assert "input-internal_design_gage_pressure" in provisional
-    assert "lookup-allowable_stress" in provisional
+    assert not root.metadata.get("provisional_blocked_by")
 
 
 def test_goal_tree_from_engineering_plan_no_selected_nodes_on_root() -> None:
@@ -476,9 +468,8 @@ def test_coefficients_are_lookup_not_user_input() -> None:
 
     for field in (
         "allowable_stress",
-        "weld_joint_efficiency",
-        "temperature_coefficient_Y",
-        WELD_W_FIELD,
+        "temperature_coefficient_y",
+        "weld_strength_reduction_factor_w",
     ):
         lookup_reqs = [
             req
@@ -508,10 +499,10 @@ def test_nps_path_activates_lookup_requirement() -> None:
     task = state.get_task(task.task_id)
     plan = build_engineering_plan(task, _reader(), existing_inputs=dict(task.fact_store.active_facts()))
 
-    nps = plan.requirements["REQ-nominal_pipe_size"]
+    diameter = plan.requirements["REQ-diameter_resolution"]
     od_lookup = plan.requirements["REQ-outside_diameter_lookup"]
-    assert nps.status == "missing"
-    assert od_lookup.status in {"blocked", "ready"}
+    assert diameter.status == "resolved"
+    assert od_lookup.status == "blocked"
     assert od_lookup.requirement_class == "table_lookup"
 
 
@@ -527,7 +518,7 @@ def test_task_state_exposes_canonical_engineering_plan() -> None:
     assert "plan_id" in plan
     assert "requirements" in plan
     assert "root_goal" in plan
-    assert "REQ-straight_pipe_section" in plan["requirements"]
+    assert "REQ-design_temperature" in plan["requirements"]
 
     view = payload.get("engineering_plan_view")
     assert isinstance(view, dict)

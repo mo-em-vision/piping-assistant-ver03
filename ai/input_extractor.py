@@ -6,7 +6,6 @@ import re
 from dataclasses import dataclass, field
 from typing import Sequence
 
-from ai.interaction_specs import default_pipe_wall_thickness_decision_interactions
 from ai.user_response_extractor import (
     extract_confirmation_intent,
     extract_interaction_responses,
@@ -92,7 +91,7 @@ class ExtractionResult:
     rejected: list[InputRejection] = field(default_factory=list)
 
 
-def extract_pipe_wall_thickness_inputs(
+def extract_engineering_inputs(
     message: str,
     *,
     task_id: str = "",

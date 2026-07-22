@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from api.serializers import task_state
-from api.workflow_timeline import pipe_wall_input_step_done, workflow_input_step_done
+from api.workflow_timeline import workflow_input_step_done
 from api.workflow_bootstrap import refresh_task_planning
 from engine.navigation.submittable_projection import submittable_parameter_ids
 from engine.planner.goal_navigation import build_current_ask
@@ -28,7 +28,6 @@ def test_timeline_done_requires_fact_or_plan_resolution(project_root: Path) -> N
 
     task.outputs["allowable_stress"] = 193_000_000.0
     task.outputs["S"] = 193_000_000.0
-    assert not pipe_wall_input_step_done(task, "allowable_stress", all_missing)
     assert not workflow_input_step_done(task, "allowable_stress", all_missing)
 
     set_fact_from_input(
@@ -40,7 +39,7 @@ def test_timeline_done_requires_fact_or_plan_resolution(project_root: Path) -> N
     planning = planning_projection(task)
     all_missing = set(planning.get("missing_inputs") or [])
 
-    assert pipe_wall_input_step_done(task, "allowable_stress", all_missing)
+    assert workflow_input_step_done(task, "allowable_stress", all_missing)
 
 
 def test_step_progress_cannot_change_navigation_state(project_root: Path) -> None:

@@ -1,35 +1,118 @@
 # Protected files registry
 
-**Owner approval required before any edit to files listed or matched here.**
+**Path authority:** [config/restricted_paths.yaml](../../config/restricted_paths.yaml) — machine-readable manifest of protected paths and categories. Hooks and enforcement scripts read **only** that file.
 
-Cursor agents must read this registry at the start of each session (via [`.cursor/rules/protected-documentation.mdc`](../../.cursor/rules/protected-documentation.mdc)) and treat matched paths as **non-editable without explicit user approval**.
+This document explains **why** paths are protected, **authorization rules**, **editing workflow**, and **ownership**. It does not enumerate paths mechanically.
 
-## Protected glob patterns
+Cursor agents must read this registry at session start (via [`.cursor/rules/protected-documentation.mdc`](../../.cursor/rules/protected-documentation.mdc)).
 
-| Pattern | Purpose |
+---
+
+## Categories
+
+Each protected path has exactly one category in the manifest.
+
+| Category | Implementation mode | Documentation-edit mode |
+| --- | --- | --- |
+| `constitutional` | Always blocked | Allowed only if listed; diff approval required |
+| `contract` | Always blocked | Allowed only if listed; diff approval required |
+| `agent_rule` | Always blocked | Allowed only if listed; diff approval required |
+| `architecture_authoritative` | Always blocked | Allowed only if listed; diff approval required |
+| `architecture_explanatory` | Allowed only under explanatory-sync exception | Allowed if listed |
+| `explanatory` | Allowed only under explanatory-sync exception | Allowed if listed |
+| `generated` | Always blocked (no manual editing) | Always blocked even if listed |
+
+**Authoritative** (always blocked in implementation mode): `constitutional`, `contract`, `agent_rule`, `architecture_authoritative`.
+
+**Explanatory-sync** (may change during implementation only under the exception below): `explanatory`, `architecture_explanatory`.
+
+---
+
+## Task modes
+
+### Normal implementation mode (default)
+
+No `Mode:` declaration in the user request.
+
+| Edit target | Behavior |
 | --- | --- |
-| `docs/**` | Architecture, process, templates, desktopApp specs, tests docs |
-| `docs/protected-files/**` | This registry and protected-files policy (includes this file) |
-| `.cursor/rules/**` | Cursor agent rules (`.mdc` policy files); includes `agent-rules.mdc`, plan-review gate, graph-expansion, and other always-on or requestable rules |
-| `audits/**` | Standalone audit / review notes at repository root |
-| `knowledge/standards/**` | Engineering standards knowledge packs: paragraph/equation/table/lookup nodes, pack metadata, section indexes, and compiled SQLite caches under each standard |
+| Unprotected code, tests, config | Allowed |
+| Authoritative categories (see above) | Block — report `RESTRICTED DOCUMENTATION PHASE REQUIRED — IMPLEMENTATION BLOCKED` with exact path and category |
+| `explanatory`, `architecture_explanatory` | Allowed only under explanatory-sync exception |
+| `generated` | Always block — `GENERATED FILE — MANUAL EDIT BLOCKED` |
 
-`docs/audit/**` is included under `docs/**`.
+### Documentation-edit mode
 
-## Edit policy
+Declare in the **latest user message**:
 
-1. **Do not edit** any matched file unless the user **explicitly** asks to change that file (or a specific section) in the current conversation.
-2. **Propose first** — if a change seems necessary, describe it and wait for approval before editing.
-3. **User-requested edits** are allowed when the user names the file or clearly requests updates to protected content.
-4. **Do not** fix typos, reformat, or sync protected files opportunistically while implementing unrelated code.
-5. **Disclosure before any protected edit** — when proposing or performing an approved edit, state explicitly:
-   - **Which file(s)** will change (full repo-relative paths)
-   - **What** will change (sections, fields, or behavior affected)
-   - **Why** the edit is needed (user request, standards correction, registry maintenance, etc.)
+```text
+Mode: documentation-edit
+
+Allowed files:
+- docs/rules.md
+- docs/protected-files/registry.md
+```
+
+| Rule | Behavior |
+| --- | --- |
+| Scope | Edit **only** listed paths that exist in the manifest |
+| Code and tests | Read-only — mixed doc + code changes are blocked |
+| Authoritative categories | Present proposed diff before applying |
+| Explanatory categories | Direct edit when the request clearly defines the change |
+| Unlisted protected paths | Block |
+| `generated` | Block even if listed |
+
+Structured fields (no free-form “requested change” parsing):
+
+- `Mode: documentation-edit`
+- `Allowed files:` — bullet list of repo-relative paths
+- `Implementation impact report:` — same format; required in implementation mode when syncing explanatory docs
+
+---
+
+## Explanatory-sync exception (implementation mode only)
+
+Applies to `explanatory` and `architecture_explanatory`. **All** conditions must be true; otherwise require documentation-edit mode.
+
+| # | Condition |
+| --- | --- |
+| 1 | Describes behavior **already present** in the approved plan and authoritative documentation |
+| 2 | Adds **no new requirement** |
+| 3 | Changes **no responsibility boundary** |
+| 4 | Changes **no schema, contract, state, or source of truth** |
+| 5 | Does **not** use normative language (`must`, `shall`, `required`, `forbidden`) except when **directly quoting** an authoritative source |
+| 6 | The changed file is listed in the **Implementation impact report** |
+
+**Mechanically enforced** (hooks): #5 (normative language in added diff lines), #6 (path in impact report list).
+
+**Agent policy** (owner review): #1–4.
+
+Example implementation-mode header:
+
+```text
+Implementation impact report:
+- docs/audit/MAINTENANCE.md
+```
+
+---
+
+## Denial messages
+
+| Situation | Message |
+| --- | --- |
+| Authoritative edit without documentation-edit mode | `RESTRICTED DOCUMENTATION PHASE REQUIRED — IMPLEMENTATION BLOCKED` |
+| Protected path outside allowed list | `RESTRICTED-FILE EDIT NOT AUTHORIZED` |
+| Doc mode needs another protected file | `ADDITIONAL RESTRICTED FILE REQUIRES AUTHORIZATION` |
+| Code + authoritative doc in same turn | `MIXED RESTRICTED-FILE AND IMPLEMENTATION TASK — BLOCKED` |
+| `generated` path touched | `GENERATED FILE — MANUAL EDIT BLOCKED` |
+| Explanatory sync without impact report entry | `EXPLANATORY SYNC VIOLATION — NOT IN IMPACT REPORT` |
+| Explanatory sync adds normative language | `EXPLANATORY SYNC VIOLATION — NORMATIVE LANGUAGE` |
+
+Each denial must name affected paths, categories, and the required mode or decision.
+
+---
 
 ## Required reading (before significant work)
-
-Read the relevant sections — not necessarily every file on every turn:
 
 | When | Read first |
 | --- | --- |
@@ -37,168 +120,27 @@ Read the relevant sections — not necessarily every file on every turn:
 | Feature planning | [`docs/process/plan_review_gate.md`](../process/plan_review_gate.md), [`docs/core/3. component_responsibilities.md`](../core/3.%20component_responsibilities.md) |
 | Desktop / API work | Matching files under [`docs/desktopApp/`](../desktopApp/) |
 | Node / workflow authoring | [`audits/contracts/nodes/`](../audits/contracts/nodes/00-START-HERE.md) and [`audits/contracts/runtime/`](../audits/contracts/runtime/) |
-| Standards pack / node content | Relevant files under `knowledge/standards/` (read-only unless user approves edits) |
+| Standards pack / node content | Relevant files under `knowledge/standards/` |
 | Audit or “what exists today” questions | [`docs/audit/INDEX.md`](../audit/INDEX.md) |
 
 Do not use protected files as a substitute for reading implementation code; use both.
 
 ---
 
-## `.cursor/rules/` (glob — do not enumerate as permission to edit unlisted files)
+## Ownership
 
-All files under `.cursor/rules/**` are protected, including but not limited to:
-
-- `.cursor/rules/agent-rules.mdc` — points agents to `docs/rules.md`
-- `.cursor/rules/protected-documentation.mdc` — this registry's enforcement rule
-- `.cursor/rules/plan-review-gate.mdc`, `.cursor/rules/feature-planning.mdc`
-- `.cursor/rules/graph-expansion.mdc`, `.cursor/rules/paragraph-subsection-naming.mdc`, and other specialized `.mdc` rules
-
-Changes require **explicit user approval** in the current task (same edit policy as `docs/**`). Do not edit Cursor rules opportunistically while implementing unrelated code.
+| Category | Owner approval for changes |
+| --- | --- |
+| `constitutional`, `agent_rule` | Project owner |
+| `contract`, `architecture_authoritative` | Project owner + architecture review when behavior changes |
+| `explanatory`, `architecture_explanatory` | Implementation sync under exception; otherwise documentation-edit mode |
+| `generated` | Rebuild via scripts — never hand-edit |
 
 ---
 
-## `knowledge/standards/` (glob — do not enumerate as permission to edit unlisted files)
+## Maintaining protected paths
 
-All files under `knowledge/standards/**` are protected, including but not limited to:
-
-- `knowledge/standards/README.md`
-- `knowledge/standards/workflows.db`, `standards_config.db`
-- `knowledge/standards/asme/**` (ASME B31.3, B36.10 packs, nodes, `*.db` caches)
-- `knowledge/standards/astm/**` (ASTM packs, nodes, `*.db` caches)
-
-Prefer `python scripts/build_graph_db.py` and related build scripts over hand-editing compiled `*_graph.db` files unless the user explicitly approves.
-
----
-
-## `docs/` — root files
-
-- `docs/Feature creation prompt template.md`
-- `docs/developer_inspection_framework.md`
-- `docs/rules.md`
-
-## `docs/architecture/`
-
-- `docs/architecture/Constitution.md`
-- `docs/architecture/ontology architecture.md`
-
-## `docs/audit/`
-
-- `docs/audit/ARCHITECTURE_AUDIT.md`
-- `docs/audit/DUPLICATES.md`
-- `docs/audit/EXECUTION_TRACES.md`
-- `docs/audit/INDEX.md`
-- `docs/audit/MAINTENANCE.md`
-- `docs/audit/PROGRESS.md`
-
-## `docs/core/`
-
-- `docs/core/README.md`
-- `docs/core/1. Architecture.md`
-- `docs/core/3. component_responsibilities.md`
-- `docs/core/5. workflow_design.md`
-- `docs/core/6. ai_agent_design.md`
-- `docs/core/7. node_structure_design.md`
-- `docs/core/10. report_generation_design.md`
-- `docs/core/11. planner_layer_design.md`
-- `docs/core/12. Cursor Build Sequence (SAFE STEP-BY-STEP PLAN).md`
-- `docs/core/13. execution_layer_design.md`
-- `docs/core/14. graph_engine_design.md`
-- `docs/core/15. validation_layer.md`
-- `docs/core/16. task_outputs_authority.md`
-
-## `docs/desktopApp/`
-
-- `docs/desktopApp/00_desktop_app_vision.md`
-- `docs/desktopApp/01_technology_stack.md`
-- `docs/desktopApp/02_application_structure.md`
-- `docs/desktopApp/03_ui_design_system.md`
-- `docs/desktopApp/04_ai_interaction_design.md`
-- `docs/desktopApp/05_backend_ui_contract.md`
-- `docs/desktopApp/06_component_architecture.md`
-- `docs/desktopApp/07_frontend_data_models.md`
-- `docs/desktopApp/09_desktop_app_folder_structure.md`
-- `docs/desktopApp/10_frontend_api_integration.md`
-- `docs/desktopApp/11_frontend_testing_strategy.md`
-- `docs/desktopApp/12_frontend_deployment_and_distribution.md`
-- `docs/desktopApp/13_frontend_development_workflow_with_cursor.md`
-- `docs/desktopApp/14_desktop_app_implementation_roadmap.md`
-- `docs/desktopApp/center_panel_output_contract.md`
-
-## `audits/contracts/nodes/` (YAML authoring contracts)
-
-Human-readable node authoring source. **Enforcement authority:** `engine/validation/*_node_validator.py` and ontology tests — not the Markdown contracts.
-
-- `audits/contracts/nodes/00-START-HERE.md`
-- `audits/contracts/nodes/01-shared-node-contract.md`
-- `audits/contracts/nodes/paragraph.md`
-- `audits/contracts/nodes/parameter.md`
-- `audits/contracts/nodes/equation.md`
-- `audits/contracts/nodes/lookup.md`
-- `audits/contracts/nodes/validation-rule.md`
-- `audits/contracts/nodes/workflow.md`
-- `audits/contracts/nodes/table.md`
-- `audits/contracts/nodes/unit.md`
-- `audits/contracts/nodes/dimension.md`
-- `audits/contracts/nodes/concept.md`
-- `audits/contracts/nodes/authority.md`
-- `audits/contracts/nodes/text.md`
-- `audits/contracts/nodes/quantity.md`
-- `audits/contracts/nodes/designation.md`
-- `audits/contracts/nodes/sidecars/paragraph-execution.md`
-- `audits/contracts/nodes/sidecars/paragraph-nomenclature.md`
-- `audits/contracts/nodes/sidecars/equation-execution.md`
-- `audits/contracts/nodes/sidecars/pack-metadata.md`
-
-## `audits/contracts/runtime/` (runtime model reference — not YAML authoring)
-
-- `audits/contracts/runtime/fact.md`
-- `audits/contracts/runtime/goal.md`
-- `audits/contracts/runtime/execution-context.md`
-- `audits/contracts/runtime/authority-context.md`
-
-## `audits/reports/nodes/`
-
-- `audits/reports/nodes/current-node-yaml-audit.md` (generated by `scripts/audit_current_node_yaml.py`)
-
-## `docs/process/`
-
-- `docs/process/plan_review_gate.md`
-- `docs/process/architecture_audit_mode.md`
-
-## `docs/protected-files/`
-
-- `docs/protected-files/README.md`
-- `docs/protected-files/registry.md`
-
-## `docs/workflows/`
-
-- `docs/workflows/pipe_wall_thickness/acceptance_contract.md`
-
-## `docs/tests/`
-
-- `docs/tests/1. end_to_end_test_cases.md`
-- `docs/tests/2. acceptance_criteria.md`
-- `docs/tests/3. mvp_test_strategy.md`
-
-## `contracts/` (repository root)
-
-Authoritative shared presentation contracts consumed by API, tests, and desktop app:
-
-- `contracts/center_panel_report_role_order.json` — generated from `models/display_role.DISPLAY_ROLE_ORDER` via `scripts/generate_center_panel_role_order.py`
-
-## `audits/contracts/` (repository root)
-
-Standalone audit / review contracts at repository root (`audits/**` glob):
-
-- `audits/contracts/Equation Rendering.md`
-- `audits/contracts/Global Rendering Contract.md`
-- `audits/contracts/Graph Engine Behavior.md`
-- `audits/contracts/Workflow Rendered Text and Block Output.md`
-
----
-
-## Maintaining this registry
-
-When new files are added under protected globs, update this registry **only after user approval** to edit protected files.
-
-When adding a new top-level protected glob, update both this file and [`.cursor/rules/protected-documentation.mdc`](../../.cursor/rules/protected-documentation.mdc).
+1. Add or reclassify paths in [config/restricted_paths.yaml](../../config/restricted_paths.yaml) only.
+2. Update this registry when **policy or ownership** changes — not to duplicate path lists.
+3. Do not duplicate path lists in `.cursor/rules/` or other agent rules.
+4. Prefer `python scripts/build_graph_db.py` and related build scripts over editing `generated` artifacts.

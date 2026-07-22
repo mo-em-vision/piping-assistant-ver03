@@ -30,14 +30,17 @@ def test_resolve_wall_thickness_variables_for_304_1_2(
 
     assert by_symbol["P"] == "Internal design gage pressure"
     assert by_symbol["P"] != "P"
-    assert by_symbol["D"] == "Outside diameter of pipe"
-    assert by_symbol["S"] == "Stress value from Table A-1"
+    assert by_symbol["D"] == (
+        "outside diameter of pipe as listed in tables of standards or specifications or as measured"
+    )
+    assert "allowable stress" in by_symbol["S"].lower()
+    assert "table a-1" in by_symbol["S"].lower()
     assert len(variables) >= 6
 
     nomenclature_reference = resolved["nomenclature_reference"]
     assert nomenclature_reference is not None
-    assert nomenclature_reference["node_id"] in {"304.1.1-b", "B313-304.1.1"}
-    assert nomenclature_reference["label"] == "§304.1.1-b"
+    assert nomenclature_reference["node_id"] == "304.1.2-a"
+    assert nomenclature_reference["label"] == "§304.1.2-a"
 
 
 def test_resolve_equation_node_from_paragraph_references_equation(
@@ -47,4 +50,4 @@ def test_resolve_equation_node_from_paragraph_references_equation(
     assert resolved == "asme-b313-304-1-2-eq-3a"
 
     context = load_equation_context(standards_reader, "304.1.2-a", task_facts={})
-    assert context["display"] == "t = PD / 2(SEW + PY)"
+    assert context["display"] == "t = PD / 2(S E_j W + PY)"

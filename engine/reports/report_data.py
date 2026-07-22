@@ -6,10 +6,19 @@ from datetime import datetime, timezone
 from typing import Any
 
 from api.output_blocks import build_display_outputs
+from engine.graph.graph_engine import GraphEngine, normalize_root_id
+from engine.navigation.task_missing_inputs import missing_inputs_for_task, resolve_task_workflow_id
+from engine.navigation.timeline_completion import _GOAL_OUTPUT_KEYS
+from engine.planner.workflow_goal_metadata import (
+    resolve_root_goal_spec,
+    workflow_display_title_from_node,
+    workflow_report_documentation,
+    workflow_title_for_goal,
+)
 from engine.reports.number_format import format_report_number
 from engine.reference.standards_reader import StandardsReader
 from engine.reports.block_renderer import blocks_to_display_sections, human_input_label
-from engine.reports.template_registry import PIPE_WALL_THICKNESS_WORKFLOW, resolve_template_name
+from engine.reports.template_registry import resolve_template_name
 from engine.state.state_manager import TaskStateManager
 from engine.state.task_facts import active_facts
 from models.fact import Fact, fact_scalar_value, fact_unit
@@ -26,10 +35,15 @@ from models.report import (
 )
 from models.task import Task, TaskStatus
 
-ROOT_SLUG = "pipe_wall_thickness_design"
-WALL_THICKNESS_NODE = "304.1.2-a"
-
-REQUIRED_INPUTS = ("internal_design_gage_pressure", "outside_diameter", "material", "design_temperature")
+_GOAL_CONCLUSION_FIELDS = {
+    "minimum_required_thickness": (
+        ("t_m", "minimum_required_thickness"),
+        ("required_thickness", "t"),
+    ),
+    "maximum_allowable_working_pressure": (
+        ("mawp", "MAWP"),
+    ),
+}
 
 
 def build_report_from_task(
@@ -38,9 +52,7 @@ def build_report_from_task(
     *,
     user_request: str = "",
 ) -> ReportData:
-    if _task_is_wall_thickness(task):
-        return _build_pipe_wall_thickness_report(task, reader, user_request=user_request)
-    return _build_generic_report(task, reader, user_request=user_request)
+    return _build_workflow_report(task, reader, user_request=user_request)
 
 
 def build_report_for_task_id(
@@ -54,102 +66,97 @@ def build_report_for_task_id(
     return build_report_from_task(task, reader, user_request=user_request)
 
 
-def _task_is_wall_thickness(task: Task) -> bool:
-    if task.outputs.get("workflow") == PIPE_WALL_THICKNESS_WORKFLOW:
-        return True
-    normalized = task.task_id.replace("-", "_")
-    return PIPE_WALL_THICKNESS_WORKFLOW in normalized
+def _resolve_workflow_id(task: Task) -> str:
+    return resolve_task_workflow_id(task)
 
 
-def _build_pipe_wall_thickness_report(
+def _missing_inputs_for_report(
+    task: Task,
+    reader: StandardsReader,
+    workflow_id: str,
+) -> list[str]:
+    if workflow_id:
+        return missing_inputs_for_task(task, reader=reader)
+    return []
+
+
+def _build_workflow_report(
     task: Task,
     reader: StandardsReader,
     *,
     user_request: str,
 ) -> ReportData:
-    root = reader.load(ROOT_SLUG)
-    node = reader.load(WALL_THICKNESS_NODE)
-    missing = [key for key in REQUIRED_INPUTS if key not in active_facts(task)]
-    status = _derive_status(task, missing)
+    workflow_id = _resolve_workflow_id(task)
+    goal_spec = (
+        resolve_root_goal_spec(reader, workflow_id)
+        if workflow_id
+        else None
+    )
+    missing = _missing_inputs_for_report(task, reader, workflow_id)
+    status = _derive_status(task, missing, goal_spec.target_field if goal_spec else "")
 
-    traversal = _flatten_traversal(reader, ROOT_SLUG)
-    input_entries = [_input_entry(key, fact) for key, fact in active_facts(task).items()]
-    formula_display = _load_formula_display(reader, WALL_THICKNESS_NODE)
     display_blocks = build_display_outputs(task, reader=reader, standards_root=reader.standards_root)
     display_sections = blocks_to_display_sections(display_blocks)
+    input_entries = [_input_entry(key, fact) for key, fact in active_facts(task).items()]
 
-    section = ReportSection(
-        node=node.node_id,
-        paragraph=str(node.metadata.get("paragraph", "")),
-        source_text=_extract_paragraph_excerpt(node.body),
-        formula=formula_display,
-        inputs={key: fact_scalar_value(fact) for key, fact in active_facts(task).items()},
-        outputs=_execution_outputs(task),
-    )
-
-    trace = TraceabilityEntry(
-        node=node.node_id,
-        paragraph=str(node.metadata.get("paragraph", "")),
-        source_text=_extract_paragraph_excerpt(node.body),
-        formula=formula_display,
-        inputs=section.inputs,
-        outputs=section.outputs,
-    )
-
+    traversal: list[ReportTraversalStep] = []
     if task.outputs.get("_execution_trace"):
         traversal = _traversal_from_trace(task.outputs["_execution_trace"], reader)
+    elif workflow_id:
+        traversal = _flatten_traversal(reader, normalize_root_id(workflow_id))
 
-    thin_wall = node.metadata.get("conditions", [])
-    decisions: list[ReportDecision] = []
-    if thin_wall and isinstance(thin_wall, list) and thin_wall:
-        first = thin_wall[0]
-        if isinstance(first, dict):
-            decisions.append(
-                ReportDecision(
-                    node=node.node_id,
-                    reason="Thin-wall applicability must be evaluated before final thickness selection.",
-                    condition=str(first.get("expression", "")),
-                    result="pending" if missing else "recorded at execution",
-                )
-            )
-
-    limitations = [
-        str(item.get("condition", item))
-        for item in (node.metadata.get("limitations") or [])
-        if isinstance(item, dict)
-    ]
+    sections, traceability, formula_display, decisions, limitations = _build_report_sections(
+        task,
+        reader,
+        formula_fallback_node_ids=_equation_node_ids_for_report(task, reader, workflow_id),
+        target_field=goal_spec.target_field if goal_spec else "",
+    )
 
     now = datetime.now(timezone.utc).isoformat()
+    workflow_title = (
+        workflow_display_title_from_node(reader, workflow_id)
+        or (goal_spec.title if goal_spec else "")
+        or workflow_title_for_goal(reader, workflow_id)
+        if workflow_id
+        else "Engineering Task"
+    )
+    request_text = user_request or f"{workflow_title} calculation task"
+    documentation = workflow_report_documentation(reader, workflow_id) if workflow_id else {}
+    purpose = _report_purpose(
+        request_text=request_text,
+        workflow_id=workflow_id,
+        workflow_title=workflow_title,
+        documentation=documentation,
+    )
+    conclusion = _report_conclusion(
+        task=task,
+        status=status,
+        missing=missing,
+        target_field=goal_spec.target_field if goal_spec else "",
+    )
+
     version = ReportVersionInfo(
         report_version="2.0",
-        graph_version=PIPE_WALL_THICKNESS_WORKFLOW,
-        node_versions={
-            root.node_id: str(root.metadata.get("version", "1.0")),
-            node.node_id: str(node.metadata.get("version", "1.0")),
-        },
+        graph_version=workflow_id or "unknown",
         created_date=now,
         task_id=task.task_id,
     )
 
-    request_text = user_request or "Pipe wall thickness design / verification"
-    purpose = _pipe_wall_purpose(request_text)
-    conclusion = _pipe_wall_conclusion(status, missing, task.outputs)
-
     return ReportData(
         report_id=f"{task.task_id}-report",
-        title="Pipe Wall Thickness Design Report",
-        graph_version=PIPE_WALL_THICKNESS_WORKFLOW,
+        title=f"{workflow_title} Report" if workflow_title else "Engineering Task Report",
+        graph_version=workflow_id or "unknown",
         task_id=task.task_id,
-        workflow=PIPE_WALL_THICKNESS_WORKFLOW,
+        workflow=workflow_id,
         status=status,
         version_info=version,
         user_request=request_text,
         purpose=purpose,
-        standards=["ASME B31.3"],
+        standards=["ASME B31.3"] if workflow_id else [],
         input_entries=input_entries,
         traversal=traversal,
-        sections=[section],
-        traceability=[trace],
+        sections=sections,
+        traceability=traceability,
         decisions=decisions,
         report_warnings=_report_warnings(task),
         limitations=limitations,
@@ -157,65 +164,151 @@ def _build_pipe_wall_thickness_report(
         missing_inputs=missing,
         formula_display=formula_display,
         display_sections=display_sections,
-        template_name=resolve_template_name(PIPE_WALL_THICKNESS_WORKFLOW),
+        template_name=resolve_template_name(workflow_id),
         conclusion=conclusion,
     )
 
 
-def _build_generic_report(
+def _equation_node_ids_for_report(
+    task: Task,
+    reader: StandardsReader,
+    workflow_id: str,
+) -> list[str]:
+    if task.outputs.get("_execution_trace"):
+        node_ids: list[str] = []
+        for entry in task.outputs["_execution_trace"]:
+            if isinstance(entry, dict):
+                node_id = str(entry.get("node_id", "")).strip()
+                if node_id:
+                    node_ids.append(node_id)
+        if node_ids:
+            return node_ids
+    if not workflow_id:
+        return []
+    graph = GraphEngine()
+    slug = normalize_root_id(workflow_id)
+    preview = graph.build_plan(
+        task_id=task.task_id,
+        root_id=slug,
+        inputs=dict(task.fact_store.active_facts()),
+        reader=reader,
+    )
+    return [
+        node_id
+        for node_id in preview.execution_order
+        if reader.graph_store.node_type(node_id) in {"equation", "calculation", "paragraph"}
+    ]
+
+
+def _build_report_sections(
     task: Task,
     reader: StandardsReader,
     *,
-    user_request: str,
-) -> ReportData:
-    workflow = str(task.outputs.get("workflow") or "")
-    display_blocks = build_display_outputs(task, reader=reader, standards_root=reader.standards_root)
-    display_sections = blocks_to_display_sections(display_blocks)
-    now = datetime.now(timezone.utc).isoformat()
-    request_text = user_request or "Engineering calculation task"
-    return ReportData(
-        report_id=f"{task.task_id}-report",
-        title="Engineering Task Report",
-        graph_version=workflow or "unknown",
-        task_id=task.task_id,
-        workflow=workflow,
-        status=task.status.value.upper(),
-        version_info=ReportVersionInfo(
-            created_date=now,
-            task_id=task.task_id,
-        ),
-        user_request=request_text,
-        purpose=_generic_purpose(request_text, workflow),
-        report_warnings=_report_warnings(task),
-        overrides=_report_overrides(task),
-        display_sections=display_sections,
-        template_name=resolve_template_name(workflow),
-        conclusion=_generic_conclusion(task),
-    )
+    formula_fallback_node_ids: list[str],
+    target_field: str = "",
+) -> tuple[
+    list[ReportSection],
+    list[TraceabilityEntry],
+    str | None,
+    list[ReportDecision],
+    list[str],
+]:
+    sections: list[ReportSection] = []
+    traceability: list[TraceabilityEntry] = []
+    formula_display: str | None = None
+    decisions: list[ReportDecision] = []
+    limitations: list[str] = []
+
+    primary_section: ReportSection | None = None
+    primary_trace: TraceabilityEntry | None = None
+
+    for node_id in formula_fallback_node_ids:
+        try:
+            node = reader.load(node_id)
+        except FileNotFoundError:
+            continue
+        node_type = reader.graph_store.node_type(node_id) or ""
+        if node_type not in {"equation", "calculation", "paragraph"}:
+            continue
+        display = _load_formula_display(reader, node_id)
+        if formula_display is None and display:
+            formula_display = display
+        inputs = {key: fact_scalar_value(fact) for key, fact in active_facts(task).items()}
+        outputs = _execution_outputs(task, target_field=target_field)
+        section = ReportSection(
+            node=node.node_id,
+            paragraph=str(node.metadata.get("paragraph", "")),
+            source_text=_extract_paragraph_excerpt(node.body),
+            formula=display,
+            inputs=inputs,
+            outputs=outputs,
+        )
+        trace = TraceabilityEntry(
+            node=node.node_id,
+            paragraph=str(node.metadata.get("paragraph", "")),
+            source_text=_extract_paragraph_excerpt(node.body),
+            formula=display,
+            inputs=inputs,
+            outputs=outputs,
+        )
+        if primary_section is None:
+            primary_section = section
+            primary_trace = trace
+        conditions = node.metadata.get("conditions", [])
+        if isinstance(conditions, list) and conditions:
+            first = conditions[0]
+            if isinstance(first, dict):
+                decisions.append(
+                    ReportDecision(
+                        node=node.node_id,
+                        reason="Applicability must be evaluated before final result selection.",
+                        condition=str(first.get("expression", "")),
+                        result="recorded at execution" if task.status == TaskStatus.COMPLETED else "pending",
+                    )
+                )
+        limitations.extend(
+            str(item.get("condition", item))
+            for item in (node.metadata.get("limitations") or [])
+            if isinstance(item, dict)
+        )
+        if formula_display is not None and primary_section is not None:
+            break
+
+    if primary_section is not None and primary_trace is not None:
+        sections.append(primary_section)
+        traceability.append(primary_trace)
+
+    return sections, traceability, formula_display, decisions, limitations
 
 
-def _pipe_wall_purpose(user_request: str) -> str:
+def _report_purpose(
+    *,
+    request_text: str,
+    workflow_id: str,
+    workflow_title: str,
+    documentation: dict[str, str],
+) -> str:
+    summary = documentation.get("summary") or documentation.get("report_summary")
+    if summary:
+        return f"{summary} Design intent: {request_text}."
+    workflow_label = workflow_title or workflow_id.replace("_", " ") if workflow_id else "engineering"
     return (
-        "This report documents the pressure design evaluation for straight pipe under internal "
-        "pressure in accordance with ASME B31.3 §304.1.2. It presents the design basis, governing "
-        "equation, substituted calculation, applicability checks, and minimum required wall thickness "
-        f"for the stated design intent: {user_request}."
-    )
-
-
-def _generic_purpose(user_request: str, workflow: str) -> str:
-    workflow_label = workflow.replace("_", " ") if workflow else "engineering"
-    return (
-        f"This report summarizes the {workflow_label} task performed for: {user_request}. "
+        f"This report summarizes the {workflow_label} task performed for: {request_text}. "
         "It records the design basis, engineering analysis, results, and any warnings relevant "
         "to engineering review."
     )
 
 
-def _pipe_wall_conclusion(status: str, missing: list[str], outputs: dict[str, Any]) -> str:
+def _report_conclusion(
+    *,
+    task: Task,
+    status: str,
+    missing: list[str],
+    target_field: str,
+) -> str:
     if missing:
         return (
-            "The wall thickness design cannot be finalized. Required design inputs are still "
+            "The engineering calculation cannot be finalized. Required design inputs are still "
             f"missing: {', '.join(human_input_label(key) for key in missing)}. "
             "Provide the remaining values and re-run the calculation before issuing this report "
             "for engineering sign-off."
@@ -226,28 +319,51 @@ def _pipe_wall_conclusion(status: str, missing: list[str], outputs: dict[str, An
             "Review the warnings and technical appendix, then re-execute the workflow before "
             "relying on the results."
         )
-    t_m = outputs.get("t_m") or outputs.get("minimum_required_thickness")
-    required = outputs.get("required_thickness") or outputs.get("t")
-    if t_m is not None:
-        unit = str(outputs.get("t_m_unit") or outputs.get("minimum_required_thickness_unit") or "mm")
-        thickness = format_report_number(t_m)
-        return (
-            f"The minimum required pipe wall thickness is {thickness} {unit}. The selected pipe schedule "
-            "must provide a nominal wall thickness not less than this value per ASME B31.3 §304.1.1-a. "
-            "Refer to the engineering analysis section for the governing equation, substituted "
-            "calculation, and schedule recommendation."
-        )
-    if required is not None:
+
+    output_keys = _GOAL_OUTPUT_KEYS.get(target_field, (target_field,)) if target_field else ()
+    for key_group in _GOAL_CONCLUSION_FIELDS.get(target_field, ()):
+        if isinstance(key_group, str):
+            key_group = (key_group,)
+        for key in key_group:
+            if task.outputs.get(key) is not None:
+                return _goal_value_conclusion(target_field, key, task.outputs)
+
+    for key in output_keys:
+        if task.outputs.get(key) is not None:
+            return _goal_value_conclusion(target_field, key, task.outputs)
+
+    return _generic_conclusion(task)
+
+
+def _goal_value_conclusion(target_field: str, output_key: str, outputs: dict[str, Any]) -> str:
+    value = outputs.get(output_key)
+    if target_field == "minimum_required_thickness":
+        if output_key in {"t_m", "minimum_required_thickness"}:
+            unit = str(outputs.get("t_m_unit") or outputs.get("minimum_required_thickness_unit") or "mm")
+            thickness = format_report_number(value)
+            return (
+                f"The minimum required pipe wall thickness is {thickness} {unit}. The selected pipe schedule "
+                "must provide a nominal wall thickness not less than this value per ASME B31.3 §304.1.1-a. "
+                "Refer to the engineering analysis section for the governing equation, substituted "
+                "calculation, and schedule recommendation."
+            )
         unit = str(outputs.get("required_thickness_unit") or outputs.get("t_unit") or "mm")
-        thickness = format_report_number(required)
+        thickness = format_report_number(value)
         return (
             f"The required wall thickness t is {thickness} {unit} per ASME B31.3 §304.1.2. "
             "Minimum required thickness including corrosion allowance should be confirmed before "
             "final pipe selection."
         )
+    if target_field == "maximum_allowable_working_pressure":
+        unit = str(outputs.get("mawp_unit") or outputs.get("MAWP_unit") or "Pa")
+        pressure = format_report_number(value)
+        return (
+            f"The maximum allowable working pressure (MAWP) is {pressure} {unit} per ASME B31.3 §304.1.2. "
+            "Review the engineering analysis section for the governing equation and substituted calculation."
+        )
     return (
-        "Design inputs have been recorded. Complete the calculation workflow to obtain required "
-        "thickness and minimum required thickness values for final engineering review."
+        f"The calculated {output_key.replace('_', ' ')} is {format_report_number(value)}. "
+        "Review the engineering analysis section for supporting calculations."
     )
 
 
@@ -261,16 +377,21 @@ def _generic_conclusion(task: Task) -> str:
     return "The task is in progress. This report reflects the current recorded state."
 
 
-def _execution_outputs(task: Task) -> dict[str, Any]:
-    outputs: dict[str, Any] = {}
-    for key in (
+def _execution_outputs(task: Task, *, target_field: str = "") -> dict[str, Any]:
+    keys: set[str] = {
         "required_thickness",
         "t",
         "minimum_required_thickness",
         "t_m",
         "allowable_stress",
         "S",
-    ):
+        "mawp",
+        "MAWP",
+    }
+    if target_field:
+        keys.update(_GOAL_OUTPUT_KEYS.get(target_field, (target_field,)))
+    outputs: dict[str, Any] = {}
+    for key in keys:
         if key in task.outputs:
             outputs[key] = task.outputs[key]
     return outputs
@@ -321,7 +442,7 @@ def _human_traversal_title(
     return "Executed"
 
 
-def _derive_status(task: Task, missing: list[str]) -> str:
+def _derive_status(task: Task, missing: list[str], target_field: str) -> str:
     plan_status = _validation_plan_status(task)
     if plan_status == "FAIL":
         return "INVALIDATED"
@@ -331,7 +452,8 @@ def _derive_status(task: Task, missing: list[str]) -> str:
         return "INVALIDATED"
     if missing:
         return "INCOMPLETE"
-    if task.outputs.get("required_thickness") or task.outputs.get("t"):
+    output_keys = _GOAL_OUTPUT_KEYS.get(target_field, ()) if target_field else ()
+    if any(task.outputs.get(key) is not None for key in output_keys):
         return "PASS"
     if task.status == TaskStatus.COMPLETED:
         return "PASS"
@@ -409,7 +531,10 @@ def _input_entry(input_id: str, fact: Fact) -> ReportInputEntry:
 
 
 def _flatten_traversal(reader: StandardsReader, root_id: str) -> list[ReportTraversalStep]:
-    tree = reader.dependency_tree(root_id)
+    try:
+        tree = reader.dependency_tree(root_id)
+    except FileNotFoundError:
+        return []
     steps: list[ReportTraversalStep] = []
 
     def walk(node: dict[str, Any]) -> None:
@@ -428,7 +553,10 @@ def _flatten_traversal(reader: StandardsReader, root_id: str) -> list[ReportTrav
 
 
 def _load_formula_display(reader: StandardsReader, node_id: str) -> str | None:
-    node = reader.load(node_id)
+    try:
+        node = reader.load(node_id)
+    except FileNotFoundError:
+        return None
     equations = node.metadata.get("equations", []) or node.metadata.get("formulas", []) or []
     for equation in equations:
         if isinstance(equation, dict) and equation.get("file"):
@@ -439,7 +567,10 @@ def _load_formula_display(reader: StandardsReader, node_id: str) -> str | None:
                     for line in text.splitlines():
                         if line.strip().startswith("display:"):
                             return line.split("display:", 1)[1].strip().strip('"')
-    return "t = PD / 2(SEW + PY)"
+    display = node.metadata.get("display")
+    if display:
+        return str(display)
+    return None
 
 
 def _extract_paragraph_excerpt(body: str, limit: int = 400) -> str:

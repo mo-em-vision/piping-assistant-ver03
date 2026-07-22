@@ -59,5 +59,4 @@ steps:
     assign: t_m
 executor: calculate_minimum_required_thickness
 equation_id: eq-2
-nomenclature_ref: 304.1.1-b
 ---

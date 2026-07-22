@@ -5,10 +5,13 @@ Ver03 is a **Python engineering backend** plus an **Electron + React desktop cli
 ## Before coding
 
 1. Read and follow `docs/rules.md` (workflow, verification, debugging, node structure, **§12 planner vs messaging prompts**, **§13 graph-driven workflow paths**, **§21 Flow Guidance Layer**).
-2. For architecture overview, start at [`docs/core/README.md`](docs/core/README.md) → [`1. Architecture.md`](docs/core/1.%20Architecture.md) and [`3. component_responsibilities.md`](docs/core/3.%20component_responsibilities.md).
-3. Read the relevant doc under `docs/desktopApp/` (start with `14_desktop_app_implementation_roadmap.md`).
-4. Inspect existing code in the target area (stores, `api/`, `desktopApp/src/`).
-5. Propose a short plan for non-trivial changes (files, approach, risks) with an **Architecture Consistency Review** and **Plan Review Gate** (`docs/process/plan_review_gate.md`, `docs/rules.md` §22–§23). Cursor sets **READY_FOR_REVIEW** at most. Do not implement until consistency review is **CLEAR**, the project owner grants **APPROVED**, and you give an explicit implementation instruction.
+2. **Protected paths** — paths and categories live in [`config/restricted_paths.yaml`](config/restricted_paths.yaml); policy in [`docs/protected-files/registry.md`](docs/protected-files/registry.md). Cursor hooks in [`.cursor/hooks.json`](.cursor/hooks.json) enforce diff-based validation via [`scripts/restricted_path_check.py`](scripts/restricted_path_check.py).
+   - **Implementation mode (default):** authoritative protected files are read-only; use `Implementation impact report:` when syncing `explanatory` / `architecture_explanatory` docs.
+   - **Documentation-edit mode:** declare `Mode: documentation-edit` and `Allowed files:` in the user request before editing authoritative protected paths.
+3. For architecture overview, start at [`docs/core/README.md`](docs/core/README.md) → [`1. Architecture.md`](docs/core/1.%20Architecture.md) and [`3. component_responsibilities.md`](docs/core/3.%20component_responsibilities.md).
+4. Read the relevant doc under `docs/desktopApp/` (start with `14_desktop_app_implementation_roadmap.md`).
+5. Inspect existing code in the target area (stores, `api/`, `desktopApp/src/`).
+6. Propose a short plan for non-trivial changes (files, approach, risks) with an **Architecture Consistency Review** and **Plan Review Gate** (`docs/process/plan_review_gate.md`, `docs/rules.md` §22–§23). Cursor sets **READY_FOR_REVIEW** at most. Do not implement until consistency review is **CLEAR**, the project owner grants **APPROVED**, and you give an explicit implementation instruction.
 
 ## Architecture boundaries
 

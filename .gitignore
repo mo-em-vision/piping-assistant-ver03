@@ -58,6 +58,9 @@ credentials.json
 .cursor/*
 !.cursor/rules/
 !.cursor/rules/**
+!.cursor/hooks.json
+!.cursor/hooks/
+!.cursor/hooks/**
 
 # --- OS ---
 .DS_Store
